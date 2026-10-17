@@ -85,3 +85,29 @@ Nothing is stored.
 |---|---|
 | `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, compiled prompts, and duplicate or conflicting instructions. |
 | `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
+
+## Onboarding
+
+Importing existing agent prompts. Both ways end in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity from `sopc compare`) that the user reviews and applies as drafts.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/onboarding/capabilities` | `{llm, model, platforms}`: whether sopops can extract with its own model. |
+| `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
+| `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
+| `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff` (MCP commands, prompt, settings). |
+| `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, and the proposal. |
+| `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
+| `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
+| `POST …/imports/<id>/findings/<finding>` | `{choice}`: `keep`, or the agent whose version every agent gets. |
+| `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced). Ends the token. |
+| `POST …/imports/<id>/revoke`, `DELETE …/imports/<id>` | End the token (Finish); discard the import. |
+
+With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one workspace, 2 hours, stored hashed; `401` when unknown, expired or revoked, `403` without the scope):
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/onboarding/session` | The workspace, import, mode and repo the token is for. |
+| `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
+| `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
+| `POST /v1/onboarding/fidelity` | `{proposal, originals}`: fidelity only, nothing stored. |

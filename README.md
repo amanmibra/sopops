@@ -36,8 +36,24 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
+| `SOPOPS_MODEL_REASONING`, `SOPOPS_MODEL_FAST` | unset | Optional. LiteLLM model names for importing prompts with sopops's own model (provider keys in the usual variables, e.g. `ANTHROPIC_API_KEY`). `rules` tries it without a model. Not needed for Claude Code / Codex onboarding. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
+
+## Import your agents
+
+Already running agents? **Import agents** (on an empty workspace, or in Settings) turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule ("2 agents differ on the upsell rule"), you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish from Unpublished changes as usual.
+
+**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else), one command and a prompt to paste:
+
+```sh
+claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
+  -- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp
+```
+
+Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. See [skills/sopops-onboard](skills/sopops-onboard/SKILL.md) for the tools and Cursor setup.
+
+**Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`). ElevenLabs and Vapi keys are used to read the agents during that request and are never stored or logged.
 
 ## How it works
 
@@ -136,6 +152,7 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `POST …/releases`, `POST …/releases/<n>/activate` | Publish head; make an older release live. |
 | `POST …/publish` | Replace every file and release, for CI. |
 | `POST …/migrate` | Convert a workspace stored in an older sopc format (v0.0.8, or `locked` from v0.0.9). |
+| `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
 
@@ -163,6 +180,7 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 
 | | |
 |---|---|
+| `uv run sopops-mcp` | The onboarding MCP server (stdio), as Claude Code or Codex runs it. |
 | `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. |
 | `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
 | `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
