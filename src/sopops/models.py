@@ -98,6 +98,87 @@ class SessionRecord(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     processed_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    # The worst procedure result once checked: deviated | partial | followed | not_measurable (see pipeline.rollup)
+    result: str | None = Field(default=None, max_length=16)
+
+
+class ProcedureCheck(SQLModel, table=True):
+    """One session x one procedure the router considered: whether it applied, was excluded (the session ended before
+    the procedure started or finished), and, once checked, the rolled-up result. Rewritten whole by each run."""
+
+    __tablename__ = "procedure_checks"
+    __table_args__ = (
+        UniqueConstraint("session_id", "procedure_id", name="uq_procedure_checks_session_procedure"),
+        Index("ix_procedure_checks_workspace_procedure", "workspace_id", "procedure_id"),
+        ForeignKeyConstraint(["session_id"], ["sessions.id"], name="fk_procedure_checks_session", ondelete="CASCADE"),
+    )
+
+    id: str = Field(primary_key=True, max_length=36)
+    workspace_id: str = Field(max_length=128)
+    session_id: str = Field(max_length=36)
+    procedure_id: str = Field(max_length=256)
+    procedure_name: str | None = Field(default=None, max_length=512)
+    procedure_version: int | None = Field(default=None, description="The procedure file's version in the release it was checked against.")
+    release_id: int | None = Field(default=None, description="The release the procedure was read from.")
+    applicable: bool
+    excluded_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    route_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    result: str | None = Field(default=None, max_length=16)  # deviated | partial | followed | not_measurable; null until checked
+    goal_reached: bool | None = None
+    goal_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    steps_applicable: int | None = None
+    steps_done: int | None = None
+    nevers_violated: int | None = None
+    model: str | None = Field(default=None, max_length=256, description="The model that made the last call for this row.")
+    prompt_version: str | None = Field(default=None, max_length=64)
+    revision: str = Field(max_length=64, description="The session payload hash this row was computed from.")
+    checked_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class RuleResult(SQLModel, table=True):
+    """One session x one rule (step, never or warning sign) of a checked procedure."""
+
+    __tablename__ = "rule_results"
+    __table_args__ = (
+        UniqueConstraint("session_id", "procedure_id", "rule_id", name="uq_rule_results_session_rule"),
+        Index("ix_rule_results_procedure_rule", "workspace_id", "procedure_id", "rule_id", "session_id"),
+        ForeignKeyConstraint(["session_id"], ["sessions.id"], name="fk_rule_results_session", ondelete="CASCADE"),
+    )
+
+    id: str = Field(primary_key=True, max_length=36)
+    workspace_id: str = Field(max_length=128)
+    session_id: str = Field(max_length=36)
+    procedure_id: str = Field(max_length=256)
+    rule_id: str = Field(max_length=64, description="sopc's stable rule id (lock.json, `sopc export`).")
+    kind: str = Field(max_length=16)  # step | never | warning
+    index: int = Field(description="1-based position within its kind.")
+    rule_text: str = Field(sa_column=Column(Text, nullable=False))
+    rule_text_hash: str = Field(max_length=64)
+    status: str = Field(max_length=16)  # step: done|out_of_order|skipped|not_reached|not_applicable; never: violated|ok; warning: present|absent
+    evidence: list[dict[str, Any]] = Field(sa_column=Column(JSONDoc, nullable=False))  # [{turn, quote, source}]
+    reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+
+
+class Finding(SQLModel, table=True):
+    """A rule result that is a deviation (see `pipeline.rollup.FINDING_STATUSES`). Patterns (M3) group findings."""
+
+    __tablename__ = "findings"
+    __table_args__ = (
+        Index("ix_findings_workspace_rule", "workspace_id", "procedure_id", "rule_id"),
+        Index("ix_findings_pattern", "pattern_id"),
+        ForeignKeyConstraint(["session_id"], ["sessions.id"], name="fk_findings_session", ondelete="CASCADE"),
+        ForeignKeyConstraint(["rule_result_id"], ["rule_results.id"], name="fk_findings_rule_result", ondelete="CASCADE"),
+    )
+
+    id: str = Field(primary_key=True, max_length=36)
+    workspace_id: str = Field(max_length=128)
+    session_id: str = Field(max_length=36)
+    procedure_id: str = Field(max_length=256)
+    rule_id: str = Field(max_length=64)
+    rule_result_id: str = Field(max_length=36)
+    status: str = Field(max_length=16)
+    pattern_id: str | None = Field(default=None, max_length=36)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
 class IngestToken(SQLModel, table=True):
