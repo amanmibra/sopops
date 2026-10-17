@@ -10,6 +10,11 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.48",
     "alembic>=1.20.0",
+    "httpx>=0.28",
+    # LLM calls for onboarding (src/sopops/llm.py). The library only, never the proxy. Pinned exactly:
+    # 1.82.7 and 1.82.8 on PyPI were compromised (March 2026); upgrade deliberately, after a delay.
+    "litellm==1.105.1",
+    "mcp>=2.3,<3",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +24,7 @@ postgres = [
 
 [project.scripts]
 sopops = "sopops.cli:main"
+sopops-mcp = "sopops.mcp_server:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2"]
