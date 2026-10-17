@@ -27,6 +27,8 @@ from .schemas import (
     ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SettingsConfig, SettingsIn,
     SettingsSaved, ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile,
 )
+from .onboarding.api import router as onboarding_router
+from .onboarding.service import Onboarding
 from .sopc import Invalid, Sopc, SopcUnavailable, without_build
 from .store import Conflict, NotFound, Store
 
@@ -342,6 +344,10 @@ def create_app(store: Store) -> FastAPI:
     def list_fetches(workspace: str, agent: str | None = Query(None, description="sopc agent id."), limit: int = Query(100, ge=1, le=1000)) -> list[dict]:
         """Which release and prompt hash each agent was served, newest first."""
         return store.fetches(workspace, agent, limit)
+
+    # onboarding: import existing agent prompts (sopops.onboarding)
+    app.state.onboarding = Onboarding(store)
+    app.include_router(onboarding_router(store, app.state.onboarding), dependencies=v1)
 
     # the web UI: built assets, and index.html for every other path so the client-side router can take it
     ui = web_dir()
