@@ -134,7 +134,7 @@ class Sopc:
         except ValueError:
             raise SopcUnavailable(
                 f"`{self.binary} export` failed (exit {proc.returncode}): {proc.stderr.strip()[:500]}. "
-                "sopserve needs a sopc with `export` (after v0.0.7); set SOPC_BIN to it."
+                "sopops needs a sopc with `export` (after v0.0.7); set SOPC_BIN to it."
             ) from None
         if proc.returncode != 0:
             raise Invalid([Issue(i["code"], i["message"], i["path"], i["severity"]) for i in body.get("issues", [])])
@@ -198,7 +198,7 @@ class Sopc:
     @contextmanager
     def _written(self, files: Files) -> Iterator[tuple[Path, list[Issue]]]:
         """The files in a temp folder, or the path problems that kept them from being written."""
-        with tempfile.TemporaryDirectory(prefix="sopserve-") as tmp:
+        with tempfile.TemporaryDirectory(prefix="sopops-") as tmp:
             root = Path(tmp)
             bad = path_issues(files)
             if not bad:
@@ -222,7 +222,7 @@ class Sopc:
         except (ValueError, KeyError, TypeError):
             raise SopcUnavailable(
                 f"`{self.binary} validate --json` failed (exit {proc.returncode}): {proc.stderr.strip()[:500].rstrip(".")}. "
-                "sopserve needs a sopc release with `validate --json` (after v0.0.7); set SOPC_BIN to it."
+                "sopops needs a sopc release with `validate --json` (after v0.0.7); set SOPC_BIN to it."
             ) from None
 
     def _run(self, root: Path, *args: str, check: bool = True, merge_output: bool = False) -> subprocess.CompletedProcess:

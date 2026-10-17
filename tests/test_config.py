@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import insert
 
 from conftest import FIXTURE, WS, expected, read_files
-from sopserve.store import file_versions, releases, workspaces
+from sopops.store import file_versions, releases, workspaces
 
 CFG = f"{WS}/config"
 OLD = FIXTURE.parent / "old-format" / "sops"
@@ -183,7 +183,7 @@ def test_locked_from_sopc_v009_is_refused_then_converted(client, files):
     assert (bad["code"], bad["kind"], bad["id"]) == ("removed_field", "instruction", "brand-voice")
     assert "`locked`" in bad["text"] and "sopc migrate" in bad["text"]
 
-    # A workspace stored with it (by a sopserve that spoke sopc v0.0.9) converts like an old-format one.
+    # A workspace stored with it (by a sopops that spoke sopc v0.0.9) converts like an old-format one.
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:
         for path, content in locked.items():
@@ -483,7 +483,7 @@ def test_settings_and_new_workspace(client):
 
 
 def store_old(client, release: bool = False) -> None:
-    """Head (and optionally release 1) in the old format, as a sopserve that spoke sopc v0.0.8 saved it."""
+    """Head (and optionally release 1) in the old format, as a sopops that spoke sopc v0.0.8 saved it."""
     old = read_files(OLD)
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:

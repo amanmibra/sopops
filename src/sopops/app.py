@@ -1,7 +1,7 @@
-"""sopserve: versioned sopc workspaces over HTTP, and the prompt each agent gets at call start.
+"""sopops: versioned sopc workspaces over HTTP, and the prompt each agent gets at call start.
 
 Its OpenAPI spec (/openapi.json) is what SDKs are generated from. Set DATABASE_URL for the database
-(default sqlite:///sopserve.db) and SOPC_BIN for the sopc binary (default: `sopc` on PATH).
+(default sqlite:///sopops.db) and SOPC_BIN for the sopc binary (default: `sopc` on PATH).
 There is no authentication yet: run it on a private network.
 """
 
@@ -422,7 +422,7 @@ class DraftItem(BaseModel):
 
 def create_app(store: Store) -> FastAPI:
     app = FastAPI(
-        title="sopserve",
+        title="sopops",
         version=__version__,
         description="Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start.",
     )
@@ -453,7 +453,7 @@ def create_app(store: Store) -> FastAPI:
     def healthz() -> dict:
         return {"ok": True}
 
-    v1: list = []  # no authentication yet (v0); keep sopserve on a private network
+    v1: list = []  # no authentication yet (v0); keep sopops on a private network
 
     # stateless
 
@@ -717,6 +717,15 @@ def _released(b: dict) -> dict:
     }
 
 
+def default_database_url() -> str:
+    """DATABASE_URL, else ./sopops.db (or ./sopserve.db, the pre-rename default, if only that exists)."""
+    if url := os.environ.get("DATABASE_URL"):
+        return url
+    if not Path("sopops.db").exists() and Path("sopserve.db").exists():
+        return "sqlite:///sopserve.db"
+    return "sqlite:///sopops.db"
+
+
 def app_from_env() -> FastAPI:
-    return create_app(Store(os.environ.get("DATABASE_URL", "sqlite:///sopserve.db"), Sopc()))
+    return create_app(Store(default_database_url(), Sopc()))
 

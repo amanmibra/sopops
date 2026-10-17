@@ -1,8 +1,8 @@
-# sopserve API
+# sopops API
 
 Every endpoint. Paths below are under `/v1/workspaces/<ws>` unless they start with `/v1/`. The OpenAPI spec at `/openapi.json` has every field; `/docs` lets you try them.
 
-There is no authentication yet: keep sopserve on a private network.
+There is no authentication yet: keep sopops on a private network.
 
 ## Errors
 
@@ -20,7 +20,7 @@ A `404` or `409` has `{"detail": "..."}`.
 
 ## Config: the forms
 
-What the UI edits. Each item is stored as a sopc file (sopserve writes it, then reads it back with `sopc export` to check it holds exactly what was sent), so git publishing and exports keep working. Saves are drafts: nothing reaches agents until a release. Ids can't be renamed yet.
+What the UI edits. Each item is stored as a sopc file (sopops writes it, then reads it back with `sopc export` to check it holds exactly what was sent), so git publishing and exports keep working. Saves are drafts: nothing reaches agents until a release. Ids can't be renamed yet.
 
 | Endpoint | What it does |
 |---|---|

@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# sopc compiles the prompts. sopserve speaks the sopc v0.0.9 format (agents compose blocks).
+# sopc compiles the prompts. sopops speaks the sopc v0.0.9 format (agents compose blocks).
 ARG SOPC_REF=v0.0.11
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=$SOPC_REF SOPC_INSTALL_DIR=/usr/local/bin sh \
@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir ".[postgres]"
 # Set DATABASE_URL to Postgres in production; the SQLite default lives in the /data volume.
 RUN mkdir /data && chown nobody /data
 VOLUME /data
-ENV HOST=0.0.0.0 PORT=8484 SOPC_BIN=/usr/local/bin/sopc DATABASE_URL=sqlite:////data/sopserve.db
+ENV HOST=0.0.0.0 PORT=8484 SOPC_BIN=/usr/local/bin/sopc DATABASE_URL=sqlite:////data/sopops.db
 EXPOSE 8484
 USER nobody
-CMD ["sopserve"]
+CMD ["sopops"]

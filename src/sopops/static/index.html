@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>sopserve</title>
+<title>sopops</title>
 <style>
   :root {
     --bg: #f4f6f8; --panel: #ffffff; --sunk: #eef1f4; --ink: #1b2230; --muted: #5e6878; --line: #dde1e7; --line-strong: #c5ccd6;
@@ -293,7 +293,7 @@
 </head>
 <body>
 <div class="top">
-  <span class="brand">sopserve</span>
+  <span class="brand">sopops</span>
   <select id="ws" aria-label="Workspace"></select>
   <span id="new-ws-box" class="hidden"><input id="new-ws" placeholder="Workspace name" size="18" aria-label="New workspace name"> <button class="btn small" id="new-ws-ok">Create</button> <button class="btn small ghost" id="new-ws-cancel">Cancel</button></span>
   <button class="btn small ghost" id="new-ws-btn">New workspace</button>
@@ -324,7 +324,7 @@ function el(tag, attrs = {}, ...kids) {
   return n;
 }
 const local = {
-  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  get(k) { try { return localStorage.getItem(k) ?? localStorage.getItem(k.replace(/^sopops\./, "sopserve.")); } catch { return null; } },  // falls back to pre-rename keys
   set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
 };
 const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -350,7 +350,7 @@ const DELIVERY = [
 
 // ---------------------------------------------------------------------------------
 // state and API
-const S = { ws: local.get("sopserve.ws") || "", workspaces: [], cfg: null, draft: null, releases: [], releaseCache: {}, form: null, flash: null, legacy: null };
+const S = { ws: local.get("sopops.ws") || "", workspaces: [], cfg: null, draft: null, releases: [], releaseCache: {}, form: null, flash: null, legacy: null };
 const EMPTY_CFG = { settings: { variables: {}, procedures_heading: "## Procedures" }, agents: [], instructions: [], procedures: [], groups: [] };
 
 async function api(method, path, body) {
@@ -974,14 +974,14 @@ function agentPage(id, tab) {
   if (tab === "prompt") return promptPage(id);
   if (tab === "history") return historyPage("agent", id, item);
   const f = makeForm("agent", id, clone(item || { id: "", platform: "livekit", platform_id: "", context: "", blocks: [], variables: {} }), isNew);
-  let view = local.get("sopserve.previewmode"), timer = null, seq = 0, last = null;
+  let view = local.get("sopops.previewmode"), timer = null, seq = 0, last = null;
   const preview = el("section", { class: "prompt preview", "aria-label": "Draft prompt" });
   const drawPreview = () => {
     const r = last;
     // Until someone picks, show what changes when the draft differs from the live prompt.
     const shown = view || (r && r.valid && r.released_prompt !== null && r.prompt !== r.released_prompt ? "changes" : "prompt");
     const seg = el("div", { class: "seg small", role: "group", "aria-label": "Preview" }, [["prompt", "Prompt"], ["changes", "Changes vs live"]].map(([v, l]) =>
-      el("button", { type: "button", "aria-pressed": String(shown === v), onclick: () => { view = v; local.set("sopserve.previewmode", v); drawPreview(); } }, l)));
+      el("button", { type: "button", "aria-pressed": String(shown === v), onclick: () => { view = v; local.set("sopops.previewmode", v); drawPreview(); } }, l)));
     const errors = r ? r.issues.filter((i) => i.severity === "error") : [];
     // Nothing to compare: just the prompt, and say why there's no diff.
     if (r && r.valid && (r.released_prompt === null || r.prompt === r.released_prompt)) {
@@ -1191,7 +1191,7 @@ function diffView(before, after, { context = 3, mode, toggle = true, empty = "No
   const ops = diffLines(splitLines(before), splitLines(after));
   const box = el("div", { class: "dv-wrap" });
   if (!ops.some((x) => x.op !== " ")) { box.append(el("p", { class: "note" }, empty)); return box; }
-  let view = mode || (toggle ? local.get("sopserve.diffmode") : null) || "unified";
+  let view = mode || (toggle ? local.get("sopops.diffmode") : null) || "unified";
   const rows = diffRows(ops);
   const draw = () => {
     const body = el("div", { class: "dv " + view, role: "table", "aria-label": "Differences" });
@@ -1236,7 +1236,7 @@ function diffView(before, after, { context = 3, mode, toggle = true, empty = "No
       toggle ? el("div", { class: "dv-bar" }, counts(c),
         el("span", { class: "spacer" }),
         el("div", { class: "seg small", role: "group", "aria-label": "Diff layout" }, [["unified", "Unified"], ["split", "Side by side"]].map(([v, l]) =>
-          el("button", { type: "button", "aria-pressed": String(view === v), onclick: () => { view = v; local.set("sopserve.diffmode", v); draw(); } }, l)))) : "",
+          el("button", { type: "button", "aria-pressed": String(view === v), onclick: () => { view = v; local.set("sopops.diffmode", v); draw(); } }, l)))) : "",
       body);
   };
   draw();
@@ -1523,26 +1523,26 @@ async function releasePage(n) {
 // ---------------------------------------------------------------------------------
 // workspaces and the top bar
 async function openWorkspace(name) {
-  S.ws = name; S.releaseCache = {}; local.set("sopserve.ws", name);
+  S.ws = name; S.releaseCache = {}; local.set("sopops.ws", name);
   try { await loadAll(); } catch (e) { S.cfg = null; renderTop(); page(false, errorBanner(e)); return; }
   render();
 }
 async function init() {
-  const theme = local.get("sopserve.theme"); if (theme) document.documentElement.dataset.theme = theme;
-  $("author").value = local.get("sopserve.author") || "";
+  const theme = local.get("sopops.theme"); if (theme) document.documentElement.dataset.theme = theme;
+  $("author").value = local.get("sopops.author") || "";
   try { S.workspaces = await api("GET", "/v1/workspaces"); } catch (e) { page(false, errorBanner(e)); return; }
   if (!S.workspaces.some((w) => w.workspace === S.ws)) S.ws = S.workspaces.length ? S.workspaces[0].workspace : "";
   renderTop();
   if (S.ws) await openWorkspace(S.ws); else page(false, el("div", { class: "empty-state" }, el("h1", {}, "Create a workspace"),
     el("p", {}, "A workspace holds your agents with their shared instructions and procedures. Use New workspace at the top to start one.")));
 }
-$("author").addEventListener("change", () => local.set("sopserve.author", $("author").value.trim()));
+$("author").addEventListener("change", () => local.set("sopops.author", $("author").value.trim()));
 $("ws").addEventListener("change", async (e) => { if (S.form) S.form.dirty = false; history.replaceState(null, "", "#/"); await openWorkspace(e.target.value); });
 $("changes-btn").addEventListener("click", () => go("changes"));
 $("theme").addEventListener("click", () => {
   const cur = document.documentElement.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   document.documentElement.dataset.theme = cur === "dark" ? "light" : "dark";
-  local.set("sopserve.theme", document.documentElement.dataset.theme);
+  local.set("sopops.theme", document.documentElement.dataset.theme);
 });
 const wsBox = (open) => { $("new-ws-box").classList.toggle("hidden", !open); $("new-ws-btn").classList.toggle("hidden", open); if (open) $("new-ws").focus(); };
 $("new-ws-btn").addEventListener("click", () => wsBox(true));

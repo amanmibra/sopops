@@ -1,5 +1,5 @@
 [project]
-name = "sopserve"
+name = "sopops"
 version = "0.1.0"
 description = "Versioned sopc workspaces, and each agent's compiled prompt at call start."
 readme = "README.md"
@@ -14,7 +14,7 @@ dependencies = [
 postgres = ["psycopg[binary]>=3.1"]
 
 [project.scripts]
-sopserve = "sopserve.cli:main"
+sopops = "sopops.cli:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2"]
@@ -24,7 +24,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sopserve"]
+packages = ["src/sopops"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

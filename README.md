@@ -1,8 +1,8 @@
 <div align="center">
 
-# 📋🗄️ sopserve
+# 📋🗄️ sopops
 
-**A server and UI for sopc agent instructions.**
+**Serves sopc agent prompts from a UI and an API. Call QA and GitHub PRs are coming.**
 
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
@@ -15,7 +15,7 @@ and publish releases your agents fetch when a call starts. No redeploys.
 
 ## Why
 
-[sopc](https://github.com/amanmibra/sopc) keeps agent instructions in git and compiles one prompt per agent. Some teams would rather keep that config in a database, edit it in a UI, and not trigger a deploy for every wording change. sopserve is that: forms to edit blocks and compose agents, drafts and releases, and an API each agent calls when it starts. It compiles with the sopc binary itself, so its prompts match the CLI byte for byte.
+[sopc](https://github.com/amanmibra/sopc) keeps agent instructions in git and compiles one prompt per agent. Some teams would rather keep that config in a database, edit it in a UI, and not trigger a deploy for every wording change. sopops is that: forms to edit blocks and compose agents, drafts and releases, and an API each agent calls when it starts. It compiles with the sopc binary itself, so its prompts match the CLI byte for byte.
 
 <p align="center"><img src="docs/images/agent-builder.png" alt="The agent builder: the agent's own text, its blocks as an ordered stack of cards, its variables, and the draft prompt with a diff against the live release" width="900"></p>
 
@@ -23,17 +23,17 @@ and publish releases your agents fetch when a call starts. No redeploys.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | sh   # the sopc compiler
-uv tool install 'sopserve @ git+https://github.com/amanmibra/sopserve'
-sopserve --port 8484
+uv tool install 'sopops @ git+https://github.com/amanmibra/sopops'
+sopops --port 8484
 ```
 
 Open http://localhost:8484, create a workspace, and add a shared instruction, a procedure and an agent. The API docs are at `/docs`.
 
-With Docker, from a clone: `docker build -t sopserve . && docker run -p 8484:8484 sopserve`. Set `DATABASE_URL` to a Postgres URL in production (Supabase, Neon and RDS all work); without it, the container keeps SQLite in its `/data` volume.
+With Docker, from a clone: `docker build -t sopops . && docker run -p 8484:8484 sopops`. Set `DATABASE_URL` to a Postgres URL in production (Supabase, Neon and RDS all work); without it, the container keeps SQLite in its `/data` volume.
 
 | Variable | Default | |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///sopserve.db` | Any SQLAlchemy URL. `postgres://` URLs use psycopg 3 (`pip install 'sopserve[postgres]'`). |
+| `DATABASE_URL` | `sqlite:///sopops.db` | Any SQLAlchemy URL. `postgres://` URLs use psycopg 3 (`pip install 'sopops[postgres]'`). |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: a build after v0.0.9 (without `locked`). |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 
@@ -71,14 +71,14 @@ import json, os, httpx
 from livekit import api
 from livekit.agents import Agent, AgentSession, JobContext
 
-SOPSERVE = os.environ["SOPSERVE_URL"]  # e.g. http://sopserve.internal:8484/v1/workspaces/prod
+SOPOPS = os.environ["SOPOPS_URL"]  # e.g. http://sopops.internal:8484/v1/workspaces/prod
 
 
 async def fetch_prompt(agent_name: str, release: str | None = None) -> dict:
     """The agent's compiled prompt, plus the release and component versions it was built from."""
     params = {"release": release} if release else {}
     async with httpx.AsyncClient(timeout=5) as http:
-        res = await http.get(f"{SOPSERVE}/agents/livekit:{agent_name}", params=params)
+        res = await http.get(f"{SOPOPS}/agents/livekit:{agent_name}", params=params)
         res.raise_for_status()
         return res.json()
 
@@ -105,13 +105,13 @@ For A/B tests, have your router pick a release per call (e.g. 70% current, 30% a
 
 ## Git or database
 
-**Database.** Everything lives in sopserve's database and is edited in the UI or over the `/config` API. Nobody edits YAML or Markdown, but each block is still stored as a sopc file and versioned on its own.
+**Database.** Everything lives in sopops's database and is edited in the UI or over the `/config` API. Nobody edits YAML or Markdown, but each block is still stored as a sopc file and versioned on its own.
 
 **Git.** The sopc folder lives in your repo, and CI publishes it on merge in one call:
 
 ```sh
 python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"files": {p.relative_to(r).as_posix(): p.read_text() for p in r.rglob("*") if p.is_file()}}))' \
-  | curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$SOPSERVE_URL/publish"
+  | curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$SOPOPS_URL/publish"
 ```
 
 `build/` is ignored. A folder in the format of sopc v0.0.8 or earlier, or one that still sets `locked` (sopc v0.0.9), is refused with a message to run `sopc migrate`; a workspace stored that way shows a Convert page in the UI.
@@ -139,10 +139,12 @@ Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issu
 
 ## Status
 
-v0. **There is no authentication yet**: anyone who can reach sopserve can read and change everything, so run it on a private network only.
+v0, renamed from sopserve. **There is no authentication yet**: anyone who can reach sopops can read and change everything, so run it on a private network only.
 
 ## Roadmap
 
+- Call QA: findings and verdicts per call, and patterns across calls
+- GitHub: load a sopc project from a repo path, and open PRs with suggested changes
 - API keys with scopes, and sign-in for the UI
 - Renaming agents and blocks
 - A webhook on publish
