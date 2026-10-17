@@ -6,7 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from sopops import Sopc, Store, create_app
-from sopops.store import engine_from_url, metadata
+from sqlalchemy import text
+
+from sopops.db import engine_from_url
+from sopops.models import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
 SOPC_BIN = os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sopc/target/release/sopc")
@@ -41,6 +44,9 @@ def client(tmp_path):
     """SQLite by default; set SOPOPS_TEST_DATABASE_URL to run against Postgres (its tables are dropped first)."""
     url = os.environ.get("SOPOPS_TEST_DATABASE_URL") or os.environ.get("SOPSERVE_TEST_DATABASE_URL")  # old name still read
     if url:
-        metadata.drop_all(engine_from_url(url))
+        engine = engine_from_url(url)
+        metadata.drop_all(engine)
+        with engine.begin() as conn:
+            conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
     store = Store(url or f"sqlite:///{tmp_path / 'test.db'}", Sopc(SOPC_BIN))
     return TestClient(create_app(store))

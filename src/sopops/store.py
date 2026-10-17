@@ -1,4 +1,4 @@
-"""Versioned files, releases and the fetch log, in SQLite or Postgres (via SQLAlchemy Core).
+"""Versioned files, releases and the fetch log, in Postgres or SQLite (SQLModel tables in `models`).
 
 Every file is versioned on its own. A release is an immutable {path: version} snapshot plus its compiled build;
 the workspace's current release is what agents get. Writes compile the resulting files first, so head always compiles.
@@ -12,74 +12,18 @@ from datetime import datetime, timezone
 from pathlib import PurePosixPath
 from typing import Iterator
 
-from sqlalchemy import (
-    JSON,
-    Column,
-    DateTime,
-    Integer,
-    MetaData,
-    String,
-    Table,
-    Text,
-    and_,
-    create_engine,
-    func,
-    insert,
-    select,
-    update,
-)
+from sqlalchemy import and_, func, update
 from sqlalchemy.dialects import postgresql, sqlite
-from sqlalchemy.engine import Connection, Engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
+from sqlmodel import Session, select
 
 from . import forms
+from .db import engine_from_url, upgrade
+from .models import Fetch, FileVersion, Release, Workspace
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
-
-metadata = MetaData()
-
-workspaces = Table(
-    "workspaces",
-    metadata,
-    Column("workspace", String(128), primary_key=True),
-    Column("current_release", Integer, nullable=True),
-)
-
-file_versions = Table(
-    "file_versions",
-    metadata,
-    Column("workspace", String(128), primary_key=True),
-    Column("path", String(512), primary_key=True),
-    Column("version", Integer, primary_key=True),
-    Column("content", Text, nullable=True),  # NULL: deleted in this version
-    Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("author", String(256), nullable=True),
-    Column("note", Text, nullable=True),
-)
-
-releases = Table(
-    "releases",
-    metadata,
-    Column("workspace", String(128), primary_key=True),
-    Column("number", Integer, primary_key=True),
-    Column("created_at", DateTime(timezone=True), nullable=False),
-    Column("author", String(256), nullable=True),
-    Column("note", Text, nullable=True),
-    Column("files", JSON, nullable=False),  # {path: version}
-    Column("build", JSON, nullable=False),  # {"agents": {id: {platform_ref, hash, prompt, tools, sops, components}}}
-)
-
-fetches = Table(
-    "fetches",
-    metadata,
-    Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("workspace", String(128), nullable=False, index=True),
-    Column("agent", String(256), nullable=False),
-    Column("release", Integer, nullable=False),
-    Column("hash", String(128), nullable=False),
-    Column("at", DateTime(timezone=True), nullable=False),
-)
 
 # Which folder each lock.json block kind lives in.
 _KIND_DIRS = {"agent": "agents", "instruction": "instructions", "sop": "procedures", "base": "bases"}  # base: sopc v0.0.8
@@ -94,48 +38,46 @@ class Conflict(Exception):
     pass
 
 
-def engine_from_url(url: str) -> Engine:
-    """`postgres://` and `postgresql://` URLs (as Supabase and Neon hand out) use psycopg 3."""
-    for prefix in ("postgres://", "postgresql://"):
-        if url.startswith(prefix):
-            url = "postgresql+psycopg://" + url[len(prefix) :]
-    return create_engine(url, pool_pre_ping=True)
-
-
 class Store:
-    def __init__(self, engine: Engine | str, sopc: Sopc | None = None):
+    def __init__(self, engine: Engine | str, sopc: Sopc | None = None, migrate: bool = True):
+        """`migrate`: run the Alembic migrations up to head first (see `db.upgrade`)."""
         self.engine = engine_from_url(engine) if isinstance(engine, str) else engine
         self.sopc = sopc or Sopc()
-        metadata.create_all(self.engine)
+        if migrate:
+            upgrade(self.engine)
+
+    def _session(self) -> Session:
+        return Session(self.engine, expire_on_commit=False)
 
     # --- workspaces & files ----------------------------------------------------
 
     def workspaces(self) -> list[dict]:
-        with self.engine.connect() as conn:
-            return [dict(r) for r in conn.execute(select(workspaces).order_by(workspaces.c.workspace)).mappings()]
+        with self._session() as db:
+            return [w.model_dump() for w in db.exec(select(Workspace).order_by(Workspace.workspace))]
 
     def head(self, workspace: str, content: bool = False) -> list[dict]:
         """The latest version of every file that isn't deleted."""
-        with self.engine.connect() as conn:
-            return [_file_out(r, content) for r in self._head_rows(conn, _ws(workspace))]
+        with self._session() as db:
+            return [_file_out(r, content) for r in self._head_rows(db, _ws(workspace))]
 
     def file(self, workspace: str, path: str, version: int | None = None) -> dict:
-        q = select(file_versions).where(file_versions.c.workspace == _ws(workspace), file_versions.c.path == path)
-        q = q.where(file_versions.c.version == version) if version else q.order_by(file_versions.c.version.desc()).limit(1)
-        with self.engine.connect() as conn:
-            row = conn.execute(q).mappings().first()
+        q = select(FileVersion).where(FileVersion.workspace == _ws(workspace), FileVersion.path == path)
+        q = q.where(FileVersion.version == version) if version else q.order_by(FileVersion.version.desc()).limit(1)
+        with self._session() as db:
+            found = db.exec(q).first()
+        row = found.model_dump() if found else None
         if not row or (version is None and row["content"] is None):
             raise NotFound(f"file '{path}' not found" + (f" at version {version}" if version else ""))
         return _file_out(row, content=True)
 
     def history(self, workspace: str, path: str) -> list[dict]:
         q = (
-            select(file_versions)
-            .where(file_versions.c.workspace == _ws(workspace), file_versions.c.path == path)
-            .order_by(file_versions.c.version.desc())
+            select(FileVersion)
+            .where(FileVersion.workspace == _ws(workspace), FileVersion.path == path)
+            .order_by(FileVersion.version.desc())
         )
-        with self.engine.connect() as conn:
-            rows = [_file_out(r) for r in conn.execute(q).mappings()]
+        with self._session() as db:
+            rows = [_file_out(r.model_dump()) for r in db.exec(q)]
         if not rows:
             raise NotFound(f"file '{path}' not found")
         return rows
@@ -143,14 +85,14 @@ class Store:
     def edit(self, workspace: str, changes: dict[str, str | None], author: str | None = None, note: str | None = None) -> list[dict]:
         """Apply {path: content, or None to delete} atomically. Raises Invalid if the result doesn't compile."""
         _check_paths(changes)
-        with self._locked(workspace) as conn:
-            return self._write(conn, workspace, changes, author, note, replace=False)
+        with self._locked(workspace) as db:
+            return self._write(db, workspace, changes, author, note, replace=False)
 
     def replace(self, workspace: str, files: Files, author: str | None = None, note: str | None = None) -> list[dict]:
         """Make head exactly `files`; paths not in it are deleted."""
         _check_paths(files)
-        with self._locked(workspace) as conn:
-            return self._write(conn, workspace, files, author, note, replace=True)
+        with self._locked(workspace) as db:
+            return self._write(db, workspace, files, author, note, replace=True)
 
     # --- items: agents, instructions, procedures, groups and settings as structured data ----
 
@@ -158,8 +100,8 @@ class Store:
         """Head as {settings, agents, instructions, procedures, groups}, each with its version.
         Instructions, procedures and groups also get `used_by`: [{agent, via}] (via: the group, if not listed directly)."""
         ws = _ws(workspace)
-        with self.engine.connect() as conn:
-            head = self._head_rows(conn, ws)
+        with self._session() as db:
+            head = self._head_rows(db, ws)
         return self._items(head)
 
     def _items(self, head: list[dict]) -> dict:
@@ -196,15 +138,15 @@ class Store:
         issues = forms.check(kind, id, data)
         if issues:
             raise Invalid(issues)
-        with self._locked(ws) as conn:
-            head = self._head_rows(conn, ws)
+        with self._locked(ws) as db:
+            head = self._head_rows(db, ws)
             items = self._items(head)
             current = forms.find(items, kind, id)
             if kind != "settings" and current is not None and create:
                 raise Conflict(f"{_KIND_NAMES[kind]} '{id}' already exists")
-            return self._put(conn, ws, head, items, kind, id, data, author, note)
+            return self._put(db, ws, head, items, kind, id, data, author, note)
 
-    def _put(self, conn, ws: str, head: list[dict], items: dict, kind: str, id: str, data: dict, author, note) -> tuple[dict, list[dict]]:
+    def _put(self, db: Session, ws: str, head: list[dict], items: dict, kind: str, id: str, data: dict, author, note) -> tuple[dict, list[dict]]:
         current = forms.find(items, kind, id)
         other = forms.block_kind(items, id) if kind in forms.BLOCK_KINDS else None
         if other and other != kind:
@@ -231,8 +173,8 @@ class Store:
                 changes[current_path] = None
             if forms.CONFIG not in paths:
                 changes[forms.CONFIG] = "version: 1\n"
-        written = self._write(conn, ws, changes, author, note, replace=False)
-        return forms.find(self._items(self._head_rows(conn, ws)), kind, id), written
+        written = self._write(db, ws, changes, author, note, replace=False)
+        return forms.find(self._items(self._head_rows(db, ws)), kind, id), written
 
     def delete_item(self, workspace: str, kind: str, id: str, author=None, note=None) -> list[dict]:
         """Delete an item. A shared instruction or procedure is taken out of every agent and group that lists it;
@@ -240,8 +182,8 @@ class Store:
         ws = _ws(workspace)
         if kind == "settings":
             raise Conflict("settings can't be deleted")
-        with self._locked(ws) as conn:
-            head = self._head_rows(conn, ws)
+        with self._locked(ws) as db:
+            head = self._head_rows(db, ws)
             items = self._items(head)
             target = forms.find(items, kind, id)
             if target is None:
@@ -270,13 +212,13 @@ class Store:
             if groups != config["groups"]:
                 path, text, _ = forms.write("config", "config", {**config, "groups": groups}, forms.CONFIG, self.sopc.export)
                 changes[path] = text
-            return self._write(conn, ws, changes, author, note, replace=False)
+            return self._write(db, ws, changes, author, note, replace=False)
 
     def add_block(self, workspace: str, agent: str, block: str, author=None, note=None) -> tuple[dict, list[dict]]:
         """Add a shared instruction, procedure or group to the end of an agent's blocks."""
         ws = _ws(workspace)
-        with self._locked(ws) as conn:
-            head = self._head_rows(conn, ws)
+        with self._locked(ws) as db:
+            head = self._head_rows(db, ws)
             items = self._items(head)
             target = forms.find(items, "agent", agent)
             if target is None:
@@ -289,13 +231,13 @@ class Store:
             via = [v for b, v in forms.expand(items, target["blocks"]) if b == block]
             if via:
                 raise Conflict(f"{agent} already gets {name} through the group {via[0]}")
-            return self._put(conn, ws, head, items, "agent", agent, {**target, "blocks": [*target["blocks"], block]}, author, note)
+            return self._put(db, ws, head, items, "agent", agent, {**target, "blocks": [*target["blocks"], block]}, author, note)
 
     def remove_block(self, workspace: str, agent: str, block: str, author=None, note=None) -> tuple[dict, list[dict]]:
         """Take a block out of an agent's blocks. One the agent gets through a group can't be removed here."""
         ws = _ws(workspace)
-        with self._locked(ws) as conn:
-            head = self._head_rows(conn, ws)
+        with self._locked(ws) as db:
+            head = self._head_rows(db, ws)
             items = self._items(head)
             target = forms.find(items, "agent", agent)
             if target is None:
@@ -307,14 +249,14 @@ class Store:
                     raise Conflict(f"{agent} gets {name} through the group {via[0]}; take it out of that group, or list the group's other blocks instead of the group")
                 raise NotFound(f"{agent} doesn't use {name}")
             blocks = [b for b in target["blocks"] if b != block]
-            return self._put(conn, ws, head, items, "agent", agent, {**target, "blocks": blocks}, author, note)
+            return self._put(db, ws, head, items, "agent", agent, {**target, "blocks": blocks}, author, note)
 
     def preview_agent(self, workspace: str, agent: str, data: dict) -> dict:
         """Compile head with this agent's unsaved fields, without saving anything."""
         ws = _ws(workspace)
-        with self.engine.connect() as conn:
-            head = self._head_rows(conn, ws)
-            current = self._current(conn, ws)
+        with self._session() as db:
+            head = self._head_rows(db, ws)
+            current = self._current(db, ws)
         out = {"valid": False, "issues": [], "prompt": None, "hash": None, "blocks": [], "released_prompt": None, "release": current["number"] if current else None}
         if current and agent in current["build"]["agents"]:
             out["released_prompt"] = current["build"]["agents"][agent]["prompt"]
@@ -342,12 +284,12 @@ class Store:
         """Convert head from an older sopc format with `sopc migrate` (v0.0.8 targeting, or v0.0.9 `locked`).
         Without `apply`, only the plan."""
         ws = _ws(workspace)
-        with self._locked(ws) as conn:
-            files = {r["path"]: r["content"] for r in self._head_rows(conn, ws)}
+        with self._locked(ws) as db:
+            files = {r["path"]: r["content"] for r in self._head_rows(db, ws)}
             result = self.sopc.migrate(files) if files else {"migrated": False, "plan": "", "files": {}}
             if not result["migrated"]:
                 return {"workspace": ws, "needed": False, "plan": "", "applied": False, "changed": []}
-            changed = self._write(conn, ws, result["files"], author, note, replace=True) if apply else []
+            changed = self._write(db, ws, result["files"], author, note, replace=True) if apply else []
             return {"workspace": ws, "needed": True, "plan": result["plan"], "applied": apply, "changed": changed}
 
     def _parse(self, kind: str, id: str, path: str, content: str) -> dict | None:
@@ -378,15 +320,15 @@ class Store:
                 continue
         return None
 
-    def _release_items(self, conn: Connection, ws: str, versions: dict[str, int]) -> dict | None:
+    def _release_items(self, db: Session, ws: str, versions: dict[str, int]) -> dict | None:
         """The items of a release's files; a release in the old format is read as `sopc migrate` converts it."""
         if not versions:
             return None
         files = {}
         for path, version in versions.items():
-            row = conn.execute(select(file_versions.c.content).where(file_versions.c.workspace == ws, file_versions.c.path == path, file_versions.c.version == version)).first()
-            if row and row[0] is not None:
-                files[path] = row[0]
+            content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == path, FileVersion.version == version)).first()
+            if content is not None:
+                files[path] = content
         try:
             return forms.from_export(self.sopc.export(files))
         except Invalid:
@@ -401,12 +343,12 @@ class Store:
         Settings and groups share sopc.yaml, so each lists only the versions that changed it."""
         ws = _ws(workspace)
         q = (
-            select(file_versions)
-            .where(file_versions.c.workspace == ws, file_versions.c.path.in_(forms.paths_of(kind, id)))
-            .order_by(file_versions.c.created_at.desc(), file_versions.c.version.desc())
+            select(FileVersion)
+            .where(FileVersion.workspace == ws, FileVersion.path.in_(forms.paths_of(kind, id)))
+            .order_by(FileVersion.created_at.desc(), FileVersion.version.desc())
         )
-        with self.engine.connect() as conn:
-            raw = [dict(r) for r in conn.execute(q).mappings()]
+        with self._session() as db:
+            raw = [r.model_dump() for r in db.exec(q)]
         rows = [{**{k: v for k, v in _file_out(r).items() if k != "path"}, "file": r["path"]} for r in raw]
         if kind in ("settings", "group"):
             keep, values = [], []
@@ -448,11 +390,11 @@ class Store:
     def draft(self, workspace: str) -> dict:
         """Head compiled, compared with the current release."""
         ws = _ws(workspace)
-        with self.engine.connect() as conn:
-            head = self._head_rows(conn, ws)
-            current = self._current(conn, ws)
+        with self._session() as db:
+            head = self._head_rows(db, ws)
+            current = self._current(db, ws)
             live_files = current["files"] if current else {}
-            before_items = self._release_items(conn, ws, live_files)
+            before_items = self._release_items(db, ws, live_files)
         live_agents = current["build"]["agents"] if current else {}
         head_versions = {r["path"]: r["version"] for r in head}
 
@@ -547,34 +489,35 @@ class Store:
 
     def release(self, workspace: str, author: str | None = None, note: str | None = None) -> tuple[dict, bool]:
         """Release head and make it current. If head is already current, returns that release and False."""
-        with self._locked(workspace) as conn:
-            return self._release(conn, workspace, author, note)
+        with self._locked(workspace) as db:
+            return self._release(db, workspace, author, note)
 
     def publish(self, workspace: str, files: Files, author: str | None = None, note: str | None = None) -> tuple[dict, bool, list[dict]]:
         """Replace head with `files` and release it, in one transaction."""
         _check_paths(files)
-        with self._locked(workspace) as conn:
-            changed = self._write(conn, workspace, files, author, note, replace=True)
-            release, created = self._release(conn, workspace, author, note)
+        with self._locked(workspace) as db:
+            changed = self._write(db, workspace, files, author, note, replace=True)
+            release, created = self._release(db, workspace, author, note)
             return release, created, changed
 
     def releases(self, workspace: str) -> list[dict]:
         ws = _ws(workspace)
-        q = select(releases.c.number, releases.c.created_at, releases.c.author, releases.c.note, releases.c.files)
-        with self.engine.connect() as conn:
-            current = self._current_number(conn, ws)
-            rows = conn.execute(q.where(releases.c.workspace == ws).order_by(releases.c.number.desc())).mappings()
+        q = select(Release.number, Release.created_at, Release.author, Release.note, Release.files)
+        with self._session() as db:
+            current = self._current_number(db, ws)
+            rows = db.execute(q.where(Release.workspace == ws).order_by(Release.number.desc())).mappings()
             return [_summary(r, r["number"] == current) for r in rows]
 
     def get_release(self, workspace: str, number: int | None = None) -> dict:
         """A release with its build; the current one if `number` is None."""
         ws = _ws(workspace)
-        with self.engine.connect() as conn:
-            current = self._current_number(conn, ws)
+        with self._session() as db:
+            current = self._current_number(db, ws)
             number = number or current
             if number is None:
                 raise NotFound(f"workspace '{ws}' has no release")
-            row = conn.execute(select(releases).where(releases.c.workspace == ws, releases.c.number == number)).mappings().first()
+            found = db.get(Release, (ws, number))
+        row = found.model_dump() if found else None
         if not row:
             raise NotFound(f"release {number} not found")
         return {**_summary(row, row["number"] == current), "build": row["build"]}
@@ -582,10 +525,10 @@ class Store:
     def activate(self, workspace: str, number: int) -> dict:
         """Serve an existing release, e.g. to roll back."""
         ws = _ws(workspace)
-        with self.engine.begin() as conn:
-            if not conn.execute(select(releases.c.number).where(releases.c.workspace == ws, releases.c.number == number)).first():
+        with self._session() as db, db.begin():
+            if db.get(Release, (ws, number)) is None:
                 raise NotFound(f"release {number} not found")
-            conn.execute(update(workspaces).where(workspaces.c.workspace == ws).values(current_release=number))
+            db.execute(update(Workspace).where(Workspace.workspace == ws).values(current_release=number))
         return {"workspace": ws, "current_release": number}
 
     # --- serving ---------------------------------------------------------------
@@ -600,35 +543,37 @@ class Store:
         return {"agent": agent_id, "release": rel["number"], **built[agent_id]}
 
     def log_fetch(self, workspace: str, agent: str, release: int, hash: str) -> None:
-        with self.engine.begin() as conn:
-            conn.execute(insert(fetches).values(workspace=workspace, agent=agent, release=release, hash=hash, at=_now()))
+        with self._session() as db, db.begin():
+            db.add(Fetch(workspace=workspace, agent=agent, release=release, hash=hash, at=_now()))
 
     def fetches(self, workspace: str, agent: str | None = None, limit: int = 100) -> list[dict]:
         """Newest first."""
-        q = select(fetches.c.id, fetches.c.agent, fetches.c.release, fetches.c.hash, fetches.c.at).where(fetches.c.workspace == _ws(workspace))
+        q = select(Fetch).where(Fetch.workspace == _ws(workspace))
         if agent:
-            q = q.where(fetches.c.agent == agent)
-        with self.engine.connect() as conn:
-            return [{**r, "at": _utc(r["at"])} for r in conn.execute(q.order_by(fetches.c.id.desc()).limit(limit)).mappings()]
+            q = q.where(Fetch.agent == agent)
+        with self._session() as db:
+            rows = db.exec(q.order_by(Fetch.id.desc()).limit(limit))
+            return [{"id": f.id, "agent": f.agent, "release": f.release, "hash": f.hash, "at": _utc(f.at)} for f in rows]
 
     # --- internals -------------------------------------------------------------
 
     @contextmanager
-    def _locked(self, workspace: str) -> Iterator[Connection]:
+    def _locked(self, workspace: str) -> Iterator[Session]:
         """A transaction holding the workspace's lock, so file versions and release numbers don't race."""
         ws = _ws(workspace)
         try:
-            with self.engine.begin() as conn:
-                dialect = postgresql if conn.dialect.name == "postgresql" else sqlite
-                conn.execute(dialect.insert(workspaces).values(workspace=ws).on_conflict_do_nothing())
-                if conn.dialect.name == "postgresql":
-                    conn.execute(select(workspaces.c.workspace).where(workspaces.c.workspace == ws).with_for_update())
-                yield conn
+            with self._session() as db, db.begin():
+                name = db.get_bind().dialect.name
+                dialect = postgresql if name == "postgresql" else sqlite
+                db.execute(dialect.insert(Workspace.__table__).values(workspace=ws).on_conflict_do_nothing())
+                if name == "postgresql":
+                    db.execute(select(Workspace.workspace).where(Workspace.workspace == ws).with_for_update())
+                yield db
         except IntegrityError as e:
             raise Conflict("a concurrent write conflicted; retry") from e
 
-    def _write(self, conn: Connection, workspace: str, changes: dict[str, str | None], author, note, replace: bool) -> list[dict]:
-        head = {r["path"]: r for r in self._head_rows(conn, workspace)}
+    def _write(self, db: Session, workspace: str, changes: dict[str, str | None], author, note, replace: bool) -> list[dict]:
+        head = {r["path"]: r for r in self._head_rows(db, workspace)}
         current = {p: r["content"] for p, r in head.items()}
         target = {p: c for p, c in (changes.items() if replace else {**current, **changes}.items()) if c is not None}
         if target == current:
@@ -641,10 +586,8 @@ class Store:
             new = target.get(path)
             if new == current.get(path):
                 continue
-            version = self._max_version(conn, workspace, path) + 1
-            conn.execute(
-                insert(file_versions).values(workspace=workspace, path=path, version=version, content=new, created_at=now, author=author, note=note)
-            )
+            version = self._max_version(db, workspace, path) + 1
+            db.add(FileVersion(workspace=workspace, path=path, version=version, content=new, created_at=now, author=author, note=note))
             written.append({"path": path, "version": version, "deleted": new is None})
         return written
 
@@ -654,12 +597,12 @@ class Store:
         except Invalid:
             return {}
 
-    def _release(self, conn: Connection, workspace: str, author, note) -> tuple[dict, bool]:
-        head = self._head_rows(conn, workspace)
+    def _release(self, db: Session, workspace: str, author, note) -> tuple[dict, bool]:
+        head = self._head_rows(db, workspace)
         if not head:
             raise Invalid([Issue("missing_config", "the workspace has no files", "", "error")])
         versions = {r["path"]: r["version"] for r in head}
-        current = self._current(conn, workspace)
+        current = self._current(db, workspace)
         if current and current["files"] == versions:
             return _summary(current, True), False
         files = {r["path"]: r["content"] for r in head}
@@ -679,39 +622,39 @@ class Store:
                 for agent_id, a in compiled.agents.items()
             }
         }
-        number = (conn.execute(select(func.max(releases.c.number)).where(releases.c.workspace == workspace)).scalar() or 0) + 1
+        number = (db.exec(select(func.max(Release.number)).where(Release.workspace == workspace)).one() or 0) + 1
         row = {"workspace": workspace, "number": number, "created_at": _now(), "author": author, "note": note, "files": versions, "build": build}
-        conn.execute(insert(releases).values(**row))
-        conn.execute(update(workspaces).where(workspaces.c.workspace == workspace).values(current_release=number))
+        db.add(Release(**row))
+        db.execute(update(Workspace).where(Workspace.workspace == workspace).values(current_release=number))
         return _summary(row, True), True
 
-    def _head_rows(self, conn: Connection, workspace: str) -> list[dict]:
+    def _head_rows(self, db: Session, workspace: str) -> list[dict]:
         latest = (
-            select(file_versions.c.path, func.max(file_versions.c.version).label("version"))
-            .where(file_versions.c.workspace == workspace)
-            .group_by(file_versions.c.path)
+            select(FileVersion.path, func.max(FileVersion.version).label("version"))
+            .where(FileVersion.workspace == workspace)
+            .group_by(FileVersion.path)
             .subquery()
         )
         q = (
-            select(file_versions)
-            .join(latest, and_(file_versions.c.path == latest.c.path, file_versions.c.version == latest.c.version))
-            .where(file_versions.c.workspace == workspace, file_versions.c.content.is_not(None))
-            .order_by(file_versions.c.path)
+            select(FileVersion)
+            .join(latest, and_(FileVersion.path == latest.c.path, FileVersion.version == latest.c.version))
+            .where(FileVersion.workspace == workspace, FileVersion.content.is_not(None))
+            .order_by(FileVersion.path)
         )
-        return [dict(r) for r in conn.execute(q).mappings()]
+        return [r.model_dump() for r in db.exec(q)]
 
-    def _max_version(self, conn: Connection, workspace: str, path: str) -> int:
-        q = select(func.max(file_versions.c.version)).where(file_versions.c.workspace == workspace, file_versions.c.path == path)
-        return conn.execute(q).scalar() or 0
+    def _max_version(self, db: Session, workspace: str, path: str) -> int:
+        q = select(func.max(FileVersion.version)).where(FileVersion.workspace == workspace, FileVersion.path == path)
+        return db.exec(q).one() or 0
 
-    def _current_number(self, conn: Connection, workspace: str) -> int | None:
-        return conn.execute(select(workspaces.c.current_release).where(workspaces.c.workspace == workspace)).scalar()
+    def _current_number(self, db: Session, workspace: str) -> int | None:
+        return db.exec(select(Workspace.current_release).where(Workspace.workspace == workspace)).first()
 
-    def _current(self, conn: Connection, workspace: str) -> dict | None:
-        number = self._current_number(conn, workspace)
+    def _current(self, db: Session, workspace: str) -> dict | None:
+        number = self._current_number(db, workspace)
         if number is None:
             return None
-        return dict(conn.execute(select(releases).where(releases.c.workspace == workspace, releases.c.number == number)).mappings().one())
+        return db.get_one(Release, (workspace, number)).model_dump()
 
 
 def _components(blocks: list[dict], versions: dict[str, int]) -> list[dict]:

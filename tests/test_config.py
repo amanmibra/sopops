@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import insert
 
 from conftest import FIXTURE, WS, expected, read_files
-from sopops.store import file_versions, releases, workspaces
+from sopops.models import FileVersion, Release, Workspace
 
 CFG = f"{WS}/config"
 OLD = FIXTURE.parent / "old-format" / "sops"
@@ -187,7 +187,7 @@ def test_locked_from_sopc_v009_is_refused_then_converted(client, files):
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:
         for path, content in locked.items():
-            conn.execute(insert(file_versions).values(workspace="demo", path=path, version=1, content=content, created_at=now, author="old"))
+            conn.execute(insert(FileVersion).values(workspace="demo", path=path, version=1, content=content, created_at=now, author="old"))
     assert issue(client.get(CFG))["code"] == "removed_field"
     plan = client.post(f"{WS}/migrate", json={}).json()
     assert plan["needed"] and plan["plan"].startswith("Removing fields the format no longer has (1 file(s) change):\n  instructions/brand-voice.md: removed locked\n")
@@ -488,10 +488,10 @@ def store_old(client, release: bool = False) -> None:
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:
         for path, content in old.items():
-            conn.execute(insert(file_versions).values(workspace="demo", path=path, version=1, content=content, created_at=now, author="ana"))
+            conn.execute(insert(FileVersion).values(workspace="demo", path=path, version=1, content=content, created_at=now, author="ana"))
         if release:
-            conn.execute(insert(workspaces).values(workspace="demo", current_release=1))
-            conn.execute(insert(releases).values(workspace="demo", number=1, created_at=now, files={p: 1 for p in old}, build={"agents": {}}))
+            conn.execute(insert(Workspace).values(workspace="demo", current_release=1))
+            conn.execute(insert(Release).values(workspace="demo", number=1, created_at=now, files={p: 1 for p in old}, build={"agents": {}}))
 
 
 def test_old_format_upload_says_to_migrate(client):
