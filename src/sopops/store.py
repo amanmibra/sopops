@@ -738,5 +738,5 @@ def _now() -> datetime:
 
 
 def _utc(at: datetime) -> datetime:
-    """SQLite drops the timezone; everything is stored in UTC."""
-    return at if at.tzinfo else at.replace(tzinfo=timezone.utc)
+    """Everything is stored in UTC. SQLite drops the timezone; Postgres answers in its session's time zone."""
+    return at.astimezone(timezone.utc) if at.tzinfo else at.replace(tzinfo=timezone.utc)
