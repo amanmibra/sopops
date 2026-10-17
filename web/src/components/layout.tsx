@@ -198,6 +198,7 @@ export function Rail() {
           {group("procedure", [...cfg.procedures].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, label: p.name })))}
           {group("group", cfg.groups.map((a) => ({ id: a.id, label: a.id })))}
           <div className="mb-[18px]">
+            <RailLink href={wsHref(ws, "import")}>Import</RailLink>
             <RailLink href={href("settings" as Kind)} change={changeOf("settings", "settings")?.change}>
               Settings
             </RailLink>

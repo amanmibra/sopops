@@ -268,3 +268,29 @@ All take the window filters plus `agent`, `procedure`, `release` (repeatable) an
 | `GET …/insights/procedures/<id>/rules/<rule_id>` | The rule's wordings over time, its pass rate overall, per release and per agent (with intervals), its patterns, and the 5 most recent findings with their quotes. |
 | `GET …/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule, both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded. |
 | `GET …/insights/report` | The review report: headline numbers (plus sessions with problems on more than one rule), then per procedure its themes, each with its patterns: the rule they're about, failure modes, example phrasings and the sessions. |
+
+## Onboarding
+
+Importing existing agent prompts. Both ways end in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity from `sopc compare`) that the user reviews and applies as drafts.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/onboarding/capabilities` | `{llm, model, platforms}`: whether sopops can extract with its own model. |
+| `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
+| `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
+| `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff` (MCP commands, prompt, settings). |
+| `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, and the proposal. |
+| `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
+| `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
+| `POST …/imports/<id>/findings/<finding>` | `{choice}`: `keep`, or the agent whose version every agent gets. |
+| `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced). Ends the token. |
+| `POST …/imports/<id>/revoke`, `DELETE …/imports/<id>` | End the token (Finish); discard the import. |
+
+With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one workspace, 2 hours, stored hashed; `401` when unknown, expired or revoked, `403` without the scope):
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/onboarding/session` | The workspace, import, mode and repo the token is for. |
+| `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
+| `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
+| `POST /v1/onboarding/fidelity` | `{proposal, originals}`: fidelity only, nothing stored. |

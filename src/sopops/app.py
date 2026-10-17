@@ -39,6 +39,8 @@ from .events import PgListener
 from .jobs import Jobs
 from .runtime.routes import push_on_release, register as register_runtime
 from .sessions import BadCursor, Unauthorized
+from .onboarding.api import router as onboarding_router
+from .onboarding.service import Onboarding, llm_from_env
 from .sopc import Invalid, Sopc, SopcUnavailable, without_build
 from .store import Conflict, NotFound, Store
 
@@ -595,6 +597,10 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         """The review report: headline numbers, then themes and their patterns, each with the rule quoted, example
         phrasings and the sessions."""
         return store.insights.report(f)
+
+    # onboarding: import existing agent prompts (sopops.onboarding)
+    app.state.onboarding = Onboarding(store, llm=lambda: jobs.llm if jobs.llm is not None else llm_from_env())  # Jobs(llm=...) reaches imports too
+    app.include_router(onboarding_router(store, app.state.onboarding), dependencies=v1)
 
     # the web UI: built assets, and index.html for every other path so the client-side router can take it
     ui = web_dir()

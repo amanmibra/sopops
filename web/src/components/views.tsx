@@ -684,11 +684,15 @@ export function EmptyWorkspace() {
     <div className="max-w-[60ch] py-10">
       <h1 className="mb-2 text-[22px] font-semibold tracking-tight">{ws} has no agents yet</h1>
       <p className="mb-4">
-        Write the text several agents share as shared instructions, and each procedure they follow. Then build each agent (one per location or phone line) from those
+        Already have agents running? Import their prompts: sopops splits them into shared instructions and procedures and shows where they differ. Or write the text several
+        agents share as shared instructions, and each procedure they follow. Then build each agent (one per location or phone line) from those
         blocks, in the order its prompt should have them.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => go(href("instruction", "new"))}>New shared instruction</Button>
+        <Button onClick={() => go(wsHref(ws, "import"))}>Import agents</Button>
+        <Button variant="outline" onClick={() => go(href("instruction", "new"))}>
+          New shared instruction
+        </Button>
         <Button variant="outline" onClick={() => go(href("procedure", "new"))}>
           New procedure
         </Button>

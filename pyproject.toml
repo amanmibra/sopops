@@ -10,9 +10,12 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.48",
     "alembic>=1.20.0",
-    "litellm==1.105.1",  # exact pin, hashes in uv.lock; the library only, never the proxy
+    # LLM calls (src/sopops/llm.py): the library only, never the proxy. Pinned exactly, hashes in uv.lock:
+    # 1.82.7 and 1.82.8 on PyPI were compromised (March 2026); upgrade deliberately, after a delay.
+    "litellm==1.105.1",
     "httpx>=0.28.1",
     "cryptography>=50.0.2",
+    "mcp>=2.3,<3",
 ]
 
 [project.optional-dependencies]
@@ -25,6 +28,7 @@ hatchet = [
 
 [project.scripts]
 sopops = "sopops.cli:main"
+sopops-mcp = "sopops.mcp_server:main"
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2", "respx>=0.23.1"]

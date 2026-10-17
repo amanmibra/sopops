@@ -36,12 +36,28 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
-| `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). Unset, sessions are stored but not checked. |
+| `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions and import prompts, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). If only one is set it serves both. Unset, sessions are stored but not checked, and imports need Claude Code or Codex. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
+| `SOPOPS_LLM_API_BASE` | unset | Send every model call to this base URL (an OpenAI-compatible endpoint for local models). |
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform API keys and webhook secrets. Needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the session pipeline on [Hatchet](https://hatchet.run) (`pip install 'sopops[hatchet]'`, plus `sopops worker`). Unset, it runs inside sopops. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
+
+## Import your agents
+
+Already running agents? **Import agents** (on an empty workspace, or in Settings) turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule ("2 agents differ on the upsell rule"), you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish from Unpublished changes as usual.
+
+**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else), one command and a prompt to paste:
+
+```sh
+claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
+  -- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp
+```
+
+Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. See [skills/sopops-onboard](skills/sopops-onboard/SKILL.md) for the tools and Cursor setup.
+
+**Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`). ElevenLabs and Vapi keys are used to read the agents during that request and are never stored or logged.
 
 ## How it works
 
@@ -170,6 +186,7 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `POST …/releases`, `POST …/releases/<n>/activate` | Publish head; make an older release live. |
 | `POST …/publish` | Replace every file and release, for CI. |
 | `POST …/migrate` | Convert a workspace stored in an older sopc format (v0.0.8, or `locked` from v0.0.9). |
+| `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
 
@@ -203,6 +220,7 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 | `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. Hatchet isn't needed. |
 | `uv run sopops import FILE.jsonl -w WS` | Import sessions. |
 | `uv run sopops worker` | The Hatchet worker, with `HATCHET_CLIENT_TOKEN` set. |
+| `uv run sopops-mcp` | The onboarding MCP server (stdio), as Claude Code or Codex runs it. |
 | `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
 | `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
 | `uv run alembic revision --autogenerate -m "…"` | A new migration after changing `models.py`. |
