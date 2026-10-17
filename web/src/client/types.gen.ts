@@ -480,6 +480,27 @@ export type EditRequest = {
 };
 
 /**
+ * EvidenceOut
+ */
+export type EvidenceOut = {
+    /**
+     * Turn
+     *
+     * Index into `turns`; null for a tool call with no tool turn.
+     */
+    turn: number | null;
+    /**
+     * Quote
+     */
+    quote: string;
+    /**
+     * Source
+     */
+    source: 'transcript' | 'tool_calls';
+    [key: string]: unknown;
+};
+
+/**
  * FetchOut
  */
 export type FetchOut = {
@@ -1206,6 +1227,86 @@ export type PreviewResponse = {
 };
 
 /**
+ * ProcedureCheckOut
+ */
+export type ProcedureCheckOut = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string | null;
+    /**
+     * Procedure Version
+     */
+    procedure_version: number | null;
+    /**
+     * Release Id
+     */
+    release_id: number | null;
+    /**
+     * Applicable
+     *
+     * The procedure applied to the session (false: the router found it didn't).
+     */
+    applicable: boolean;
+    /**
+     * Excluded Reason
+     *
+     * Applied, but the session ended before the procedure started or finished, so it isn't checked.
+     */
+    excluded_reason: string | null;
+    /**
+     * Route Reason
+     */
+    route_reason: string | null;
+    /**
+     * Result
+     *
+     * Null unless checked.
+     */
+    result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
+    /**
+     * Goal Reached
+     */
+    goal_reached: boolean | null;
+    /**
+     * Goal Reason
+     */
+    goal_reason: string | null;
+    /**
+     * Steps Applicable
+     */
+    steps_applicable: number | null;
+    /**
+     * Steps Done
+     */
+    steps_done: number | null;
+    /**
+     * Nevers Violated
+     */
+    nevers_violated: number | null;
+    /**
+     * Model
+     */
+    model: string | null;
+    /**
+     * Prompt Version
+     */
+    prompt_version: string | null;
+    /**
+     * Checked At
+     */
+    checked_at: string;
+    /**
+     * Rules
+     */
+    rules: Array<RuleResultOut>;
+};
+
+/**
  * ProcedureConfig
  */
 export type ProcedureConfig = {
@@ -1591,6 +1692,50 @@ export type ReplaceRequest = {
 };
 
 /**
+ * RuleResultOut
+ */
+export type RuleResultOut = {
+    /**
+     * Rule Id
+     *
+     * sopc's stable rule id.
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Index
+     *
+     * 1-based position within its kind.
+     */
+    index: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Status
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'absent';
+    /**
+     * Evidence
+     */
+    evidence: Array<EvidenceOut>;
+    /**
+     * Reason
+     */
+    reason: string | null;
+    /**
+     * Finding
+     *
+     * A deviation: skipped, violated or out_of_order.
+     */
+    finding: boolean;
+};
+
+/**
  * SessionDetail
  */
 export type SessionDetail = {
@@ -1655,6 +1800,12 @@ export type SessionDetail = {
      */
     status_reason: string | null;
     /**
+     * Result
+     *
+     * The worst procedure result once checked: deviated, partial, followed or not_measurable.
+     */
+    result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
+    /**
      * Turn Count
      */
     turn_count: number;
@@ -1692,6 +1843,12 @@ export type SessionDetail = {
     metadata: {
         [key: string]: unknown;
     };
+    /**
+     * Checks
+     *
+     * Each procedure the router considered, with its rule results.
+     */
+    checks: Array<ProcedureCheckOut>;
 };
 
 /**
@@ -1878,6 +2035,12 @@ export type SessionSummary = {
      * Status Reason
      */
     status_reason: string | null;
+    /**
+     * Result
+     *
+     * The worst procedure result once checked: deviated, partial, followed or not_measurable.
+     */
+    result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
     /**
      * Turn Count
      */
@@ -4293,6 +4456,12 @@ export type ListSessionsData = {
          * Status
          */
         status?: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed' | null;
+        /**
+         * Result
+         *
+         * The session's worst procedure result.
+         */
+        result?: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
         /**
          * Platform
          */

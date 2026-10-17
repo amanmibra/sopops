@@ -3529,6 +3529,30 @@
             }
           },
           {
+            "name": "result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "deviated",
+                    "partial",
+                    "followed",
+                    "not_measurable"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The session's worst procedure result.",
+              "title": "Result"
+            },
+            "description": "The session's worst procedure result."
+          },
+          {
             "name": "platform",
             "in": "query",
             "required": false,
@@ -4664,6 +4688,43 @@
           "changes"
         ],
         "title": "EditRequest"
+      },
+      "EvidenceOut": {
+        "properties": {
+          "turn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn",
+            "description": "Index into `turns`; null for a tool call with no tool turn."
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "transcript",
+              "tool_calls"
+            ],
+            "title": "Source",
+            "default": "transcript"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "turn",
+          "quote",
+          "source"
+        ],
+        "title": "EvidenceOut"
       },
       "FetchOut": {
         "properties": {
@@ -5877,6 +5938,203 @@
         ],
         "title": "PreviewResponse"
       },
+      "ProcedureCheckOut": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure Name"
+          },
+          "procedure_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure Version"
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id"
+          },
+          "applicable": {
+            "type": "boolean",
+            "title": "Applicable",
+            "description": "The procedure applied to the session (false: the router found it didn't)."
+          },
+          "excluded_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excluded Reason",
+            "description": "Applied, but the session ended before the procedure started or finished, so it isn't checked."
+          },
+          "route_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Route Reason"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deviated",
+                  "partial",
+                  "followed",
+                  "not_measurable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "Null unless checked."
+          },
+          "goal_reached": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Reached"
+          },
+          "goal_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Reason"
+          },
+          "steps_applicable": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps Applicable"
+          },
+          "steps_done": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps Done"
+          },
+          "nevers_violated": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nevers Violated"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleResultOut"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "procedure_name",
+          "procedure_version",
+          "release_id",
+          "applicable",
+          "excluded_reason",
+          "route_reason",
+          "result",
+          "goal_reached",
+          "goal_reason",
+          "steps_applicable",
+          "steps_done",
+          "nevers_violated",
+          "model",
+          "prompt_version",
+          "checked_at",
+          "rules"
+        ],
+        "title": "ProcedureCheckOut"
+      },
       "ProcedureConfig": {
         "properties": {
           "version": {
@@ -6512,6 +6770,83 @@
         ],
         "title": "ReplaceRequest"
       },
+      "RuleResultOut": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id",
+            "description": "sopc's stable rule id."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "1-based position within its kind."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "absent"
+            ],
+            "title": "Status"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "finding": {
+            "type": "boolean",
+            "title": "Finding",
+            "description": "A deviation: skipped, violated or out_of_order."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "status",
+          "evidence",
+          "reason",
+          "finding"
+        ],
+        "title": "RuleResultOut"
+      },
       "SessionDetail": {
         "properties": {
           "id": {
@@ -6643,6 +6978,24 @@
             ],
             "title": "Status Reason"
           },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deviated",
+                  "partial",
+                  "followed",
+                  "not_measurable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "The worst procedure result once checked: deviated, partial, followed or not_measurable."
+          },
           "turn_count": {
             "type": "integer",
             "title": "Turn Count"
@@ -6693,6 +7046,14 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/ProcedureCheckOut"
+            },
+            "type": "array",
+            "title": "Checks",
+            "description": "Each procedure the router considered, with its rule results."
           }
         },
         "type": "object",
@@ -6711,6 +7072,7 @@
           "duration_s",
           "status",
           "status_reason",
+          "result",
           "turn_count",
           "tool_call_count",
           "created_at",
@@ -6718,7 +7080,8 @@
           "processed_at",
           "turns",
           "tool_calls",
-          "metadata"
+          "metadata",
+          "checks"
         ],
         "title": "SessionDetail"
       },
@@ -7057,6 +7420,24 @@
             ],
             "title": "Status Reason"
           },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deviated",
+                  "partial",
+                  "followed",
+                  "not_measurable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result",
+            "description": "The worst procedure result once checked: deviated, partial, followed or not_measurable."
+          },
           "turn_count": {
             "type": "integer",
             "title": "Turn Count"
@@ -7105,6 +7486,7 @@
           "duration_s",
           "status",
           "status_reason",
+          "result",
           "turn_count",
           "tool_call_count",
           "created_at",

@@ -26,6 +26,10 @@ services:
     build: .
     environment: &app-env
       DATABASE_URL: postgresql://sopops:sopops@db:5432/sopops
+      # Models that check sessions (LiteLLM model strings) and the provider's key; unset, sessions aren't checked.
+      SOPOPS_MODEL_FAST: ${SOPOPS_MODEL_FAST:-}
+      SOPOPS_MODEL_REASONING: ${SOPOPS_MODEL_REASONING:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       HATCHET_CLIENT_TOKEN: ${HATCHET_CLIENT_TOKEN:-}
       HATCHET_CLIENT_TLS_STRATEGY: none
       HATCHET_CLIENT_HOST_PORT: hatchet:7077

@@ -1,13 +1,14 @@
 // Sessions: the live list with filters, one session's transcript, and the workspace's ingest token (Settings).
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound, Radio } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, call, q, sdk } from "@/lib/api";
 import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
+import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ConfirmButton, ErrorBanner, Note, PageTitle, Panel, Sub, Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Page } from "./item-shell";
@@ -18,7 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 type Status = SessionSummary["status"];
 
 const STATUS: Record<Status, { label: string; tone: string; help: string }> = {
-  received: { label: "received", tone: "", help: "Stored and normalized. SOP checks come next." },
+  received: { label: "received", tone: "", help: "Stored and normalized, not checked yet." },
   routed: { label: "routed", tone: "bg-brand-soft text-primary border-transparent", help: "Matched to the procedures that applied." },
   checked: { label: "checked", tone: "bg-brand-soft text-primary border-transparent", help: "Checked against its procedures." },
   excluded: { label: "excluded", tone: "", help: "Ended before a procedure started or finished." },
@@ -111,6 +112,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         <FilterSelect label="Agent" value={filters.agent} options={agents.map((a) => [a, a])} onChange={(agent) => set({ agent })} />
         <FilterSelect label="Channel" value={filters.channel} options={[["voice", "Voice"], ["text", "Text"]]} onChange={(channel) => set({ channel })} />
         <FilterSelect label="Status" value={filters.status} options={(Object.keys(STATUS) as Status[]).map((s) => [s, s])} onChange={(status) => set({ status })} />
+        <FilterSelect label="Result" value={filters.result} options={(Object.keys(RESULT) as Result[]).map((r) => [r, RESULT[r].label])} onChange={(result) => set({ result })} />
         <label className="text-muted-foreground flex items-center gap-1.5 text-[13px]">
           From
           <Input type="datetime-local" className="h-8 w-auto" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
@@ -136,7 +138,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", "Status"].map((h) => (
+                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", "Status", "Result"].map((h) => (
                   <th key={h} className="text-muted-foreground border-b px-2.5 py-2 text-left text-[13px] font-semibold whitespace-nowrap">
                     {h}
                   </th>
@@ -168,6 +170,9 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                   <td className="border-b px-2.5 py-2">
                     <StatusTag status={s.status} />
                   </td>
+                  <td className="border-b px-2.5 py-2">
+                    <ResultTag result={s.result} />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -194,17 +199,41 @@ const ROLE: Record<SessionTurn["role"], { label: string; className: string }> = 
   system: { label: "System", className: "text-muted-foreground" },
 };
 
-function Turn({ turn }: { turn: SessionTurn }) {
+function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; index: number; marks?: ReturnType<TurnMarks["get"]>; activeKey: string | null; onSelect: (key: string | null) => void }) {
   const r = ROLE[turn.role];
   const extra = turn as SessionTurn & { name?: string; interrupted?: boolean };
   const quiet = turn.role === "tool" || turn.role === "system";
+  const active = marks?.find((m) => m.key === activeKey);
+  const finding = marks?.some((m) => m.finding);
+  const quotes = active ? active.quotes : (marks ?? []).flatMap((m) => m.quotes);
   return (
-    <li className={cn("grid grid-cols-[52px_64px_minmax(0,1fr)] gap-3 border-b py-2 last:border-b-0", quiet && "text-[13px]")}>
-      <span className="text-muted-foreground pt-px font-mono text-xs">{clock(turn.offset_s)}</span>
+    <li
+      id={`turn-${index}`}
+      className={cn(
+        "grid scroll-mt-24 grid-cols-[52px_64px_minmax(0,1fr)] gap-3 border-b border-l-2 border-l-transparent py-2 pl-1.5 last:border-b-0",
+        quiet && "text-[13px]",
+        finding && "border-l-err",
+        active && "bg-muted",
+      )}
+    >
+      <span className="text-muted-foreground pt-px font-mono text-xs" title={`Turn ${index}`}>
+        {clock(turn.offset_s)}
+      </span>
       <span className={cn("text-[13px]", r.className)}>{r.label}</span>
       <span className={cn("whitespace-pre-wrap", turn.role === "tool" && "font-mono text-muted-foreground", turn.role === "system" && "italic text-muted-foreground")}>
-        {turn.text || (extra.name ? extra.name : <span className="text-muted-foreground">(no text)</span>)}
+        {turn.text ? <Highlighted text={turn.text} quotes={quotes} strong={!!active} /> : extra.name ? extra.name : <span className="text-muted-foreground">(no text)</span>}
         {extra.interrupted && <Tag className="ml-2 align-middle">interrupted</Tag>}
+        {marks && marks.length > 0 && (
+          <span className="mt-1 flex flex-wrap gap-1">
+            {marks.map((m) => (
+              <button key={m.key} type="button" onClick={() => onSelect(m.key === activeKey ? null : m.key)} title="Show this rule">
+                <Tag className={cn("cursor-pointer", m.finding ? "bg-err-soft text-err border-transparent" : "", m.key === activeKey && "ring-ring ring-1")}>
+                  {m.label} · {m.status.replace("_", " ")}
+                </Tag>
+              </button>
+            ))}
+          </span>
+        )}
       </span>
     </li>
   );
@@ -216,6 +245,18 @@ export function SessionView({ id }: { id: string }) {
   const { ws, releases } = useWs();
   useSessionStream(ws);
   const res = useQuery(q.session(ws, id));
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [scrollTo, setScrollTo] = useState<number | null>(null);
+  const marks = useMemo(() => turnMarks(res.data?.checks ?? []), [res.data]);
+  useEffect(() => {
+    if (scrollTo == null) return;
+    document.getElementById(`turn-${scrollTo}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setScrollTo(null);
+  }, [scrollTo]);
+  const select = (key: string | null, turn?: number | null) => {
+    setActiveKey(key);
+    if (key && turn != null) setScrollTo(turn);
+  };
   if (res.isPending) return <Page><p className="text-muted-foreground">Loading…</p></Page>;
   if (res.isError) return <Page><ErrorBanner error={res.error} /><HrefLink href={wsHref(ws, "sessions")}>All sessions</HrefLink></Page>;
   const s: SessionDetail = res.data;
@@ -236,7 +277,14 @@ export function SessionView({ id }: { id: string }) {
       <div className="text-muted-foreground mb-2 text-[13px]">
         <HrefLink href={wsHref(ws, "sessions")}>Sessions</HrefLink> /
       </div>
-      <PageTitle aside={<StatusTag status={s.status} big />}>
+      <PageTitle
+        aside={
+          <span className="flex items-center gap-1.5">
+            <StatusTag status={s.status} big />
+            {s.result && <ResultTag result={s.result} big />}
+          </span>
+        }
+      >
         {agentName(s)}, {when(s.started_at)}
       </PageTitle>
       <Sub>
@@ -245,12 +293,12 @@ export function SessionView({ id }: { id: string }) {
         {s.duration_s != null ? `, ${clock(s.duration_s)} long` : ""}.
       </Sub>
       {s.status_reason && <Banner tone={s.status === "failed" ? "err" : "warn"}>{s.status_reason}</Banner>}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Panel title="Transcript" className="min-w-0">
           {s.turns.length ? (
             <ol>
               {s.turns.map((t, i) => (
-                <Turn key={i} turn={t} />
+                <Turn key={i} index={i} turn={t} marks={marks.get(i)} activeKey={activeKey} onSelect={(k) => select(k)} />
               ))}
             </ol>
           ) : (
@@ -258,6 +306,9 @@ export function SessionView({ id }: { id: string }) {
           )}
         </Panel>
         <div className="min-w-0">
+          <Panel title="Procedures">
+            <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
+          </Panel>
           <Panel title="Details">
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
               {facts.map(([k, v]) => (

@@ -1,0 +1,181 @@
+// SOP check results on a session: each procedure's result and rule statuses, with evidence that points into the transcript.
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { Note, Tag } from "./bits";
+
+export type Result = NonNullable<SessionSummary["result"]>;
+
+export const RESULT: Record<Result, { label: string; tone: string; help: string }> = {
+  deviated: { label: "deviated", tone: "bg-err-soft text-err border-transparent", help: "A step was skipped or a never rule was broken." },
+  partial: { label: "partial", tone: "bg-warn-soft text-warn border-transparent", help: "Steps out of order or not reached, or a step skipped on the way to the goal." },
+  followed: { label: "followed", tone: "bg-brand-soft text-primary border-transparent", help: "Every applicable step done in order, no never rule broken." },
+  not_measurable: { label: "not measurable", tone: "", help: "Nothing to judge: no applicable step and no never rule broken." },
+};
+
+export function ResultTag({ result, big }: { result: Result | null | undefined; big?: boolean }) {
+  if (!result) return <span className="text-muted-foreground">—</span>;
+  const r = RESULT[result];
+  return (
+    <span title={r.help}>
+      <Tag big={big} className={r.tone}>
+        {r.label}
+      </Tag>
+    </span>
+  );
+}
+
+type Status = RuleResultOut["status"];
+
+const STATUS: Record<Status, { label: string; tone: string }> = {
+  done: { label: "done", tone: "text-ok border-transparent bg-transparent" },
+  ok: { label: "ok", tone: "text-ok border-transparent bg-transparent" },
+  absent: { label: "absent", tone: "" },
+  out_of_order: { label: "out of order", tone: "bg-warn-soft text-warn border-transparent" },
+  not_reached: { label: "not reached", tone: "bg-warn-soft text-warn border-transparent" },
+  not_applicable: { label: "n/a", tone: "" },
+  skipped: { label: "skipped", tone: "bg-err-soft text-err border-transparent" },
+  violated: { label: "violated", tone: "bg-err-soft text-err border-transparent" },
+  present: { label: "present", tone: "bg-warn-soft text-warn border-transparent" },
+};
+
+const KIND: Record<RuleResultOut["kind"], string> = { step: "Step", never: "Never", warning: "Warning sign" };
+
+export const ruleLabel = (r: RuleResultOut) => `${KIND[r.kind]} ${r.index}`;
+export const ruleKey = (procedureId: string, r: RuleResultOut) => `${procedureId}/${r.rule_id}`;
+
+/** Turn index → the rules whose evidence cites it. */
+export type TurnMarks = Map<number, { key: string; label: string; status: Status; finding: boolean; quotes: string[] }[]>;
+
+export function turnMarks(checks: ProcedureCheckOut[]): TurnMarks {
+  const marks: TurnMarks = new Map();
+  for (const c of checks) {
+    for (const r of c.rules) {
+      for (const e of r.evidence) {
+        if (e.turn == null) continue;
+        const list = marks.get(e.turn) ?? [];
+        const key = ruleKey(c.procedure_id, r);
+        const found = list.find((m) => m.key === key);
+        if (found) found.quotes.push(e.quote);
+        else list.push({ key, label: `${c.procedure_name ?? c.procedure_id}: ${ruleLabel(r)}`, status: r.status, finding: r.finding, quotes: [e.quote] });
+        marks.set(e.turn, list);
+      }
+    }
+  }
+  return marks;
+}
+
+/** The text with the quotes marked (case-insensitive, first match each). */
+export function Highlighted({ text, quotes, strong }: { text: string; quotes: string[]; strong: boolean }) {
+  const ranges: [number, number][] = [];
+  const lower = text.toLowerCase();
+  for (const q of quotes) {
+    const i = q ? lower.indexOf(q.toLowerCase()) : -1;
+    if (i >= 0) ranges.push([i, i + q.length]);
+  }
+  if (!ranges.length) return <>{text}</>;
+  ranges.sort((a, b) => a[0] - b[0]);
+  const out: React.ReactNode[] = [];
+  let at = 0;
+  ranges.forEach(([s, e], n) => {
+    if (s < at) s = at;
+    if (e <= s) return;
+    out.push(text.slice(at, s));
+    out.push(
+      <mark key={n} className={cn("rounded-sm px-0.5 text-inherit", strong ? "bg-warn-soft ring-warn/40 ring-1" : "bg-brand-soft")}>
+        {text.slice(s, e)}
+      </mark>,
+    );
+    at = e;
+  });
+  out.push(text.slice(at));
+  return <>{out}</>;
+}
+
+function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string; rule: RuleResultOut; active: boolean; onSelect: (key: string | null, turn?: number | null) => void }) {
+  const s = STATUS[rule.status];
+  const key = ruleKey(procedureId, rule);
+  const first = rule.evidence.find((e) => e.turn != null)?.turn;
+  return (
+    <li className={cn("rounded-md border border-transparent px-2 py-1.5", active && "border-border bg-muted", rule.finding && !active && "bg-err-soft/40")}>
+      <button type="button" className="grid w-full grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
+        <span className="pt-px">
+          <Tag className={s.tone}>{s.label}</Tag>
+        </span>
+        <span className="text-[13px]">
+          <span className="text-muted-foreground">{ruleLabel(rule)}.</span> {rule.text}
+        </span>
+      </button>
+      {active && (
+        <div className="mt-1.5 ml-[96px] grid gap-1.5 text-[13px]">
+          {rule.reason && <p className="text-muted-foreground">{rule.reason}</p>}
+          {rule.evidence.map((e, i) => (
+            <button
+              type="button"
+              key={i}
+              className="hover:bg-card rounded-md border px-2 py-1 text-left"
+              onClick={() => e.turn != null && onSelect(key, e.turn)}
+              disabled={e.turn == null}
+              title={e.turn != null ? `Show turn ${e.turn} in the transcript` : undefined}
+            >
+              <span className="text-muted-foreground mr-1.5 font-mono text-xs">{e.source === "tool_calls" ? "tool call" : `#${e.turn}`}</span>“{e.quote}”
+            </button>
+          ))}
+          <span className="text-muted-foreground font-mono text-[11px]">rule {rule.rule_id}</span>
+        </div>
+      )}
+    </li>
+  );
+}
+
+function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOut; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
+  const checked = check.result != null;
+  const [open, setOpen] = useState(checked);
+  const state = !check.applicable ? "didn't apply" : check.excluded_reason ? "excluded" : checked ? null : "not checked yet";
+  return (
+    <section className="border-b py-2.5 last:border-b-0">
+      <button type="button" className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
+        {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
+        <span className="flex-1 font-semibold">{check.procedure_name ?? check.procedure_id}</span>
+        {state ? <Tag>{state}</Tag> : <ResultTag result={check.result} />}
+      </button>
+      {open && (
+        <div className="mt-2 pl-6">
+          {(check.excluded_reason || check.route_reason) && <p className="text-muted-foreground mb-2 text-[13px]">{check.excluded_reason ?? check.route_reason}</p>}
+          {checked && (
+            <p className="mb-2 text-[13px]">
+              Goal{" "}
+              {check.goal_reached == null ? <Tag>unclear</Tag> : check.goal_reached ? <Tag className="text-ok border-transparent bg-transparent">reached</Tag> : <Tag className="bg-err-soft text-err border-transparent">not reached</Tag>}
+              {check.goal_reason && <span className="text-muted-foreground"> {check.goal_reason}</span>}
+            </p>
+          )}
+          {check.rules.length > 0 && (
+            <ul className="grid gap-0.5">
+              {check.rules.map((r) => (
+                <RuleRow key={r.rule_id} procedureId={check.procedure_id} rule={r} active={activeKey === ruleKey(check.procedure_id, r)} onSelect={onSelect} />
+              ))}
+            </ul>
+          )}
+          {checked && (
+            <p className="text-muted-foreground mt-2 text-[11px]">
+              {check.model} · prompt {check.prompt_version}
+              {check.release_id != null ? ` · release #${check.release_id}` : ""}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+export function ChecksPanel({ checks, activeKey, onSelect }: { checks: ProcedureCheckOut[]; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
+  if (!checks.length) return <Note>Not checked against any procedure yet.</Note>;
+  return (
+    <div>
+      {checks.map((c) => (
+        <ProcedureCard key={c.procedure_id} check={c} activeKey={activeKey} onSelect={onSelect} />
+      ))}
+    </div>
+  );
+}

@@ -111,13 +111,14 @@ export type SessionFilters = {
   agent?: string;
   channel?: "voice" | "text";
   status?: SessionSummary["status"];
+  result?: NonNullable<SessionSummary["result"]>;
   since?: string;
   until?: string;
 };
 
 function sessionQuery(f: SessionFilters) {
   const iso = (local?: string) => (local ? new Date(local).toISOString() : undefined);
-  return { agent: f.agent, channel: f.channel, status: f.status, since: iso(f.since), until: iso(f.until) };
+  return { agent: f.agent, channel: f.channel, status: f.status, result: f.result, since: iso(f.since), until: iso(f.until) };
 }
 
 /** What `…/sessions/stream` sends with each `session` event. */
