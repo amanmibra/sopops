@@ -39,7 +39,7 @@ await sopops.post_session({"platform": "api", "external_id": call_id, "agent": "
 | | |
 |---|---|
 | `SOPOPS_URL` | The workspace's API URL, e.g. `http://sopops.internal:8484/v1/workspaces/prod`. |
-| `SOPOPS_TOKEN` | The workspace's runtime token (sopops Settings → Ingest token). `SOPOPS_INGEST_TOKEN` is read too. A workspace without a token serves prompts without one. |
+| `SOPOPS_TOKEN` | A workspace token (sopops Settings → Tokens) with the scopes the agent needs: `runtime` to fetch prompts, `ingest` to send sessions. `SOPOPS_INGEST_TOKEN` is read too. A workspace without a runtime token serves prompts without one. |
 | `SOPOPS_CACHE_DIR` | Where the last good instructions are kept, default `~/.cache/sopops`. |
 
 **A sopops outage never blocks a call.** The fetch gives up after `timeout` (2s by default). Then it returns the last good copy for that agent and release from disk (`ins.source == "cache"`), else your `fallback` (`"fallback"`), else raises `SopopsUnavailable`. Sessions are retried on connection errors, 429 and 5xx; sending the same session again is safe.

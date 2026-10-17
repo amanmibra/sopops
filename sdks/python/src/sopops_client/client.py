@@ -70,7 +70,8 @@ class Sopops:
     """A sopops workspace.
 
     `url` is the workspace's API URL (`http://sopops.internal:8484/v1/workspaces/prod`), default `SOPOPS_URL`.
-    `token` is its runtime token (Settings → Ingest token), default `SOPOPS_TOKEN` (or `SOPOPS_INGEST_TOKEN`).
+    `token` is a workspace token (Settings → Tokens; scope `runtime` to fetch, `ingest` to send sessions), default
+    `SOPOPS_TOKEN` (or `SOPOPS_INGEST_TOKEN`).
     `timeout` bounds the fetch at call start; on any failure the last good copy on disk is used
     (`cache_dir`, default `SOPOPS_CACHE_DIR` or `~/.cache/sopops`).
     """

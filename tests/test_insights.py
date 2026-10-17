@@ -57,7 +57,7 @@ def env(tmp_path_factory, request):
     proc = files["procedures/allergen-check.yaml"].replace("Parents often ask", "Parents and carers often ask")
     client.put(f"{WS}/files", json={"files": {**files, "procedures/allergen-check.yaml": proc}})
     assert client.post(f"{WS}/releases", json={}).json()["release"]["number"] == 2
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    token = client.post(f"{WS}/tokens").json()["token"]
     n = {"i": 0}
 
     def send(at, release, *flags):

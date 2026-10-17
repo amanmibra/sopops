@@ -3,7 +3,7 @@
     session = AgentSession(..., userdata={"sopops_release": sop["release"]})  # or an object with .sopops_release
     record_session(ctx, session)
 
-Env: SOPOPS_URL (http://sopops:8484/v1/workspaces/<ws>) and SOPOPS_INGEST_TOKEN (Settings in sopops).
+Env: SOPOPS_URL (http://sopops:8484/v1/workspaces/<ws>) and SOPOPS_TOKEN (a token with the ingest scope, Settings → Tokens in sopops).
 """
 
 import os
@@ -39,7 +39,7 @@ def record_session(ctx: JobContext, session: AgentSession, agent: str | None = N
             "turns": turns, "tool_calls": list(tools.values()), "metadata": {"room": ctx.room.name, "shutdown_reason": reason},
         }
         async with httpx.AsyncClient(timeout=5) as http:  # stay well inside the job's shutdown budget
-            res = await http.post(f"{os.environ['SOPOPS_URL']}/sessions", json=body, headers={"Authorization": f"Bearer {os.environ['SOPOPS_INGEST_TOKEN']}"})
+            res = await http.post(f"{os.environ['SOPOPS_URL']}/sessions", json=body, headers={"Authorization": f"Bearer {os.environ.get('SOPOPS_TOKEN') or os.environ['SOPOPS_INGEST_TOKEN']}"})
             res.raise_for_status()
 
     ctx.add_shutdown_callback(send)

@@ -75,7 +75,7 @@ Paths under `build/` in uploads are ignored; absolute paths and `..` are rejecte
 | `GET …/agents/<agent>/sops/<id>` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. |
 | `GET …/fetches?agent=` | Which release and prompt hash each agent was served, newest first. |
 
-`GET …/agents/<agent>`, `…/prompt` and `…/sops/<id>` take the workspace's token (the ingest token, also called the runtime token) as `Authorization: Bearer <token>` once the workspace has one, and answer `401` without it. A workspace without a token serves them openly (local mode).
+`GET …/agents/<agent>`, `…/prompt` and `…/sops/<id>` take a token with the `runtime` scope ([Tokens](#tokens)) as `Authorization: Bearer <token>` once the workspace has one, and answer `401` without it (`403` for a token without the scope). A workspace without an unrevoked runtime token serves them openly (local mode).
 
 `<agent>` is the sopc agent id (`tonys-pizza`) or its platform ref (`livekit:tonys-pizza`). `components` lists each file the prompt was built from, in prompt order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9).
 
@@ -94,13 +94,13 @@ How each agent gets its prompt: **pull** (the agent, or its platform's call-star
 | `POST …/runtime/platforms/<platform>/test` | `{platform_id?}`: read one agent with the stored key (a GET; default: the first agent at head on that platform). `{ok, platform_id, message}`. |
 | `GET …/releases/<n>/pushes` | Each push-mode agent's latest push of the release: `{agent, platform, platform_id, status: ok \| unchanged \| error, version_id, error, attempts, at}`. |
 | `POST …/releases/<n>/pushes/retry` | `{agents?}`: push again (default: the agents whose last push failed). `409` unless the release is live. |
-| `POST …/runtime/served` | `{platform, call_id, agent, release}` with the runtime token: a client that fetched the prompt itself reports the call it served, so the session links to the release. |
+| `POST …/runtime/served` | `{platform, call_id, agent, release}` with a runtime-scoped token: a client that fetched the prompt itself reports the call it served, so the session links to the release. |
 | `POST …/runtime/elevenlabs/conversation-init` | ElevenLabs' conversation-initiation webhook (`?agent=`, `?release=` optional; default: the agent named by `agent_id` in the body, live release). Returns `{type: "conversation_initiation_client_data", dynamic_variables: {sopops_release, sopops_agent}, conversation_config_override: {agent: {prompt: {prompt}}}}`. |
 | `POST …/runtime/vapi/assistant-request` | Vapi's server URL (`?agent=` needed if the release has more than one Vapi agent; `?release=` optional). For `assistant-request`: `{assistantId, assistantOverrides: {model, variableValues: {sopops_prompt, sopops_release, sopops_agent}, metadata}}`, where `model` is the assistant's own (read with the stored key, cached 5 minutes) with the system message replaced; without a key, only `variableValues` (use `{{sopops_prompt}}` as the system message). Other message types get `{}`. |
 
 **Push.** Creating a release (`POST …/releases`, `…/publish`) or activating one pushes it to every push-mode agent, after the response. ElevenLabs: `GET /v1/convai/agents/<id>`, then `PATCH` with `{conversation_config: {agent: {prompt: {prompt}}}}`; an agent whose workflow has nodes besides start and end is refused, since its main prompt isn't the whole prompt. Vapi: `GET /assistant/<id>`, then `PATCH {model}` with every model field kept and the one system message replaced (added if there's none; refused if there are several). A prompt that's already live is recorded as `unchanged` without a write. `version_id` is ElevenLabs' `version_id` or Vapi's `latestVersion` when returned.
 
-**Webhook authentication.** A request is accepted with the platform's webhook secret, as `Authorization: Bearer`, `X-Sopops-Secret` or `X-Vapi-Secret`, or as an HMAC-SHA256 signature: ElevenLabs' `ElevenLabs-Signature: t=…,v0=…` over `"{t}.{body}"` (at most 30 minutes old), or Vapi's `x-signature` (hex) and `x-timestamp` over `"{timestamp}.{body}"` (within 5 minutes). The runtime token as a bearer works too. A workspace with neither a webhook secret nor a token accepts them unauthenticated (local mode).
+**Webhook authentication.** A request is accepted with the platform's webhook secret, as `Authorization: Bearer`, `X-Sopops-Secret` or `X-Vapi-Secret`, or as an HMAC-SHA256 signature: ElevenLabs' `ElevenLabs-Signature: t=…,v0=…` over `"{t}.{body}"` (at most 30 minutes old), or Vapi's `x-signature` (hex) and `x-timestamp` over `"{timestamp}.{body}"` (within 5 minutes). A token with the `runtime` scope as a bearer works too. A workspace with neither a webhook secret nor a runtime token accepts them unauthenticated (local mode), unless `SOPOPS_REQUIRE_WEBHOOK_SECRET` is true (set it when sopops is hosted): then they get `401`.
 
 **Linking sessions.** Each prompt served by a webhook, or reported to `…/runtime/served`, is kept for 7 days keyed by the call id: Vapi's `call.id`, ElevenLabs' `conversation_id` or `call_sid`. A session ingested without a `release` takes it from there, matching `external_id`, `metadata.call_sid` or `metadata.phone_call.call_sid`.
 
@@ -113,21 +113,36 @@ Nothing is stored.
 | `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, compiled prompts, and duplicate or conflicting instructions. |
 | `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
 
+## Tokens
+
+One kind of workspace token, with scopes. Tokens are stored as a sha256 hash and shown once, when made; send them as `Authorization: Bearer <token>`. A missing, unknown, expired or revoked token (or one for another workspace) gets `401`; a valid token without the scope gets `403`.
+
+| Scope | What it allows | Made |
+|---|---|---|
+| `ingest` | `POST …/sessions`. | Settings → Tokens, or `POST …/tokens`. |
+| `runtime` | Prompt fetches (`…/agents/<agent>`, `…/prompt`, `…/sops/<id>`), `POST …/runtime/served`, and the call-start webhooks as a bearer. | Settings → Tokens, or `POST …/tokens`. |
+| `onboarding:write` | The coding agent's `/v1/onboarding/*` endpoints, for one import, for 2 hours. | By `POST …/imports/agent` only. |
+
+| Endpoint | What it does |
+|---|---|
+| `GET …/tokens` | `[{id, name, prefix, scopes, import_id, created_at, expires_at, revoked_at, active, ...}]`, newest first, revoked ones included. Onboarding tokens only with `?imports=true`. |
+| `POST …/tokens` | `{name?, scopes?: ["ingest", "runtime"], expires_in_days?}` (default: both scopes, never expires). `201` with the token, shown once. |
+| `DELETE …/tokens/<id>` | Revoke it: it stops working at once; the row is kept with `revoked_at`. |
+
+Prompt fetches stay open while the workspace has no unrevoked `runtime` token, for local use; an expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.
+
 ## Sessions
 
 A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the [helper](helpers/livekit)), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API, and all of them use one canonical format.
 
 | Endpoint | What it does |
 |---|---|
-| `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <ingest token>`. An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without the workspace's token. |
+| `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <token>` (scope `ingest`). An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without a valid token for the workspace, `403` for one without the `ingest` scope. |
 | `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result). |
 | `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
-| `GET …/ingest-token` | `{exists, prefix, created_at}`. The token itself is only shown when made. |
-| `POST …/ingest-token` | Make the workspace's ingest token, or replace it (the old one stops working): `{token, prefix, created_at}`. Stored as a hash. |
-| `DELETE …/ingest-token` | Delete it; ingest is refused until a new one is made. |
 
-Ingest needs the token, and so do prompt fetches once it exists (see Serving); the rest of the API is open, as above.
+Ingest needs a token with the `ingest` scope ([Tokens](#tokens)); the rest of the API is open, as above.
 
 ### The canonical format
 

@@ -7,10 +7,11 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from conftest import SOPC_BIN, WS
 from sopops import Sopc
+from sopops.models import Token
 from sopops.onboarding import kickoff, platforms
 from sopops.onboarding import text as tx
 from sopops.onboarding.fidelity import check, parse_compare
@@ -311,8 +312,9 @@ def test_onboarding_token_flow(client, proposal):
     assert token.startswith("sopops_onb_") and started["import"]["status"] == "waiting"
     assert started["import"]["token"]["active"] and started["import"]["token"]["scopes"] == ["onboarding:write"]
     with Session(client.app.state.store.engine) as db:
-        row = db.get(ImportRecord, id)
+        row = db.exec(select(Token).where(Token.import_id == id)).one()
         assert row.token_hash and token not in json.dumps(row.model_dump(), default=str)  # stored hashed
+        assert token not in json.dumps(db.get(ImportRecord, id).model_dump(), default=str)
     auth = {"Authorization": f"Bearer {token}"}
     session = client.get("/v1/onboarding/session", headers=auth).json()
     assert session["workspace"] == "demo" and session["mode"] == "repo" and session["repo"] == "github.com/example/agents"
@@ -335,7 +337,13 @@ def test_onboarding_token_flow(client, proposal):
     assert len(checked["fidelity"]) == 4
 
     # The token can't do anything else: it isn't accepted elsewhere, and other workspaces' imports are separate.
+    assert client.post("/v1/workspaces/demo/sessions", headers=auth, json={"platform": "api", "external_id": "x"}).status_code == 403
     assert client.get(f"/v1/workspaces/other/imports/{id}").status_code == 404
+    # Nor does a workspace token with other scopes work here.
+    user = client.post("/v1/workspaces/demo/tokens").json()["token"]
+    assert client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {user}"}).status_code == 403
+    assert started["import"]["id"] not in [t["import_id"] for t in client.get("/v1/workspaces/demo/tokens").json()]
+    assert id in [t["import_id"] for t in client.get("/v1/workspaces/demo/tokens", params={"imports": True}).json()]
     # Applying ends the token.
     assert client.post(f"{IMPORTS}/{id}/apply", json={}).status_code == 200
     assert client.post("/v1/onboarding/progress", headers=auth, json={"step": "x", "message": "y"}).status_code == 401
@@ -355,8 +363,8 @@ def test_onboarding_tokens_expire_revoke_and_need_the_scope(client):
     auth = {"Authorization": f"Bearer {started['token']}"}
     assert client.get("/v1/onboarding/session", headers=auth).status_code == 200
     with Session(client.app.state.store.engine) as db:
-        row = db.get(ImportRecord, started["import"]["id"])
-        row.scopes = ["sessions:read"]
+        row = db.exec(select(Token).where(Token.import_id == started["import"]["id"])).one()
+        row.scopes = ["ingest"]
         db.add(row)
         db.commit()
     assert client.post("/v1/onboarding/progress", headers=auth, json={"step": "a", "message": "b"}).status_code == 403
@@ -384,7 +392,7 @@ def test_kickoff_text(monkeypatch):
     k = kickoff.kickoff("prod", "https://sopops.example/", "sopops_onb_abc", mode="repo", repo="github.com/example/agents")
     assert k["claude_code"] == (
         "claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_abc "
-        "-- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp"
+        "-- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp"
     )
     assert k["codex"].startswith("codex mcp add sopops --env SOPOPS_URL=https://sopops.example ")
     assert 'SOPOPS_TOKEN = "sopops_onb_abc"' in k["codex_toml"] and "[mcp_servers.sopops]" in k["codex_toml"]

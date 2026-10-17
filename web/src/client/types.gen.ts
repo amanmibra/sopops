@@ -1327,7 +1327,7 @@ export type ImportOut = {
      * Pushes
      */
     pushes: number;
-    token: TokenOut | null;
+    token: ImportTokenOut | null;
     /**
      * Created At
      */
@@ -1344,43 +1344,29 @@ export type ImportOut = {
 };
 
 /**
- * IngestTokenCreated
+ * ImportTokenOut
  */
-export type IngestTokenCreated = {
-    /**
-     * Token
-     *
-     * Shown once. Send as `Authorization: Bearer <token>` to the ingest endpoints.
-     */
-    token: string;
+export type ImportTokenOut = {
     /**
      * Prefix
-     */
-    prefix: string;
-    /**
-     * Created At
-     */
-    created_at: string;
-};
-
-/**
- * IngestTokenInfo
- */
-export type IngestTokenInfo = {
-    /**
-     * Exists
-     */
-    exists: boolean;
-    /**
-     * Prefix
-     *
-     * The token's first characters, to tell tokens apart.
      */
     prefix: string | null;
     /**
-     * Created At
+     * Scopes
      */
-    created_at: string | null;
+    scopes: Array<string>;
+    /**
+     * Expires At
+     */
+    expires_at: string | null;
+    /**
+     * Revoked At
+     */
+    revoked_at: string | null;
+    /**
+     * Active
+     */
+    active: boolean;
 };
 
 /**
@@ -4624,17 +4610,45 @@ export type TilesValues = {
 };
 
 /**
- * TokenOut
+ * TokenCreated
  */
-export type TokenOut = {
+export type TokenCreated = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Name
+     */
+    name: string;
     /**
      * Prefix
+     *
+     * The token's first characters, to tell tokens apart.
      */
-    prefix: string | null;
+    prefix: string;
     /**
      * Scopes
      */
-    scopes: Array<string>;
+    scopes: Array<'ingest' | 'runtime' | 'onboarding:write'>;
+    /**
+     * Import Id
+     *
+     * Onboarding tokens: the import they belong to.
+     */
+    import_id: string | null;
+    /**
+     * Created By
+     */
+    created_by: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
     /**
      * Expires At
      */
@@ -4645,6 +4659,94 @@ export type TokenOut = {
     revoked_at: string | null;
     /**
      * Active
+     *
+     * Neither revoked nor expired.
+     */
+    active: boolean;
+    /**
+     * Token
+     *
+     * Shown once. Send as `Authorization: Bearer <token>`.
+     */
+    token: string;
+};
+
+/**
+ * TokenIn
+ */
+export type TokenIn = {
+    /**
+     * Name
+     *
+     * What it's for, e.g. 'LiveKit agents'.
+     */
+    name?: string;
+    /**
+     * Scopes
+     *
+     * `ingest`: send sessions. `runtime`: fetch prompts, report served calls, call-start webhooks.
+     */
+    scopes?: Array<'ingest' | 'runtime'>;
+    /**
+     * Expires In Days
+     *
+     * Default: never expires.
+     */
+    expires_in_days?: number | null;
+};
+
+/**
+ * TokenOut
+ */
+export type TokenOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Prefix
+     *
+     * The token's first characters, to tell tokens apart.
+     */
+    prefix: string;
+    /**
+     * Scopes
+     */
+    scopes: Array<'ingest' | 'runtime' | 'onboarding:write'>;
+    /**
+     * Import Id
+     *
+     * Onboarding tokens: the import they belong to.
+     */
+    import_id: string | null;
+    /**
+     * Created By
+     */
+    created_by: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string | null;
+    /**
+     * Revoked At
+     */
+    revoked_at: string | null;
+    /**
+     * Active
+     *
+     * Neither revoked nor expired.
      */
     active: boolean;
 };
@@ -7584,9 +7686,13 @@ export type IngestSessionData = {
 
 export type IngestSessionErrors = {
     /**
-     * Missing or wrong ingest token.
+     * Missing, unknown, expired or revoked token.
      */
     401: unknown;
+    /**
+     * The token lacks the ingest scope.
+     */
+    403: unknown;
     /**
      * Validation Error
      */
@@ -7670,7 +7776,7 @@ export type GetSessionResponses = {
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
 
-export type RevokeIngestTokenData = {
+export type ListTokensData = {
     body?: never;
     path: {
         /**
@@ -7678,30 +7784,42 @@ export type RevokeIngestTokenData = {
          */
         workspace: string;
     };
-    query?: never;
-    url: '/v1/workspaces/{workspace}/ingest-token';
+    query?: {
+        /**
+         * Imports
+         *
+         * Include onboarding tokens made by imports.
+         */
+        imports?: boolean;
+    };
+    url: '/v1/workspaces/{workspace}/tokens';
 };
 
-export type RevokeIngestTokenErrors = {
+export type ListTokensErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RevokeIngestTokenError = RevokeIngestTokenErrors[keyof RevokeIngestTokenErrors];
+export type ListTokensError = ListTokensErrors[keyof ListTokensErrors];
 
-export type RevokeIngestTokenResponses = {
+export type ListTokensResponses = {
     /**
+     * Response List Tokens
+     *
      * Successful Response
      */
-    204: void;
+    200: Array<TokenOut>;
 };
 
-export type RevokeIngestTokenResponse = RevokeIngestTokenResponses[keyof RevokeIngestTokenResponses];
+export type ListTokensResponse = ListTokensResponses[keyof ListTokensResponses];
 
-export type GetIngestTokenData = {
-    body?: never;
+export type CreateTokenData = {
+    /**
+     * Req
+     */
+    body?: TokenIn | null;
     path: {
         /**
          * Workspace
@@ -7709,56 +7827,60 @@ export type GetIngestTokenData = {
         workspace: string;
     };
     query?: never;
-    url: '/v1/workspaces/{workspace}/ingest-token';
+    url: '/v1/workspaces/{workspace}/tokens';
 };
 
-export type GetIngestTokenErrors = {
+export type CreateTokenErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type GetIngestTokenError = GetIngestTokenErrors[keyof GetIngestTokenErrors];
+export type CreateTokenError = CreateTokenErrors[keyof CreateTokenErrors];
 
-export type GetIngestTokenResponses = {
+export type CreateTokenResponses = {
     /**
      * Successful Response
      */
-    200: IngestTokenInfo;
+    201: TokenCreated;
 };
 
-export type GetIngestTokenResponse = GetIngestTokenResponses[keyof GetIngestTokenResponses];
+export type CreateTokenResponse = CreateTokenResponses[keyof CreateTokenResponses];
 
-export type RotateIngestTokenData = {
+export type RevokeTokenData = {
     body?: never;
     path: {
         /**
          * Workspace
          */
         workspace: string;
+        /**
+         * Id
+         */
+        id: string;
     };
     query?: never;
-    url: '/v1/workspaces/{workspace}/ingest-token';
+    url: '/v1/workspaces/{workspace}/tokens/{id}';
 };
 
-export type RotateIngestTokenErrors = {
+export type RevokeTokenErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type RotateIngestTokenError = RotateIngestTokenErrors[keyof RotateIngestTokenErrors];
+export type RevokeTokenError = RevokeTokenErrors[keyof RevokeTokenErrors];
 
-export type RotateIngestTokenResponses = {
+export type RevokeTokenResponses = {
     /**
      * Successful Response
      */
-    200: IngestTokenCreated;
+    200: TokenOut;
 };
 
-export type RotateIngestTokenResponse = RotateIngestTokenResponses[keyof RotateIngestTokenResponses];
+export type RevokeTokenResponse = RevokeTokenResponses[keyof RevokeTokenResponses];
 
 export type ListPatternsData = {
     body?: never;

@@ -508,7 +508,7 @@
           "runtime"
         ],
         "summary": "Record Served",
-        "description": "Remember which release a call ran on, once its id is known, so the session that arrives later (an\nElevenLabs post-call webhook) links to it. Takes the runtime token, like prompt fetches.",
+        "description": "Remember which release a call ran on, once its id is known, so the session that arrives later (an\nElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like prompt fetches.",
         "operationId": "record_served",
         "security": [
           {
@@ -4175,7 +4175,10 @@
             }
           },
           "401": {
-            "description": "Missing or wrong ingest token."
+            "description": "Missing, unknown, expired or revoked token."
+          },
+          "403": {
+            "description": "The token lacks the ingest scope."
           },
           "422": {
             "description": "Validation Error",
@@ -4683,14 +4686,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace}/ingest-token": {
+    "/v1/workspaces/{workspace}/tokens": {
       "get": {
         "tags": [
-          "sessions"
+          "tokens"
         ],
-        "summary": "Get Ingest Token",
-        "description": "Whether the workspace has an ingest token, and its first characters. The token itself is never shown again.",
-        "operationId": "get_ingest_token",
+        "summary": "List Tokens",
+        "description": "The workspace's tokens, newest first, revoked ones included. Never the tokens themselves.",
+        "operationId": "list_tokens",
         "parameters": [
           {
             "name": "workspace",
@@ -4700,6 +4703,18 @@
               "type": "string",
               "title": "Workspace"
             }
+          },
+          {
+            "name": "imports",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include onboarding tokens made by imports.",
+              "default": false,
+              "title": "Imports"
+            },
+            "description": "Include onboarding tokens made by imports."
           }
         ],
         "responses": {
@@ -4708,7 +4723,11 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IngestTokenInfo"
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TokenOut"
+                  },
+                  "title": "Response List Tokens"
                 }
               }
             }
@@ -4727,11 +4746,11 @@
       },
       "post": {
         "tags": [
-          "sessions"
+          "tokens"
         ],
-        "summary": "Rotate Ingest Token",
-        "description": "Create the workspace's ingest token, or replace it (the old one stops working). Returned once.",
-        "operationId": "rotate_ingest_token",
+        "summary": "Create Token",
+        "description": "Make a token with the `ingest` and/or `runtime` scope. The token is returned here only.",
+        "operationId": "create_token",
         "parameters": [
           {
             "name": "workspace",
@@ -4743,13 +4762,30 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/TokenIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/IngestTokenCreated"
+                  "$ref": "#/components/schemas/TokenCreated"
                 }
               }
             }
@@ -4765,14 +4801,16 @@
             }
           }
         }
-      },
+      }
+    },
+    "/v1/workspaces/{workspace}/tokens/{id}": {
       "delete": {
         "tags": [
-          "sessions"
+          "tokens"
         ],
-        "summary": "Revoke Ingest Token",
-        "description": "Delete the ingest token: ingest is refused until a new one is made.",
-        "operationId": "revoke_ingest_token",
+        "summary": "Revoke Token",
+        "description": "Revoke a token: it stops working at once. The row is kept, with `revoked_at`.",
+        "operationId": "revoke_token",
         "parameters": [
           {
             "name": "workspace",
@@ -4782,11 +4820,27 @@
               "type": "string",
               "title": "Workspace"
             }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -9413,7 +9467,7 @@
           "token": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/TokenOut"
+                "$ref": "#/components/schemas/ImportTokenOut"
               },
               {
                 "type": "null"
@@ -9470,37 +9524,8 @@
         ],
         "title": "ImportOut"
       },
-      "IngestTokenCreated": {
+      "ImportTokenOut": {
         "properties": {
-          "token": {
-            "type": "string",
-            "title": "Token",
-            "description": "Shown once. Send as `Authorization: Bearer <token>` to the ingest endpoints."
-          },
-          "prefix": {
-            "type": "string",
-            "title": "Prefix"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          }
-        },
-        "type": "object",
-        "required": [
-          "token",
-          "prefix",
-          "created_at"
-        ],
-        "title": "IngestTokenCreated"
-      },
-      "IngestTokenInfo": {
-        "properties": {
-          "exists": {
-            "type": "boolean",
-            "title": "Exists"
-          },
           "prefix": {
             "anyOf": [
               {
@@ -9510,10 +9535,16 @@
                 "type": "null"
               }
             ],
-            "title": "Prefix",
-            "description": "The token's first characters, to tell tokens apart."
+            "title": "Prefix"
           },
-          "created_at": {
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "expires_at": {
             "anyOf": [
               {
                 "type": "string",
@@ -9523,16 +9554,34 @@
                 "type": "null"
               }
             ],
-            "title": "Created At"
+            "title": "Expires At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
           }
         },
         "type": "object",
         "required": [
-          "exists",
           "prefix",
-          "created_at"
+          "scopes",
+          "expires_at",
+          "revoked_at",
+          "active"
         ],
-        "title": "IngestTokenInfo"
+        "title": "ImportTokenOut"
       },
       "InstructionConfig": {
         "properties": {
@@ -15199,9 +15248,38 @@
         ],
         "title": "TilesValues"
       },
-      "TokenOut": {
+      "TokenCreated": {
         "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
           "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "The token's first characters, to tell tokens apart."
+          },
+          "scopes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "ingest",
+                "runtime",
+                "onboarding:write"
+              ]
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "import_id": {
             "anyOf": [
               {
                 "type": "string"
@@ -15210,14 +15288,24 @@
                 "type": "null"
               }
             ],
-            "title": "Prefix"
+            "title": "Import Id",
+            "description": "Onboarding tokens: the import they belong to."
           },
-          "scopes": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Scopes"
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
           },
           "expires_at": {
             "anyOf": [
@@ -15245,13 +15333,171 @@
           },
           "active": {
             "type": "boolean",
-            "title": "Active"
+            "title": "Active",
+            "description": "Neither revoked nor expired."
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Shown once. Send as `Authorization: Bearer <token>`."
           }
         },
         "type": "object",
         "required": [
+          "id",
+          "workspace",
+          "name",
           "prefix",
           "scopes",
+          "import_id",
+          "created_by",
+          "created_at",
+          "expires_at",
+          "revoked_at",
+          "active",
+          "token"
+        ],
+        "title": "TokenCreated"
+      },
+      "TokenIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "title": "Name",
+            "description": "What it's for, e.g. 'LiveKit agents'.",
+            "default": ""
+          },
+          "scopes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "ingest",
+                "runtime"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Scopes",
+            "description": "`ingest`: send sessions. `runtime`: fetch prompts, report served calls, call-start webhooks."
+          },
+          "expires_in_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 3650.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Days",
+            "description": "Default: never expires."
+          }
+        },
+        "type": "object",
+        "title": "TokenIn"
+      },
+      "TokenOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "The token's first characters, to tell tokens apart."
+          },
+          "scopes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "ingest",
+                "runtime",
+                "onboarding:write"
+              ]
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "import_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Id",
+            "description": "Onboarding tokens: the import they belong to."
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active",
+            "description": "Neither revoked nor expired."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace",
+          "name",
+          "prefix",
+          "scopes",
+          "import_id",
+          "created_by",
+          "created_at",
           "expires_at",
           "revoked_at",
           "active"
@@ -15775,7 +16021,7 @@
     "securitySchemes": {
       "HTTPBearer": {
         "type": "http",
-        "description": "The workspace's ingest token (Settings \u2192 Ingest token).",
+        "description": "A token with the ingest scope (Settings \u2192 Tokens).",
         "scheme": "bearer"
       }
     }

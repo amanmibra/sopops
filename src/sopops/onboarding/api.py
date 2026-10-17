@@ -15,9 +15,10 @@ from pydantic import BaseModel, Field
 from ..llm import LLMError, model_for
 from ..schemas import WrittenFile
 from ..store import Store
+from ..tokens import Forbidden, Unauthorized
 from . import platforms
 from .models import Finding, Proposal, ProposalContent, SourcePrompt
-from .service import DONE, Forbidden, Onboarding, Unauthorized
+from .service import DONE, Onboarding
 
 # --- request and response shapes ------------------------------------------------------------
 
@@ -51,7 +52,7 @@ class AgentImportRequest(BaseModel):
     author: str | None = None
 
 
-class TokenOut(BaseModel):
+class ImportTokenOut(BaseModel):
     prefix: str | None
     scopes: list[str]
     expires_at: datetime | None
@@ -69,7 +70,7 @@ class ImportOut(BaseModel):
     agents: list[str]
     error: str | None
     pushes: int
-    token: TokenOut | None
+    token: ImportTokenOut | None
     created_at: datetime
     updated_at: datetime
     created_by: str | None
@@ -288,7 +289,8 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     def onboarding_session(authorization: str | None = Header(None)) -> dict:
         """The workspace and mode an onboarding token is for."""
         rec = agent(authorization)
-        return {"workspace": rec.workspace, "import_id": rec.id, "mode": rec.mode, "repo": rec.repo, "scopes": rec.scopes, "expires_at": rec.expires_at}
+        token = onboarding.token_of(rec) or {}
+        return {"workspace": rec.workspace, "import_id": rec.id, "mode": rec.mode, "repo": rec.repo, "scopes": token.get("scopes", []), "expires_at": token.get("expires_at")}
 
     @r.post("/v1/onboarding/progress", response_model=EventOut)
     def onboarding_progress(req: ProgressIn, authorization: str | None = Header(None)) -> dict:

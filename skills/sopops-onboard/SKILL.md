@@ -14,16 +14,16 @@ The sopops **Import agents** page (Use Claude Code / Codex) gives you the exact 
 ```sh
 # Claude Code
 claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp
+  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
 # Codex
 codex mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp
+  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
 ```
 
 Cursor (`.cursor/mcp.json`):
 
 ```json
-{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "git+https://github.com/amanmibra/sopops@onboarding", "sopops-mcp"],
+{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "git+https://github.com/amanmibra/sopops@v0", "sopops-mcp"],
   "env": {"SOPOPS_URL": "https://sopops.example", "SOPOPS_TOKEN": "sopops_onb_..."}}}}
 ```
 

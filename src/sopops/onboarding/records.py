@@ -32,12 +32,7 @@ class ImportRecord(SQLModel, table=True):
     proposal: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     pushes: int = 0
-    # The onboarding token (source `agent`): a sha256 hash, shown once. Valid until it expires or is revoked.
-    token_hash: str | None = Field(default=None, max_length=64, unique=True)
-    token_prefix: str | None = Field(default=None, max_length=32)
-    scopes: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
-    expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
-    revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    # The onboarding token (source `agent`) is a `tokens` row with this import's id (scope onboarding:write).
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     created_by: str | None = Field(default=None, max_length=256)

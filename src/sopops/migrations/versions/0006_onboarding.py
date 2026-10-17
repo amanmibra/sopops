@@ -1,4 +1,5 @@
-"""Onboarding: imports (LLM jobs and coding-agent sessions with onboarding tokens) and their progress events.
+"""Onboarding: imports (LLM jobs and coding-agent sessions) and their progress events. Onboarding tokens are in
+`tokens` (0007).
 
 Revision ID: 0006
 Revises: 0005
@@ -29,16 +30,10 @@ def upgrade() -> None:
         sa.Column("proposal", sa.JSON(), nullable=True),
         sa.Column("error", sa.Text(), nullable=True),
         sa.Column("pushes", sa.Integer(), nullable=False),
-        sa.Column("token_hash", sa.String(64), nullable=True),
-        sa.Column("token_prefix", sa.String(32), nullable=True),
-        sa.Column("scopes", sa.JSON(), nullable=False),
-        sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("created_by", sa.String(256), nullable=True),
         sa.PrimaryKeyConstraint("id"),
-        sa.UniqueConstraint("token_hash"),
     )
     op.create_index("ix_imports_workspace_created", "imports", ["workspace", "created_at"])
     op.create_table(

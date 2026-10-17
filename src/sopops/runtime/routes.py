@@ -33,7 +33,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
     runtime = Runtime(store)
     assistants = AssistantCache()
     app.state.runtime = runtime
-    bearer = HTTPBearer(auto_error=False, description="The workspace's runtime token (Settings → Ingest token), once it has one.")
+    bearer = HTTPBearer(auto_error=False, description="A token with the runtime scope (Settings → Tokens), once the workspace has one.")
 
     # Browsers calling sopops directly (the TypeScript client's ElevenLabs adapter in a web app) need CORS.
     if origins := [o.strip() for o in os.environ.get("SOPOPS_CORS_ORIGINS", "").split(",") if o.strip()]:
@@ -104,7 +104,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
     @app.post(f"{WS}/runtime/served", response_model=ServedOut, tags=["runtime"], responses={401: {"description": "Missing or wrong runtime token."}})
     def record_served(workspace: str, req: ServedIn, credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
         """Remember which release a call ran on, once its id is known, so the session that arrives later (an
-        ElevenLabs post-call webhook) links to it. Takes the runtime token, like prompt fetches."""
+        ElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like prompt fetches."""
         runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
         served = runtime.resolve(workspace, req.platform, req.agent, req.release)
         runtime.record_serve(workspace, req.platform, [req.call_id], served, log_fetch=False)

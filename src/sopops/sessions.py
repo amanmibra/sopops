@@ -1,4 +1,4 @@
-"""Sessions: ingest (an idempotent upsert on workspace + platform + external id), listing, and ingest tokens.
+"""Sessions: ingest (an idempotent upsert on workspace + platform + external id) and listing. Tokens are in `tokens`.
 
 A session is one conversation an agent had: a voice call or a text chat. Every write publishes a session event
 (see `events`), and ingest hands the session to the pipeline (see `jobs`).
@@ -9,7 +9,6 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
-import secrets
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,7 +20,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .events import CHANNEL, Broker
-from .models import IngestToken, Release, SessionRecord, Workspace
+from .models import Release, SessionRecord, Workspace
 from .pipeline.models import SessionRef
 from .pipeline.normalize import to_utc
 from .schemas import SessionIn
@@ -29,11 +28,7 @@ from .schemas import SessionIn
 if TYPE_CHECKING:
     from .store import Store
 
-TOKEN_PREFIX = "sopops_"
-
-
-class Unauthorized(Exception):
-    pass
+from .tokens import Unauthorized  # noqa: F401  (re-exported: the app maps it to 401)
 
 
 class BadCursor(ValueError):
@@ -247,55 +242,6 @@ class Sessions:
         rows = rows[:limit]
         return {"items": [_summary(r) for r in rows], "next_cursor": _encode_cursor(rows[-1]) if more else None}
 
-    # --- ingest tokens ---------------------------------------------------------
-
-    def token_info(self, workspace: str) -> dict:
-        from .store import _ws
-
-        with self._db() as db:
-            row = db.get(IngestToken, _ws(workspace))
-        if row is None:
-            return {"exists": False, "prefix": None, "created_at": None}
-        return {"exists": True, "prefix": row.prefix, "created_at": _utc(row.created_at)}
-
-    def rotate_token(self, workspace: str) -> dict:
-        """A new token for the workspace; the old one stops working. The token itself is only returned here."""
-        from .store import _ws
-
-        ws = _ws(workspace)
-        token = TOKEN_PREFIX + secrets.token_urlsafe(32)
-        row = IngestToken(workspace=ws, token_hash=_hash(token), prefix=token[: len(TOKEN_PREFIX) + 6], created_at=_now())
-        with self._db() as db, db.begin():
-            self._ensure_workspace(db, ws)
-            old = db.get(IngestToken, ws)
-            if old is not None:
-                db.delete(old)
-                db.flush()
-            db.add(row)
-        return {"token": token, "prefix": row.prefix, "created_at": row.created_at}
-
-    def revoke_token(self, workspace: str) -> None:
-        from .store import _ws
-
-        with self._db() as db, db.begin():
-            old = db.get(IngestToken, _ws(workspace))
-            if old is not None:
-                db.delete(old)
-
-    def check_token(self, workspace: str, authorization: str | None) -> None:
-        """Raise Unauthorized unless `authorization` is `Bearer <the workspace's ingest token>`."""
-        from .store import _ws
-
-        scheme, _, token = (authorization or "").partition(" ")
-        if scheme.lower() != "bearer" or not token.strip():
-            raise Unauthorized("send the workspace's ingest token as 'Authorization: Bearer <token>' (create one in Settings)")
-        with self._db() as db:
-            row = db.get(IngestToken, _ws(workspace))
-        if row is None:
-            raise Unauthorized(f"workspace '{workspace}' has no ingest token; create one in Settings")
-        if not secrets.compare_digest(row.token_hash, _hash(token.strip())):
-            raise Unauthorized("invalid ingest token")
-
     # --- internals -------------------------------------------------------------
 
     def _db(self) -> Session:
@@ -373,9 +319,6 @@ def _decode_cursor(cursor: str) -> tuple[datetime, str]:
     except Exception as e:
         raise BadCursor("invalid cursor") from e
 
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _now() -> datetime:

@@ -96,7 +96,7 @@ export const q = {
       getNextPageParam: (last) => last.next_cursor,
     }),
   session: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "session", id], queryFn: () => call(sdk.getSession({ path: { workspace: ws, id } })) }),
-  ingestToken: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ingest-token"], queryFn: () => call(sdk.getIngestToken(path(ws))) }),
+  tokens: (ws: string) => queryOptions({ queryKey: ["ws", ws, "tokens"], queryFn: () => call(sdk.listTokens(path(ws))) }),
   release: (ws: string, number: number) =>
     queryOptions({ queryKey: ["ws", ws, "release", number], queryFn: () => call(sdk.getRelease({ path: { workspace: ws, number } })), staleTime: Infinity }),
   insightsOverview: (ws: string, f: InsightFilters) =>

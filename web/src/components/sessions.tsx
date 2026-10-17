@@ -1,16 +1,15 @@
-// Sessions: the live list with filters, one session's transcript, and the workspace's ingest token (Settings).
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, KeyRound, Radio } from "lucide-react";
+// Sessions: the live list with filters, and one session's transcript.
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Radio } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, call, q, sdk } from "@/lib/api";
+import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, q } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
-import { Banner, ConfirmButton, ErrorBanner, Note, PageTitle, Panel, Sub, Tag } from "./bits";
+import { Banner, ErrorBanner, Note, PageTitle, Panel, Sub, Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Page } from "./item-shell";
 import { Button } from "./ui/button";
@@ -162,7 +161,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
       </PageTitle>
       <Sub>
         Every voice call and text chat your agents had, newest first. Send them from the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>, the API or{" "}
-        <code className="text-[13px]">sopops import</code>, with the ingest token from <HrefLink href={wsHref(ws, "settings")}>Settings</HrefLink>.
+        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={wsHref(ws, "settings")}>Settings</HrefLink>.
       </Sub>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
@@ -403,88 +402,5 @@ export function SessionView({ id }: { id: string }) {
         </div>
       </div>
     </Page>
-  );
-}
-
-// --- ingest token (Settings) -------------------------------------------------------
-
-export function IngestTokenPanel() {
-  const { ws } = useWs();
-  const qc = useQueryClient();
-  const info = useQuery(q.ingestToken(ws));
-  const [shown, setShown] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const url = `${window.location.origin}/v1/workspaces/${encodeURIComponent(ws)}`;
-
-  const rotate = async () => {
-    setBusy(true);
-    try {
-      const made = await call(sdk.rotateIngestToken({ path: { workspace: ws } }));
-      setShown(made.token);
-      await qc.invalidateQueries({ queryKey: ["ws", ws, "ingest-token"] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const revoke = async () => {
-    try {
-      await call(sdk.revokeIngestToken({ path: { workspace: ws } }));
-      setShown(null);
-      await qc.invalidateQueries({ queryKey: ["ws", ws, "ingest-token"] });
-      toast.success("Ingest token deleted. Sessions are refused until you make a new one.");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
-    }
-  };
-  const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast.success("Copied."));
-
-  return (
-    <Panel
-      title={
-        <span className="flex items-center gap-2">
-          <KeyRound className="size-4" /> Ingest token
-        </span>
-      }
-      className="mt-8"
-    >
-      <p className="text-muted-foreground mb-3 text-[13px]">
-        Agents and webhooks send sessions to <code>{url}/sessions</code> with <code>Authorization: Bearer &lt;token&gt;</code>. It's also the runtime
-        token: once it exists, prompt fetches (<code>…/agents/&lt;agent&gt;</code>) need it too. The rest of sopops has no sign-in yet.
-      </p>
-      {info.isError && <ErrorBanner error={info.error} />}
-      {shown && (
-        <Banner tone="ok">
-          <b>Copy this token now. It isn't shown again.</b>
-          <div className="bg-card mt-2 flex items-center gap-2 rounded-md border px-2.5 py-1.5">
-            <code className="flex-1 font-mono text-[13px] break-all">{shown}</code>
-            <Button size="icon-sm" variant="ghost" aria-label="Copy token" onClick={() => copy(shown)}>
-              <Copy />
-            </Button>
-          </div>
-          <pre className="mt-2 overflow-x-auto text-xs">{`export SOPOPS_URL=${url}\nexport SOPOPS_INGEST_TOKEN=${shown}`}</pre>
-        </Banner>
-      )}
-      {info.data &&
-        (info.data.exists ? (
-          <div className="flex flex-wrap items-center gap-2.5">
-            <span className="text-[13px]">
-              <code>{info.data.prefix}…</code> <span className="text-muted-foreground">made {when(info.data.created_at)}</span>
-            </span>
-            <span className="flex-1" />
-            <ConfirmButton size="sm" variant="outline" disabled={busy} confirm="Click again: the old token stops working" onConfirm={rotate}>
-              Rotate
-            </ConfirmButton>
-            <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again to delete" onConfirm={revoke}>
-              Delete
-            </ConfirmButton>
-          </div>
-        ) : (
-          <Button size="sm" disabled={busy} onClick={rotate}>
-            Create ingest token
-          </Button>
-        ))}
-    </Panel>
   );
 }

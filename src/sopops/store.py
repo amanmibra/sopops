@@ -25,6 +25,7 @@ from .checks import Checks
 from .insights import Insights
 from .patterns import Patterns
 from .sessions import Sessions
+from .tokens import Tokens
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -48,6 +49,7 @@ class Store:
         self.engine = engine_from_url(engine) if isinstance(engine, str) else engine
         self.sopc = sopc or Sopc()
         self.sessions = Sessions(self)
+        self.tokens = Tokens(self)
         self.checks = Checks(self)
         self.patterns = Patterns(self)
         self.insights = Insights(self)

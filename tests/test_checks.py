@@ -96,7 +96,7 @@ def env(tmp_path, files):
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, llm=fake)))
     client.put(f"{WS}/files", json={"files": files})
     client.post(f"{WS}/releases", json={})
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    token = client.post(f"{WS}/tokens").json()["token"]
 
     def send(body):
         r = client.post(f"{WS}/sessions", json=body, headers={"Authorization": f"Bearer {token}"})

@@ -69,7 +69,7 @@ export class SopopsUnavailable extends SopopsError {
 export interface SopopsOptions {
   /** The workspace's API URL, e.g. `https://sopops.internal/v1/workspaces/prod`. Default: `SOPOPS_URL` (Node). */
   url?: string;
-  /** The workspace's runtime token (Settings → Ingest token). Default: `SOPOPS_TOKEN` (Node). Don't ship it to browsers you don't trust. */
+  /** A workspace token (Settings → Tokens): scope `runtime` to fetch prompts, `ingest` to send sessions. Default: `SOPOPS_TOKEN` (Node). Don't ship it to browsers you don't trust. */
   token?: string;
   /** How long the call-start fetch may take before the cache is used. Default 2000. */
   timeoutMs?: number;

@@ -1,7 +1,7 @@
 // The forms: agent builder, shared instruction, procedure, group and settings.
 import { useEffect, useRef, useState } from "react";
 import { RuntimePanels } from "./runtime";
-import { IngestTokenPanel } from "./sessions";
+import { TokensPanel } from "./tokens";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
 import { DELIVERY, KIND, type Kind, PLATFORMS, slug } from "@/lib/kinds";
@@ -404,7 +404,7 @@ function SettingsForm() {
           <Input id="f-procedures_heading" value={m.procedures_heading} onChange={(e) => set({ procedures_heading: e.target.value })} />
         </Field>
       </div>
-      <IngestTokenPanel />
+      <TokensPanel />
       <RuntimePanels />
       <ActionBar kind="settings" itemId="settings" isNew={false} dirty={dirty} onSave={(note, then) => onSave({ variables: m.variables, procedures_heading: m.procedures_heading }, note, then)} />
     </Page>

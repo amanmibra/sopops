@@ -20,7 +20,7 @@ const conversation = await Conversation.startSession({ ...s.sessionOptions, onMe
 
 **Turn on overrides first:** in ElevenLabs, the agent's Security tab → Overrides → System prompt. Without it, ElevenLabs refuses the session.
 
-**Tokens in browsers.** The runtime token can read prompts and send sessions for the workspace. In a web app, build the options on your server and pass them to the page, or put sopops behind your own auth. For a browser to call sopops directly, set `SOPOPS_CORS_ORIGINS` on the server.
+**Tokens in browsers.** A token with the `runtime` scope can read the workspace's prompts (and with `ingest`, send sessions). Give a browser a runtime-only token. In a web app, build the options on your server and pass them to the page, or put sopops behind your own auth. For a browser to call sopops directly, set `SOPOPS_CORS_ORIGINS` on the server.
 
 Phone calls don't run this code: for those, sopops answers ElevenLabs' conversation-initiation webhook, or pushes the prompt to the agent on publish (see the main README).
 

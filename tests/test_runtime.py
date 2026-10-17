@@ -64,13 +64,17 @@ def keys(client):
 
 def test_prompt_fetch_takes_the_runtime_token_once_there_is_one(client, published):
     assert client.get(f"{WS}/agents/tonys-pizza").status_code == 200  # local mode: no token, open
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    ingest_only = client.post(f"{WS}/tokens", json={"scopes": ["ingest"]}).json()["token"]
+    assert client.get(f"{WS}/agents/tonys-pizza").status_code == 200  # an ingest token doesn't close fetches
+    made = client.post(f"{WS}/tokens", json={"scopes": ["runtime"]}).json()
+    token = made["token"]
     for path in ("agents/tonys-pizza", "agents/tonys-pizza/prompt"):
         assert client.get(f"{WS}/{path}").status_code == 401
         assert client.get(f"{WS}/{path}", headers={"Authorization": "Bearer nope"}).status_code == 401
+        assert client.get(f"{WS}/{path}", headers={"Authorization": f"Bearer {ingest_only}"}).status_code == 403
         assert client.get(f"{WS}/{path}", headers={"Authorization": f"Bearer {token}"}).status_code == 200
     assert client.get(f"{WS}/agents").status_code == 200  # the list (no prompts) stays open
-    client.delete(f"{WS}/ingest-token")
+    client.delete(f"{WS}/tokens/{made['id']}")
     assert client.get(f"{WS}/agents/tonys-pizza").status_code == 200
 
 
@@ -263,12 +267,29 @@ def test_elevenlabs_conversation_init_serves_the_prompt(client, published):
     assert client.post(url, content=raw, headers={"ElevenLabs-Signature": stale}).status_code == 401
     assert client.post(url, json=body, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 200
     assert client.post(url, json=body, headers={"Authorization": "Bearer el-hook-secret"}).status_code == 200
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    token = client.post(f"{WS}/tokens").json()["token"]
     assert client.post(url, json=body, headers={"Authorization": f"Bearer {token}"}).status_code == 200  # the runtime token works too
 
     assert client.post(url, json={**body, "agent_id": "agent_nope"}, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 404
     pinned = client.post(url, params={"agent": "luigis-trattoria", "release": published}, json={}, headers={"X-Sopops-Secret": "el-hook-secret"})
     assert pinned.json()["dynamic_variables"]["sopops_release"] == published
+
+
+def test_hosted_sopops_requires_a_webhook_secret(client, published, monkeypatch):
+    url = f"{WS}/runtime/elevenlabs/conversation-init"
+    body = {"agent_id": "agent_luigi", "conversation_id": "conv_1"}
+    monkeypatch.setenv("SOPOPS_REQUIRE_WEBHOOK_SECRET", "true")
+    res = client.post(url, json=body)  # no secret and no runtime token: refused, not open
+    assert res.status_code == 401 and "SOPOPS_REQUIRE_WEBHOOK_SECRET" in res.json()["detail"]
+    assert client.post(f"{WS}/runtime/vapi/assistant-request", json={"message": {"type": "assistant-request"}}).status_code == 401
+    client.put(f"{WS}/runtime/platforms/elevenlabs/webhook-secret", json={"value": "el-hook-secret"})
+    assert client.post(url, json=body).status_code == 401
+    assert client.post(url, json=body, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 200
+    ingest_only = client.post(f"{WS}/tokens", json={"scopes": ["ingest"]}).json()["token"]
+    assert client.post(url, json=body, headers={"Authorization": f"Bearer {ingest_only}"}).status_code == 401  # needs runtime
+    monkeypatch.setenv("SOPOPS_REQUIRE_WEBHOOK_SECRET", "false")
+    client.delete(f"{WS}/runtime/platforms/elevenlabs/webhook-secret")
+    assert client.post(url, json=body).status_code == 200  # local mode again
 
 
 @respx.mock
@@ -312,7 +333,7 @@ def test_sessions_link_to_the_release_a_webhook_served(client, files, published)
     client.post(f"{WS}/runtime/elevenlabs/conversation-init", json={"agent_id": "agent_luigi", "call_sid": "CA9"})
     newer = republish(client, files, "Later.")
     assert newer != published
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    token = client.post(f"{WS}/tokens").json()["token"]
     auth = {"Authorization": f"Bearer {token}"}
 
     def ingest(**kw):
@@ -332,7 +353,7 @@ def test_a_client_reports_the_call_its_prompt_served(client, files, published):
     body = {"platform": "elevenlabs", "call_id": "conv_42", "agent": "elevenlabs:agent_luigi", "release": published}
     assert client.post(f"{WS}/runtime/served", json=body).json() == {**body, "agent": "luigis-trattoria"}
     assert client.post(f"{WS}/runtime/served", json={**body, "release": 99}).status_code == 404
-    token = client.post(f"{WS}/ingest-token").json()["token"]
+    token = client.post(f"{WS}/tokens").json()["token"]
     assert client.post(f"{WS}/runtime/served", json=body).status_code == 401
     auth = {"Authorization": f"Bearer {token}"}
     assert client.post(f"{WS}/runtime/served", json=body, headers=auth).status_code == 200

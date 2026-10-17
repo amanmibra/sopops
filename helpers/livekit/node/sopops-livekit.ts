@@ -3,7 +3,7 @@
 //   const session = new voice.AgentSession({ ..., userData: { sopopsRelease: sop.release } });
 //   recordSession(ctx, session);
 //
-// Env: SOPOPS_URL (http://sopops:8484/v1/workspaces/<ws>) and SOPOPS_INGEST_TOKEN (Settings in sopops).
+// Env: SOPOPS_URL (http://sopops:8484/v1/workspaces/<ws>) and SOPOPS_TOKEN (a token with the ingest scope, Settings → Tokens in sopops).
 import type { JobContext, voice } from "@livekit/agents";
 
 type Item = Record<string, any>;
@@ -38,7 +38,7 @@ export function recordSession(ctx: JobContext, session: voice.AgentSession<any>,
     };
     const res = await fetch(`${process.env.SOPOPS_URL}/sessions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SOPOPS_INGEST_TOKEN}` },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.SOPOPS_TOKEN ?? process.env.SOPOPS_INGEST_TOKEN}` },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(5000), // stay well inside the job's shutdown budget
     });

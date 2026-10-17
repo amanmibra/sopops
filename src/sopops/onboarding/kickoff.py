@@ -10,7 +10,7 @@ from string import Template
 
 TEMPLATE = Path(__file__).parent / "kickoff.md"
 # Until sopops is on PyPI, uvx installs the MCP server from the repo. SOPOPS_MCP_SOURCE overrides it.
-DEFAULT_SOURCE = "git+https://github.com/amanmibra/sopops@onboarding"
+DEFAULT_SOURCE = "git+https://github.com/amanmibra/sopops@v0"
 
 REPO_STEP = """6. Repo setup (the user opted in; target: $repo): write the same proposal as a sopc project at `sops/` with
    `write_sopc_project`, run `sopc validate` there if the sopc CLI is installed, and open a pull request (with `gh pr create`

@@ -40,31 +40,58 @@ def session(external_id="room-1", **kw):
 
 @pytest.fixture
 def token(client):
-    return client.post(f"{WS}/ingest-token").json()["token"]
+    return client.post(f"{WS}/tokens").json()["token"]
 
 
 def ingest(client, token, body):
     return client.post(f"{WS}/sessions", json=body, headers={"Authorization": f"Bearer {token}"})
 
 
-def test_ingest_needs_the_workspace_token(client):
+def test_ingest_needs_a_token_with_the_ingest_scope(client):
     assert client.post(f"{WS}/sessions", json=session()).status_code == 401
-    assert client.get(f"{WS}/ingest-token").json() == {"exists": False, "prefix": None, "created_at": None}
+    assert client.get(f"{WS}/tokens").json() == []
 
-    first = client.post(f"{WS}/ingest-token").json()
+    first = client.post(f"{WS}/tokens", json={"name": "LiveKit", "scopes": ["ingest"]}).json()
     assert first["token"].startswith("sopops_") and first["token"].startswith(first["prefix"])
-    info = client.get(f"{WS}/ingest-token").json()
-    assert info["exists"] and info["prefix"] == first["prefix"] and "token" not in info
+    assert first["scopes"] == ["ingest"] and first["active"] and first["expires_at"] is None
+    [info] = client.get(f"{WS}/tokens").json()
+    assert info["id"] == first["id"] and info["name"] == "LiveKit" and "token" not in info
     assert ingest(client, "nope", session()).status_code == 401
     assert ingest(client, first["token"], session()).status_code == 201
 
-    second = client.post(f"{WS}/ingest-token").json()["token"]  # rotate: the old one stops working
-    assert ingest(client, first["token"], session("room-2")).status_code == 401
-    assert ingest(client, second, session("room-2")).status_code == 201
-    assert client.post("/v1/workspaces/other/sessions", json=session(), headers={"Authorization": f"Bearer {second}"}).status_code == 401
+    runtime_only = client.post(f"{WS}/tokens", json={"scopes": ["runtime"]}).json()["token"]
+    assert ingest(client, runtime_only, session("room-2")).status_code == 403
+    second = client.post(f"{WS}/tokens").json()  # default scopes: ingest and runtime
+    assert second["scopes"] == ["ingest", "runtime"]
+    assert ingest(client, second["token"], session("room-2")).status_code == 201
+    assert client.post("/v1/workspaces/other/sessions", json=session(), headers={"Authorization": f"Bearer {second['token']}"}).status_code == 401
 
-    assert client.delete(f"{WS}/ingest-token").status_code == 204
-    assert ingest(client, second, session("room-3")).status_code == 401
+    revoked = client.delete(f"{WS}/tokens/{second['id']}").json()
+    assert revoked["revoked_at"] and not revoked["active"]
+    assert ingest(client, second["token"], session("room-3")).status_code == 401
+    assert ingest(client, first["token"], session("room-3")).status_code == 201  # the others keep working
+    assert client.delete(f"{WS}/tokens/nope").status_code == 404
+    assert client.post(f"{WS}/tokens", json={"scopes": ["onboarding:write"]}).status_code == 422  # only imports make those
+    assert client.post(f"{WS}/tokens", json={"scopes": []}).status_code == 422
+
+
+def test_an_expired_token_stops_working(client):
+    from datetime import datetime, timedelta, timezone
+
+    from sqlmodel import Session
+
+    from sopops.models import Token
+
+    made = client.post(f"{WS}/tokens", json={"expires_in_days": 1}).json()
+    assert made["expires_at"] and ingest(client, made["token"], session()).status_code == 201
+    store = client.app.state.store
+    with Session(store.engine) as db:
+        t = db.get(Token, made["id"])
+        t.expires_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+        db.add(t)
+        db.commit()
+    res = ingest(client, made["token"], session("room-2"))
+    assert res.status_code == 401 and "expired" in res.json()["detail"]
 
 
 def test_ingest_is_an_idempotent_upsert(client, token):

@@ -1,5 +1,5 @@
 """Runtime delivery: how each agent gets its prompt, pushing releases to ElevenLabs and Vapi, serving their
-call-start webhooks, and the runtime token that guards prompt fetches.
+call-start webhooks, and the runtime-scoped tokens that guard prompt fetches.
 
 Credentials are per workspace and encrypted (see `crypto`); they're decrypted only to call the platform or check a
 webhook, and never returned or logged.
@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import logging
+import os
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -18,8 +19,8 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
-from ..models import AgentDelivery, IngestToken, PlatformSecret, PushResult, RuntimeServe
-from ..sessions import Unauthorized
+from ..models import AgentDelivery, PlatformSecret, PushResult, RuntimeServe
+from ..tokens import RUNTIME, Forbidden, Unauthorized
 from . import crypto, platforms
 from .platforms import NAMES, PUSHABLE, PlatformError
 
@@ -37,6 +38,12 @@ class BadRequest(ValueError):
     pass
 
 
+def require_webhook_secret() -> bool:
+    """`SOPOPS_REQUIRE_WEBHOOK_SECRET` (default false; set it true when sopops is hosted): call-start webhooks are
+    refused for a workspace with neither a webhook secret for the platform nor a runtime token, instead of open."""
+    return os.environ.get("SOPOPS_REQUIRE_WEBHOOK_SECRET", "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def split_ref(platform_ref: str) -> tuple[str, str]:
     platform, _, pid = platform_ref.partition(":")
     return platform, pid
@@ -49,19 +56,16 @@ class Runtime:
     def _db(self) -> Session:
         return Session(self.store.engine, expire_on_commit=False)
 
-    # --- the runtime token -----------------------------------------------------------
+    # --- runtime tokens -----------------------------------------------------------------
 
     def check_fetch(self, workspace: str, authorization: str | None) -> None:
-        """Prompt fetches take the workspace's ingest token (one runtime token for fetch and ingest). A workspace
-        without a token is in local mode: fetches are open."""
+        """Prompt fetches take a token with the `runtime` scope. A workspace without an unrevoked runtime token is in
+        local mode: fetches are open."""
         if self._has_token(workspace):
-            self.store.sessions.check_token(workspace, authorization)
+            self.store.tokens.check(workspace, authorization, RUNTIME)
 
     def _has_token(self, workspace: str) -> bool:
-        from ..store import _ws
-
-        with self._db() as db:
-            return db.get(IngestToken, _ws(workspace)) is not None
+        return self.store.tokens.guarded(workspace, RUNTIME)
 
     # --- delivery mode -----------------------------------------------------------------
 
@@ -242,13 +246,19 @@ class Runtime:
 
     def check_webhook(self, workspace: str, platform: str, headers: Mapping[str, str], raw: bytes) -> None:
         """Accept the platform's webhook secret (as a bearer token, a secret header, or an HMAC signature) or the
-        runtime token. Open only when the workspace has neither (local mode)."""
+        a runtime-scoped token. Open only when the workspace has neither (local mode), and never with
+        SOPOPS_REQUIRE_WEBHOOK_SECRET set."""
         from ..store import _ws
 
         ws = _ws(workspace)
         secret = self._secret(ws, platform, "webhook_secret")
         has_token = self._has_token(ws)
         if secret is None and not has_token:
+            if require_webhook_secret():
+                raise Unauthorized(
+                    f"this workspace has no {NAMES[platform]} webhook secret (Settings → Platforms) or runtime token, and this "
+                    "sopops requires one (SOPOPS_REQUIRE_WEBHOOK_SECRET)"
+                )
             return
         h = {k.lower(): v for k, v in headers.items()}
         scheme, _, bearer = h.get("authorization", "").partition(" ")
@@ -263,9 +273,9 @@ class Runtime:
                 return
         if has_token and bearer:
             try:
-                self.store.sessions.check_token(ws, f"Bearer {bearer}")
+                self.store.tokens.check(ws, f"Bearer {bearer}", RUNTIME)
                 return
-            except Unauthorized:
+            except (Unauthorized, Forbidden):
                 pass
         raise Unauthorized(f"the {NAMES[platform]} webhook isn't signed with this workspace's webhook secret (Settings → Platforms)")
 

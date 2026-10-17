@@ -27,18 +27,19 @@ from .db import database_url
 from .schemas import (
     AgentConfig, AgentFields, AgentIn, AgentOut, AgentSaved, AgentsResponse, BlockRequest, ConfigResponse, DraftResponse,
     EditRequest, FetchOut, FileOut, FilesRequest, FilesResponse, GroupConfig, GroupIn, InstructionConfig, InstructionIn,
-    IngestTokenCreated, IngestTokenInfo, ItemVersion, LintResponse, MigrateFilesResponse, MigrateRequest, MigrateResponse, NewAgent, NewGroup, NewInstruction,
+    ItemVersion, LintResponse, MigrateFilesResponse, MigrateRequest, MigrateResponse, NewAgent, NewGroup, NewInstruction,
     NewProcedure, PreviewResponse, ProcedureConfig, ProcedureIn, PublishRequest, PublishResponse, ReleaseDetail,
     ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SessionDetail, SessionIn,
     SessionIngested, SessionPage, SessionStatus, CheckResultValue, SettingsConfig, SettingsIn, SettingsSaved, Channel, Platform,
     ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile, RuleStatus, PatternsResponse, PatternDetail, ReclusterRequest, ReclusterResponse,
-    OverviewResponse, ProcedureInsights, RuleInsights, CompareResponse, ReportResponse,
+    OverviewResponse, ProcedureInsights, RuleInsights, CompareResponse, ReportResponse, TokenCreated, TokenIn, TokenOut,
 )
 from .insights import BadFilter, Filters
 from .events import PgListener
 from .jobs import Jobs
 from .runtime.routes import push_on_release, register as register_runtime
-from .sessions import BadCursor, Unauthorized
+from .sessions import BadCursor
+from .tokens import INGEST, Forbidden, Unauthorized, expiry
 from .onboarding.api import router as onboarding_router
 from .onboarding.service import Onboarding, llm_from_env
 from .sopc import Invalid, Sopc, SopcUnavailable, without_build
@@ -116,6 +117,10 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     @app.exception_handler(Unauthorized)
     def _unauthorized(_, exc: Unauthorized) -> JSONResponse:
         return JSONResponse(status_code=401, content={"detail": str(exc)}, headers={"WWW-Authenticate": "Bearer"})
+
+    @app.exception_handler(Forbidden)
+    def _forbidden(_, exc: Forbidden) -> JSONResponse:
+        return JSONResponse(status_code=403, content={"detail": str(exc)})
 
     @app.exception_handler(BadCursor)
     def _bad_cursor(_, exc: BadCursor) -> JSONResponse:
@@ -347,9 +352,9 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
             push_on_release(runtime, background, workspace, release["number"])
         return {"release": release, "created": created, "changed": changed}
 
-    # serving. Prompt fetches take the workspace's runtime token (its ingest token) once it has one.
+    # serving. Prompt fetches take a token with the runtime scope once the workspace has one.
 
-    runtime_bearer = HTTPBearer(auto_error=False, description="The workspace's runtime token (Settings → Ingest token), once it has one.")
+    runtime_bearer = HTTPBearer(auto_error=False, description="A token with the runtime scope (Settings → Tokens), once the workspace has one.")
 
     def runtime_token(workspace: str, credentials: HTTPAuthorizationCredentials | None = Depends(runtime_bearer)) -> None:
         runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
@@ -397,15 +402,15 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         """Which release and prompt hash each agent was served, newest first."""
         return store.fetches(workspace, agent, limit)
 
-    # sessions: voice calls and text chats. Ingest takes the workspace's ingest token; reading is open like the rest (v0).
+    # sessions: voice calls and text chats. Ingest takes a token with the ingest scope; reading is open like the rest (v0).
 
-    bearer = HTTPBearer(auto_error=False, description="The workspace's ingest token (Settings → Ingest token).")
+    bearer = HTTPBearer(auto_error=False, description="A token with the ingest scope (Settings → Tokens).")
 
     @app.post(
         "/v1/workspaces/{workspace}/sessions",
         response_model=SessionIngested,
         tags=["sessions"],
-        responses={201: {"model": SessionIngested, "description": "Created."}, 401: {"description": "Missing or wrong ingest token."}},
+        responses={201: {"model": SessionIngested, "description": "Created."}, 401: {"description": "Missing, unknown, expired or revoked token."}, 403: {"description": "The token lacks the ingest scope."}},
     )
     def ingest_session(
         workspace: str,
@@ -417,7 +422,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         """Ingest a finished session in the canonical format: an idempotent upsert on (platform, external_id).
         201 when created; 200 when it already existed (updated if its content changed, else untouched).
         Starts `process_session` for a new or changed session."""
-        store.sessions.check_token(workspace, f"Bearer {credentials.credentials}" if credentials else None)
+        store.tokens.check(workspace, f"Bearer {credentials.credentials}" if credentials else None, INGEST)
         done = store.sessions.ingest(workspace, req)
         if done.changed:
             jobs.process_session(done.ref, background)
@@ -494,21 +499,23 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         """One session with its transcript, tool calls and metadata."""
         return store.sessions.get(workspace, id)
 
-    @app.get("/v1/workspaces/{workspace}/ingest-token", response_model=IngestTokenInfo, dependencies=v1, tags=["sessions"])
-    def get_ingest_token(workspace: str) -> dict:
-        """Whether the workspace has an ingest token, and its first characters. The token itself is never shown again."""
-        return store.sessions.token_info(workspace)
+    # tokens: scoped (ingest, runtime; onboarding:write comes from the import flow), shown once, stored hashed
 
-    @app.post("/v1/workspaces/{workspace}/ingest-token", response_model=IngestTokenCreated, dependencies=v1, tags=["sessions"])
-    def rotate_ingest_token(workspace: str) -> dict:
-        """Create the workspace's ingest token, or replace it (the old one stops working). Returned once."""
-        return store.sessions.rotate_token(workspace)
+    @app.get("/v1/workspaces/{workspace}/tokens", response_model=list[TokenOut], dependencies=v1, tags=["tokens"])
+    def list_tokens(workspace: str, imports: bool = Query(False, description="Include onboarding tokens made by imports.")) -> list[dict]:
+        """The workspace's tokens, newest first, revoked ones included. Never the tokens themselves."""
+        return store.tokens.list(workspace, imports=imports)
 
-    @app.delete("/v1/workspaces/{workspace}/ingest-token", status_code=204, dependencies=v1, tags=["sessions"])
-    def revoke_ingest_token(workspace: str) -> Response:
-        """Delete the ingest token: ingest is refused until a new one is made."""
-        store.sessions.revoke_token(workspace)
-        return Response(status_code=204)
+    @app.post("/v1/workspaces/{workspace}/tokens", response_model=TokenCreated, status_code=201, dependencies=v1, tags=["tokens"])
+    def create_token(workspace: str, req: TokenIn | None = None) -> dict:
+        """Make a token with the `ingest` and/or `runtime` scope. The token is returned here only."""
+        req = req or TokenIn()
+        return store.tokens.create(workspace, req.scopes, name=req.name, expires_at=expiry(req.expires_in_days))
+
+    @app.delete("/v1/workspaces/{workspace}/tokens/{id}", response_model=TokenOut, dependencies=v1, tags=["tokens"])
+    def revoke_token(workspace: str, id: str) -> dict:
+        """Revoke a token: it stops working at once. The row is kept, with `revoked_at`."""
+        return store.tokens.revoke(workspace, id)
 
     # patterns and insights: every number from sopops.insights, with one definition of eligible sessions and rates
 

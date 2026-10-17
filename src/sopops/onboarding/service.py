@@ -10,16 +10,14 @@ Two ways in, one way out:
 Either way the user reviews the proposal (edits, drift decisions, fidelity) and applies it: its blocks, groups and
 agents are written as drafts, for the usual Unpublished changes review and publish.
 
-Onboarding tokens are single-workspace, scoped to `onboarding:write` (push a proposal, post progress: nothing else),
+Onboarding tokens are `tokens` rows tied to the import (see `sopops.tokens`): single-workspace, scoped to `onboarding:write` (push a proposal, post progress: nothing else),
 stored as a sha256 hash, shown once, and valid until they expire (2 hours), are revoked, or the import is applied or
 discarded.
 """
 
 from __future__ import annotations
 
-import hashlib
 import logging
-import secrets
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -34,6 +32,9 @@ from ..store import Conflict, NotFound, Store
 from . import fidelity, kickoff
 from .models import Finding, Proposal, ProposalContent, SourcePrompt
 from .pipeline import extract
+from ..models import Token
+from ..tokens import Forbidden, Tokens, Unauthorized
+from ..tokens import out as token_info
 from .records import ImportEvent, ImportRecord
 from .review import refresh_used_by, resolve
 
@@ -43,14 +44,6 @@ SCOPE = "onboarding:write"
 TOKEN_PREFIX = "sopops_onb_"
 TOKEN_TTL = timedelta(hours=2)
 DONE = ("applied", "discarded")
-
-
-class Unauthorized(Exception):
-    pass
-
-
-class Forbidden(Exception):
-    pass
 
 
 def llm_from_env() -> Completer | None:
@@ -72,6 +65,10 @@ class Onboarding:
     def llm(self, value: Completer | None) -> None:
         self._llm = value
 
+    @property
+    def tokens(self) -> Tokens:
+        return self.store.tokens
+
     def _db(self) -> Session:
         return Session(self.store.engine, expire_on_commit=False)
 
@@ -91,11 +88,12 @@ class Onboarding:
     def list(self, workspace: str) -> list[dict]:
         with self._db() as db:
             rows = db.exec(select(ImportRecord).where(ImportRecord.workspace == workspace).order_by(ImportRecord.created_at.desc()).limit(50))
-            return [out(r, proposal=False) for r in rows]
+            return [out(r, self.tokens.for_import(r.id, db), proposal=False) for r in rows]
 
     def get(self, workspace: str, id: str) -> dict:
         with self._db() as db:
-            return out(self._load(db, workspace, id))
+            r = self._load(db, workspace, id)
+            return out(r, self.tokens.for_import(r.id, db))
 
     def events(self, workspace: str, id: str, after: int = 0) -> list[dict]:
         with self._db() as db:
@@ -151,42 +149,41 @@ class Onboarding:
 
     def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", repo: str | None = None, author: str | None = None,
                     ttl: timedelta = TOKEN_TTL) -> dict:
-        token = TOKEN_PREFIX + secrets.token_urlsafe(32)
         rec = ImportRecord(
             id=str(uuid.uuid4()), workspace=_ws(workspace), source="agent", status="waiting", mode=mode, repo=(repo or "").strip() or None,
-            token_hash=_hash(token), token_prefix=token[: len(TOKEN_PREFIX) + 6], scopes=[SCOPE], expires_at=_now() + ttl,
             created_at=_now(), updated_at=_now(), created_by=author,
         )
         with self._db() as db:
             db.add(rec)
             db.commit()
+        token = self.tokens.create(rec.workspace, [SCOPE], name="Import agents", expires_at=_now() + ttl, import_id=rec.id,
+                                   created_by=author, prefix=TOKEN_PREFIX)["token"]
         self.event(rec.id, "start", "Waiting for Claude Code or Codex to connect", by="sopops")
         return {"import": self.get(workspace, rec.id), "token": token, "kickoff": kickoff.kickoff(workspace, server_url, token, mode, rec.repo)}
 
     def authenticate(self, authorization: str | None, scope: str = SCOPE) -> ImportRecord:
-        """The import an onboarding token belongs to. 401 for a missing, unknown, expired or revoked token; 403 without the scope."""
-        scheme, _, token = (authorization or "").partition(" ")
-        if scheme.lower() != "bearer" or not token.strip():
-            raise Unauthorized("send the onboarding token as 'Authorization: Bearer <token>'")
+        """The import an onboarding token belongs to. 401 for a missing, unknown, expired or revoked token (or one for a
+        finished import); 403 without the scope."""
+        t = self.tokens.check(None, authorization, scope)
         with self._db() as db:
-            r = db.exec(select(ImportRecord).where(ImportRecord.token_hash == _hash(token.strip()))).first()
+            r = db.get(ImportRecord, t.import_id) if t.import_id else None
             if r is None:
-                raise Unauthorized("unknown onboarding token")
-            if r.revoked_at is not None or r.status in DONE:
-                raise Unauthorized("this onboarding token was revoked; create a new one in sopops")
-            if r.expires_at is None or _utc(r.expires_at) <= _now():
-                raise Unauthorized("this onboarding token expired; create a new one in sopops")
-            if scope not in (r.scopes or []):
-                raise Forbidden(f"this token can't do that (needs {scope})")
+                raise Forbidden(f"this token isn't for an import (it needs the {scope} scope from Import agents)")
+            if r.status in DONE:
+                raise Unauthorized("this import is finished, so its onboarding token was revoked; create a new one in sopops")
             return r
+
+    def token_of(self, rec: ImportRecord) -> dict | None:
+        t = self.tokens.for_import(rec.id)
+        return token_out(t) if t else None
 
     def revoke(self, workspace: str, id: str) -> dict:
         with self._db() as db:
             r = self._load(db, workspace, id)
-            if r.token_hash and r.revoked_at is None:
-                r.revoked_at, r.updated_at = _now(), _now()
-                db.add(r)
-                db.commit()
+            self.tokens.revoke_import(db, r.id)
+            r.updated_at = _now()
+            db.add(r)
+            db.commit()
         return self.get(workspace, id)
 
     def progress(self, rec: ImportRecord, step: str, message: str) -> dict:
@@ -236,8 +233,7 @@ class Onboarding:
         with self._db() as db:
             r = self._load(db, workspace, id)
             r.status, r.updated_at = "discarded", _now()
-            if r.token_hash and r.revoked_at is None:
-                r.revoked_at = _now()
+            self.tokens.revoke_import(db, r.id)
             db.add(r)
             db.commit()
         self.event(id, "discarded", "Import discarded")
@@ -256,8 +252,7 @@ class Onboarding:
         with self._db() as db:
             r = self._load(db, workspace, id)
             r.status, r.updated_at = "applied", _now()
-            if r.token_hash and r.revoked_at is None:
-                r.revoked_at = _now()
+            self.tokens.revoke_import(db, r.id)
             db.add(r)
             db.commit()
         self.event(id, "applied", f"Applied as drafts: {len(written)} file(s). Review them in Unpublished changes, then publish.")
@@ -335,12 +330,14 @@ class Onboarding:
             return event_out(e)
 
 
-def out(r: ImportRecord, proposal: bool = True) -> dict:
-    token = None
-    if r.token_hash:
-        active = r.revoked_at is None and r.status not in DONE and r.expires_at is not None and _utc(r.expires_at) > _now()
-        token = {"prefix": r.token_prefix, "scopes": r.scopes, "expires_at": _utc(r.expires_at) if r.expires_at else None,
-                 "revoked_at": _utc(r.revoked_at) if r.revoked_at else None, "active": active}
+def token_out(t: Token, rec: ImportRecord | None = None) -> dict:
+    o = token_info(t)
+    active = o["active"] and (rec is None or rec.status not in DONE)
+    return {"prefix": o["prefix"], "scopes": o["scopes"], "expires_at": o["expires_at"], "revoked_at": o["revoked_at"], "active": active}
+
+
+def out(r: ImportRecord, token: Token | None = None, proposal: bool = True) -> dict:
+    token = token_out(token, r) if token is not None else None
     d = {
         "id": r.id, "workspace": r.workspace, "source": r.source, "status": r.status, "mode": r.mode, "repo": r.repo,
         "agents": r.agents, "error": r.error, "pushes": r.pushes, "token": token,
@@ -353,10 +350,6 @@ def out(r: ImportRecord, proposal: bool = True) -> dict:
 
 def event_out(e: ImportEvent) -> dict:
     return {"id": e.id, "at": _utc(e.at), "step": e.step, "message": e.message, "by": e.by}
-
-
-def _hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 def _ws(workspace: str) -> str:

@@ -7,7 +7,7 @@
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
 
-[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Connect your agent](#connect-your-agent) · [Sessions](#sessions) · [Git or database](#git-or-database) · [API](#api)
+[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Import your agents](#import-your-agents) · [Connect your agent](#connect-your-agent) · [Sessions](#sessions) · [Insights](#insights-and-the-report) · [Git or database](#git-or-database) · [API](#api)
 
 </div>
 
@@ -40,24 +40,10 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `SOPOPS_LLM_API_BASE` | unset | Send every model call to this base URL (an OpenAI-compatible endpoint for local models). |
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform API keys and webhook secrets. Needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
+| `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks (ElevenLabs, Vapi) are refused for a workspace with no webhook secret or runtime token, instead of open. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the session pipeline on [Hatchet](https://hatchet.run) (`pip install 'sopops[hatchet]'`, plus `sopops worker`). Unset, it runs inside sopops. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
-
-## Import your agents
-
-Already running agents? **Import agents** (on an empty workspace, or in Settings) turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule ("2 agents differ on the upsell rule"), you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish from Unpublished changes as usual.
-
-**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else), one command and a prompt to paste:
-
-```sh
-claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@onboarding sopops-mcp
-```
-
-Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. See [skills/sopops-onboard](skills/sopops-onboard/SKILL.md) for the tools and Cursor setup.
-
-**Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`). ElevenLabs and Vapi keys are used to read the agents during that request and are never stored or logged.
 
 ## How it works
 
@@ -83,6 +69,21 @@ The Overview page shows every agent against every block, and a click adds or rem
 Before you publish, Unpublished changes shows what was edited and exactly how each agent's prompt changes:
 
 <p align="center"><img src="docs/images/changes.png" alt="Unpublished changes: one block added to tonys-pizza's list, and the resulting prompt diff with the new Reservations procedure" width="860"></p>
+
+## Import your agents
+
+Already running agents? **Import** (in the sidebar, on an empty workspace, or in Settings) turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule ("2 agents differ on the upsell rule"), you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish from Unpublished changes as usual.
+
+**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else), one command and a prompt to paste:
+
+```sh
+claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
+  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
+```
+
+Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. See [skills/sopops-onboard](skills/sopops-onboard/SKILL.md) for the tools and Cursor setup.
+
+**Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`). ElevenLabs and Vapi keys are used to read the agents during that request and are never stored or logged.
 
 ## Connect your agent
 
@@ -118,13 +119,13 @@ async def entrypoint(ctx: JobContext):
 
 **Anything else:** `Sopops().fetch_instructions(agent)` (Python) or `new Sopops().fetchInstructions(agent)` (TypeScript), or plain HTTP: `GET …/agents/<agent>` with `Authorization: Bearer <token>`.
 
-**Tokens.** The workspace's ingest token (Settings) is also its runtime token. Once a workspace has one, prompt fetches need it as well as session ingest. A workspace without one serves prompts openly, for local use. Platform API keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned by the API.
+**Tokens.** Make tokens in Settings → Tokens, each with the scopes it needs: `runtime` for prompt fetches and call-start webhooks, `ingest` for sending sessions (one token can have both; the SDKs read it from `SOPOPS_TOKEN`). Tokens are shown once, stored hashed, and can expire or be revoked. Once a workspace has a runtime token, prompt fetches need one; a workspace without one serves prompts openly, for local use. When sopops is hosted, set `SOPOPS_REQUIRE_WEBHOOK_SECRET=true` so call-start webhooks are refused for a workspace with no webhook secret or runtime token instead of answered openly. Platform API keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned by the API.
 
 ## Sessions
 
 A session is one conversation an agent had: a voice call or a text chat. Agents send each finished session to sopops, with the release it ran on, and the Sessions page lists them live, with filters, each one's transcript, tool calls and metadata, and how it went against each procedure: every step, never rule and warning sign, with the quotes that show it highlighted in the transcript.
 
-Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with the workspace's ingest token (Settings → Ingest token, shown once). Sending the same session again is safe: it's keyed by platform and session id.
+Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with a token that has the `ingest` scope (Settings → Tokens, shown once). Sending the same session again is safe: it's keyed by platform and session id.
 
 **LiveKit.** `attach` from the SDK (above) posts `session.history` at shutdown, with timestamps and tool calls, keyed by the job id, with the release. Without the SDK, copy [`helpers/livekit`](helpers/livekit) next to your agent.
 
@@ -176,7 +177,8 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `…/runtime/delivery`, `…/runtime/platforms` | Each agent's delivery mode; platform API keys and webhook secrets (write-only). |
 | `GET …/releases/<n>/pushes`, `POST …/pushes/retry` | What publishing pushed to ElevenLabs and Vapi; push again. |
 | `POST …/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` | Call-start webhooks that serve the prompt. |
-| `POST …/sessions` | **Session end.** Ingest a session in the canonical format, with the ingest token. |
+| `POST …/sessions` | **Session end.** Ingest a session in the canonical format, with an `ingest` token. |
+| `GET/POST …/tokens`, `DELETE …/tokens/<id>` | Workspace tokens with scopes (`ingest`, `runtime`), shown once; revoke. |
 | `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript and SOP checks, and live events (SSE). |
 | `GET …/config` | Every agent, shared instruction, procedure, group and setting, as the forms edit them. |
 | `…/config/{agents,instructions,procedures,groups}[/<id>]` | List, create, read, replace and delete each kind, with history. |
@@ -192,14 +194,14 @@ Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issu
 
 ## Status
 
-v0, renamed from sopserve. **There is no authentication yet** except the workspace token, which guards session ingest and, once it exists, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
+v0, renamed from sopserve. **There is no authentication yet** except workspace tokens, which guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
 
 ## Roadmap
 
 - Verdicts on patterns (real, acceptable, SOP wrong, checker wrong) and a Slack digest
 - ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
 - GitHub: load a sopc project from a repo path, and open PRs with suggested changes
-- API keys with scopes, and sign-in for the UI
+- Sign-in for the UI, and tokens for the rest of the API
 - Renaming agents and blocks
 - A webhook on publish
 - A LiveKit adapter in the TypeScript client; more framework adapters (Pipecat)
