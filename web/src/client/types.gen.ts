@@ -76,6 +76,34 @@ export type AgentConfigSaved = {
 };
 
 /**
+ * AgentDeliveryOut
+ */
+export type AgentDeliveryOut = {
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Platform
+     */
+    platform: string;
+    /**
+     * Platform Id
+     */
+    platform_id: string;
+    /**
+     * Mode
+     */
+    mode: 'pull' | 'push' | 'both';
+    /**
+     * Modes
+     *
+     * The modes this agent's platform allows (LiveKit: pull only).
+     */
+    modes: Array<'pull' | 'push' | 'both'>;
+};
+
+/**
  * AgentFields
  */
 export type AgentFields = {
@@ -496,6 +524,16 @@ export type ConfigResponse = {
      * In the order sopc.yaml lists them.
      */
     groups: Array<GroupConfig>;
+};
+
+/**
+ * DeliveryIn
+ */
+export type DeliveryIn = {
+    /**
+     * Mode
+     */
+    mode: 'pull' | 'push' | 'both';
 };
 
 /**
@@ -1158,6 +1196,36 @@ export type ItemVersion = {
 };
 
 /**
+ * KeyTestIn
+ */
+export type KeyTestIn = {
+    /**
+     * Platform Id
+     *
+     * The agent to read; default: the first agent at head on this platform.
+     */
+    platform_id?: string | null;
+};
+
+/**
+ * KeyTestOut
+ */
+export type KeyTestOut = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Platform Id
+     */
+    platform_id: string;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * LadderRow
  */
 export type LadderRow = {
@@ -1738,6 +1806,18 @@ export type PatternsResponse = {
 };
 
 /**
+ * PlatformCredentials
+ */
+export type PlatformCredentials = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    api_key: SecretInfo;
+    webhook_secret: SecretInfo;
+};
+
+/**
  * PreviewBlock
  */
 export type PreviewBlock = {
@@ -2075,6 +2155,48 @@ export type PublishResponse = {
      * Changed
      */
     changed: Array<WrittenFile>;
+};
+
+/**
+ * PushResultOut
+ */
+export type PushResultOut = {
+    /**
+     * Release
+     */
+    release: number;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Platform
+     */
+    platform: string;
+    /**
+     * Platform Id
+     */
+    platform_id: string;
+    /**
+     * Status
+     */
+    status: 'ok' | 'unchanged' | 'error';
+    /**
+     * Version Id
+     */
+    version_id: string | null;
+    /**
+     * Error
+     */
+    error: string | null;
+    /**
+     * Attempts
+     */
+    attempts: number;
+    /**
+     * At
+     */
+    at: string;
 };
 
 /**
@@ -2597,6 +2719,18 @@ export type ReportResponse = {
 };
 
 /**
+ * RetryIn
+ */
+export type RetryIn = {
+    /**
+     * Agents
+     *
+     * Push these agents again; default: every agent whose last push failed.
+     */
+    agents?: Array<string> | null;
+};
+
+/**
  * RuleInsights
  */
 export type RuleInsights = {
@@ -2881,6 +3015,114 @@ export type ScoreboardRow = {
      * Patterns (each finding's most specific one) with findings in the window.
      */
     open_patterns: number;
+};
+
+/**
+ * SecretIn
+ */
+export type SecretIn = {
+    /**
+     * Value
+     *
+     * The API key, or the webhook secret. A webhook secret left empty is generated.
+     */
+    value?: string | null;
+};
+
+/**
+ * SecretInfo
+ */
+export type SecretInfo = {
+    /**
+     * Set
+     */
+    set: boolean;
+    /**
+     * Hint
+     *
+     * The last few characters.
+     */
+    hint?: string | null;
+    /**
+     * Created At
+     */
+    created_at: string | null;
+};
+
+/**
+ * SecretSaved
+ */
+export type SecretSaved = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Kind
+     */
+    kind: 'api_key' | 'webhook_secret';
+    /**
+     * Hint
+     */
+    hint: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Secret
+     *
+     * A generated webhook secret, shown this once.
+     */
+    secret?: string | null;
+};
+
+/**
+ * ServedIn
+ */
+export type ServedIn = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Call Id
+     *
+     * The platform's id for the call: an ElevenLabs conversation id, a Vapi call id.
+     */
+    call_id: string;
+    /**
+     * Agent
+     *
+     * The sopc agent id or platform ref the instructions were fetched for.
+     */
+    agent: string;
+    /**
+     * Release
+     */
+    release: number;
+};
+
+/**
+ * ServedOut
+ */
+export type ServedOut = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Call Id
+     */
+    call_id: string;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Release
+     */
+    release: number;
 };
 
 /**
@@ -3822,6 +4064,428 @@ export type WrittenFile = {
      */
     deleted: boolean;
 };
+
+export type ListDeliveryData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/delivery';
+};
+
+export type ListDeliveryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListDeliveryError = ListDeliveryErrors[keyof ListDeliveryErrors];
+
+export type ListDeliveryResponses = {
+    /**
+     * Response List Delivery
+     *
+     * Successful Response
+     */
+    200: Array<AgentDeliveryOut>;
+};
+
+export type ListDeliveryResponse = ListDeliveryResponses[keyof ListDeliveryResponses];
+
+export type SetDeliveryData = {
+    body: DeliveryIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Agent
+         */
+        agent: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/delivery/{agent}';
+};
+
+export type SetDeliveryErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetDeliveryError = SetDeliveryErrors[keyof SetDeliveryErrors];
+
+export type SetDeliveryResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentDeliveryOut;
+};
+
+export type SetDeliveryResponse = SetDeliveryResponses[keyof SetDeliveryResponses];
+
+export type ListPlatformsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/platforms';
+};
+
+export type ListPlatformsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPlatformsError = ListPlatformsErrors[keyof ListPlatformsErrors];
+
+export type ListPlatformsResponses = {
+    /**
+     * Response List Platforms
+     *
+     * Successful Response
+     */
+    200: Array<PlatformCredentials>;
+};
+
+export type ListPlatformsResponse = ListPlatformsResponses[keyof ListPlatformsResponses];
+
+export type DeletePlatformSecretData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+        /**
+         * Kind
+         */
+        kind: 'api-key' | 'webhook-secret';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/{kind}';
+};
+
+export type DeletePlatformSecretErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePlatformSecretError = DeletePlatformSecretErrors[keyof DeletePlatformSecretErrors];
+
+export type DeletePlatformSecretResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeletePlatformSecretResponse = DeletePlatformSecretResponses[keyof DeletePlatformSecretResponses];
+
+export type SetPlatformSecretData = {
+    body: SecretIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+        /**
+         * Kind
+         */
+        kind: 'api-key' | 'webhook-secret';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/{kind}';
+};
+
+export type SetPlatformSecretErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetPlatformSecretError = SetPlatformSecretErrors[keyof SetPlatformSecretErrors];
+
+export type SetPlatformSecretResponses = {
+    /**
+     * Successful Response
+     */
+    200: SecretSaved;
+};
+
+export type SetPlatformSecretResponse = SetPlatformSecretResponses[keyof SetPlatformSecretResponses];
+
+export type TestPlatformKeyData = {
+    /**
+     * Req
+     */
+    body?: KeyTestIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/test';
+};
+
+export type TestPlatformKeyErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TestPlatformKeyError = TestPlatformKeyErrors[keyof TestPlatformKeyErrors];
+
+export type TestPlatformKeyResponses = {
+    /**
+     * Successful Response
+     */
+    200: KeyTestOut;
+};
+
+export type TestPlatformKeyResponse = TestPlatformKeyResponses[keyof TestPlatformKeyResponses];
+
+export type ListPushesData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Number
+         */
+        number: number;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/releases/{number}/pushes';
+};
+
+export type ListPushesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPushesError = ListPushesErrors[keyof ListPushesErrors];
+
+export type ListPushesResponses = {
+    /**
+     * Response List Pushes
+     *
+     * Successful Response
+     */
+    200: Array<PushResultOut>;
+};
+
+export type ListPushesResponse = ListPushesResponses[keyof ListPushesResponses];
+
+export type RetryPushesData = {
+    /**
+     * Req
+     */
+    body?: RetryIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Number
+         */
+        number: number;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/releases/{number}/pushes/retry';
+};
+
+export type RetryPushesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetryPushesError = RetryPushesErrors[keyof RetryPushesErrors];
+
+export type RetryPushesResponses = {
+    /**
+     * Response Retry Pushes
+     *
+     * Successful Response
+     */
+    200: Array<PushResultOut>;
+};
+
+export type RetryPushesResponse = RetryPushesResponses[keyof RetryPushesResponses];
+
+export type RecordServedData = {
+    body: ServedIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/runtime/served';
+};
+
+export type RecordServedErrors = {
+    /**
+     * Missing or wrong runtime token.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RecordServedError = RecordServedErrors[keyof RecordServedErrors];
+
+export type RecordServedResponses = {
+    /**
+     * Successful Response
+     */
+    200: ServedOut;
+};
+
+export type RecordServedResponse = RecordServedResponses[keyof RecordServedResponses];
+
+export type ElevenlabsConversationInitData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Agent
+         *
+         * The agent; default: from `agent_id` in the body.
+         */
+        agent?: string | null;
+        /**
+         * Release
+         *
+         * Pin a release; default: the live one.
+         */
+        release?: number | null;
+    };
+    url: '/v1/workspaces/{workspace}/runtime/elevenlabs/conversation-init';
+};
+
+export type ElevenlabsConversationInitErrors = {
+    /**
+     * Not signed with the workspace's webhook secret or runtime token.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ElevenlabsConversationInitError = ElevenlabsConversationInitErrors[keyof ElevenlabsConversationInitErrors];
+
+export type ElevenlabsConversationInitResponses = {
+    /**
+     * Response Elevenlabs Conversation Init
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ElevenlabsConversationInitResponse = ElevenlabsConversationInitResponses[keyof ElevenlabsConversationInitResponses];
+
+export type VapiAssistantRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Agent
+         *
+         * The agent; default: the only Vapi agent in the release.
+         */
+        agent?: string | null;
+        /**
+         * Release
+         *
+         * Pin a release; default: the live one.
+         */
+        release?: number | null;
+    };
+    url: '/v1/workspaces/{workspace}/runtime/vapi/assistant-request';
+};
+
+export type VapiAssistantRequestErrors = {
+    /**
+     * Not signed with the workspace's webhook secret or runtime token.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type VapiAssistantRequestError = VapiAssistantRequestErrors[keyof VapiAssistantRequestErrors];
+
+export type VapiAssistantRequestResponses = {
+    /**
+     * Response Vapi Assistant Request
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type VapiAssistantRequestResponse = VapiAssistantRequestResponses[keyof VapiAssistantRequestResponses];
 
 export type ValidateData = {
     body: FilesRequest;

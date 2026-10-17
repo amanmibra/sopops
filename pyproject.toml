@@ -11,6 +11,8 @@ dependencies = [
     "sqlmodel>=0.0.48",
     "alembic>=1.20.0",
     "litellm==1.105.1",  # exact pin, hashes in uv.lock; the library only, never the proxy
+    "httpx>=0.28.1",
+    "cryptography>=50.0.2",
 ]
 
 [project.optional-dependencies]
@@ -25,7 +27,7 @@ hatchet = [
 sopops = "sopops.cli:main"
 
 [dependency-groups]
-dev = ["pytest>=8", "httpx2"]
+dev = ["pytest>=8", "httpx2", "respx>=0.23.1"]
 
 [build-system]
 requires = ["hatchling"]

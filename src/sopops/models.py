@@ -247,3 +247,63 @@ class IngestToken(SQLModel, table=True):
 
 
 metadata = SQLModel.metadata
+
+
+# --- runtime: delivery to platforms (push on publish, pull by webhook) -------------------------------
+
+
+class PlatformSecret(SQLModel, table=True):
+    """A workspace's credential for a platform, encrypted with SOPOPS_SECRET_KEY (Fernet). Never returned by the API.
+    `kind`: `api_key` (push, and the read-only test) or `webhook_secret` (verifies the platform's runtime webhooks)."""
+
+    __tablename__ = "platform_secrets"
+
+    workspace: str = Field(primary_key=True, max_length=128)
+    platform: str = Field(primary_key=True, max_length=32)
+    kind: str = Field(primary_key=True, max_length=32)
+    ciphertext: str = Field(sa_column=Column(Text, nullable=False))
+    hint: str = Field(max_length=16, description="The last few characters, to tell keys apart.")
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class AgentDelivery(SQLModel, table=True):
+    """How an agent gets its prompt: `pull` (the agent, or its platform's webhook, fetches it at call start), `push`
+    (sopops updates the agent on its platform when a release goes live) or `both`. No row means `pull`."""
+
+    __tablename__ = "agent_delivery"
+
+    workspace: str = Field(primary_key=True, max_length=128)
+    agent: str = Field(primary_key=True, max_length=256)
+    mode: str = Field(max_length=8)
+
+
+class PushResult(SQLModel, table=True):
+    """The latest push of one agent's prompt in one release to its platform."""
+
+    __tablename__ = "push_results"
+
+    workspace: str = Field(primary_key=True, max_length=128)
+    release: int = Field(primary_key=True)
+    agent: str = Field(primary_key=True, max_length=256)
+    platform: str = Field(max_length=32)
+    platform_id: str = Field(max_length=256)
+    status: str = Field(max_length=16)  # ok | unchanged | error
+    version_id: str | None = Field(default=None, max_length=256, description="The platform's version id, if it returned one.")
+    error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    attempts: int = 1
+    at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class RuntimeServe(SQLModel, table=True):
+    """A prompt served to a platform's call-start webhook, keyed by the platform's call or conversation id, so the
+    session that arrives later links to the release it ran on."""
+
+    __tablename__ = "runtime_serves"
+
+    workspace: str = Field(primary_key=True, max_length=128)
+    platform: str = Field(primary_key=True, max_length=32)
+    call_id: str = Field(primary_key=True, max_length=256)
+    agent: str = Field(max_length=256)
+    release: int
+    hash: str = Field(max_length=128)
+    at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False, index=True))

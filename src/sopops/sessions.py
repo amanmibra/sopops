@@ -94,6 +94,10 @@ class Sessions:
                 return Ingested(row.id, False, False, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=digest))
 
             release = p.release
+            if release is None and p.platform in ("elevenlabs", "vapi"):  # served by a call-start webhook
+                from .runtime.service import served_release
+
+                release = served_release(db, ws, p.platform, _call_keys(p))
             if release is not None and db.get(Release, (ws, release)) is None:
                 warnings.append(f"Release {release} doesn't exist in workspace '{ws}'; the session is kept without it.")
                 release = None
@@ -380,3 +384,10 @@ def _now() -> datetime:
 
 def _utc(at: datetime) -> datetime:
     return at.astimezone(timezone.utc) if at.tzinfo else at.replace(tzinfo=timezone.utc)
+
+
+def _call_keys(p: SessionIn) -> list:
+    """Ids a call-start webhook may have keyed this call by: the session's own id, or a phone call's sid."""
+    meta = p.metadata or {}
+    phone = meta.get("phone_call") if isinstance(meta.get("phone_call"), dict) else {}
+    return [p.external_id, meta.get("call_sid"), phone.get("call_sid")]

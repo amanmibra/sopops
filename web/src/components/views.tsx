@@ -15,6 +15,7 @@ import { author } from "./form";
 import { HrefLink, useGo } from "./href-link";
 import { ItemHeader, Missing, Page } from "./item-shell";
 import { PublishDialog, UnsavedBanner } from "./publish";
+import { PushResultsPanel } from "./runtime";
 import { Button } from "./ui/button";
 
 // --- lists ---------------------------------------------------------------------------
@@ -596,6 +597,7 @@ export function ReleaseView({ number }: { number: number }) {
           </tbody>
         </table>
       </Panel>
+      <PushResultsPanel number={number} live={current} />
       <Panel title="Built from">
         <table className="w-full border-collapse">
           <tbody>

@@ -7,7 +7,7 @@
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
 
-[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Use it from your agent](#use-it-from-your-agent) · [Sessions](#sessions) · [Git or database](#git-or-database) · [API](#api)
+[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Connect your agent](#connect-your-agent) · [Sessions](#sessions) · [Git or database](#git-or-database) · [API](#api)
 
 </div>
 
@@ -37,6 +37,8 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 | `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). Unset, sessions are stored but not checked. |
+| `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform API keys and webhook secrets. Needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
+| `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the session pipeline on [Hatchet](https://hatchet.run) (`pip install 'sopops[hatchet]'`, plus `sopops worker`). Unset, it runs inside sopops. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
@@ -66,46 +68,41 @@ Before you publish, Unpublished changes shows what was edited and exactly how ea
 
 <p align="center"><img src="docs/images/changes.png" alt="Unpublished changes: one block added to tonys-pizza's list, and the resulting prompt diff with the new Reservations procedure" width="860"></p>
 
-## Use it from your agent
+## Connect your agent
 
-At room start, fetch the prompt and record what the call ran on:
+Each agent gets its prompt one of two ways, set per agent in Settings → Delivery:
+
+- **Pull:** the agent, or its platform's call-start webhook, fetches the live release when a call starts. A rollback reaches the next call.
+- **Push:** publishing, or making a release live, writes the prompt into the agent on its platform. Results show on the release, with retry.
+
+Every session records the release it ran on. Pin a release per call for A/B tests (e.g. 70% live, 30% a candidate).
+
+**LiveKit (pull, with the SDK).** `pip install "./sdks/python[livekit]"` ([sdks/python](sdks/python)), set `SOPOPS_URL` (`http://sopops:8484/v1/workspaces/<ws>`) and `SOPOPS_TOKEN`:
 
 ```python
-import json, os, httpx
-from livekit import api
-from livekit.agents import Agent, AgentSession, JobContext
-
-SOPOPS = os.environ["SOPOPS_URL"]  # e.g. http://sopops.internal:8484/v1/workspaces/prod
-
-
-async def fetch_prompt(agent_name: str, release: str | None = None) -> dict:
-    """The agent's compiled prompt, plus the release and component versions it was built from."""
-    params = {"release": release} if release else {}
-    async with httpx.AsyncClient(timeout=5) as http:
-        res = await http.get(f"{SOPOPS}/agents/livekit:{agent_name}", params=params)
-        res.raise_for_status()
-        return res.json()
-
-
-async def record_versions(room: str, sop: dict) -> None:
-    """Save what this call ran on in the room metadata, so QA can trace it later."""
-    async with api.LiveKitAPI() as lk:  # LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET
-        await lk.room.update_room_metadata(api.UpdateRoomMetadataRequest(
-            room=room,
-            metadata=json.dumps({"sopc": {k: sop[k] for k in ("release", "hash", "components")}}),
-        ))
-
+from sopops_client.livekit import attach
 
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
-    sop = await fetch_prompt(ctx.job.agent_name, release=os.environ.get("SOPC_RELEASE"))
-    await record_versions(ctx.room.name, sop)
-
     session = AgentSession(...)
-    await session.start(room=ctx.room, agent=Agent(instructions=sop["prompt"]))
+    ins = await attach(ctx, session, agent="tonys-pizza")
+    await session.start(room=ctx.room, agent=Agent(instructions=ins.text))
 ```
 
-For A/B tests, have your router pick a release per call (e.g. 70% current, 30% a candidate) and pass it as `?release=N`; the room metadata and the fetch log record which one ran.
+`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins), keeps the release in `session.userdata`, and posts the session at shutdown. If sopops is down it uses the last good copy on disk, so it never blocks a call.
+
+**ElevenLabs.**
+- *Push:* add the API key in Settings → Platforms (Test reads one agent) and set the agent to push. sopops writes `conversation_config.agent.prompt.prompt`.
+- *Pull for phone calls:* set the workspace's conversation-initiation webhook to `…/runtime/elevenlabs/conversation-init` with the webhook secret as an `X-Sopops-Secret` header, and allow the agent to override its system prompt (Security → Overrides).
+- *Pull from a web app:* the TypeScript client ([sdks/node](sdks/node)) builds `Conversation.startSession` overrides.
+
+**Vapi.**
+- *Push:* add the API key and set the agent to push. sopops reads the assistant, replaces the system message in `model.messages`, and writes the model back.
+- *Pull:* point the phone number's Server URL at `…/runtime/vapi/assistant-request?agent=<id>`, with a Bearer Token credential set to the webhook secret. sopops answers with the assistant id and the prompt in `assistantOverrides.model`.
+
+**Anything else:** `Sopops().fetch_instructions(agent)` (Python) or `new Sopops().fetchInstructions(agent)` (TypeScript), or plain HTTP: `GET …/agents/<agent>` with `Authorization: Bearer <token>`.
+
+**Tokens.** The workspace's ingest token (Settings) is also its runtime token. Once a workspace has one, prompt fetches need it as well as session ingest. A workspace without one serves prompts openly, for local use. Platform API keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned by the API.
 
 ## Sessions
 
@@ -113,20 +110,9 @@ A session is one conversation an agent had: a voice call or a text chat. Agents 
 
 Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with the workspace's ingest token (Settings → Ingest token, shown once). Sending the same session again is safe: it's keyed by platform and session id.
 
-**LiveKit.** Copy [`helpers/livekit/python/sopops_livekit.py`](helpers/livekit/python/sopops_livekit.py) (or the [Node version](helpers/livekit/node/sopops-livekit.ts)) next to your agent. At shutdown it posts `session.history` with timestamps and tool calls, keyed by the job id, with the release from `session.userdata`:
+**LiveKit.** `attach` from the SDK (above) posts `session.history` at shutdown, with timestamps and tool calls, keyed by the job id, with the release. Without the SDK, copy [`helpers/livekit`](helpers/livekit) next to your agent.
 
-```python
-from sopops_livekit import record_session
-
-async def entrypoint(ctx: JobContext):
-    await ctx.connect()
-    sop = await fetch_prompt(ctx.job.agent_name)                    # as above
-    session = AgentSession(..., userdata={"sopops_release": sop["release"]})
-    record_session(ctx, session)                                    # SOPOPS_URL, SOPOPS_INGEST_TOKEN
-    await session.start(room=ctx.room, agent=Agent(instructions=sop["prompt"]))
-```
-
-**ElevenLabs and Vapi** post-call webhooks are next. Until then, send their transcripts in the canonical format.
+**ElevenLabs and Vapi** post-call webhooks are next. Until then, send their transcripts in the canonical format. A call whose prompt came from a sopops webhook (or that the TypeScript client reported) links to that release by its conversation or call id.
 
 **Files.** `sopops import sessions.jsonl --workspace prod` reads one canonical session per line straight into the database, e.g. a backfill or [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl).
 
@@ -171,6 +157,9 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 |---|---|
 | `GET …/agents/<agent>` | **Call start.** The prompt, release, hash, tools and the components it was built from. `?release=N` pins a release. |
 | `GET …/agents/<agent>/prompt` | Just the prompt text. |
+| `…/runtime/delivery`, `…/runtime/platforms` | Each agent's delivery mode; platform API keys and webhook secrets (write-only). |
+| `GET …/releases/<n>/pushes`, `POST …/pushes/retry` | What publishing pushed to ElevenLabs and Vapi; push again. |
+| `POST …/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` | Call-start webhooks that serve the prompt. |
 | `POST …/sessions` | **Session end.** Ingest a session in the canonical format, with the ingest token. |
 | `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript and SOP checks, and live events (SSE). |
 | `GET …/config` | Every agent, shared instruction, procedure, group and setting, as the forms edit them. |
@@ -186,7 +175,7 @@ Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issu
 
 ## Status
 
-v0, renamed from sopserve. **There is no authentication yet** except the ingest token for sending sessions: anyone who can reach sopops can read and change everything else, so run it on a private network only.
+v0, renamed from sopserve. **There is no authentication yet** except the workspace token, which guards session ingest and, once it exists, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
 
 ## Roadmap
 
@@ -196,6 +185,7 @@ v0, renamed from sopserve. **There is no authentication yet** except the ingest 
 - API keys with scopes, and sign-in for the UI
 - Renaming agents and blocks
 - A webhook on publish
+- A LiveKit adapter in the TypeScript client; more framework adapters (Pipecat)
 
 ## Development
 
@@ -209,6 +199,7 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 
 | | |
 |---|---|
+| `cd sdks/python && uv run pytest`, `pnpm -C sdks/node test` | The client SDKs' tests. |
 | `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. Hatchet isn't needed. |
 | `uv run sopops import FILE.jsonl -w WS` | Import sessions. |
 | `uv run sopops worker` | The Hatchet worker, with `HATCHET_CLIENT_TOKEN` set. |

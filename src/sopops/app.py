@@ -37,6 +37,7 @@ from .schemas import (
 from .insights import BadFilter, Filters
 from .events import PgListener
 from .jobs import Jobs
+from .runtime.routes import push_on_release, register as register_runtime
 from .sessions import BadCursor, Unauthorized
 from .sopc import Invalid, Sopc, SopcUnavailable, without_build
 from .store import Conflict, NotFound, Store
@@ -91,6 +92,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     )
     app.state.store = store
     app.state.jobs = jobs
+    runtime = register_runtime(app, store)  # push to platforms, their call-start webhooks, runtime token
     invalid = {422: {"model": ValidateResponse, "description": "The files don't compile; sopc's issues."}}
 
     @app.exception_handler(Invalid)
@@ -310,10 +312,12 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         return store.draft(workspace)
 
     @app.post("/v1/workspaces/{workspace}/releases", response_model=ReleaseResponse, responses=invalid, dependencies=v1, tags=["releases"])
-    def create_release(workspace: str, req: ReleaseRequest | None = None) -> dict:
-        """Release head and serve it."""
+    def create_release(workspace: str, background: BackgroundTasks, req: ReleaseRequest | None = None) -> dict:
+        """Release head and serve it. Agents set to push get it on their platform, after the response."""
         req = req or ReleaseRequest()
         release, created = store.release(workspace, req.author, req.note)
+        if created:
+            push_on_release(runtime, background, workspace, release["number"])
         return {"release": release, "created": created}
 
     @app.get("/v1/workspaces/{workspace}/releases", response_model=list[ReleaseSummary], dependencies=v1, tags=["releases"])
@@ -327,17 +331,28 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         return {**rel, "agents": {a: _released(b) for a, b in rel["build"]["agents"].items()}}
 
     @app.post("/v1/workspaces/{workspace}/releases/{number}/activate", response_model=WorkspaceOut, dependencies=v1, tags=["releases"])
-    def activate(workspace: str, number: int) -> dict:
-        """Serve this release, e.g. to roll back."""
-        return store.activate(workspace, number)
+    def activate(workspace: str, number: int, background: BackgroundTasks) -> dict:
+        """Serve this release, e.g. to roll back. Agents set to push get it on their platform, after the response."""
+        out = store.activate(workspace, number)
+        push_on_release(runtime, background, workspace, number)
+        return out
 
     @app.post("/v1/workspaces/{workspace}/publish", response_model=PublishResponse, responses=invalid, dependencies=v1, tags=["releases"])
-    def publish(workspace: str, req: PublishRequest) -> dict:
+    def publish(workspace: str, req: PublishRequest, background: BackgroundTasks) -> dict:
         """Replace head with these files and release it: the CI path for git workspaces."""
         release, created, changed = store.publish(workspace, without_build(req.files), req.author, req.note)
+        if created:
+            push_on_release(runtime, background, workspace, release["number"])
         return {"release": release, "created": created, "changed": changed}
 
-    # serving
+    # serving. Prompt fetches take the workspace's runtime token (its ingest token) once it has one.
+
+    runtime_bearer = HTTPBearer(auto_error=False, description="The workspace's runtime token (Settings → Ingest token), once it has one.")
+
+    def runtime_token(workspace: str, credentials: HTTPAuthorizationCredentials | None = Depends(runtime_bearer)) -> None:
+        runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
+
+    fetch_auth = [Depends(runtime_token)]
 
     @app.get("/v1/workspaces/{workspace}/agents", response_model=AgentsResponse, dependencies=v1, tags=["serving"])
     def list_agents(workspace: str, release: int | None = None) -> dict:
@@ -345,7 +360,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         agents = [{"agent": a, "platform_ref": b["platform_ref"], "hash": b["hash"]} for a, b in sorted(rel["build"]["agents"].items())]
         return {"workspace": workspace, "release": rel["number"], "agents": agents}
 
-    @app.get("/v1/workspaces/{workspace}/agents/{agent}", response_model=AgentOut, dependencies=v1, tags=["serving"])
+    @app.get("/v1/workspaces/{workspace}/agents/{agent}", response_model=AgentOut, dependencies=fetch_auth, tags=["serving"])
     def get_agent(workspace: str, agent: str, release: int | None = Query(None, description="Pin a release (e.g. for A/B); default: current.")) -> dict:
         """What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch."""
         served = store.agent(workspace, agent, release)
@@ -355,7 +370,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     @app.get(
         "/v1/workspaces/{workspace}/agents/{agent}/prompt",
         response_class=PlainTextResponse,
-        dependencies=v1,
+        dependencies=fetch_auth,
         tags=["serving"],
         responses={200: {"content": {"text/plain": {}}, "description": "The full prompt, with X-Sopc-Release and X-Sopc-Hash headers."}},
     )
@@ -367,7 +382,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         response.headers["X-Sopc-Hash"] = served["hash"]
         return served["prompt"]
 
-    @app.get("/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}", response_model=dict[str, Any], dependencies=v1, tags=["serving"])
+    @app.get("/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}", response_model=dict[str, Any], dependencies=fetch_auth, tags=["serving"])
     def get_sop(workspace: str, agent: str, sop_id: str, release: int | None = None) -> dict:
         """What the `get_sop` tool returns for SOPs with `delivery: auto | tool`."""
         served = store.agent(workspace, agent, release)

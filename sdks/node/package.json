@@ -1,0 +1,40 @@
+{
+  "name": "sopops-client",
+  "version": "0.1.0",
+  "description": "Fetch your agent's instructions from sopops at call start, and send each finished session back.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./elevenlabs": {
+      "types": "./dist/elevenlabs.d.ts",
+      "import": "./dist/elevenlabs.js"
+    },
+    "./node": {
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@elevenlabs/client": "1.28.0",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "packageManager": "pnpm@10.32.1"
+}
