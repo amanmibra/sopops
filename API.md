@@ -85,3 +85,64 @@ Nothing is stored.
 |---|---|
 | `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, compiled prompts, and duplicate or conflicting instructions. |
 | `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
+
+## Sessions
+
+A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the [helper](helpers/livekit)), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API, and all of them use one canonical format.
+
+| Endpoint | What it does |
+|---|---|
+| `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <ingest token>`. An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without the workspace's token. |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `platform`, `since`, `until` (ISO 8601, on `started_at`), plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). |
+| `GET …/sessions/<id>` | One session with `turns`, `tool_calls` and `metadata`. |
+| `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
+| `GET …/ingest-token` | `{exists, prefix, created_at}`. The token itself is only shown when made. |
+| `POST …/ingest-token` | Make the workspace's ingest token, or replace it (the old one stops working): `{token, prefix, created_at}`. Stored as a hash. |
+| `DELETE …/ingest-token` | Delete it; ingest is refused until a new one is made. |
+
+Only ingest needs the token; the rest of the API is open, as above.
+
+### The canonical format
+
+```json
+{
+  "platform": "livekit",
+  "external_id": "AJ_tp_8f2k1",
+  "channel": "voice",
+  "agent": "tonys-pizza",
+  "release": 1,
+  "version_ref": null,
+  "started_at": "2026-10-15T23:04:10Z",
+  "ended_at": "2026-10-15T23:04:40Z",
+  "partial": false,
+  "turns": [
+    {"role": "agent", "text": "Thanks for calling Tony's Pizza! Pickup or delivery today?", "offset_s": 0.8},
+    {"role": "user", "text": "Delivery please.", "at": 1792105454.2},
+    {"role": "tool", "text": "check_delivery_zone", "name": "check_delivery_zone", "offset_s": 15.1}
+  ],
+  "tool_calls": [
+    {"name": "check_delivery_zone", "arguments": {"address": "221 Mercer St"}, "result": {"in_zone": true}, "offset_s": 15.1}
+  ],
+  "metadata": {"room": "tp-delivery-8f2k1"}
+}
+```
+
+| Field | |
+|---|---|
+| `platform` | Required. `livekit`, `elevenlabs` or `vapi`, or the transport: `otel`, `import`, `api`. |
+| `external_id` | Required. The platform's id for the session: a LiveKit job id (room names get reused), an ElevenLabs conversation id, a Vapi call id. With `platform`, its unique key in the workspace. |
+| `channel` | `voice` (default) or `text`. |
+| `agent` | The sopc agent id, its platform ref (`livekit:tonys-pizza`) or its platform id on this platform. Matched against the given release (else the live one) and stored as `agent_id`; what was sent is kept as `agent_ref`. |
+| `release` | The sopops release the agent ran on (`release` from `GET …/agents/<agent>` at session start). An unknown release is dropped with a warning; the session is still stored. |
+| `version_ref` | The platform's own version of the agent: ElevenLabs `version_id`, Vapi `assistantVersion`. |
+| `started_at`, `ended_at` | ISO 8601. `started_at` defaults to the first turn's time, else when it was received. |
+| `partial` | The sender knows the transcript is incomplete; the status is then `partial`. |
+| `turns` | In order. `role`: `agent`, `user`, `tool` or `system` (`assistant`, `bot`, `human`, `customer`, `function` and similar are mapped). `text`. Time as `offset_s` (seconds since the start) or `at` (ISO 8601, or Unix seconds or milliseconds), which becomes `offset_s`. Other fields (`interrupted`, `name`, …) are kept. |
+| `tool_calls` | `{name, arguments, result, is_error, call_id, offset_s or at}`; other fields are kept. |
+| `metadata` | Anything else, as an object. |
+
+Processing (`process_session`) normalizes turns: canonical roles, `offset_s` from `at`, text trimmed, empty turns dropped (except tool turns), a turn that repeats the one before it dropped, sorted by time. The status is then `received`, or `partial` if there are no turns or the sender said so, or `failed` with a `status_reason`. `routed`, `checked` and `excluded` come with SOP checks.
+
+### Importing a file
+
+`sopops import FILE.jsonl --workspace WS` reads one session per line in this format (`-` reads stdin) straight into the database named by `DATABASE_URL`, with no token, and runs `process_session` for each new or changed one. Lines that don't parse are reported by line number and skipped; it exits 1 if any did. Importing the same file again changes nothing. [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl) has ten made-up sessions for the test workspace.

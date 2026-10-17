@@ -2,12 +2,12 @@
 
 # 📋🗄️ sopops
 
-**Serves sopc agent prompts from a UI and an API. Call QA and GitHub PRs are coming.**
+**Serves sopc agent prompts from a UI and an API, and collects your agents' sessions. SOP checks on sessions and GitHub PRs are coming.**
 
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
 
-[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Use it from your agent](#use-it-from-your-agent) · [Git or database](#git-or-database) · [API](#api)
+[Concepts](https://github.com/amanmibra/whatsop) · [Why](#why) · [Quickstart](#quickstart) · [How it works](#how-it-works) · [Use it from your agent](#use-it-from-your-agent) · [Sessions](#sessions) · [Git or database](#git-or-database) · [API](#api)
 
 </div>
 
@@ -36,6 +36,7 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
+| `HATCHET_CLIENT_TOKEN` | unset | Run the session pipeline on [Hatchet](https://hatchet.run) (`pip install 'sopops[hatchet]'`, plus `sopops worker`). Unset, it runs inside sopops. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
 
@@ -105,6 +106,31 @@ async def entrypoint(ctx: JobContext):
 
 For A/B tests, have your router pick a release per call (e.g. 70% current, 30% a candidate) and pass it as `?release=N`; the room metadata and the fetch log record which one ran.
 
+## Sessions
+
+A session is one conversation an agent had: a voice call or a text chat. Agents send each finished session to sopops, with the release it ran on, and the Sessions page lists them live, with filters, each one's transcript, tool calls and metadata. Checking sessions against your procedures comes next.
+
+Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with the workspace's ingest token (Settings → Ingest token, shown once). Sending the same session again is safe: it's keyed by platform and session id.
+
+**LiveKit.** Copy [`helpers/livekit/python/sopops_livekit.py`](helpers/livekit/python/sopops_livekit.py) (or the [Node version](helpers/livekit/node/sopops-livekit.ts)) next to your agent. At shutdown it posts `session.history` with timestamps and tool calls, keyed by the job id, with the release from `session.userdata`:
+
+```python
+from sopops_livekit import record_session
+
+async def entrypoint(ctx: JobContext):
+    await ctx.connect()
+    sop = await fetch_prompt(ctx.job.agent_name)                    # as above
+    session = AgentSession(..., userdata={"sopops_release": sop["release"]})
+    record_session(ctx, session)                                    # SOPOPS_URL, SOPOPS_INGEST_TOKEN
+    await session.start(room=ctx.room, agent=Agent(instructions=sop["prompt"]))
+```
+
+**ElevenLabs and Vapi** post-call webhooks are next. Until then, send their transcripts in the canonical format.
+
+**Files.** `sopops import sessions.jsonl --workspace prod` reads one canonical session per line straight into the database, e.g. a backfill or [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl).
+
+**The pipeline.** Each new or changed session runs `process_session` (for now it normalizes turns and sets the status). Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_TOKEN` set it runs on Hatchet, one run per session version and a fair share per workspace, in `sopops worker`; `docker compose --profile hatchet up` runs hatchet-lite (see [docker-compose.yml](docker-compose.yml)). Live updates reach the Sessions page from any process on Postgres (LISTEN/NOTIFY); on SQLite, only from the sopops process itself.
+
 ## Git or database
 
 **Database.** Everything lives in sopops's database and is edited in the UI or over the `/config` API. Nobody edits YAML or Markdown, but each block is still stored as a sopc file and versioned on its own.
@@ -128,6 +154,8 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 |---|---|
 | `GET …/agents/<agent>` | **Call start.** The prompt, release, hash, tools and the components it was built from. `?release=N` pins a release. |
 | `GET …/agents/<agent>/prompt` | Just the prompt text. |
+| `POST …/sessions` | **Session end.** Ingest a session in the canonical format, with the ingest token. |
+| `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript, and live events (SSE). |
 | `GET …/config` | Every agent, shared instruction, procedure, group and setting, as the forms edit them. |
 | `…/config/{agents,instructions,procedures,groups}[/<id>]` | List, create, read, replace and delete each kind, with history. |
 | `POST …/config/agents/<id>/blocks`, `DELETE …/blocks/<block>` | Add a block at the end of an agent's list, or take one out. |
@@ -141,11 +169,12 @@ Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issu
 
 ## Status
 
-v0, renamed from sopserve. **There is no authentication yet**: anyone who can reach sopops can read and change everything, so run it on a private network only.
+v0, renamed from sopserve. **There is no authentication yet** except the ingest token for sending sessions: anyone who can reach sopops can read and change everything else, so run it on a private network only.
 
 ## Roadmap
 
-- Call QA: findings and verdicts per call, and patterns across calls
+- SOP checks on sessions: findings and verdicts per session, and patterns across sessions
+- ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
 - GitHub: load a sopc project from a repo path, and open PRs with suggested changes
 - API keys with scopes, and sign-in for the UI
 - Renaming agents and blocks
@@ -163,7 +192,9 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 
 | | |
 |---|---|
-| `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. |
+| `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. Hatchet isn't needed. |
+| `uv run sopops import FILE.jsonl -w WS` | Import sessions. |
+| `uv run sopops worker` | The Hatchet worker, with `HATCHET_CLIENT_TOKEN` set. |
 | `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
 | `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
 | `uv run alembic revision --autogenerate -m "…"` | A new migration after changing `models.py`. |
