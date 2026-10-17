@@ -50,3 +50,35 @@ jobs:
         run: pnpm gen:api && git diff --exit-code -- openapi.json src/client
       - run: pnpm typecheck
       - run: pnpm build
+
+  sdk-python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --python 3.12 pytest -q
+      - name: Types (strict, against livekit-agents)
+        run: uv run --python 3.12 --extra livekit --with mypy mypy --strict src
+
+  sdk-node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdks/node
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: sdks/node/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22  # the dev toolchain (vite) needs 20+; the package itself runs on 18+
+          cache: pnpm
+          cache-dependency-path: sdks/node/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
