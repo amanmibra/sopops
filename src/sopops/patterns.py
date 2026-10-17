@@ -581,6 +581,8 @@ class Patterns:
             assigned: dict[str, str] = {}
             for position, (key, name, desc, members) in enumerate(groups):
                 theme = old.get(tkeys[key].id) if key in tkeys else None
+                if theme is not None and old_members.get(theme.id) and not set(members) & old_members[theme.id]:
+                    theme = None  # an existing key given to patterns that share nothing with it: not the same theme
                 if theme is None:  # "new": still reuse an unused old theme with most of the same patterns
                     best = max(((jaccard(set(members), m), tid) for tid, m in old_members.items() if tid not in used), default=(0.0, None))
                     if best[0] >= 0.5:

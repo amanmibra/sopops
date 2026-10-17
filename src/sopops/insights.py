@@ -393,7 +393,7 @@ class Insights:
             per_rule[(pid, rid)].append((kind, status, n))
         texts = self._rule_texts(db, f.workspace, f.procedure)
         counts = self._pattern_window_counts(db, f)
-        pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace, Pattern.kind != "rule", Pattern.status == "active")))
+        pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace)))
         excluded = dict(db.exec(f.sessions(select(ProcedureCheck.procedure_id, func.count(ProcedureCheck.id)).join(SessionRecord, SessionRecord.id == ProcedureCheck.session_id))
                                 .where(ProcedureCheck.excluded_reason.is_not(None)).group_by(ProcedureCheck.procedure_id)).all())
         out = []
@@ -414,14 +414,13 @@ class Insights:
                 if st["n"] and st["fails"]:
                     worst.append({"rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"], "fail_rate": st["fail_rate"]})
             worst.sort(key=lambda r: (-(r["fail_rate"] or 0), -r["n"]))
-            open_patterns = sum(1 for p in pats if p.procedure_id == pid and p.kind == "sub" and counts.get(p.id, (0, 0))[0] > 0)
-            rule_pats = {p.rule_id for p in pats if p.procedure_id == pid}
+            open_patterns = sum(1 for p in pats if p.procedure_id == pid and counts.get(p.id, (0, 0))[0] > 0)  # leaves with findings in the window
             out.append({
                 "procedure_id": pid, "procedure_name": names.get(pid) or (prior_by[pid][0][2] if prior_by.get(pid) else pid),
                 "checks": len(rows), "measurable": len(m), "followed": sum(c[3] == "followed" for c in m), "partial": sum(c[3] == "partial" for c in m),
                 "deviated": sum(c[3] == "deviated" for c in m), "not_measurable": len(rows) - len(m), "excluded": excluded.get(pid, 0),
                 "pass_rate": rate, "prior_pass_rate": prate, "prior_measurable": len(pm), "delta_points": delta_points(rate, prate),
-                "top_failing_rules": worst[:2], "never_violations": nevers, "open_patterns": open_patterns or len(rule_pats),
+                "top_failing_rules": worst[:2], "never_violations": nevers, "open_patterns": open_patterns,
             })
         out.sort(key=lambda r: (r["pass_rate"] if r["pass_rate"] is not None else 101, -r["deviated"]))
         return out

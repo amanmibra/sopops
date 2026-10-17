@@ -114,6 +114,7 @@ def test_overview_tiles_and_denominators(env):
     assert [m["release"] for m in o["trend"]["releases"]] == [1, 2]
     [row] = o["scoreboard"]
     assert (row["procedure_id"], row["measurable"], row["deviated"], row["pass_rate"], row["excluded"], row["never_violations"]) == (ALLERGEN, 14, 5, 64, 2, 5)
+    assert row["open_patterns"] == 1
     assert row["top_failing_rules"][0]["rule_id"] == env.rules[("never", 1)] and row["top_failing_rules"][0]["fail_rate"] == 36
     # filters narrow every number
     assert get(env, "overview", release=2)["tiles"]["current"]["sessions_checked"] == 4

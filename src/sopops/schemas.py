@@ -733,7 +733,7 @@ class ScoreboardRow(BaseModel):
     delta_points: int | None
     top_failing_rules: list[FailingRule]
     never_violations: int
-    open_patterns: int
+    open_patterns: int = Field(description="Patterns (each finding's most specific one) with findings in the window.")
 
 
 class OverviewResponse(BaseModel):

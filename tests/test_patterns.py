@@ -203,6 +203,23 @@ def test_themes_keep_their_names_and_ids(env):
         again = {t.name: t.id for t in db.exec(select(Theme))}
     assert again == {k: v.id for k, v in themes.items()}
 
+    # a model that swaps the existing keys between groups: matched by their patterns instead
+    def swapping(role, messages, schema):
+        reply = original(role, messages, schema)
+        if schema.__name__ == "ThemesReply":
+            keys = [t["key"] for t in reply["themes"]]
+            for t, k in zip(reply["themes"], reversed(keys)):
+                t["key"] = k
+        return reply
+
+    env.fake.responder = swapping
+    assert env.store.patterns.regroup_themes("demo", ALLERGEN, env.fake, force=True)
+    with Session(env.store.engine) as db:
+        again = {t.name: t.id for t in db.exec(select(Theme))}
+        step_theme = {p.rule_id: p.theme_id for p in db.exec(select(Pattern).where(Pattern.kind == "rule"))}
+    assert again == {k: v.id for k, v in themes.items()}
+    assert sorted(step_theme.values()) == sorted(t.id for t in themes.values())
+
 
 def test_pattern_api_and_recluster_endpoint(env):
     for mode in "AAAABBBB":
