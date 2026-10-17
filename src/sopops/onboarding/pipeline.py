@@ -29,7 +29,7 @@ from ..sopc import Sopc
 from . import text as tx
 from .models import (
     Finding, Proposal, ProposedAgent, ProposedGroup, ProposedInstruction, ProposedProcedure, ProposedSettings,
-    ProcedureDraft, Segmentation, SourcePrompt, Step, VariableNames, Variant,
+    ProcedureDraft, ProposedStep, Segmentation, SourcePrompt, VariableNames, Variant,
 )
 
 PROMPTS = Path(__file__).parent / "prompts"
@@ -362,7 +362,7 @@ def structure(llm: Completer, block: Block, tools: list[str]) -> ProcedureDraft:
 def to_procedure(block: Block, d: ProcedureDraft, tools: list[str], notes: list[str]) -> ProposedProcedure:
     known = set(tools)
 
-    def steps(rows) -> list[Step]:
+    def steps(rows) -> list[ProposedStep]:
         out = []
         for r in rows:
             if not r.text.strip():
@@ -373,7 +373,7 @@ def to_procedure(block: Block, d: ProcedureDraft, tools: list[str], notes: list[
                 tool = None
             if tool and not re.fullmatch(r"\S+", tool):
                 tool = None
-            out.append(Step(text=" ".join(r.text.split()), tool=tool, required=bool(r.required and tool)))
+            out.append(ProposedStep(text=" ".join(r.text.split()), tool=tool, required=bool(r.required and tool)))
         return out
 
     p = ProposedProcedure(

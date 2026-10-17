@@ -3378,6 +3378,951 @@
           }
         }
       }
+    },
+    "/v1/onboarding/capabilities": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Capabilities",
+        "description": "What this server can do for onboarding: extract with its own model, and which platforms it reads.",
+        "operationId": "onboarding_capabilities",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/platform-agents": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "List Platform Agents",
+        "description": "The agents an ElevenLabs or Vapi key can see. The key is used for this request only, never stored or logged.",
+        "operationId": "list_platform_agents",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformAgentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformAgent"
+                  },
+                  "type": "array",
+                  "title": "Response List Platform Agents"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The platform refused the key or couldn't be reached."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "List Imports",
+        "operationId": "list_imports",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ImportOut"
+                  },
+                  "title": "Response List Imports"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Create Import",
+        "description": "Extract blocks and agents from existing prompts with sopops's model, in the background. Poll the import (or\nstream `\u2026/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during\nthis request and is never stored.",
+        "operationId": "create_import",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No prompts, or a platform error."
+          },
+          "503": {
+            "description": "No model configured."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/agent": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Start Agent Import",
+        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and prompt to start one. The token is shown only in this response.",
+        "operationId": "start_agent_import",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Get Import",
+        "operationId": "get_import",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Discard Import",
+        "description": "Discard the import and end its token. Nothing in the workspace changes.",
+        "operationId": "discard_import",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/events": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Import Events",
+        "description": "Progress messages after event `after`, oldest first.",
+        "operationId": "import_events",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EventOut"
+                  },
+                  "title": "Response Import Events"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/stream": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Import Stream",
+        "description": "Server-sent events: each progress message as it arrives, and the import's status when it changes.\nEnds when the import is applied or discarded, or after 10 minutes (reconnect with `after`).",
+        "operationId": "import_stream",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "After"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "`progress` events, then `status` whenever it changes.",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/proposal": {
+      "put": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Update Import Proposal",
+        "description": "Save edits to the proposal; fidelity and sopc's checks are run again.",
+        "operationId": "update_import_proposal",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProposalContent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/findings/{finding}": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Resolve Import Finding",
+        "description": "Decide drift: keep each agent's version, or give every agent one agent's version.",
+        "operationId": "resolve_import_finding",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "finding",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a choice for this finding."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/apply": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Apply Import",
+        "description": "Write the proposal's blocks, groups and agents as drafts (nothing is published). Ends the onboarding token.",
+        "operationId": "apply_import",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplyRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplyOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already applied, or an id clashes."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/revoke": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Revoke Import Token",
+        "description": "End the import's onboarding token now (Finish). The proposal stays for review.",
+        "operationId": "revoke_import_token",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/session": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Session",
+        "description": "The workspace and mode an onboarding token is for.",
+        "operationId": "onboarding_session",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/progress": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Progress",
+        "description": "A progress message for the person watching the import in sopops.",
+        "operationId": "onboarding_progress",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/proposal": {
+      "put": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Push",
+        "description": "Push the proposal for review; it replaces any earlier push. Returns fidelity per agent.",
+        "operationId": "onboarding_push",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PushIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PushOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/fidelity": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Check",
+        "description": "Compile a proposal with sopc and compare each agent with its original. Stores nothing.",
+        "operationId": "onboarding_check",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FidelityIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FidelityOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3503,6 +4448,81 @@
         ],
         "title": "AgentConfigSaved"
       },
+      "AgentFidelity": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score",
+            "description": "Share of the original's sentences kept (0-1). Reworded ones count as kept."
+          },
+          "similarity": {
+            "type": "number",
+            "title": "Similarity",
+            "description": "Word-level similarity of the whole texts (0-1); lower when text moved."
+          },
+          "sentences": {
+            "type": "integer",
+            "title": "Sentences"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/Changed"
+            },
+            "type": "array",
+            "title": "Changed"
+          },
+          "reworded": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reworded"
+          },
+          "added": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Added"
+          },
+          "compiled": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Compiled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "ok",
+          "score",
+          "similarity",
+          "sentences"
+        ],
+        "title": "AgentFidelity",
+        "description": "How the agent's compiled prompt covers its original (`sopc compare`, sentence by sentence)."
+      },
       "AgentFields": {
         "properties": {
           "platform": {
@@ -3551,6 +4571,79 @@
           "platform_id"
         ],
         "title": "AgentFields"
+      },
+      "AgentImportOut": {
+        "properties": {
+          "import": {
+            "$ref": "#/components/schemas/ImportOut"
+          },
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Shown once. Scoped to onboarding:write for this workspace; expires in 2 hours."
+          },
+          "kickoff": {
+            "$ref": "#/components/schemas/Kickoff"
+          }
+        },
+        "type": "object",
+        "required": [
+          "import",
+          "token",
+          "kickoff"
+        ],
+        "title": "AgentImportOut"
+      },
+      "AgentImportRequest": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "hosted",
+              "repo"
+            ],
+            "title": "Mode",
+            "description": "hosted: instructions live in sopops. repo: the agent also opens a PR adding sops/.",
+            "default": "hosted"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo",
+            "description": "Repo mode: the repository URL or path (recorded; syncing from it comes later)."
+          },
+          "server_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Url",
+            "description": "The URL the coding agent reaches sopops at. Default: this request's base URL."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          }
+        },
+        "type": "object",
+        "title": "AgentImportRequest"
       },
       "AgentIn": {
         "properties": {
@@ -3753,6 +4846,74 @@
         ],
         "title": "AgentsResponse"
       },
+      "ApplyOut": {
+        "properties": {
+          "import": {
+            "$ref": "#/components/schemas/ImportOut"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          },
+          "replaced": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Replaced",
+            "description": "Items that already existed and were replaced, as kind:id."
+          }
+        },
+        "type": "object",
+        "required": [
+          "import",
+          "changed",
+          "replaced"
+        ],
+        "title": "ApplyOut"
+      },
+      "ApplyRequest": {
+        "properties": {
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProposalContent"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The edited proposal, if it changed since the last save."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "ApplyRequest"
+      },
       "BlockRequest": {
         "properties": {
           "author": {
@@ -3789,6 +4950,58 @@
           "block"
         ],
         "title": "BlockRequest"
+      },
+      "Capabilities": {
+        "properties": {
+          "llm": {
+            "type": "boolean",
+            "title": "Llm",
+            "description": "Whether sopops can extract with its own model (SOPOPS_MODEL_REASONING is set)."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "platforms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Platforms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "llm",
+          "model",
+          "platforms"
+        ],
+        "title": "Capabilities"
+      },
+      "Changed": {
+        "properties": {
+          "original": {
+            "type": "string",
+            "title": "Original"
+          },
+          "now": {
+            "type": "string",
+            "title": "Now"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original",
+          "now"
+        ],
+        "title": "Changed"
       },
       "Component": {
         "properties": {
@@ -3889,6 +5102,42 @@
           "groups"
         ],
         "title": "ConfigResponse"
+      },
+      "CreateImport": {
+        "properties": {
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/SourcePrompt"
+            },
+            "type": "array",
+            "title": "Sources",
+            "description": "Pasted or uploaded prompts, one per agent."
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlatformImport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Agents to read from ElevenLabs or Vapi, with a key used only for this request."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          }
+        },
+        "type": "object",
+        "title": "CreateImport"
       },
       "DraftAgent": {
         "properties": {
@@ -4190,6 +5439,44 @@
         ],
         "title": "EditRequest"
       },
+      "EventOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          },
+          "step": {
+            "type": "string",
+            "title": "Step"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "by": {
+            "type": "string",
+            "enum": [
+              "sopops",
+              "agent"
+            ],
+            "title": "By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "at",
+          "step",
+          "message",
+          "by"
+        ],
+        "title": "EventOut"
+      },
       "FetchOut": {
         "properties": {
           "id": {
@@ -4223,6 +5510,52 @@
           "at"
         ],
         "title": "FetchOut"
+      },
+      "FidelityIn": {
+        "properties": {
+          "proposal": {
+            "$ref": "#/components/schemas/ProposalContent"
+          },
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposal",
+          "originals"
+        ],
+        "title": "FidelityIn"
+      },
+      "FidelityOut": {
+        "properties": {
+          "fidelity": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fidelity"
+          },
+          "issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fidelity",
+          "issues"
+        ],
+        "title": "FidelityOut"
       },
       "FileChange": {
         "properties": {
@@ -4377,6 +5710,81 @@
         ],
         "title": "FilesResponse"
       },
+      "Finding": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "duplicate",
+              "values",
+              "drift"
+            ],
+            "title": "Kind"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          },
+          "variable": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variable"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/Variant"
+            },
+            "type": "array",
+            "title": "Variants"
+          },
+          "resolved": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved",
+            "description": "'keep', or the agent whose version everyone now gets."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "title",
+          "message"
+        ],
+        "title": "Finding",
+        "description": "Something the reviewer should know or decide.\n\n- `duplicate`: the same text in several agents, now one block.\n- `values`: near-copies that differ only by a value (a name, a link, a number), now one block with a variable.\n- `drift`: agents that say different things about the same topic. Kept as each agent had it (a variable, or a block\n  per version) until someone picks one."
+      },
       "GroupConfig": {
         "properties": {
           "version": {
@@ -4525,6 +5933,133 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "llm",
+              "agent"
+            ],
+            "title": "Source"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "waiting",
+              "running",
+              "ready",
+              "failed",
+              "applied",
+              "discarded"
+            ],
+            "title": "Status"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "pushes": {
+            "type": "integer",
+            "title": "Pushes"
+          },
+          "token": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TokenOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "proposal": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Proposal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace",
+          "source",
+          "status",
+          "mode",
+          "repo",
+          "agents",
+          "error",
+          "pushes",
+          "token",
+          "created_at",
+          "updated_at",
+          "created_by"
+        ],
+        "title": "ImportOut"
       },
       "InstructionConfig": {
         "properties": {
@@ -4811,6 +6346,49 @@
           "file"
         ],
         "title": "ItemVersion"
+      },
+      "Kickoff": {
+        "properties": {
+          "claude_code": {
+            "type": "string",
+            "title": "Claude Code",
+            "description": "Adds the sopops MCP server to Claude Code."
+          },
+          "codex": {
+            "type": "string",
+            "title": "Codex",
+            "description": "Adds it to Codex."
+          },
+          "codex_toml": {
+            "type": "string",
+            "title": "Codex Toml",
+            "description": "The same, as ~/.codex/config.toml lines."
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt",
+            "description": "What to paste into the coding agent."
+          },
+          "settings": {
+            "type": "string",
+            "title": "Settings",
+            "description": "Recommended settings, as editable text."
+          },
+          "mcp_source": {
+            "type": "string",
+            "title": "Mcp Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claude_code",
+          "codex",
+          "codex_toml",
+          "prompt",
+          "settings",
+          "mcp_source"
+        ],
+        "title": "Kickoff"
       },
       "LintFinding": {
         "properties": {
@@ -5235,6 +6813,79 @@
         ],
         "title": "NewProcedure"
       },
+      "PlatformAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "PlatformAgent"
+      },
+      "PlatformAgentsRequest": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "api_key": {
+            "type": "string",
+            "title": "Api Key",
+            "description": "Used for this request only: never stored or logged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "api_key"
+        ],
+        "title": "PlatformAgentsRequest"
+      },
+      "PlatformImport": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "api_key": {
+            "type": "string",
+            "title": "Api Key",
+            "description": "Used for this request only: never stored or logged."
+          },
+          "agent_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Agent Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "api_key",
+          "agent_ids"
+        ],
+        "title": "PlatformImport"
+      },
       "PreviewBlock": {
         "properties": {
           "kind": {
@@ -5582,6 +7233,460 @@
         ],
         "title": "ProcedureIn"
       },
+      "ProgressIn": {
+        "properties": {
+          "step": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Step"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "step",
+          "message"
+        ],
+        "title": "ProgressIn"
+      },
+      "Proposal": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "instructions": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedInstruction"
+            },
+            "type": "array",
+            "title": "Instructions"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ProposedSettings"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "fidelity": {
+            "items": {
+              "$ref": "#/components/schemas/AgentFidelity"
+            },
+            "type": "array",
+            "title": "Fidelity"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ProposalIssue"
+            },
+            "type": "array",
+            "title": "Issues",
+            "description": "sopc's checks of the proposal as files."
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals",
+            "description": "Each agent's original prompt, by agent id."
+          }
+        },
+        "type": "object",
+        "title": "Proposal"
+      },
+      "ProposalContent": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "instructions": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedInstruction"
+            },
+            "type": "array",
+            "title": "Instructions"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedGroup"
+            },
+            "type": "array",
+            "title": "Groups"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/ProposedSettings"
+          }
+        },
+        "type": "object",
+        "title": "ProposalContent",
+        "description": "What gets written: blocks, groups, agents and settings. Edit these, then check fidelity again."
+      },
+      "ProposalIssue": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "default": ""
+          },
+          "severity": {
+            "type": "string",
+            "title": "Severity",
+            "default": "error"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ProposalIssue"
+      },
+      "ProposedAgent": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "default": ""
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform",
+            "default": "livekit"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "default": ""
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "default": ""
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ProposedAgent"
+      },
+      "ProposedGroup": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "blocks"
+        ],
+        "title": "ProposedGroup"
+      },
+      "ProposedInstruction": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "default": ""
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "used_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Used By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "ProposedInstruction"
+      },
+      "ProposedProcedure": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "goal_inferred": {
+            "type": "boolean",
+            "title": "Goal Inferred",
+            "default": false
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "default": ""
+          },
+          "guidance": {
+            "type": "string",
+            "title": "Guidance",
+            "default": ""
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedStep"
+            },
+            "type": "array",
+            "title": "Steps"
+          },
+          "never": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedStep"
+            },
+            "type": "array",
+            "title": "Never"
+          },
+          "warning_signs": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedStep"
+            },
+            "type": "array",
+            "title": "Warning Signs"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "auto",
+              "tool"
+            ],
+            "title": "Delivery",
+            "default": "prompt"
+          },
+          "used_by": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Used By"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "The source text it was structured from, with {{variables}}.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ProposedProcedure"
+      },
+      "ProposedSettings": {
+        "properties": {
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables"
+          },
+          "procedures_heading": {
+            "type": "string",
+            "title": "Procedures Heading",
+            "default": "## Procedures"
+          }
+        },
+        "type": "object",
+        "title": "ProposedSettings"
+      },
+      "ProposedStep": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ProposedStep"
+      },
       "PublishRequest": {
         "properties": {
           "files": {
@@ -5646,6 +7751,76 @@
           "changed"
         ],
         "title": "PublishResponse"
+      },
+      "PushIn": {
+        "properties": {
+          "proposal": {
+            "$ref": "#/components/schemas/ProposalContent"
+          },
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals",
+            "description": "Each agent's original prompt, by agent id."
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "type": "array",
+            "title": "Findings"
+          },
+          "notes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "title": "PushIn"
+      },
+      "PushOut": {
+        "properties": {
+          "fidelity": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Fidelity"
+          },
+          "issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "pushes": {
+            "type": "integer",
+            "title": "Pushes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fidelity",
+          "issues",
+          "id",
+          "pushes"
+        ],
+        "title": "PushOut"
       },
       "ReleaseDetail": {
         "properties": {
@@ -5973,6 +8148,76 @@
         ],
         "title": "ReplaceRequest"
       },
+      "ResolveRequest": {
+        "properties": {
+          "choice": {
+            "type": "string",
+            "title": "Choice",
+            "description": "'keep' (each agent keeps its version), or the agent whose version every agent gets."
+          }
+        },
+        "type": "object",
+        "required": [
+          "choice"
+        ],
+        "title": "ResolveRequest"
+      },
+      "SessionInfo": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "import_id": {
+            "type": "string",
+            "title": "Import Id"
+          },
+          "mode": {
+            "type": "string",
+            "title": "Mode"
+          },
+          "repo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "import_id",
+          "mode",
+          "repo",
+          "scopes",
+          "expires_at"
+        ],
+        "title": "SessionInfo"
+      },
       "SettingsConfig": {
         "properties": {
           "version": {
@@ -6106,6 +8351,60 @@
         ],
         "title": "SettingsSaved"
       },
+      "SourcePrompt": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Name",
+            "description": "The agent's name; its sopc id is made from it."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform",
+            "default": "livekit"
+          },
+          "platform_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Id",
+            "description": "The agent's id on its platform (LiveKit agent_name, ElevenLabs agent_id, Vapi assistant id). Default: the agent's id."
+          },
+          "prompt": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt",
+            "description": "The prompt text, verbatim."
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools",
+            "description": "Tool names the agent can call, so procedure steps can name them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "prompt"
+        ],
+        "title": "SourcePrompt",
+        "description": "One existing agent's prompt, as it runs today."
+      },
       "Step-Input": {
         "properties": {
           "text": {
@@ -6169,6 +8468,65 @@
           "required"
         ],
         "title": "Step"
+      },
+      "TokenOut": {
+        "properties": {
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix"
+          },
+          "scopes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Scopes"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "active": {
+            "type": "boolean",
+            "title": "Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prefix",
+          "scopes",
+          "expires_at",
+          "revoked_at",
+          "active"
+        ],
+        "title": "TokenOut"
       },
       "Use": {
         "properties": {
@@ -6256,6 +8614,38 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Variant": {
+        "properties": {
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "block": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Block"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "text"
+        ],
+        "title": "Variant"
       },
       "WorkspaceOut": {
         "properties": {

@@ -60,7 +60,7 @@ class VariableNames(BaseModel):
 # --- the proposal ---------------------------------------------------------------------------
 
 
-class Step(BaseModel):
+class ProposedStep(BaseModel):
     text: str
     tool: str | None = None
     required: bool = False
@@ -80,9 +80,9 @@ class ProposedProcedure(BaseModel):
     goal_inferred: bool = False
     when: str = ""
     guidance: str = ""
-    steps: list[Step] = Field(default_factory=list)
-    never: list[Step] = Field(default_factory=list)
-    warning_signs: list[Step] = Field(default_factory=list)
+    steps: list[ProposedStep] = Field(default_factory=list)
+    never: list[ProposedStep] = Field(default_factory=list)
+    warning_signs: list[ProposedStep] = Field(default_factory=list)
     delivery: Literal["prompt", "auto", "tool"] = "prompt"
     used_by: list[str] = Field(default_factory=list)
     source: str = Field("", description="The source text it was structured from, with {{variables}}.")

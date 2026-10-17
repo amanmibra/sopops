@@ -76,6 +76,58 @@ export type AgentConfigSaved = {
 };
 
 /**
+ * AgentFidelity
+ *
+ * How the agent's compiled prompt covers its original (`sopc compare`, sentence by sentence).
+ */
+export type AgentFidelity = {
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Score
+     *
+     * Share of the original's sentences kept (0-1). Reworded ones count as kept.
+     */
+    score: number;
+    /**
+     * Similarity
+     *
+     * Word-level similarity of the whole texts (0-1); lower when text moved.
+     */
+    similarity: number;
+    /**
+     * Sentences
+     */
+    sentences: number;
+    /**
+     * Missing
+     */
+    missing?: Array<string>;
+    /**
+     * Changed
+     */
+    changed?: Array<Changed>;
+    /**
+     * Reworded
+     */
+    reworded?: Array<string>;
+    /**
+     * Added
+     */
+    added?: Array<string>;
+    /**
+     * Compiled
+     */
+    compiled?: string | null;
+};
+
+/**
  * AgentFields
  */
 export type AgentFields = {
@@ -109,6 +161,48 @@ export type AgentFields = {
     variables?: {
         [key: string]: string;
     };
+};
+
+/**
+ * AgentImportOut
+ */
+export type AgentImportOut = {
+    import: ImportOut;
+    /**
+     * Token
+     *
+     * Shown once. Scoped to onboarding:write for this workspace; expires in 2 hours.
+     */
+    token: string;
+    kickoff: Kickoff;
+};
+
+/**
+ * AgentImportRequest
+ */
+export type AgentImportRequest = {
+    /**
+     * Mode
+     *
+     * hosted: instructions live in sopops. repo: the agent also opens a PR adding sops/.
+     */
+    mode?: 'hosted' | 'repo';
+    /**
+     * Repo
+     *
+     * Repo mode: the repository URL or path (recorded; syncing from it comes later).
+     */
+    repo?: string | null;
+    /**
+     * Server Url
+     *
+     * The URL the coding agent reaches sopops at. Default: this request's base URL.
+     */
+    server_url?: string | null;
+    /**
+     * Author
+     */
+    author?: string | null;
 };
 
 /**
@@ -249,6 +343,41 @@ export type AgentsResponse = {
 };
 
 /**
+ * ApplyOut
+ */
+export type ApplyOut = {
+    import: ImportOut;
+    /**
+     * Changed
+     */
+    changed: Array<WrittenFile>;
+    /**
+     * Replaced
+     *
+     * Items that already existed and were replaced, as kind:id.
+     */
+    replaced: Array<string>;
+};
+
+/**
+ * ApplyRequest
+ */
+export type ApplyRequest = {
+    /**
+     * The edited proposal, if it changed since the last save.
+     */
+    proposal?: ProposalContent | null;
+    /**
+     * Author
+     */
+    author?: string | null;
+    /**
+     * Note
+     */
+    note?: string | null;
+};
+
+/**
  * BlockRequest
  */
 export type BlockRequest = {
@@ -268,6 +397,40 @@ export type BlockRequest = {
      * A shared instruction, procedure or group id.
      */
     block: string;
+};
+
+/**
+ * Capabilities
+ */
+export type Capabilities = {
+    /**
+     * Llm
+     *
+     * Whether sopops can extract with its own model (SOPOPS_MODEL_REASONING is set).
+     */
+    llm: boolean;
+    /**
+     * Model
+     */
+    model: string | null;
+    /**
+     * Platforms
+     */
+    platforms: Array<string>;
+};
+
+/**
+ * Changed
+ */
+export type Changed = {
+    /**
+     * Original
+     */
+    original: string;
+    /**
+     * Now
+     */
+    now: string;
 };
 
 /**
@@ -321,6 +484,26 @@ export type ConfigResponse = {
      * In the order sopc.yaml lists them.
      */
     groups: Array<GroupConfig>;
+};
+
+/**
+ * CreateImport
+ */
+export type CreateImport = {
+    /**
+     * Sources
+     *
+     * Pasted or uploaded prompts, one per agent.
+     */
+    sources?: Array<SourcePrompt>;
+    /**
+     * Agents to read from ElevenLabs or Vapi, with a key used only for this request.
+     */
+    platform?: PlatformImport | null;
+    /**
+     * Author
+     */
+    author?: string | null;
 };
 
 /**
@@ -480,6 +663,32 @@ export type EditRequest = {
 };
 
 /**
+ * EventOut
+ */
+export type EventOut = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Step
+     */
+    step: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * By
+     */
+    by: 'sopops' | 'agent';
+};
+
+/**
  * FetchOut
  */
 export type FetchOut = {
@@ -503,6 +712,37 @@ export type FetchOut = {
      * At
      */
     at: string;
+};
+
+/**
+ * FidelityIn
+ */
+export type FidelityIn = {
+    proposal: ProposalContent;
+    /**
+     * Originals
+     */
+    originals: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * FidelityOut
+ */
+export type FidelityOut = {
+    /**
+     * Fidelity
+     */
+    fidelity: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Issues
+     */
+    issues: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -596,6 +836,53 @@ export type FilesResponse = {
 };
 
 /**
+ * Finding
+ *
+ * Something the reviewer should know or decide.
+ *
+ * - `duplicate`: the same text in several agents, now one block.
+ * - `values`: near-copies that differ only by a value (a name, a link, a number), now one block with a variable.
+ * - `drift`: agents that say different things about the same topic. Kept as each agent had it (a variable, or a block
+ * per version) until someone picks one.
+ */
+export type Finding = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'duplicate' | 'values' | 'drift';
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Block
+     */
+    block?: string | null;
+    /**
+     * Variable
+     */
+    variable?: string | null;
+    /**
+     * Variants
+     */
+    variants?: Array<Variant>;
+    /**
+     * Resolved
+     *
+     * 'keep', or the agent whose version everyone now gets.
+     */
+    resolved?: string | null;
+};
+
+/**
  * GroupConfig
  */
 export type GroupConfig = {
@@ -678,6 +965,62 @@ export type HttpValidationError = {
      * Detail
      */
     detail?: Array<ValidationError>;
+};
+
+/**
+ * ImportOut
+ */
+export type ImportOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Source
+     */
+    source: 'llm' | 'agent';
+    /**
+     * Status
+     */
+    status: 'waiting' | 'running' | 'ready' | 'failed' | 'applied' | 'discarded';
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Repo
+     */
+    repo: string | null;
+    /**
+     * Agents
+     */
+    agents: Array<string>;
+    /**
+     * Error
+     */
+    error: string | null;
+    /**
+     * Pushes
+     */
+    pushes: number;
+    token: TokenOut | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Created By
+     */
+    created_by: string | null;
+    proposal?: Proposal | null;
 };
 
 /**
@@ -833,6 +1176,46 @@ export type ItemVersion = {
      * File
      */
     file: string;
+};
+
+/**
+ * Kickoff
+ */
+export type Kickoff = {
+    /**
+     * Claude Code
+     *
+     * Adds the sopops MCP server to Claude Code.
+     */
+    claude_code: string;
+    /**
+     * Codex
+     *
+     * Adds it to Codex.
+     */
+    codex: string;
+    /**
+     * Codex Toml
+     *
+     * The same, as ~/.codex/config.toml lines.
+     */
+    codex_toml: string;
+    /**
+     * Prompt
+     *
+     * What to paste into the coding agent.
+     */
+    prompt: string;
+    /**
+     * Settings
+     *
+     * Recommended settings, as editable text.
+     */
+    settings: string;
+    /**
+     * Mcp Source
+     */
+    mcp_source: string;
 };
 
 /**
@@ -1112,6 +1495,56 @@ export type NewProcedure = {
 };
 
 /**
+ * PlatformAgent
+ */
+export type PlatformAgent = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * PlatformAgentsRequest
+ */
+export type PlatformAgentsRequest = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Api Key
+     *
+     * Used for this request only: never stored or logged.
+     */
+    api_key: string;
+};
+
+/**
+ * PlatformImport
+ */
+export type PlatformImport = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Api Key
+     *
+     * Used for this request only: never stored or logged.
+     */
+    api_key: string;
+    /**
+     * Agent Ids
+     */
+    agent_ids: Array<string>;
+};
+
+/**
  * PreviewBlock
  */
 export type PreviewBlock = {
@@ -1303,6 +1736,302 @@ export type ProcedureIn = {
 };
 
 /**
+ * ProgressIn
+ */
+export type ProgressIn = {
+    /**
+     * Step
+     */
+    step: string;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
+ * Proposal
+ */
+export type Proposal = {
+    /**
+     * Agents
+     */
+    agents?: Array<ProposedAgent>;
+    /**
+     * Instructions
+     */
+    instructions?: Array<ProposedInstruction>;
+    /**
+     * Procedures
+     */
+    procedures?: Array<ProposedProcedure>;
+    /**
+     * Groups
+     */
+    groups?: Array<ProposedGroup>;
+    settings?: ProposedSettings;
+    /**
+     * Findings
+     */
+    findings?: Array<Finding>;
+    /**
+     * Fidelity
+     */
+    fidelity?: Array<AgentFidelity>;
+    /**
+     * Issues
+     *
+     * sopc's checks of the proposal as files.
+     */
+    issues?: Array<ProposalIssue>;
+    /**
+     * Notes
+     */
+    notes?: Array<string>;
+    /**
+     * Originals
+     *
+     * Each agent's original prompt, by agent id.
+     */
+    originals?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * ProposalContent
+ *
+ * What gets written: blocks, groups, agents and settings. Edit these, then check fidelity again.
+ */
+export type ProposalContent = {
+    /**
+     * Agents
+     */
+    agents?: Array<ProposedAgent>;
+    /**
+     * Instructions
+     */
+    instructions?: Array<ProposedInstruction>;
+    /**
+     * Procedures
+     */
+    procedures?: Array<ProposedProcedure>;
+    /**
+     * Groups
+     */
+    groups?: Array<ProposedGroup>;
+    settings?: ProposedSettings;
+};
+
+/**
+ * ProposalIssue
+ */
+export type ProposalIssue = {
+    /**
+     * Code
+     */
+    code: string;
+    /**
+     * Message
+     */
+    message: string;
+    /**
+     * Path
+     */
+    path?: string;
+    /**
+     * Severity
+     */
+    severity?: string;
+    /**
+     * Kind
+     */
+    kind?: string | null;
+    /**
+     * Id
+     */
+    id?: string | null;
+    /**
+     * Field
+     */
+    field?: string | null;
+    /**
+     * Index
+     */
+    index?: number | null;
+    /**
+     * Text
+     */
+    text?: string | null;
+};
+
+/**
+ * ProposedAgent
+ */
+export type ProposedAgent = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Platform
+     */
+    platform?: 'livekit' | 'elevenlabs' | 'vapi';
+    /**
+     * Platform Id
+     */
+    platform_id?: string;
+    /**
+     * Context
+     */
+    context?: string;
+    /**
+     * Blocks
+     */
+    blocks?: Array<string>;
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: string;
+    };
+    /**
+     * Tools
+     */
+    tools?: Array<string>;
+};
+
+/**
+ * ProposedGroup
+ */
+export type ProposedGroup = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Blocks
+     */
+    blocks: Array<string>;
+};
+
+/**
+ * ProposedInstruction
+ */
+export type ProposedInstruction = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title?: string;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Used By
+     */
+    used_by?: Array<string>;
+};
+
+/**
+ * ProposedProcedure
+ */
+export type ProposedProcedure = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Goal
+     */
+    goal?: string;
+    /**
+     * Goal Inferred
+     */
+    goal_inferred?: boolean;
+    /**
+     * When
+     */
+    when?: string;
+    /**
+     * Guidance
+     */
+    guidance?: string;
+    /**
+     * Steps
+     */
+    steps?: Array<ProposedStep>;
+    /**
+     * Never
+     */
+    never?: Array<ProposedStep>;
+    /**
+     * Warning Signs
+     */
+    warning_signs?: Array<ProposedStep>;
+    /**
+     * Delivery
+     */
+    delivery?: 'prompt' | 'auto' | 'tool';
+    /**
+     * Used By
+     */
+    used_by?: Array<string>;
+    /**
+     * Source
+     *
+     * The source text it was structured from, with {{variables}}.
+     */
+    source?: string;
+};
+
+/**
+ * ProposedSettings
+ */
+export type ProposedSettings = {
+    /**
+     * Variables
+     */
+    variables?: {
+        [key: string]: string;
+    };
+    /**
+     * Procedures Heading
+     */
+    procedures_heading?: string;
+};
+
+/**
+ * ProposedStep
+ */
+export type ProposedStep = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Tool
+     */
+    tool?: string | null;
+    /**
+     * Required
+     */
+    required?: boolean;
+};
+
+/**
  * PublishRequest
  */
 export type PublishRequest = {
@@ -1339,6 +2068,55 @@ export type PublishResponse = {
      * Changed
      */
     changed: Array<WrittenFile>;
+};
+
+/**
+ * PushIn
+ */
+export type PushIn = {
+    proposal: ProposalContent;
+    /**
+     * Originals
+     *
+     * Each agent's original prompt, by agent id.
+     */
+    originals?: {
+        [key: string]: string;
+    };
+    /**
+     * Findings
+     */
+    findings?: Array<Finding>;
+    /**
+     * Notes
+     */
+    notes?: Array<string>;
+};
+
+/**
+ * PushOut
+ */
+export type PushOut = {
+    /**
+     * Fidelity
+     */
+    fidelity: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Issues
+     */
+    issues: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Pushes
+     */
+    pushes: number;
 };
 
 /**
@@ -1551,6 +2329,48 @@ export type ReplaceRequest = {
 };
 
 /**
+ * ResolveRequest
+ */
+export type ResolveRequest = {
+    /**
+     * Choice
+     *
+     * 'keep' (each agent keeps its version), or the agent whose version every agent gets.
+     */
+    choice: string;
+};
+
+/**
+ * SessionInfo
+ */
+export type SessionInfo = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Import Id
+     */
+    import_id: string;
+    /**
+     * Mode
+     */
+    mode: string;
+    /**
+     * Repo
+     */
+    repo: string | null;
+    /**
+     * Scopes
+     */
+    scopes: Array<string>;
+    /**
+     * Expires At
+     */
+    expires_at: string | null;
+};
+
+/**
  * SettingsConfig
  */
 export type SettingsConfig = {
@@ -1632,6 +2452,42 @@ export type SettingsSaved = {
 };
 
 /**
+ * SourcePrompt
+ *
+ * One existing agent's prompt, as it runs today.
+ */
+export type SourcePrompt = {
+    /**
+     * Name
+     *
+     * The agent's name; its sopc id is made from it.
+     */
+    name: string;
+    /**
+     * Platform
+     */
+    platform?: 'livekit' | 'elevenlabs' | 'vapi';
+    /**
+     * Platform Id
+     *
+     * The agent's id on its platform (LiveKit agent_name, ElevenLabs agent_id, Vapi assistant id). Default: the agent's id.
+     */
+    platform_id?: string | null;
+    /**
+     * Prompt
+     *
+     * The prompt text, verbatim.
+     */
+    prompt: string;
+    /**
+     * Tools
+     *
+     * Tool names the agent can call, so procedure steps can name them.
+     */
+    tools?: Array<string>;
+};
+
+/**
  * Step
  */
 export type StepInput = {
@@ -1673,6 +2529,32 @@ export type StepOutput = {
      * Steps only: the tool call must happen.
      */
     required: boolean;
+};
+
+/**
+ * TokenOut
+ */
+export type TokenOut = {
+    /**
+     * Prefix
+     */
+    prefix: string | null;
+    /**
+     * Scopes
+     */
+    scopes: Array<string>;
+    /**
+     * Expires At
+     */
+    expires_at: string | null;
+    /**
+     * Revoked At
+     */
+    revoked_at: string | null;
+    /**
+     * Active
+     */
+    active: boolean;
 };
 
 /**
@@ -1731,6 +2613,24 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * Variant
+ */
+export type Variant = {
+    /**
+     * Agents
+     */
+    agents: Array<string>;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Block
+     */
+    block?: string | null;
 };
 
 /**
@@ -3832,3 +4732,571 @@ export type ListFetchesResponses = {
 };
 
 export type ListFetchesResponse = ListFetchesResponses[keyof ListFetchesResponses];
+
+export type OnboardingCapabilitiesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/capabilities';
+};
+
+export type OnboardingCapabilitiesResponses = {
+    /**
+     * Successful Response
+     */
+    200: Capabilities;
+};
+
+export type OnboardingCapabilitiesResponse = OnboardingCapabilitiesResponses[keyof OnboardingCapabilitiesResponses];
+
+export type ListPlatformAgentsData = {
+    body: PlatformAgentsRequest;
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/platform-agents';
+};
+
+export type ListPlatformAgentsErrors = {
+    /**
+     * The platform refused the key or couldn't be reached.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPlatformAgentsError = ListPlatformAgentsErrors[keyof ListPlatformAgentsErrors];
+
+export type ListPlatformAgentsResponses = {
+    /**
+     * Response List Platform Agents
+     *
+     * Successful Response
+     */
+    200: Array<PlatformAgent>;
+};
+
+export type ListPlatformAgentsResponse = ListPlatformAgentsResponses[keyof ListPlatformAgentsResponses];
+
+export type ListImportsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports';
+};
+
+export type ListImportsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListImportsError = ListImportsErrors[keyof ListImportsErrors];
+
+export type ListImportsResponses = {
+    /**
+     * Response List Imports
+     *
+     * Successful Response
+     */
+    200: Array<ImportOut>;
+};
+
+export type ListImportsResponse = ListImportsResponses[keyof ListImportsResponses];
+
+export type CreateImportData = {
+    body: CreateImport;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports';
+};
+
+export type CreateImportErrors = {
+    /**
+     * No prompts, or a platform error.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * No model configured.
+     */
+    503: unknown;
+};
+
+export type CreateImportError = CreateImportErrors[keyof CreateImportErrors];
+
+export type CreateImportResponses = {
+    /**
+     * Successful Response
+     */
+    201: ImportOut;
+};
+
+export type CreateImportResponse = CreateImportResponses[keyof CreateImportResponses];
+
+export type StartAgentImportData = {
+    body: AgentImportRequest;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/agent';
+};
+
+export type StartAgentImportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartAgentImportError = StartAgentImportErrors[keyof StartAgentImportErrors];
+
+export type StartAgentImportResponses = {
+    /**
+     * Successful Response
+     */
+    201: AgentImportOut;
+};
+
+export type StartAgentImportResponse = StartAgentImportResponses[keyof StartAgentImportResponses];
+
+export type DiscardImportData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}';
+};
+
+export type DiscardImportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DiscardImportError = DiscardImportErrors[keyof DiscardImportErrors];
+
+export type DiscardImportResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type DiscardImportResponse = DiscardImportResponses[keyof DiscardImportResponses];
+
+export type GetImportData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}';
+};
+
+export type GetImportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetImportError = GetImportErrors[keyof GetImportErrors];
+
+export type GetImportResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type GetImportResponse = GetImportResponses[keyof GetImportResponses];
+
+export type ImportEventsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * After
+         */
+        after?: number;
+    };
+    url: '/v1/workspaces/{workspace}/imports/{id}/events';
+};
+
+export type ImportEventsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImportEventsError = ImportEventsErrors[keyof ImportEventsErrors];
+
+export type ImportEventsResponses = {
+    /**
+     * Response Import Events
+     *
+     * Successful Response
+     */
+    200: Array<EventOut>;
+};
+
+export type ImportEventsResponse = ImportEventsResponses[keyof ImportEventsResponses];
+
+export type ImportStreamData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: {
+        /**
+         * After
+         */
+        after?: number;
+    };
+    url: '/v1/workspaces/{workspace}/imports/{id}/stream';
+};
+
+export type ImportStreamErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImportStreamError = ImportStreamErrors[keyof ImportStreamErrors];
+
+export type ImportStreamResponses = {
+    /**
+     * `progress` events, then `status` whenever it changes.
+     */
+    200: unknown;
+};
+
+export type UpdateImportProposalData = {
+    body: ProposalContent;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/proposal';
+};
+
+export type UpdateImportProposalErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateImportProposalError = UpdateImportProposalErrors[keyof UpdateImportProposalErrors];
+
+export type UpdateImportProposalResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type UpdateImportProposalResponse = UpdateImportProposalResponses[keyof UpdateImportProposalResponses];
+
+export type ResolveImportFindingData = {
+    body: ResolveRequest;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+        /**
+         * Finding
+         */
+        finding: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/findings/{finding}';
+};
+
+export type ResolveImportFindingErrors = {
+    /**
+     * Not a choice for this finding.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResolveImportFindingError = ResolveImportFindingErrors[keyof ResolveImportFindingErrors];
+
+export type ResolveImportFindingResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type ResolveImportFindingResponse = ResolveImportFindingResponses[keyof ResolveImportFindingResponses];
+
+export type ApplyImportData = {
+    /**
+     * Req
+     */
+    body?: ApplyRequest | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/apply';
+};
+
+export type ApplyImportErrors = {
+    /**
+     * Already applied, or an id clashes.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApplyImportError = ApplyImportErrors[keyof ApplyImportErrors];
+
+export type ApplyImportResponses = {
+    /**
+     * Successful Response
+     */
+    200: ApplyOut;
+};
+
+export type ApplyImportResponse = ApplyImportResponses[keyof ApplyImportResponses];
+
+export type RevokeImportTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/revoke';
+};
+
+export type RevokeImportTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeImportTokenError = RevokeImportTokenErrors[keyof RevokeImportTokenErrors];
+
+export type RevokeImportTokenResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type RevokeImportTokenResponse = RevokeImportTokenResponses[keyof RevokeImportTokenResponses];
+
+export type OnboardingSessionData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/session';
+};
+
+export type OnboardingSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingSessionError = OnboardingSessionErrors[keyof OnboardingSessionErrors];
+
+export type OnboardingSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionInfo;
+};
+
+export type OnboardingSessionResponse = OnboardingSessionResponses[keyof OnboardingSessionResponses];
+
+export type OnboardingProgressData = {
+    body: ProgressIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/progress';
+};
+
+export type OnboardingProgressErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingProgressError = OnboardingProgressErrors[keyof OnboardingProgressErrors];
+
+export type OnboardingProgressResponses = {
+    /**
+     * Successful Response
+     */
+    200: EventOut;
+};
+
+export type OnboardingProgressResponse = OnboardingProgressResponses[keyof OnboardingProgressResponses];
+
+export type OnboardingPushData = {
+    body: PushIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/proposal';
+};
+
+export type OnboardingPushErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingPushError = OnboardingPushErrors[keyof OnboardingPushErrors];
+
+export type OnboardingPushResponses = {
+    /**
+     * Successful Response
+     */
+    200: PushOut;
+};
+
+export type OnboardingPushResponse = OnboardingPushResponses[keyof OnboardingPushResponses];
+
+export type OnboardingCheckData = {
+    body: FidelityIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/fidelity';
+};
+
+export type OnboardingCheckErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingCheckError = OnboardingCheckErrors[keyof OnboardingCheckErrors];
+
+export type OnboardingCheckResponses = {
+    /**
+     * Successful Response
+     */
+    200: FidelityOut;
+};
+
+export type OnboardingCheckResponse = OnboardingCheckResponses[keyof OnboardingCheckResponses];

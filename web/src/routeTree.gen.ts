@@ -17,6 +17,8 @@ import { Route as WWsConvertRouteImport } from './routes/w.$ws.convert'
 import { Route as WWsOverviewRouteImport } from './routes/w.$ws.overview'
 import { Route as WWsAgentsIndexRouteImport } from './routes/w.$ws.agents.index'
 import { Route as WWsGroupsIndexRouteImport } from './routes/w.$ws.groups.index'
+import { Route as WWsImportIndexRouteImport } from './routes/w.$ws.import.index'
+import { Route as WWsImportIdRouteImport } from './routes/w.$ws.import.$id'
 import { Route as WWsInstructionsIndexRouteImport } from './routes/w.$ws.instructions.index'
 import { Route as WWsProceduresIndexRouteImport } from './routes/w.$ws.procedures.index'
 import { Route as WWsReleasesIndexRouteImport } from './routes/w.$ws.releases.index'
@@ -71,6 +73,16 @@ const WWsAgentsIndexRoute = WWsAgentsIndexRouteImport.update({
 const WWsGroupsIndexRoute = WWsGroupsIndexRouteImport.update({
   id: '/groups/',
   path: '/groups/',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsImportIndexRoute = WWsImportIndexRouteImport.update({
+  id: '/import/',
+  path: '/import/',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsImportIdRoute = WWsImportIdRouteImport.update({
+  id: '/import/$id',
+  path: '/import/$id',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsInstructionsIndexRoute = WWsInstructionsIndexRouteImport.update({
@@ -157,10 +169,12 @@ export interface FileRoutesByFullPath {
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/': typeof WWsIndexRoute
+  '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
+  '/w/$ws/import/': typeof WWsImportIndexRoute
   '/w/$ws/instructions/': typeof WWsInstructionsIndexRoute
   '/w/$ws/procedures/': typeof WWsProceduresIndexRoute
   '/w/$ws/releases/': typeof WWsReleasesIndexRoute
@@ -181,10 +195,12 @@ export interface FileRoutesByTo {
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws': typeof WWsIndexRoute
+  '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
   '/w/$ws/groups': typeof WWsGroupsIndexRoute
+  '/w/$ws/import': typeof WWsImportIndexRoute
   '/w/$ws/instructions': typeof WWsInstructionsIndexRoute
   '/w/$ws/procedures': typeof WWsProceduresIndexRoute
   '/w/$ws/releases': typeof WWsReleasesIndexRoute
@@ -207,10 +223,12 @@ export interface FileRoutesById {
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/': typeof WWsIndexRoute
+  '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
+  '/w/$ws/import/': typeof WWsImportIndexRoute
   '/w/$ws/instructions/': typeof WWsInstructionsIndexRoute
   '/w/$ws/procedures/': typeof WWsProceduresIndexRoute
   '/w/$ws/releases/': typeof WWsReleasesIndexRoute
@@ -234,10 +252,12 @@ export interface FileRouteTypes {
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws/'
+    | '/w/$ws/import/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/settings/history'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
+    | '/w/$ws/import/'
     | '/w/$ws/instructions/'
     | '/w/$ws/procedures/'
     | '/w/$ws/releases/'
@@ -258,10 +278,12 @@ export interface FileRouteTypes {
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws'
+    | '/w/$ws/import/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/settings/history'
     | '/w/$ws/agents'
     | '/w/$ws/groups'
+    | '/w/$ws/import'
     | '/w/$ws/instructions'
     | '/w/$ws/procedures'
     | '/w/$ws/releases'
@@ -283,10 +305,12 @@ export interface FileRouteTypes {
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws/'
+    | '/w/$ws/import/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/settings/history'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
+    | '/w/$ws/import/'
     | '/w/$ws/instructions/'
     | '/w/$ws/procedures/'
     | '/w/$ws/releases/'
@@ -363,6 +387,20 @@ declare module '@tanstack/react-router' {
       path: '/groups'
       fullPath: '/w/$ws/groups/'
       preLoaderRoute: typeof WWsGroupsIndexRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/import/': {
+      id: '/w/$ws/import/'
+      path: '/import'
+      fullPath: '/w/$ws/import/'
+      preLoaderRoute: typeof WWsImportIndexRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/import/$id': {
+      id: '/w/$ws/import/$id'
+      path: '/import/$id'
+      fullPath: '/w/$ws/import/$id'
+      preLoaderRoute: typeof WWsImportIdRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/instructions/': {
@@ -478,10 +516,12 @@ interface WWsRouteChildren {
   WWsConvertRoute: typeof WWsConvertRoute
   WWsOverviewRoute: typeof WWsOverviewRoute
   WWsIndexRoute: typeof WWsIndexRoute
+  WWsImportIdRoute: typeof WWsImportIdRoute
   WWsReleasesNumberRoute: typeof WWsReleasesNumberRoute
   WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
   WWsAgentsIndexRoute: typeof WWsAgentsIndexRoute
   WWsGroupsIndexRoute: typeof WWsGroupsIndexRoute
+  WWsImportIndexRoute: typeof WWsImportIndexRoute
   WWsInstructionsIndexRoute: typeof WWsInstructionsIndexRoute
   WWsProceduresIndexRoute: typeof WWsProceduresIndexRoute
   WWsReleasesIndexRoute: typeof WWsReleasesIndexRoute
@@ -502,10 +542,12 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsConvertRoute: WWsConvertRoute,
   WWsOverviewRoute: WWsOverviewRoute,
   WWsIndexRoute: WWsIndexRoute,
+  WWsImportIdRoute: WWsImportIdRoute,
   WWsReleasesNumberRoute: WWsReleasesNumberRoute,
   WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
   WWsAgentsIndexRoute: WWsAgentsIndexRoute,
   WWsGroupsIndexRoute: WWsGroupsIndexRoute,
+  WWsImportIndexRoute: WWsImportIndexRoute,
   WWsInstructionsIndexRoute: WWsInstructionsIndexRoute,
   WWsProceduresIndexRoute: WWsProceduresIndexRoute,
   WWsReleasesIndexRoute: WWsReleasesIndexRoute,

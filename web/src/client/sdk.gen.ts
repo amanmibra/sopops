@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, ValidateData, ValidateErrors, ValidateResponses } from './types.gen';
+import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ApplyImportData, ApplyImportErrors, ApplyImportResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateImportData, CreateImportErrors, CreateImportResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DiscardImportData, DiscardImportErrors, DiscardImportResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetImportData, GetImportErrors, GetImportResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, ImportEventsData, ImportEventsErrors, ImportEventsResponses, ImportStreamData, ImportStreamErrors, ImportStreamResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListImportsData, ListImportsErrors, ListImportsResponses, ListPlatformAgentsData, ListPlatformAgentsErrors, ListPlatformAgentsResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, OnboardingCapabilitiesData, OnboardingCapabilitiesResponses, OnboardingCheckData, OnboardingCheckErrors, OnboardingCheckResponses, OnboardingProgressData, OnboardingProgressErrors, OnboardingProgressResponses, OnboardingPushData, OnboardingPushErrors, OnboardingPushResponses, OnboardingSessionData, OnboardingSessionErrors, OnboardingSessionResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, ResolveImportFindingData, ResolveImportFindingErrors, ResolveImportFindingResponses, RevokeImportTokenData, RevokeImportTokenErrors, RevokeImportTokenResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StartAgentImportData, StartAgentImportErrors, StartAgentImportResponses, UpdateImportProposalData, UpdateImportProposalErrors, UpdateImportProposalResponses, ValidateData, ValidateErrors, ValidateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -549,3 +549,185 @@ export const getSop = <ThrowOnError extends boolean = false>(options: Options<Ge
  * Which release and prompt hash each agent was served, newest first.
  */
 export const listFetches = <ThrowOnError extends boolean = false>(options: Options<ListFetchesData, ThrowOnError>): RequestResult<ListFetchesResponses, ListFetchesErrors, ThrowOnError> => (options.client ?? client).get<ListFetchesResponses, ListFetchesErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/fetches', ...options });
+
+/**
+ * Onboarding Capabilities
+ *
+ * What this server can do for onboarding: extract with its own model, and which platforms it reads.
+ */
+export const onboardingCapabilities = <ThrowOnError extends boolean = false>(options?: Options<OnboardingCapabilitiesData, ThrowOnError>): RequestResult<OnboardingCapabilitiesResponses, unknown, ThrowOnError> => (options?.client ?? client).get<OnboardingCapabilitiesResponses, unknown, ThrowOnError>({ url: '/v1/onboarding/capabilities', ...options });
+
+/**
+ * List Platform Agents
+ *
+ * The agents an ElevenLabs or Vapi key can see. The key is used for this request only, never stored or logged.
+ */
+export const listPlatformAgents = <ThrowOnError extends boolean = false>(options: Options<ListPlatformAgentsData, ThrowOnError>): RequestResult<ListPlatformAgentsResponses, ListPlatformAgentsErrors, ThrowOnError> => (options.client ?? client).post<ListPlatformAgentsResponses, ListPlatformAgentsErrors, ThrowOnError>({
+    url: '/v1/onboarding/platform-agents',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Imports
+ */
+export const listImports = <ThrowOnError extends boolean = false>(options: Options<ListImportsData, ThrowOnError>): RequestResult<ListImportsResponses, ListImportsErrors, ThrowOnError> => (options.client ?? client).get<ListImportsResponses, ListImportsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports', ...options });
+
+/**
+ * Create Import
+ *
+ * Extract blocks and agents from existing prompts with sopops's model, in the background. Poll the import (or
+ * stream `…/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during
+ * this request and is never stored.
+ */
+export const createImport = <ThrowOnError extends boolean = false>(options: Options<CreateImportData, ThrowOnError>): RequestResult<CreateImportResponses, CreateImportErrors, ThrowOnError> => (options.client ?? client).post<CreateImportResponses, CreateImportErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/imports',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Start Agent Import
+ *
+ * An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the
+ * commands and prompt to start one. The token is shown only in this response.
+ */
+export const startAgentImport = <ThrowOnError extends boolean = false>(options: Options<StartAgentImportData, ThrowOnError>): RequestResult<StartAgentImportResponses, StartAgentImportErrors, ThrowOnError> => (options.client ?? client).post<StartAgentImportResponses, StartAgentImportErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/imports/agent',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Discard Import
+ *
+ * Discard the import and end its token. Nothing in the workspace changes.
+ */
+export const discardImport = <ThrowOnError extends boolean = false>(options: Options<DiscardImportData, ThrowOnError>): RequestResult<DiscardImportResponses, DiscardImportErrors, ThrowOnError> => (options.client ?? client).delete<DiscardImportResponses, DiscardImportErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}', ...options });
+
+/**
+ * Get Import
+ */
+export const getImport = <ThrowOnError extends boolean = false>(options: Options<GetImportData, ThrowOnError>): RequestResult<GetImportResponses, GetImportErrors, ThrowOnError> => (options.client ?? client).get<GetImportResponses, GetImportErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}', ...options });
+
+/**
+ * Import Events
+ *
+ * Progress messages after event `after`, oldest first.
+ */
+export const importEvents = <ThrowOnError extends boolean = false>(options: Options<ImportEventsData, ThrowOnError>): RequestResult<ImportEventsResponses, ImportEventsErrors, ThrowOnError> => (options.client ?? client).get<ImportEventsResponses, ImportEventsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}/events', ...options });
+
+/**
+ * Import Stream
+ *
+ * Server-sent events: each progress message as it arrives, and the import's status when it changes.
+ * Ends when the import is applied or discarded, or after 10 minutes (reconnect with `after`).
+ */
+export const importStream = <ThrowOnError extends boolean = false>(options: Options<ImportStreamData, ThrowOnError>): RequestResult<ImportStreamResponses, ImportStreamErrors, ThrowOnError> => (options.client ?? client).get<ImportStreamResponses, ImportStreamErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}/stream', ...options });
+
+/**
+ * Update Import Proposal
+ *
+ * Save edits to the proposal; fidelity and sopc's checks are run again.
+ */
+export const updateImportProposal = <ThrowOnError extends boolean = false>(options: Options<UpdateImportProposalData, ThrowOnError>): RequestResult<UpdateImportProposalResponses, UpdateImportProposalErrors, ThrowOnError> => (options.client ?? client).put<UpdateImportProposalResponses, UpdateImportProposalErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/imports/{id}/proposal',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Resolve Import Finding
+ *
+ * Decide drift: keep each agent's version, or give every agent one agent's version.
+ */
+export const resolveImportFinding = <ThrowOnError extends boolean = false>(options: Options<ResolveImportFindingData, ThrowOnError>): RequestResult<ResolveImportFindingResponses, ResolveImportFindingErrors, ThrowOnError> => (options.client ?? client).post<ResolveImportFindingResponses, ResolveImportFindingErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/imports/{id}/findings/{finding}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Apply Import
+ *
+ * Write the proposal's blocks, groups and agents as drafts (nothing is published). Ends the onboarding token.
+ */
+export const applyImport = <ThrowOnError extends boolean = false>(options: Options<ApplyImportData, ThrowOnError>): RequestResult<ApplyImportResponses, ApplyImportErrors, ThrowOnError> => (options.client ?? client).post<ApplyImportResponses, ApplyImportErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/imports/{id}/apply',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Revoke Import Token
+ *
+ * End the import's onboarding token now (Finish). The proposal stays for review.
+ */
+export const revokeImportToken = <ThrowOnError extends boolean = false>(options: Options<RevokeImportTokenData, ThrowOnError>): RequestResult<RevokeImportTokenResponses, RevokeImportTokenErrors, ThrowOnError> => (options.client ?? client).post<RevokeImportTokenResponses, RevokeImportTokenErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}/revoke', ...options });
+
+/**
+ * Onboarding Session
+ *
+ * The workspace and mode an onboarding token is for.
+ */
+export const onboardingSession = <ThrowOnError extends boolean = false>(options?: Options<OnboardingSessionData, ThrowOnError>): RequestResult<OnboardingSessionResponses, OnboardingSessionErrors, ThrowOnError> => (options?.client ?? client).get<OnboardingSessionResponses, OnboardingSessionErrors, ThrowOnError>({ url: '/v1/onboarding/session', ...options });
+
+/**
+ * Onboarding Progress
+ *
+ * A progress message for the person watching the import in sopops.
+ */
+export const onboardingProgress = <ThrowOnError extends boolean = false>(options: Options<OnboardingProgressData, ThrowOnError>): RequestResult<OnboardingProgressResponses, OnboardingProgressErrors, ThrowOnError> => (options.client ?? client).post<OnboardingProgressResponses, OnboardingProgressErrors, ThrowOnError>({
+    url: '/v1/onboarding/progress',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Onboarding Push
+ *
+ * Push the proposal for review; it replaces any earlier push. Returns fidelity per agent.
+ */
+export const onboardingPush = <ThrowOnError extends boolean = false>(options: Options<OnboardingPushData, ThrowOnError>): RequestResult<OnboardingPushResponses, OnboardingPushErrors, ThrowOnError> => (options.client ?? client).put<OnboardingPushResponses, OnboardingPushErrors, ThrowOnError>({
+    url: '/v1/onboarding/proposal',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Onboarding Check
+ *
+ * Compile a proposal with sopc and compare each agent with its original. Stores nothing.
+ */
+export const onboardingCheck = <ThrowOnError extends boolean = false>(options: Options<OnboardingCheckData, ThrowOnError>): RequestResult<OnboardingCheckResponses, OnboardingCheckErrors, ThrowOnError> => (options.client ?? client).post<OnboardingCheckResponses, OnboardingCheckErrors, ThrowOnError>({
+    url: '/v1/onboarding/fidelity',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
