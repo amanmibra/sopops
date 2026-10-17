@@ -93,8 +93,8 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | Endpoint | What it does |
 |---|---|
 | `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <ingest token>`. An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without the workspace's token. |
-| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `platform`, `since`, `until` (ISO 8601, on `started_at`), plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). |
-| `GET …/sessions/<id>` | One session with `turns`, `tool_calls` and `metadata`. |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). |
+| `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
 | `GET …/ingest-token` | `{exists, prefix, created_at}`. The token itself is only shown when made. |
 | `POST …/ingest-token` | Make the workspace's ingest token, or replace it (the old one stops working): `{token, prefix, created_at}`. Stored as a hash. |
@@ -141,8 +141,60 @@ Only ingest needs the token; the rest of the API is open, as above.
 | `tool_calls` | `{name, arguments, result, is_error, call_id, offset_s or at}`; other fields are kept. |
 | `metadata` | Anything else, as an object. |
 
-Processing (`process_session`) normalizes turns: canonical roles, `offset_s` from `at`, text trimmed, empty turns dropped (except tool turns), a turn that repeats the one before it dropped, sorted by time. The status is then `received`, or `partial` if there are no turns or the sender said so, or `failed` with a `status_reason`. `routed`, `checked` and `excluded` come with SOP checks.
+Processing (`process_session`) normalizes turns: canonical roles, `offset_s` from `at`, text trimmed, empty turns dropped (except tool turns), a turn that repeats the one before it dropped, sorted by time. Then it routes and checks the session ([SOP checks](#sop-checks)).
+
+| Status | |
+|---|---|
+| `received` | Stored and normalized, not checked (yet). With no model configured it stays here, with `status_reason` saying so. |
+| `routed` | The procedures that applied are known; their checks are running. |
+| `checked` | Every procedure that applied was checked; `result` is set. |
+| `excluded` | Nothing to check: no procedure applied, or every one that did was cut short (the session ended before it started or finished). `status_reason` says which. |
+| `partial` | No turns, or the sender said the transcript is incomplete. A partial session with turns is still checked, and keeps this status. |
+| `failed` | Processing failed; `status_reason` says where (`normalize`, `route`, `check <procedure>`). |
 
 ### Importing a file
 
 `sopops import FILE.jsonl --workspace WS` reads one session per line in this format (`-` reads stdin) straight into the database named by `DATABASE_URL`, with no token, and runs `process_session` for each new or changed one. Lines that don't parse are reported by line number and skipped; it exits 1 if any did. Importing the same file again changes nothing. [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl) has ten made-up sessions for the test workspace.
+
+## SOP checks
+
+Each session is checked against the procedures its agent lists (directly or through a group) in the release it ran on, or the live release if it didn't say. Rules are identified by sopc's stable rule ids (`sopc export`, `lock.json`), so results line up across releases.
+
+`GET …/sessions/<id>` returns `checks`, one per procedure the router considered:
+
+| Field | |
+|---|---|
+| `procedure_id`, `procedure_name`, `procedure_version`, `release_id` | What was checked: the procedure file's version in that release. |
+| `applicable` | Whether the procedure applied to the session. |
+| `excluded_reason` | Applied, but the session ended before the procedure started or finished, so it isn't checked. |
+| `route_reason` | The router's one-sentence reason. |
+| `result` | `deviated`, `partial`, `followed` or `not_measurable`; null unless checked. |
+| `goal_reached`, `goal_reason` | Whether the procedure's goal was reached (null: unclear). |
+| `steps_applicable`, `steps_done`, `nevers_violated` | Counts. Done includes out of order. |
+| `model`, `prompt_version` | What produced it. |
+| `rules` | `[{rule_id, kind, index, text, status, evidence: [{turn, quote, source}], reason, finding}]`, steps then nevers then warning signs. `turn` indexes `turns`; `source` is `transcript` or `tool_calls`. |
+
+**Rule statuses.**
+
+| Kind | Statuses |
+|---|---|
+| Step | `done`; `out_of_order` (done, but after a later step: the fewest steps that explain the order of their first evidence turns); `skipped` (the session went past where it belonged without it); `not_reached` (the session ended before it); `not_applicable` (its condition never arose). |
+| Never | `violated` or `ok`. |
+| Warning sign | `present` or `absent`. A condition, never a pass or fail. |
+
+A step with `tool: x` and `required` is checked against the session's `tool_calls` when it has any: called is `done`, not called is `skipped` (unless the session never reached the step or it didn't apply). Without tool calls the transcript decides, and the evidence says so.
+
+**Procedure result.**
+
+| Result | When |
+|---|---|
+| `deviated` | A never rule was violated, a required step was skipped, or a step was skipped and the goal wasn't reached (or it's unclear). |
+| `partial` | Otherwise: a step out of order or not reached, or a step that isn't required was skipped but the goal was reached anyway (leniency: the agent got there another way, so it's a gap, not a deviation). |
+| `followed` | Every applicable step done, in order, and no never rule violated. |
+| `not_measurable` | Nothing to judge: no applicable step and no never rule violated, or the agent never spoke. Left out of rates. |
+
+A session's `result` is the worst of its procedures' (deviated, then partial, followed, not measurable).
+
+**Findings** are the rule results with status `skipped`, `violated` or `out_of_order` (`finding: true`): things the agent did or didn't do that someone may want to fix. `not_reached` isn't one (the session ended), and neither is a present warning sign. A skipped step that leniency kept from making its procedure deviated is still a finding. Findings are stored in their own table, ready to be grouped into patterns.
+
+Re-running a session replaces its results; a run for content that has since been re-sent writes nothing.

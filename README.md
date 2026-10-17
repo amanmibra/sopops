@@ -2,7 +2,7 @@
 
 # 📋🗄️ sopops
 
-**Serves sopc agent prompts from a UI and an API, and collects your agents' sessions. SOP checks on sessions and GitHub PRs are coming.**
+**Serves sopc agent prompts from a UI and an API, collects your agents' sessions, and checks each one against its procedures. Patterns across sessions and GitHub PRs are coming.**
 
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
@@ -36,6 +36,7 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
+| `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). Unset, sessions are stored but not checked. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the session pipeline on [Hatchet](https://hatchet.run) (`pip install 'sopops[hatchet]'`, plus `sopops worker`). Unset, it runs inside sopops. |
 
 The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
@@ -108,7 +109,7 @@ For A/B tests, have your router pick a release per call (e.g. 70% current, 30% a
 
 ## Sessions
 
-A session is one conversation an agent had: a voice call or a text chat. Agents send each finished session to sopops, with the release it ran on, and the Sessions page lists them live, with filters, each one's transcript, tool calls and metadata. Checking sessions against your procedures comes next.
+A session is one conversation an agent had: a voice call or a text chat. Agents send each finished session to sopops, with the release it ran on, and the Sessions page lists them live, with filters, each one's transcript, tool calls and metadata, and how it went against each procedure: every step, never rule and warning sign, with the quotes that show it highlighted in the transcript.
 
 Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with the workspace's ingest token (Settings → Ingest token, shown once). Sending the same session again is safe: it's keyed by platform and session id.
 
@@ -129,7 +130,16 @@ async def entrypoint(ctx: JobContext):
 
 **Files.** `sopops import sessions.jsonl --workspace prod` reads one canonical session per line straight into the database, e.g. a backfill or [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl).
 
-**The pipeline.** Each new or changed session runs `process_session` (for now it normalizes turns and sets the status). Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_TOKEN` set it runs on Hatchet, one run per session version and a fair share per workspace, in `sopops worker`; `docker compose --profile hatchet up` runs hatchet-lite (see [docker-compose.yml](docker-compose.yml)). Live updates reach the Sessions page from any process on Postgres (LISTEN/NOTIFY); on SQLite, only from the sopops process itself.
+**The pipeline.** Each new or changed session runs `process_session`:
+
+1. **normalize** the turns and tool calls;
+2. **route** (the fast model): which of the agent's procedures, in the release the session ran on, applied, and which to leave out because the session ended before the procedure started or finished;
+3. **check** (the reasoning model, one call per procedure that applied): a status for every rule, with quotes, and whether the procedure's goal was reached. Required tool steps are checked against the tool calls, when the session has them;
+4. a **result** per procedure, and the worst of them for the session: deviated, partial, followed or not measurable ([how](API.md#sop-checks)).
+
+Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_TOKEN` set it runs on Hatchet in `sopops worker`: one run per session version, a fair share per workspace, one check per procedure in parallel, and model calls rate-limited per model (`SOPOPS_RATE_LIMIT_PER_MINUTE`, default 60). `docker compose --profile hatchet up` runs hatchet-lite (see [docker-compose.yml](docker-compose.yml)). Live updates reach the Sessions page from any process on Postgres (LISTEN/NOTIFY); on SQLite, only from the sopops process itself.
+
+Models are called through [LiteLLM](https://github.com/BerriAI/litellm), as a library (pinned, with hashes in `uv.lock`), so any provider it supports works, including a local model behind an OpenAI-compatible endpoint. Prompts are in [`src/sopops/pipeline/prompts`](src/sopops/pipeline/prompts), and every result records the model and prompt version that produced it.
 
 ## Git or database
 
@@ -155,7 +165,7 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `GET …/agents/<agent>` | **Call start.** The prompt, release, hash, tools and the components it was built from. `?release=N` pins a release. |
 | `GET …/agents/<agent>/prompt` | Just the prompt text. |
 | `POST …/sessions` | **Session end.** Ingest a session in the canonical format, with the ingest token. |
-| `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript, and live events (SSE). |
+| `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript and SOP checks, and live events (SSE). |
 | `GET …/config` | Every agent, shared instruction, procedure, group and setting, as the forms edit them. |
 | `…/config/{agents,instructions,procedures,groups}[/<id>]` | List, create, read, replace and delete each kind, with history. |
 | `POST …/config/agents/<id>/blocks`, `DELETE …/blocks/<block>` | Add a block at the end of an agent's list, or take one out. |
@@ -173,7 +183,7 @@ v0, renamed from sopserve. **There is no authentication yet** except the ingest 
 
 ## Roadmap
 
-- SOP checks on sessions: findings and verdicts per session, and patterns across sessions
+- Patterns across sessions' findings, insights per procedure and release, and verdicts
 - ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
 - GitHub: load a sopc project from a repo path, and open PRs with suggested changes
 - API keys with scopes, and sign-in for the UI
