@@ -6,11 +6,16 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel as _BaseModel, ConfigDict, Field
 
 from . import forms
 
 Files = dict[str, str]
+
+
+class BaseModel(_BaseModel):
+    # Responses always include fields that have defaults, so the spec (and generated types) mark them required.
+    model_config = ConfigDict(json_schema_serialization_defaults_required=True)
 
 
 class FilesRequest(BaseModel):

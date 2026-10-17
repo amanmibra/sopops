@@ -1,0 +1,6332 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "sopops",
+    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/v1/validate": {
+      "post": {
+        "tags": [
+          "stateless"
+        ],
+        "summary": "Validate",
+        "operationId": "validate",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/render": {
+      "post": {
+        "tags": [
+          "stateless"
+        ],
+        "summary": "Render",
+        "operationId": "render",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RenderResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/migrate": {
+      "post": {
+        "tags": [
+          "stateless"
+        ],
+        "summary": "Migrate Files",
+        "description": "Convert a folder in an older sopc format with `sopc migrate`: the v0.0.8 format (bases/, agent targeting),\nor `locked` (v0.0.9), which sopc no longer has. Nothing stored.",
+        "operationId": "migrate_files",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrateFilesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/lint": {
+      "post": {
+        "tags": [
+          "stateless"
+        ],
+        "summary": "Lint",
+        "description": "Duplicated and conflicting instructions in each agent's prompt. Advisory.",
+        "operationId": "lint",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FilesRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LintResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces": {
+      "get": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "List Workspaces",
+        "operationId": "list_workspaces",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/WorkspaceOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Workspaces"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/files": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "List Files",
+        "description": "Head: the latest version of every file.",
+        "operationId": "list_files",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "content",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include each file's content, e.g. to export to git.",
+              "default": false,
+              "title": "Content"
+            },
+            "description": "Include each file's content, e.g. to export to git."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FilesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Edit Files",
+        "description": "Change some files atomically. Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "operationId": "edit_files",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Replace Files",
+        "description": "Make head exactly these files (e.g. synced from git); files not listed are deleted.",
+        "operationId": "replace_files",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplaceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/files/{path}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "Get File",
+        "description": "A file at head, or at `version`.",
+        "operationId": "get_file",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/history/{path}": {
+      "get": {
+        "tags": [
+          "files"
+        ],
+        "summary": "File History",
+        "description": "Every version of a file, newest first, without content.",
+        "operationId": "file_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FileOut"
+                  },
+                  "title": "Response File History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Get Config",
+        "description": "Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.\n422 with `old_format` or `removed_field` issues if the workspace is in an older sopc format: see `\u2026/migrate`.",
+        "operationId": "get_config",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config List Agents",
+        "description": "Every agent at head.",
+        "operationId": "config_list_agents",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentConfig"
+                  },
+                  "title": "Response Config List Agents"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Create Agent",
+        "description": "Create a agent. Rejected if the result doesn't compile; 409 if it exists.",
+        "operationId": "config_create_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewAgent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already exists."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Get Agent",
+        "description": "One agent at head.",
+        "operationId": "config_get_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Put Agent",
+        "description": "Create or replace a agent. Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "operationId": "config_put_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Delete Agent",
+        "description": "Delete a agent. Nothing else changes.",
+        "operationId": "config_delete_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}/history": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Agent History",
+        "description": "Every version of a agent, newest first.",
+        "operationId": "config_agent_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemVersion"
+                  },
+                  "title": "Response Config Agent History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Agent Version",
+        "description": "An older version of a agent, as fields.",
+        "operationId": "config_agent_version",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "file",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From history; for a procedure that changed format.",
+              "title": "File"
+            },
+            "description": "From history; for a procedure that changed format."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Config Agent Version"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/instructions": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config List Instructions",
+        "description": "Every shared instruction at head.",
+        "operationId": "config_list_instructions",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstructionConfig"
+                  },
+                  "title": "Response Config List Instructions"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Create Instruction",
+        "description": "Create a shared instruction. Rejected if the result doesn't compile; 409 if it exists.",
+        "operationId": "config_create_instruction",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewInstruction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already exists."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/instructions/{id}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Get Instruction",
+        "description": "One shared instruction at head.",
+        "operationId": "config_get_instruction",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Put Instruction",
+        "description": "Create or replace a shared instruction. Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "operationId": "config_put_instruction",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InstructionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstructionConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Delete Instruction",
+        "description": "Delete a shared instruction. It's taken out of every agent and group that lists it.",
+        "operationId": "config_delete_instruction",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/instructions/{id}/history": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Instruction History",
+        "description": "Every version of a shared instruction, newest first.",
+        "operationId": "config_instruction_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemVersion"
+                  },
+                  "title": "Response Config Instruction History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/instructions/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Instruction Version",
+        "description": "An older version of a shared instruction, as fields.",
+        "operationId": "config_instruction_version",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "file",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From history; for a procedure that changed format.",
+              "title": "File"
+            },
+            "description": "From history; for a procedure that changed format."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Config Instruction Version"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/procedures": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config List Procedures",
+        "description": "Every procedure (SOP) at head.",
+        "operationId": "config_list_procedures",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProcedureConfig"
+                  },
+                  "title": "Response Config List Procedures"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Create Procedure",
+        "description": "Create a procedure (SOP). Rejected if the result doesn't compile; 409 if it exists.",
+        "operationId": "config_create_procedure",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewProcedure"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcedureConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already exists."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/procedures/{id}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Get Procedure",
+        "description": "One procedure (SOP) at head.",
+        "operationId": "config_get_procedure",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcedureConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Put Procedure",
+        "description": "Create or replace a procedure (SOP). Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "operationId": "config_put_procedure",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProcedureIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcedureConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Delete Procedure",
+        "description": "Delete a procedure (SOP). It's taken out of every agent and group that lists it.",
+        "operationId": "config_delete_procedure",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/procedures/{id}/history": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Procedure History",
+        "description": "Every version of a procedure (SOP), newest first.",
+        "operationId": "config_procedure_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemVersion"
+                  },
+                  "title": "Response Config Procedure History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/procedures/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Procedure Version",
+        "description": "An older version of a procedure (SOP), as fields.",
+        "operationId": "config_procedure_version",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "file",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From history; for a procedure that changed format.",
+              "title": "File"
+            },
+            "description": "From history; for a procedure that changed format."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Config Procedure Version"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/groups": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config List Groups",
+        "description": "Every group (in sopc.yaml) at head.",
+        "operationId": "config_list_groups",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GroupConfig"
+                  },
+                  "title": "Response Config List Groups"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Create Group",
+        "description": "Create a group (in sopc.yaml). Rejected if the result doesn't compile; 409 if it exists.",
+        "operationId": "config_create_group",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Already exists."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/groups/{id}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Get Group",
+        "description": "One group (in sopc.yaml) at head.",
+        "operationId": "config_get_group",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Put Group",
+        "description": "Create or replace a group (in sopc.yaml). Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "operationId": "config_put_group",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GroupIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GroupConfigSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Delete Group",
+        "description": "Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no prompt changes.",
+        "operationId": "config_delete_group",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WriteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/groups/{id}/history": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Group History",
+        "description": "Every version of a group (in sopc.yaml), newest first.",
+        "operationId": "config_group_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemVersion"
+                  },
+                  "title": "Response Config Group History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/groups/{id}/versions/{version}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Config Group Version",
+        "description": "An older version of a group (in sopc.yaml), as fields.",
+        "operationId": "config_group_version",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          },
+          {
+            "name": "file",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "From history; for a procedure that changed format.",
+              "title": "File"
+            },
+            "description": "From history; for a procedure that changed format."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Config Group Version"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}/blocks": {
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Add Block",
+        "description": "Add a shared instruction, procedure or group at the end of the agent's blocks. 409 if the agent already uses it.",
+        "operationId": "add_block",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The agent already uses it."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}/blocks/{block}": {
+      "delete": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Remove Block",
+        "description": "Take a block out of the agent's blocks. 409 if the agent gets it through a group.",
+        "operationId": "remove_block",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "block",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Block"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          },
+          {
+            "name": "note",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Note"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The agent gets it through a group."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/agents/{id}/preview": {
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Preview Agent",
+        "description": "The prompt this agent would get with these fields, compiled with the rest of head. Saves nothing.",
+        "operationId": "preview_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentFields"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/migrate": {
+      "post": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Migrate",
+        "description": "Convert a workspace stored in an older sopc format with `sopc migrate`: the v0.0.8 format, or\n`locked` (v0.0.9), which sopc no longer has. Returns the plan;\nwith `apply`, writes the converted files as a draft (publish to release them).",
+        "operationId": "migrate",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MigrateRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MigrateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/settings": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Get Settings",
+        "operationId": "get_settings",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsConfig"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Put Settings",
+        "operationId": "put_settings",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/settings/history": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Settings History",
+        "operationId": "settings_history",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemVersion"
+                  },
+                  "title": "Response Settings History"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/config/settings/versions/{version}": {
+      "get": {
+        "tags": [
+          "config"
+        ],
+        "summary": "Settings Version",
+        "operationId": "settings_version",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Settings Version"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/draft": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Draft",
+        "description": "Unpublished changes: head compiled and compared with the current release.",
+        "operationId": "draft",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DraftResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/releases": {
+      "post": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Create Release",
+        "description": "Release head and serve it.",
+        "operationId": "create_release",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReleaseRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "List Releases",
+        "operationId": "list_releases",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReleaseSummary"
+                  },
+                  "title": "Response List Releases"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/releases/{number}": {
+      "get": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Get Release",
+        "description": "A release with every agent's prompt. Doesn't log a fetch.",
+        "operationId": "get_release",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReleaseDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/releases/{number}/activate": {
+      "post": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Activate",
+        "description": "Serve this release, e.g. to roll back.",
+        "operationId": "activate",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/publish": {
+      "post": {
+        "tags": [
+          "releases"
+        ],
+        "summary": "Publish",
+        "description": "Replace head with these files and release it: the CI path for git workspaces.",
+        "operationId": "publish",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agents": {
+      "get": {
+        "tags": [
+          "serving"
+        ],
+        "summary": "List Agents",
+        "operationId": "list_agents",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Release"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agents/{agent}": {
+      "get": {
+        "tags": [
+          "serving"
+        ],
+        "summary": "Get Agent",
+        "description": "What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch.",
+        "operationId": "get_agent",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pin a release (e.g. for A/B); default: current.",
+              "title": "Release"
+            },
+            "description": "Pin a release (e.g. for A/B); default: current."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agents/{agent}/prompt": {
+      "get": {
+        "tags": [
+          "serving"
+        ],
+        "summary": "Get Prompt",
+        "description": "Just the prompt text. Logs a fetch.",
+        "operationId": "get_prompt",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Release"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The full prompt, with X-Sopc-Release and X-Sopc-Hash headers.",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}": {
+      "get": {
+        "tags": [
+          "serving"
+        ],
+        "summary": "Get Sop",
+        "description": "What the `get_sop` tool returns for SOPs with `delivery: auto | tool`.",
+        "operationId": "get_sop",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "sop_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Sop Id"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Release"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Get Sop"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/fetches": {
+      "get": {
+        "tags": [
+          "serving"
+        ],
+        "summary": "List Fetches",
+        "description": "Which release and prompt hash each agent was served, newest first.",
+        "operationId": "list_fetches",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "sopc agent id.",
+              "title": "Agent"
+            },
+            "description": "sopc agent id."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FetchOut"
+                  },
+                  "title": "Response List Fetches"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AgentConfig": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Version of the item's file at head."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "description": "Where it lives in the sopc folder (for git export)."
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "vapi",
+              "elevenlabs",
+              "retell"
+            ],
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "description": "The agent's id on its platform, e.g. LiveKit agent_name."
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "description": "Text only this agent gets. It goes first in the prompt.",
+            "default": ""
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "default": []
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Values for {{placeholders}}; override the defaults in settings.",
+            "default": {}
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "updated_at",
+          "updated_by",
+          "file",
+          "platform",
+          "platform_id",
+          "context",
+          "blocks",
+          "variables",
+          "id"
+        ],
+        "title": "AgentConfig"
+      },
+      "AgentConfigSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/AgentConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "AgentConfigSaved"
+      },
+      "AgentFields": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "vapi",
+              "elevenlabs",
+              "retell"
+            ],
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "description": "The agent's id on its platform, e.g. LiveKit agent_name."
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "description": "Text only this agent gets. It goes first in the prompt.",
+            "default": ""
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "default": []
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Values for {{placeholders}}; override the defaults in settings.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "platform_id"
+        ],
+        "title": "AgentFields"
+      },
+      "AgentIn": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "vapi",
+              "elevenlabs",
+              "retell"
+            ],
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "description": "The agent's id on its platform, e.g. LiveKit agent_name."
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "description": "Text only this agent gets. It goes first in the prompt.",
+            "default": ""
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "default": []
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Values for {{placeholders}}; override the defaults in settings.",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "platform_id"
+        ],
+        "title": "AgentIn"
+      },
+      "AgentOut": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent",
+            "description": "sopc agent id."
+          },
+          "platform_ref": {
+            "type": "string",
+            "title": "Platform Ref"
+          },
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "tool_sops": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Sops",
+            "description": "Ids of SOPs to fetch with `get_sop` (`/sops/{sop_id}`)."
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "title": "Components",
+            "description": "Each file the prompt was built from, at its version. Put this and `release` in call metadata."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform_ref",
+          "release",
+          "hash",
+          "prompt",
+          "tools",
+          "tool_sops",
+          "components"
+        ],
+        "title": "AgentOut"
+      },
+      "AgentSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/AgentConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "AgentSaved"
+      },
+      "AgentSummary": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "platform_ref": {
+            "type": "string",
+            "title": "Platform Ref"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform_ref",
+          "hash"
+        ],
+        "title": "AgentSummary"
+      },
+      "AgentsResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentSummary"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "release",
+          "agents"
+        ],
+        "title": "AgentsResponse"
+      },
+      "BlockRequest": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "block": {
+            "type": "string",
+            "title": "Block",
+            "description": "A shared instruction, procedure or group id."
+          }
+        },
+        "type": "object",
+        "required": [
+          "block"
+        ],
+        "title": "BlockRequest"
+      },
+      "Component": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "instruction",
+              "sop",
+              "config",
+              "base"
+            ],
+            "title": "Kind",
+            "description": "`base` only in releases made before sopc v0.0.9."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "path",
+          "version"
+        ],
+        "title": "Component"
+      },
+      "ConfigResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "settings": {
+            "$ref": "#/components/schemas/SettingsConfig"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentConfig"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "instructions": {
+            "items": {
+              "$ref": "#/components/schemas/InstructionConfig"
+            },
+            "type": "array",
+            "title": "Instructions"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/ProcedureConfig"
+            },
+            "type": "array",
+            "title": "Procedures"
+          },
+          "groups": {
+            "items": {
+              "$ref": "#/components/schemas/GroupConfig"
+            },
+            "type": "array",
+            "title": "Groups",
+            "description": "In the order sopc.yaml lists them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "settings",
+          "agents",
+          "instructions",
+          "procedures",
+          "groups"
+        ],
+        "title": "ConfigResponse"
+      },
+      "DraftAgent": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "platform_ref": {
+            "type": "string",
+            "title": "Platform Ref"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "added",
+              "changed",
+              "removed",
+              "unchanged"
+            ],
+            "title": "Status"
+          },
+          "hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash"
+          },
+          "released_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Hash"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "The draft prompt; null if removed."
+          },
+          "released_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Prompt",
+            "description": "The prompt in the current release; null if added."
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "title": "Components"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform_ref",
+          "status",
+          "hash",
+          "released_hash",
+          "prompt",
+          "released_prompt",
+          "components"
+        ],
+        "title": "DraftAgent"
+      },
+      "DraftItem": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "instruction",
+              "procedure",
+              "group",
+              "settings"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "change": {
+            "type": "string",
+            "enum": [
+              "added",
+              "edited",
+              "deleted"
+            ],
+            "title": "Change"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "released_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Version"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before",
+            "description": "Its fields in the current release; null if added."
+          },
+          "after": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After",
+            "description": "Its fields in the draft; null if deleted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "name",
+          "change",
+          "version",
+          "released_version",
+          "before",
+          "after"
+        ],
+        "title": "DraftItem"
+      },
+      "DraftResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The current release the draft is compared with."
+          },
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileChange"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "Files changed since the current release."
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DraftItem"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "The same changes as agents, shared instructions, procedures, groups and settings."
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/DraftAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "lint": {
+            "items": {
+              "$ref": "#/components/schemas/LintFinding"
+            },
+            "type": "array",
+            "title": "Lint",
+            "description": "`sopc lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "release",
+          "valid",
+          "issues",
+          "files",
+          "items",
+          "agents",
+          "lint"
+        ],
+        "title": "DraftResponse"
+      },
+      "EditRequest": {
+        "properties": {
+          "changes": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Changes",
+            "description": "{path: new content}, or null to delete the file."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "changes"
+        ],
+        "title": "EditRequest"
+      },
+      "FetchOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent",
+          "release",
+          "hash",
+          "at"
+        ],
+        "title": "FetchOut"
+      },
+      "FileChange": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "change": {
+            "type": "string",
+            "enum": [
+              "added",
+              "edited",
+              "deleted"
+            ],
+            "title": "Change"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Head version; null if deleted."
+          },
+          "released_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Version",
+            "description": "Version in the current release; null if added."
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "change",
+          "version",
+          "released_version"
+        ],
+        "title": "FileChange"
+      },
+      "FileOut": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "Only when requested (`?content=true`, or a single file)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "version",
+          "deleted",
+          "created_at",
+          "author",
+          "note",
+          "content"
+        ],
+        "title": "FileOut"
+      },
+      "FilesRequest": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "FilesRequest"
+      },
+      "FilesResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "files": {
+            "items": {
+              "$ref": "#/components/schemas/FileOut"
+            },
+            "type": "array",
+            "title": "Files"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "files"
+        ],
+        "title": "FilesResponse"
+      },
+      "GroupConfig": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Version of the item's file at head."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "description": "Where it lives in the sopc folder (for git export)."
+          },
+          "used_by": {
+            "items": {
+              "$ref": "#/components/schemas/Use"
+            },
+            "type": "array",
+            "title": "Used By",
+            "description": "Which agents use it.",
+            "default": []
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and other groups, in order."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "updated_at",
+          "updated_by",
+          "file",
+          "used_by",
+          "blocks",
+          "id"
+        ],
+        "title": "GroupConfig"
+      },
+      "GroupConfigSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/GroupConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "GroupConfigSaved"
+      },
+      "GroupIn": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and other groups, in order."
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocks"
+        ],
+        "title": "GroupIn"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "InstructionConfig": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Version of the item's file at head."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "description": "Where it lives in the sopc folder (for git export)."
+          },
+          "used_by": {
+            "items": {
+              "$ref": "#/components/schemas/Use"
+            },
+            "type": "array",
+            "title": "Used By",
+            "description": "Which agents use it.",
+            "default": []
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "updated_at",
+          "updated_by",
+          "file",
+          "used_by",
+          "text",
+          "id"
+        ],
+        "title": "InstructionConfig"
+      },
+      "InstructionConfigSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/InstructionConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "InstructionConfigSaved"
+      },
+      "InstructionIn": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "InstructionIn"
+      },
+      "IssueOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "sopc's message."
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Relative to the sopc folder; empty for folder-wide issues."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "agent",
+                  "instruction",
+                  "procedure",
+                  "group",
+                  "settings"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind",
+            "description": "The item the issue is about, if known."
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "The item's field, as the /config endpoints name it (e.g. `steps`, `blocks`)."
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index",
+            "description": "For list fields (steps, never, warning_signs, blocks): which entry."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "The issue in plain words, for showing next to the field."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "path",
+          "severity",
+          "kind",
+          "id",
+          "field",
+          "index",
+          "text"
+        ],
+        "title": "IssueOut"
+      },
+      "ItemVersion": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "file": {
+            "type": "string",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "deleted",
+          "created_at",
+          "author",
+          "note",
+          "file"
+        ],
+        "title": "ItemVersion"
+      },
+      "LintFinding": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/LintSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "sources",
+          "agents"
+        ],
+        "title": "LintFinding"
+      },
+      "LintResponse": {
+        "properties": {
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/LintFinding"
+            },
+            "type": "array",
+            "title": "Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "findings"
+        ],
+        "title": "LintResponse"
+      },
+      "LintSource": {
+        "properties": {
+          "block": {
+            "type": "string",
+            "title": "Block"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "block",
+          "text"
+        ],
+        "title": "LintSource"
+      },
+      "MigrateFilesResponse": {
+        "properties": {
+          "migrated": {
+            "type": "boolean",
+            "title": "Migrated",
+            "description": "False if the files were already in the current format."
+          },
+          "plan": {
+            "type": "string",
+            "title": "Plan"
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "The converted files (the input if nothing changed)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "migrated",
+          "plan",
+          "files"
+        ],
+        "title": "MigrateFilesResponse"
+      },
+      "MigrateRequest": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "apply": {
+            "type": "boolean",
+            "title": "Apply",
+            "description": "Write the converted files as a draft. Without it, only the plan is returned.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "MigrateRequest"
+      },
+      "MigrateResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "needed": {
+            "type": "boolean",
+            "title": "Needed",
+            "description": "False if head is already in the current format."
+          },
+          "plan": {
+            "type": "string",
+            "title": "Plan",
+            "description": "sopc migrate's plan: what changes in each file, and any warnings."
+          },
+          "applied": {
+            "type": "boolean",
+            "title": "Applied"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "needed",
+          "plan",
+          "applied",
+          "changed"
+        ],
+        "title": "MigrateResponse"
+      },
+      "NewAgent": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "vapi",
+              "elevenlabs",
+              "retell"
+            ],
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "description": "The agent's id on its platform, e.g. LiveKit agent_name."
+          },
+          "context": {
+            "type": "string",
+            "title": "Context",
+            "description": "Text only this agent gets. It goes first in the prompt.",
+            "default": ""
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "default": []
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Values for {{placeholders}}; override the defaults in settings.",
+            "default": {}
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "platform_id",
+          "id"
+        ],
+        "title": "NewAgent"
+      },
+      "NewGroup": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "Shared instructions, procedures and other groups, in order."
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "blocks",
+          "id"
+        ],
+        "title": "NewGroup"
+      },
+      "NewInstruction": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "id"
+        ],
+        "title": "NewInstruction"
+      },
+      "NewProcedure": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "default": ""
+          },
+          "guidance": {
+            "type": "string",
+            "title": "Guidance",
+            "default": ""
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "In order; at least one."
+          },
+          "never": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Never",
+            "default": []
+          },
+          "warning_signs": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Warning Signs",
+            "default": []
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "auto",
+              "tool"
+            ],
+            "title": "Delivery",
+            "default": "prompt"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "steps",
+          "id"
+        ],
+        "title": "NewProcedure"
+      },
+      "PreviewBlock": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "instruction",
+              "sop"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id"
+        ],
+        "title": "PreviewBlock"
+      },
+      "PreviewResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "The prompt the agent would get with these fields; null if it doesn't compile."
+          },
+          "hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewBlock"
+            },
+            "type": "array",
+            "title": "Blocks",
+            "description": "What the prompt is built from, in order, groups expanded."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release"
+          },
+          "released_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released Prompt",
+            "description": "The agent's prompt in the current release, to compare with."
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "issues",
+          "prompt",
+          "hash",
+          "blocks",
+          "release",
+          "released_prompt"
+        ],
+        "title": "PreviewResponse"
+      },
+      "ProcedureConfig": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Version of the item's file at head."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "description": "Where it lives in the sopc folder (for git export)."
+          },
+          "used_by": {
+            "items": {
+              "$ref": "#/components/schemas/Use"
+            },
+            "type": "array",
+            "title": "Used By",
+            "description": "Which agents use it.",
+            "default": []
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "default": ""
+          },
+          "guidance": {
+            "type": "string",
+            "title": "Guidance",
+            "default": ""
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Output"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "In order; at least one."
+          },
+          "never": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Output"
+            },
+            "type": "array",
+            "title": "Never",
+            "default": []
+          },
+          "warning_signs": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Output"
+            },
+            "type": "array",
+            "title": "Warning Signs",
+            "default": []
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "auto",
+              "tool"
+            ],
+            "title": "Delivery",
+            "default": "prompt"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "markdown",
+              "yaml"
+            ],
+            "title": "Format",
+            "description": "How the file is written. New procedures are Markdown."
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "updated_at",
+          "updated_by",
+          "file",
+          "used_by",
+          "name",
+          "goal",
+          "when",
+          "guidance",
+          "steps",
+          "never",
+          "warning_signs",
+          "delivery",
+          "id",
+          "format"
+        ],
+        "title": "ProcedureConfig"
+      },
+      "ProcedureConfigSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/ProcedureConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "ProcedureConfigSaved"
+      },
+      "ProcedureIn": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "goal": {
+            "type": "string",
+            "title": "Goal",
+            "default": ""
+          },
+          "when": {
+            "type": "string",
+            "title": "When",
+            "default": ""
+          },
+          "guidance": {
+            "type": "string",
+            "title": "Guidance",
+            "default": ""
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Steps",
+            "description": "In order; at least one."
+          },
+          "never": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Never",
+            "default": []
+          },
+          "warning_signs": {
+            "items": {
+              "$ref": "#/components/schemas/Step-Input"
+            },
+            "type": "array",
+            "title": "Warning Signs",
+            "default": []
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "prompt",
+              "auto",
+              "tool"
+            ],
+            "title": "Delivery",
+            "default": "prompt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "steps"
+        ],
+        "title": "ProcedureIn"
+      },
+      "PublishRequest": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "PublishRequest"
+      },
+      "PublishResponse": {
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/ReleaseSummary"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created",
+            "description": "False if head was already the current release."
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release",
+          "created",
+          "changed"
+        ],
+        "title": "PublishResponse"
+      },
+      "ReleaseDetail": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "{path: version} snapshot."
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          },
+          "agents": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ReleasedAgent"
+            },
+            "type": "object",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at",
+          "author",
+          "note",
+          "files",
+          "current",
+          "agents"
+        ],
+        "title": "ReleaseDetail"
+      },
+      "ReleaseRequest": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "title": "ReleaseRequest"
+      },
+      "ReleaseResponse": {
+        "properties": {
+          "release": {
+            "$ref": "#/components/schemas/ReleaseSummary"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created",
+            "description": "False if head was already the current release."
+          }
+        },
+        "type": "object",
+        "required": [
+          "release",
+          "created"
+        ],
+        "title": "ReleaseResponse"
+      },
+      "ReleaseSummary": {
+        "properties": {
+          "number": {
+            "type": "integer",
+            "title": "Number"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "{path: version} snapshot."
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current"
+          }
+        },
+        "type": "object",
+        "required": [
+          "number",
+          "created_at",
+          "author",
+          "note",
+          "files",
+          "current"
+        ],
+        "title": "ReleaseSummary"
+      },
+      "ReleasedAgent": {
+        "properties": {
+          "platform_ref": {
+            "type": "string",
+            "title": "Platform Ref"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "tool_sops": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tool Sops"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "title": "Components"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform_ref",
+          "hash",
+          "prompt",
+          "tools",
+          "tool_sops",
+          "components"
+        ],
+        "title": "ReleasedAgent"
+      },
+      "RenderResponse": {
+        "properties": {
+          "agents": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RenderedAgent"
+            },
+            "type": "object",
+            "title": "Agents"
+          },
+          "lock": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Lock",
+            "description": "sopc's build/lock.json."
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            },
+            "type": "array",
+            "title": "Warnings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "lock",
+          "warnings"
+        ],
+        "title": "RenderResponse"
+      },
+      "RenderedAgent": {
+        "properties": {
+          "platform_ref": {
+            "type": "string",
+            "title": "Platform Ref"
+          },
+          "hash": {
+            "type": "string",
+            "title": "Hash"
+          },
+          "prompt": {
+            "type": "string",
+            "title": "Prompt"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "sops": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Sops",
+            "description": "Tool-delivered SOPs (`delivery: auto | tool`) keyed by SOP id: what `get_sop` returns."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform_ref",
+          "hash",
+          "prompt",
+          "tools",
+          "sops"
+        ],
+        "title": "RenderedAgent"
+      },
+      "ReplaceRequest": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "files"
+        ],
+        "title": "ReplaceRequest"
+      },
+      "SettingsConfig": {
+        "properties": {
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version",
+            "description": "Version of the item's file at head."
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "updated_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By"
+          },
+          "file": {
+            "type": "string",
+            "title": "File",
+            "description": "Where it lives in the sopc folder (for git export)."
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Default values for {{placeholders}}, for every agent.",
+            "default": {}
+          },
+          "procedures_heading": {
+            "type": "string",
+            "title": "Procedures Heading",
+            "description": "Heading before the first procedure in each prompt; empty for none.",
+            "default": "## Procedures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "updated_at",
+          "updated_by",
+          "file",
+          "variables",
+          "procedures_heading"
+        ],
+        "title": "SettingsConfig"
+      },
+      "SettingsIn": {
+        "properties": {
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Recorded with the new version."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "Default values for {{placeholders}}, for every agent.",
+            "default": {}
+          },
+          "procedures_heading": {
+            "type": "string",
+            "title": "Procedures Heading",
+            "description": "Heading before the first procedure in each prompt; empty for none.",
+            "default": "## Procedures"
+          }
+        },
+        "type": "object",
+        "title": "SettingsIn"
+      },
+      "SettingsSaved": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/SettingsConfig"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "changed"
+        ],
+        "title": "SettingsSaved"
+      },
+      "Step-Input": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "Exact name of a tool the agent has."
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Steps only: the tool call must happen.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "Step"
+      },
+      "Step-Output": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "Exact name of a tool the agent has."
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Steps only: the tool call must happen.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "tool",
+          "required"
+        ],
+        "title": "Step"
+      },
+      "Use": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "via": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Via",
+            "description": "The group the agent lists it through; null if the agent lists it directly."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "via"
+        ],
+        "title": "Use"
+      },
+      "ValidateResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            },
+            "type": "array",
+            "title": "Issues"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "issues"
+        ],
+        "title": "ValidateResponse"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkspaceOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "current_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Release"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "current_release"
+        ],
+        "title": "WorkspaceOut"
+      },
+      "WriteResponse": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed",
+            "description": "New file versions. Empty if nothing changed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "changed"
+        ],
+        "title": "WriteResponse"
+      },
+      "WrittenFile": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "deleted": {
+            "type": "boolean",
+            "title": "Deleted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "version",
+          "deleted"
+        ],
+        "title": "WrittenFile"
+      }
+    }
+  }
+}

@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 *.db
 dist/
+node_modules/
+web/dist/
+src/sopops/static/
+*.tsbuildinfo

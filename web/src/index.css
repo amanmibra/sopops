@@ -1,0 +1,153 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Dark mode follows the `dark` class on <html>, set from the theme setting (light, dark, or the system's). */
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.5rem;
+  --background: #f4f6f8;
+  --foreground: #1b2230;
+  --card: #ffffff;
+  --card-foreground: #1b2230;
+  --popover: #ffffff;
+  --popover-foreground: #1b2230;
+  --primary: #0f6e6a;
+  --primary-foreground: #ffffff;
+  --secondary: #eef1f4;
+  --secondary-foreground: #1b2230;
+  --muted: #eef1f4;
+  --muted-foreground: #5e6878;
+  --accent: #eef1f4;
+  --accent-foreground: #1b2230;
+  --destructive: #b42318;
+  --border: #dde1e7;
+  --input: #c5ccd6;
+  --ring: #0f6e6a;
+  /* sopops' own: a soft brand tint, statuses, and one color per block kind */
+  --brand-soft: #e2f1ef;
+  --ok: #2e7d4f;
+  --warn: #a15c07;
+  --warn-soft: #fbf0df;
+  --err: #b42318;
+  --err-soft: #fbe9e7;
+  --k-instruction: #2f5fb3;
+  --k-procedure: #7a3fb0;
+  --k-group: #a15c07;
+  color-scheme: light;
+}
+
+.dark {
+  --background: #12161c;
+  --foreground: #e6eaf0;
+  --card: #1a2028;
+  --card-foreground: #e6eaf0;
+  --popover: #1a2028;
+  --popover-foreground: #e6eaf0;
+  --primary: #4fc1b9;
+  --primary-foreground: #0d1a19;
+  --secondary: #151a21;
+  --secondary-foreground: #e6eaf0;
+  --muted: #151a21;
+  --muted-foreground: #93a0b0;
+  --accent: #232b35;
+  --accent-foreground: #e6eaf0;
+  --destructive: #f08a7e;
+  --border: #2a323d;
+  --input: #3a4552;
+  --ring: #4fc1b9;
+  --brand-soft: #173431;
+  --ok: #6cc597;
+  --warn: #e6a94f;
+  --warn-soft: #2f2616;
+  --err: #f08a7e;
+  --err-soft: #35201e;
+  --k-instruction: #86aef2;
+  --k-procedure: #c7a0f2;
+  --k-group: #e6a94f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-err: var(--err);
+  --color-err-soft: var(--err-soft);
+  --color-k-instruction: var(--k-instruction);
+  --color-k-procedure: var(--k-procedure);
+  --color-k-group: var(--k-group);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans text-sm leading-normal antialiased;
+  }
+}
+
+/* diffs: plain CSS, they're dense and shared by every diff on a page */
+.dv {
+  font: 12.5px/1.6 var(--font-mono);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: auto;
+  max-height: 75vh;
+}
+.dl { display: grid; grid-template-columns: 42px 42px 18px minmax(0, 1fr); }
+.dl.split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.dh { display: grid; grid-template-columns: 42px 18px minmax(0, 1fr); min-width: 0; }
+.dh + .dh { border-left: 1px solid var(--border); }
+.ln { color: var(--muted-foreground); opacity: 0.7; text-align: right; padding-right: 8px; user-select: none; font-size: 11.5px; }
+.sg { user-select: none; text-align: center; color: var(--muted-foreground); }
+.tx { white-space: pre-wrap; word-break: break-word; padding-right: 12px; }
+.dl.add, .dh.add { background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.dl.del, .dh.del { background: color-mix(in srgb, var(--err) 11%, transparent); }
+.dl.add .sg, .dh.add .sg { color: var(--ok); }
+.dl.del .sg, .dh.del .sg { color: var(--err); }
+.dh.pad { background: var(--muted); }
+mark.wadd { background: color-mix(in srgb, var(--ok) 38%, transparent); color: inherit; border-radius: 2px; }
+mark.wdel { background: color-mix(in srgb, var(--err) 34%, transparent); color: inherit; border-radius: 2px; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 60%, transparent); }
+.dv-fold { display: block; width: 100%; text-align: left; border-block: 1px solid var(--border); background: var(--muted); color: var(--primary); padding: 3px 12px 3px 102px; cursor: pointer; font: 12.5px/1.6 var(--font-sans); }
+.dv.split .dv-fold { padding-left: 60px; }
+.dv-fold:hover { text-decoration: underline; }
+@media (max-width: 860px) {
+  .dl { grid-template-columns: 34px 34px 16px minmax(0, 1fr); }
+}
+.was { background: color-mix(in srgb, var(--err) 11%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 55%, transparent); padding: 0 5px; border-radius: 4px; white-space: pre-wrap; }
+.now { background: color-mix(in srgb, var(--ok) 13%, transparent); padding: 0 5px; border-radius: 4px; white-space: pre-wrap; }
+pre.plain { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--muted); white-space: pre-wrap; word-break: break-word; font: 12.5px/1.6 var(--font-mono); }
+pre.plain.add { background: color-mix(in srgb, var(--ok) 11%, transparent); }
+pre.plain.del { background: color-mix(in srgb, var(--err) 9%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 45%, transparent); }
+pre.prompt { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-word; font: 13px/1.55 var(--font-mono); overflow: auto; }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
