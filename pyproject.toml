@@ -10,6 +10,7 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.48",
     "alembic>=1.20.0",
+    "litellm==1.105.1",  # exact pin, hashes in uv.lock; the library only, never the proxy
 ]
 
 [project.optional-dependencies]
