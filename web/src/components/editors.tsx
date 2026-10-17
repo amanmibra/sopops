@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { IngestTokenPanel } from "./sessions";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
-import { DELIVERY, type Kind, PLATFORMS, slug } from "@/lib/kinds";
+import { DELIVERY, KIND, type Kind, PLATFORMS, slug } from "@/lib/kinds";
+import { useUnsavedRegistration } from "@/lib/unsaved";
 import { type Step, cleanStep } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
 import { takeRestore } from "@/lib/restore";
@@ -23,6 +24,9 @@ function useFields<T extends object>(kind: Kind, id: string, initial: T) {
   const [restored] = useState(() => takeRestore(kind, id));
   const [m, setM] = useState<T>(() => (restored ? { ...structuredClone(initial), ...(restored.fields as Partial<T>) } : structuredClone(initial)));
   const dirty = useDirty(!!restored);
+  const { model } = useWs();
+  const label = kind === "settings" ? "Settings" : id === "new" ? `the new ${KIND[kind].one.toLowerCase()}` : `${KIND[kind].one} ${model.itemName(kind, id)}`;
+  useUnsavedRegistration({ kind, id, label }, dirty.dirty);
   const set = (patch: Partial<T>) => {
     setM((prev) => ({ ...prev, ...patch }));
     dirty.mark();
@@ -135,7 +139,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
           <PromptPreview preview={preview} here={{ kind: "agent", id: m.id || id }} />
         </div>
       </div>
-      <ActionBar kind="agent" isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ ...m, id: isNew ? m.id.trim() : id }, note, then)} onDelete={isNew ? undefined : remove} />
+      <ActionBar kind="agent" itemId={id} isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ ...m, id: isNew ? m.id.trim() : id }, note, then)} onDelete={isNew ? undefined : remove} />
     </Page>
   );
 }
@@ -232,7 +236,7 @@ function InstructionForm({ id, item }: { id: string; item?: InstructionConfig })
           <Textarea id="f-text" className="min-h-52" value={m.text} onChange={(e) => set({ text: e.target.value })} />
         </Field>
       </div>
-      <ActionBar kind="instruction" isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ ...m, id: isNew ? m.id.trim() : id }, note, then)} onDelete={isNew ? undefined : remove} />
+      <ActionBar kind="instruction" itemId={id} isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ ...m, id: isNew ? m.id.trim() : id }, note, then)} onDelete={isNew ? undefined : remove} />
     </Page>
   );
 }
@@ -319,6 +323,7 @@ function ProcedureForm({ id, item }: { id: string; item?: ProcedureConfig }) {
       </div>
       <ActionBar
         kind="procedure"
+        itemId={id}
         isNew={isNew}
         dirty={dirty}
         onSave={(note, then) =>
@@ -369,7 +374,7 @@ function GroupForm({ id, item }: { id: string; item?: GroupConfig }) {
           <BlockStack value={m.blocks} onChange={(blocks) => set({ blocks })} errors={errors} owner={isNew ? undefined : id} />
         </Field>
       </div>
-      <ActionBar kind="group" isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ id: isNew ? m.id.trim() : id, blocks: m.blocks }, note, then)} onDelete={isNew ? undefined : remove} />
+      <ActionBar kind="group" itemId={id} isNew={isNew} dirty={dirty} onSave={(note, then) => onSave({ id: isNew ? m.id.trim() : id, blocks: m.blocks }, note, then)} onDelete={isNew ? undefined : remove} />
     </Page>
   );
 }
@@ -399,7 +404,7 @@ function SettingsForm() {
         </Field>
       </div>
       <IngestTokenPanel />
-      <ActionBar kind="settings" isNew={false} dirty={dirty} onSave={(note, then) => onSave({ variables: m.variables, procedures_heading: m.procedures_heading }, note, then)} />
+      <ActionBar kind="settings" itemId="settings" isNew={false} dirty={dirty} onSave={(note, then) => onSave({ variables: m.variables, procedures_heading: m.procedures_heading }, note, then)} />
     </Page>
   );
 }

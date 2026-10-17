@@ -12,6 +12,7 @@ import { useWs, wsHref } from "@/lib/workspace";
 import { Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Logo } from "./logo";
+import { PublishButton } from "./publish";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
@@ -85,12 +86,10 @@ export function TopBar() {
   const { ws } = useParams({ strict: false }) as { ws?: string };
   const go = useGo();
   const workspaces = useQuery(q.workspaces());
-  const draft = useQuery({ ...q.draft(ws ?? ""), enabled: !!ws });
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState(() => prefs.get("author") ?? "");
   const names = (workspaces.data ?? []).map((w) => w.workspace);
   if (ws && !names.includes(ws)) names.push(ws);
-  const n = draft.data?.items.length ?? 0;
   return (
     <header className="bg-card sticky top-0 z-20 flex flex-wrap items-center gap-2.5 border-b px-5 py-2.5">
       <HrefLink href="/" className="text-foreground mr-1.5 flex items-center gap-2 text-[15px] font-semibold tracking-tight hover:no-underline">
@@ -127,16 +126,7 @@ export function TopBar() {
           prefs.set("author", e.target.value.trim());
         }}
       />
-      {ws && (
-        <Button variant="outline" size="sm" onClick={() => go(wsHref(ws, "changes"))}>
-          Unpublished changes
-          {n > 0 && (
-            <span className="bg-warn text-card rounded-full px-1.5 text-xs font-semibold" aria-label={`${n} changes`}>
-              {n}
-            </span>
-          )}
-        </Button>
-      )}
+      {ws && <PublishButton ws={ws} />}
       <ThemeMenu />
     </header>
   );

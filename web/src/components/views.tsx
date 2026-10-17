@@ -14,8 +14,8 @@ import { DiffView } from "./diff-view";
 import { author } from "./form";
 import { HrefLink, useGo } from "./href-link";
 import { ItemHeader, Missing, Page } from "./item-shell";
+import { PublishDialog, UnsavedBanner } from "./publish";
 import { Button } from "./ui/button";
-import { Input } from "./ui/input";
 
 // --- lists ---------------------------------------------------------------------------
 
@@ -353,7 +353,7 @@ export function PromptView({ id }: { id: string }) {
 
 // --- unpublished changes ---------------------------------------------------------------
 
-function Collapsible({ open: initial, summary, children }: { open: boolean; summary: ReactNode; children: ReactNode }) {
+export function Collapsible({ open: initial, summary, children }: { open: boolean; summary: ReactNode; children: ReactNode }) {
   return (
     <details open={initial} className="group bg-card mb-2.5 rounded-xl border">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2.5 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
@@ -367,7 +367,7 @@ function Collapsible({ open: initial, summary, children }: { open: boolean; summ
 
 const CHANGE_LABEL = { added: "New", edited: "Edited", deleted: "Deleted" };
 
-function ChangedItem({ i }: { i: DraftItem }) {
+export function ChangedItem({ i, open = true }: { i: DraftItem; open?: boolean }) {
   const { href, model } = useWs();
   const fieldChanges = useFieldChanges();
   let body: ReactNode;
@@ -385,7 +385,7 @@ function ChangedItem({ i }: { i: DraftItem }) {
   const n = i.change === "edited" && i.before && i.after ? fieldChanges(i.kind, i.before, i.after).length : 0;
   return (
     <Collapsible
-      open
+      open={open}
       summary={
         <>
           <Tag tone={i.change}>{CHANGE_LABEL[i.change]}</Tag>
@@ -406,7 +406,7 @@ function ChangedItem({ i }: { i: DraftItem }) {
   );
 }
 
-function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
+export function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
   const { href } = useWs();
   return (
     <Collapsible
@@ -432,27 +432,11 @@ function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
 }
 
 export function ChangesView() {
-  const { ws, draft: d } = useWs();
-  const qc = useQueryClient();
-  const go = useGo();
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
+  const { draft: d } = useWs();
+  const [publishing, setPublishing] = useState(false);
   const changed = d.agents.filter((a) => a.status !== "unchanged");
   const errors = d.issues.filter((i) => i.severity === "error");
   const warnings = d.issues.filter((i) => i.severity === "warning");
-  const publish = async () => {
-    setBusy(true);
-    try {
-      const r = await call(sdk.createRelease({ path: { workspace: ws }, body: { author: author(), note: note.trim() || null } }));
-      toast.success(r.created ? `Published release #${r.release.number}. Agents get it on their next call.` : "Nothing new to publish.");
-      await refresh(qc, ws);
-      go(wsHref(ws, "releases", r.release.number));
-    } catch (e) {
-      setError(e);
-      setBusy(false);
-    }
-  };
   return (
     <Page>
       <PageTitle
@@ -472,22 +456,16 @@ export function ChangesView() {
           <IssueList issues={errors} />
         </Banner>
       )}
+      <UnsavedBanner lead="Open with edits that aren't saved as drafts (not listed here, and not published):" />
       {d.items.length > 0 && (
         <div className="flex flex-wrap items-center gap-2.5 pb-1.5">
-          <Button disabled={busy || errors.length > 0} onClick={publish}>
-            Publish
+          <Button disabled={errors.length > 0} onClick={() => setPublishing(true)}>
+            Publish…
           </Button>
-          <Input
-            className="max-w-[420px]"
-            placeholder="What changed? For example: holiday hours"
-            aria-label="Release note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !busy && !errors.length && publish()}
-          />
+          <Note>You'll see a summary and add a release note before anything goes live.</Note>
         </div>
       )}
-      {error != null && <ErrorBanner error={error} lead="It can't be published yet:" />}
+      <PublishDialog open={publishing} onOpenChange={setPublishing} />
       <h2 className="mt-6 mb-2.5 text-base font-semibold">{d.items.length ? "What was edited" : "Nothing to publish"}</h2>
       {d.items.length ? d.items.map((i) => <ChangedItem key={`${i.kind}:${i.id}`} i={i} />) : <Note>Edits you save show up here, with what changed in each field and in each agent's prompt.</Note>}
       {d.items.length > 0 && (

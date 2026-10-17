@@ -11,6 +11,7 @@ import { ITEM_ID, KIND, type Kind, type ListKind, plural } from "@/lib/kinds";
 import type { Step } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
+import { useUnsaved } from "@/lib/unsaved";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner } from "./bits";
 import { useGo } from "./href-link";
@@ -388,8 +389,10 @@ export function ActionBar({
   dirty,
   onSave,
   onDelete,
+  itemId,
 }: {
   kind: Kind;
+  itemId?: string;
   isNew: boolean;
   dirty: Dirty;
   onSave: (note: string | null, then?: () => void) => void;
@@ -398,11 +401,19 @@ export function ActionBar({
   const [note, setNote] = useState("");
   const blocker = useBlocker({ shouldBlockFn: () => dirty.ref.current, enableBeforeUnload: () => dirty.ref.current, withResolver: true });
   const save = (then?: () => void) => onSave(note.trim() || null, then);
+  const unsaved = useUnsaved();
+  const { draft } = useWs();
+  const unsavedHere = unsaved.find((u) => u.kind === kind)?.label ?? `this ${KIND[kind].one.toLowerCase()}`;
+  const inDraft = !isNew && !!itemId && draft.items.some((i) => i.kind === kind && i.id === itemId);
+  const otherDrafts = draft.items.filter((i) => !(i.kind === kind && i.id === itemId)).length;
   return (
     <>
       {blocker.status === "blocked" && (
         <Banner tone="warn" className="sticky bottom-[66px] z-10 mt-6 flex flex-wrap items-center gap-2 shadow-md">
-          <span className="mr-auto">You have unsaved edits.</span>
+          <span className="mr-auto">
+            Your edits to {unsavedHere} aren't saved yet.
+            {otherDrafts > 0 && ` (${plural(otherDrafts, "other saved draft change stays", "other saved draft changes stay")} either way.)`}
+          </span>
           <Button size="sm" onClick={() => save(() => blocker.proceed?.())}>
             Save draft and leave
           </Button>
@@ -426,7 +437,9 @@ export function ActionBar({
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && save()}
         />
-        <span className="text-muted-foreground text-[13px]">{dirty.dirty ? "Unsaved edits" : isNew ? "" : "Saved edits are drafts until you publish."}</span>
+        <span className={cn("text-[13px]", dirty.dirty ? "text-warn" : "text-muted-foreground")}>
+          {dirty.dirty ? "Unsaved edits: not a draft yet" : inDraft ? "Saved as a draft, not published yet" : isNew ? "" : "Saved edits are drafts until you publish."}
+        </span>
         <span className="flex-1" />
         {onDelete && (
           <ConfirmButton variant="outline" className="text-err" confirm="Click again to delete" onConfirm={onDelete}>
