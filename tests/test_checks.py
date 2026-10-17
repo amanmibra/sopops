@@ -54,20 +54,17 @@ class Scenario:
 
     def __call__(self, role, messages, schema):
         if role == "fast":
-            out = {}
-            for name, f in schema.model_fields.items():
-                pid = re.search(r"'([^']+)'", f.description).group(1)
-                out[name] = {"reason": "fake", "status": self.route.get(pid, "not_applicable")}
-            return out
+            ids = re.findall(r'<procedure id="([^"]+)">', text_of(messages))
+            return {"procedures": [{"procedure": pid, "reason": "fake", "status": self.route.get(pid, "not_applicable")} for pid in ids]}
         pid = re.search(r'<procedure id="([^"]+)">', text_of(messages)).group(1)
         spec = self.checks[pid]
-        out = {"goal_reason": "fake", "goal_reached": spec.get("goal", "yes")}
-        for name, f in schema.model_fields.items():
-            if name.startswith(("step_", "never_", "warning_")):
-                default = {"step": "done", "never": "ok", "warning": "absent"}[name.split("_")[0]]
-                status, ev = spec.get(name, (default, []))
-                out[name] = {"reason": f"fake {name}", "status": status, "evidence": [{"turn": t, "quote": q} for t, q in ev]}
-        return out
+        keys = re.findall(r"^- ((?:step|never|warning)_\d+): ", text_of(messages), re.M)
+        rules = []
+        for key in keys:
+            default = {"step": "done", "never": "ok", "warning": "absent"}[key.split("_")[0]]
+            status, ev = spec.get(key, (default, []))
+            rules.append({"rule": key, "reason": f"fake {key}", "status": status, "evidence": [{"turn": t, "quote": q} for t, q in ev]})
+        return {"rules": rules, "goal_reason": "fake", "goal_reached": spec.get("goal", "yes")}
 
 
 BASE = Scenario(
@@ -233,6 +230,26 @@ def test_list_shows_and_filters_by_result(env):
     only = env.client.get(f"{WS}/sessions", params={"result": "followed"}).json()["items"]
     assert [r["external_id"] for r in only] == ["b"]
     assert env.client.get(f"{WS}/sessions", params={"result": "nope"}).status_code == 422
+
+
+def test_check_replies_must_cover_every_rule_once_with_fitting_statuses(env):
+    from pydantic import ValidationError
+
+    from sopops.pipeline.judge import check_schema, route_schema
+    from sopops.pipeline.procedures import candidates
+
+    s = env.send(session())
+    rec = env.store.sessions.load("demo", s["id"])
+    procs = {p.id: p for p in candidates(env.store, rec).procedures}
+    schema = check_schema(procs[DELIVERY])
+    ok = [{"rule": k, "reason": "r", "evidence": [], "status": "done"} for k in ("step_1", "step_2", "step_3")]
+    schema.model_validate({"rules": ok, "goal_reason": "g", "goal_reached": "yes"})
+    with pytest.raises(ValidationError, match="missing: step_3"):
+        schema.model_validate({"rules": ok[:2], "goal_reason": "g", "goal_reached": "yes"})
+    with pytest.raises(ValidationError, match="don't fit"):
+        schema.model_validate({"rules": [*ok[:2], {**ok[2], "status": "violated"}], "goal_reason": "g", "goal_reached": "yes"})
+    with pytest.raises(ValidationError):
+        route_schema(list(procs.values())).model_validate({"procedures": [{"procedure": "nope", "reason": "r", "status": "applied"}]})
 
 
 def test_model_failure_marks_the_session_failed(env):

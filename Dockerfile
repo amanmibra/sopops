@@ -17,11 +17,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY pyproject.toml README.md hatch_build.py ./
+# Dependencies from uv.lock, every one checked against its sha256 (--require-hashes): no unpinned upgrades.
+COPY --from=ghcr.io/astral-sh/uv:0.12.3 /uv /usr/local/bin/uv
+COPY pyproject.toml uv.lock ./
+RUN uv export --frozen --no-dev --no-emit-project --extra postgres --extra hatchet -o /tmp/requirements.txt \
+    && pip install --no-cache-dir --require-hashes -r /tmp/requirements.txt && rm /tmp/requirements.txt /usr/local/bin/uv
+COPY README.md hatch_build.py ./
 COPY src ./src
 COPY --from=web /web/dist ./web/dist
 # The build hook bundles web/dist into the package as sopops/static.
-RUN pip install --no-cache-dir ".[postgres,hatchet]" && rm -rf web
+RUN pip install --no-cache-dir --no-deps . && rm -rf web
 
 # Set DATABASE_URL to Postgres in production; the SQLite default lives in the /data volume.
 # Migrations run on startup.
