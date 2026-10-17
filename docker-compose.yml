@@ -1,0 +1,31 @@
+# sopops with Postgres. `docker compose up --build`, then open http://127.0.0.1:8484.
+# There is no authentication yet, so the port is bound to localhost only.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sopops
+      POSTGRES_PASSWORD: sopops
+      POSTGRES_DB: sopops
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sopops"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://sopops:sopops@db:5432/sopops
+    ports:
+      - "127.0.0.1:8484:8484"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # hatchet: the workflow engine for call QA comes in a later phase.
+
+volumes:
+  pgdata:

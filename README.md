@@ -21,21 +21,23 @@ and publish releases your agents fetch when a call starts. No redeploys.
 
 ## Quickstart
 
+With Docker, from a clone:
+
 ```sh
-curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | sh   # the sopc compiler
-uv tool install 'sopops @ git+https://github.com/amanmibra/sopops'
-sopops --port 8484
+docker compose up --build      # sopops and Postgres, on http://127.0.0.1:8484
 ```
 
-Open http://localhost:8484, create a workspace, and add a shared instruction, a procedure and an agent. The API docs are at `/docs`.
+Or just the image: `docker build -t sopops . && docker run -p 127.0.0.1:8484:8484 sopops` (SQLite in its `/data` volume). Set `DATABASE_URL` to a Postgres URL in production (Supabase, Neon and RDS all work).
 
-With Docker, from a clone: `docker build -t sopops . && docker run -p 8484:8484 sopops`. Set `DATABASE_URL` to a Postgres URL in production (Supabase, Neon and RDS all work); without it, the container keeps SQLite in its `/data` volume.
+Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a procedure and an agent. The API docs are at `/docs`.
 
 | Variable | Default | |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///sopops.db` | Any SQLAlchemy URL. `postgres://` URLs use psycopg 3 (`pip install 'sopops[postgres]'`). |
-| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: a build after v0.0.9 (without `locked`). |
+| `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
+| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
+
+The schema is managed with Alembic and migrated on startup. A database from an older sopops is picked up as is.
 
 ## How it works
 
@@ -148,13 +150,23 @@ v0, renamed from sopserve. **There is no authentication yet**: anyone who can re
 - API keys with scopes, and sign-in for the UI
 - Renaming agents and blocks
 - A webhook on publish
-- Schema migrations (tables are created on startup today)
 
 ## Development
 
+The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite, React, TanStack Router and Query, Tailwind and shadcn/ui (`web/`). In production sopops serves the built UI itself, one process.
+
 ```sh
-uv sync && SOPC_BIN=/path/to/sopc uv run pytest   # a sopc build after v0.0.9
+uv sync --all-extras
+SOPC_BIN=/path/to/sopc uv run sopops        # the API on :8484 (and the UI, once built)
+pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to :8484
 ```
+
+| | |
+|---|---|
+| `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. |
+| `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
+| `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
+| `uv run alembic revision --autogenerate -m "…"` | A new migration after changing `models.py`. |
 
 ## License
 

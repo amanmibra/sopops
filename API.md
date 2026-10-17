@@ -4,6 +4,8 @@ Every endpoint. Paths below are under `/v1/workspaces/<ws>` unless they start wi
 
 There is no authentication yet: keep sopops on a private network.
 
+Each operation's `operationId` is its route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients have readable function names; the web UI's typed client (`web/src/client`) is generated this way. Paths outside `/v1` (and `/docs`, `/openapi.json`) serve the web UI.
+
 ## Errors
 
 Errors that come from sopc return `422 {"valid": false, "issues": [...]}`. Each issue has sopc's `code`, `message`, `path` and `severity`, plus where it belongs in the forms:

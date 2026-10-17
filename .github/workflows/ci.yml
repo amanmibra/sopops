@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
+    env:
+      SOPC_BIN: /usr/local/bin/sopc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install sopc
+        run: curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=v0.0.12 SOPC_INSTALL_DIR=/usr/local/bin sudo -E sh
+      - run: uv sync --all-extras --python 3.12
+      - name: Tests (SQLite)
+        run: uv run pytest -q
+      - name: Tests (Postgres)
+        run: uv run pytest -q
+        env:
+          SOPOPS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Generated API client matches the backend
+        run: pnpm gen:api && git diff --exit-code -- openapi.json src/client
+      - run: pnpm typecheck
+      - run: pnpm build
