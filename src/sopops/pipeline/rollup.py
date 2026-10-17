@@ -3,7 +3,8 @@
 Rule statuses:
 - steps: done | out_of_order | skipped | not_reached | not_applicable
 - nevers: violated | ok
-- warning signs: present | absent (a condition, never a pass or fail)
+- warning signs: present | unheeded | absent (a condition, never a pass or fail). `unheeded`: the situation came up,
+  the sign says what to do about it, and the agent didn't; it is still `present` for every "sign present" count.
 
 The model judges done / skipped / not_reached / not_applicable. `out_of_order` is worked out here, from the first
 evidence turn of each done step: the fewest steps that explain the disorder (the ones outside a longest
@@ -23,9 +24,9 @@ Procedure result:
 - `not_measurable`: nothing to judge: no applicable step and no never violated, or the agent never spoke.
 Warning signs never change the result.
 
-Findings are rule results with status skipped, violated or out_of_order: each is a concrete thing the agent did or
-didn't do that a person might want to fix. not_reached isn't (the session ended), and neither is a present warning
-sign. A skipped step that the leniency rule kept from making the procedure deviated is still a finding.
+Findings are rule results with status skipped, violated, out_of_order or unheeded: each is a concrete thing the agent
+did or didn't do that a person might want to fix. not_reached isn't (the session ended), and neither is a warning sign
+that was present and handled. A skipped step that the leniency rule kept from making the procedure deviated is still a finding.
 """
 
 from __future__ import annotations
@@ -35,9 +36,10 @@ from typing import Any
 
 STEP_STATUSES = ("done", "out_of_order", "skipped", "not_reached", "not_applicable")
 NEVER_STATUSES = ("violated", "ok")
-WARNING_STATUSES = ("present", "absent")
+WARNING_STATUSES = ("present", "unheeded", "absent")
+WARNING_PRESENT = frozenset({"present", "unheeded"})
 JUDGED_STEP_STATUSES = ("done", "skipped", "not_reached", "not_applicable")  # what the model picks from
-FINDING_STATUSES = frozenset({"skipped", "violated", "out_of_order"})
+FINDING_STATUSES = frozenset({"skipped", "violated", "out_of_order", "unheeded"})
 RESULTS = ("deviated", "partial", "followed", "not_measurable")
 SEVERITY = {"deviated": 3, "partial": 2, "followed": 1, "not_measurable": 0}
 

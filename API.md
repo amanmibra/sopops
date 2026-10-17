@@ -180,7 +180,7 @@ Each session is checked against the procedures its agent lists (directly or thro
 |---|---|
 | Step | `done`; `out_of_order` (done, but after a later step: the fewest steps that explain the order of their first evidence turns); `skipped` (the session went past where it belonged without it); `not_reached` (the session ended before it); `not_applicable` (its condition never arose). |
 | Never | `violated` or `ok`. |
-| Warning sign | `present` or `absent`. A condition, never a pass or fail. |
+| Warning sign | `present` (the situation came up and was handled as the sign says), `unheeded` (it came up, the sign says what to do, and the agent didn't) or `absent`. A condition, never a pass or fail; `unheeded` is still "present" in every sign-present count. |
 
 A step with `tool: x` and `required` is checked against the session's `tool_calls` when it has any: called is `done`, not called is `skipped` (unless the session never reached the step or it didn't apply). Without tool calls the transcript decides, and the evidence says so.
 
@@ -195,6 +195,6 @@ A step with `tool: x` and `required` is checked against the session's `tool_call
 
 A session's `result` is the worst of its procedures' (deviated, then partial, followed, not measurable).
 
-**Findings** are the rule results with status `skipped`, `violated` or `out_of_order` (`finding: true`): things the agent did or didn't do that someone may want to fix. `not_reached` isn't one (the session ended), and neither is a present warning sign. A skipped step that leniency kept from making its procedure deviated is still a finding. Findings are stored in their own table, ready to be grouped into patterns.
+**Findings** are the rule results with status `skipped`, `violated`, `out_of_order` or `unheeded` (`finding: true`): things the agent did or didn't do that someone may want to fix. `not_reached` isn't one (the session ended), and neither is a warning sign that was present and handled. A `violated` never rule always quotes the agent's own words; one the model flagged without such a quote is stored as `ok`, with the reason saying so. A skipped step that leniency kept from making its procedure deviated is still a finding. Findings are stored in their own table, ready to be grouped into patterns.
 
 Re-running a session replaces its results; a run for content that has since been re-sent writes nothing.

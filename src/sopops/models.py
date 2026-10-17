@@ -154,7 +154,7 @@ class RuleResult(SQLModel, table=True):
     index: int = Field(description="1-based position within its kind.")
     rule_text: str = Field(sa_column=Column(Text, nullable=False))
     rule_text_hash: str = Field(max_length=64)
-    status: str = Field(max_length=16)  # step: done|out_of_order|skipped|not_reached|not_applicable; never: violated|ok; warning: present|absent
+    status: str = Field(max_length=16)  # step: done|out_of_order|skipped|not_reached|not_applicable; never: violated|ok; warning: present|unheeded|absent
     evidence: list[dict[str, Any]] = Field(sa_column=Column(JSONDoc, nullable=False))  # [{turn, quote, source}]
     reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
 

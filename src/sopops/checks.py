@@ -95,6 +95,7 @@ class Checks:
             if row is None:
                 return False
             self._clear(db, row.id, p.id)
+            findings: list[Finding] = []
             for j in rules:
                 rule = texts[j.rule_id]
                 reason = j.reason
@@ -106,8 +107,10 @@ class Checks:
                 )
                 db.add(rr)
                 if j.status in FINDING_STATUSES:
-                    db.add(Finding(id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
-                                   rule_result_id=rr.id, status=j.status, created_at=now))
+                    findings.append(Finding(id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
+                                            rule_result_id=rr.id, status=j.status, created_at=now))
+            db.flush()  # rule results first: findings reference them (no ORM relationship orders the inserts)
+            db.add_all(findings)
             pc = db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id == row.id, ProcedureCheck.procedure_id == p.id)).first()
             if pc is None:
                 pc = ProcedureCheck(id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, procedure_name=p.name,

@@ -55,7 +55,8 @@ class Scenario:
     def __call__(self, role, messages, schema):
         if role == "fast":
             ids = re.findall(r'<procedure id="([^"]+)">', text_of(messages))
-            return {"procedures": [{"procedure": pid, "reason": "fake", "status": self.route.get(pid, "not_applicable")} for pid in ids]}
+            answers = {"applied": ("yes", "yes"), "not_applicable": ("no", "no"), "ended_before_start": ("none_yet", "no"), "ended_before_finish": ("yes", "no")}
+            return {"procedures": [dict(zip(("request", "agent_responded"), answers[self.route.get(pid, "not_applicable")]), procedure=pid, reason="fake") for pid in ids]}
         pid = re.search(r'<procedure id="([^"]+)">', text_of(messages)).group(1)
         spec = self.checks[pid]
         keys = re.findall(r"^- ((?:step|never|warning)_\d+): ", text_of(messages), re.M)
@@ -119,7 +120,7 @@ def test_route_and_check_statuses_and_rollup(env):
 
     allergen = checks[ALLERGEN]
     assert allergen["result"] == "deviated" and allergen["goal_reached"] is True
-    assert allergen["prompt_version"] == "check-1" and allergen["model"] == "fake/reasoning"
+    assert allergen["prompt_version"] == "check-4" and allergen["model"] == "fake/reasoning"
     r = rules_by_key(allergen)
     assert [r[k]["status"] for k in ("step_1", "step_2", "step_3", "never_1", "never_2", "warning_1")] == ["done", "done", "done", "violated", "ok", "absent"]
     assert r["step_3"]["evidence"][0]["source"] == "tool_calls" and r["step_3"]["evidence"][0]["quote"].startswith("lookup_allergens(")
@@ -249,7 +250,7 @@ def test_check_replies_must_cover_every_rule_once_with_fitting_statuses(env):
     with pytest.raises(ValidationError, match="don't fit"):
         schema.model_validate({"rules": [*ok[:2], {**ok[2], "status": "violated"}], "goal_reason": "g", "goal_reached": "yes"})
     with pytest.raises(ValidationError):
-        route_schema(list(procs.values())).model_validate({"procedures": [{"procedure": "nope", "reason": "r", "status": "applied"}]})
+        route_schema(list(procs.values())).model_validate({"procedures": [{"procedure": "nope", "reason": "r", "request": "yes", "agent_responded": "yes"}]})
 
 
 def test_model_failure_marks_the_session_failed(env):

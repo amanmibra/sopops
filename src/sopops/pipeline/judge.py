@@ -85,6 +85,20 @@ def _complete_list(field: str, key: str, wanted: list[str], kinds: dict[str, tup
     return model_validator(mode="after")(check)
 
 
+REQUEST_ANSWERS = ("yes", "no", "none_yet")
+RESPONDED_ANSWERS = ("yes", "no")
+
+
+def route_status(request: str, agent_responded: str) -> str:
+    """The route status from the two answers. Exclusion needs a clear 'none_yet' (the user never said what they
+    wanted) or a clear 'no' (the agent never answered the request); everything else that came up is applied."""
+    if request == "no":
+        return "not_applicable"
+    if request == "none_yet":
+        return "ended_before_start"
+    return "applied" if agent_responded == "yes" else "ended_before_finish"
+
+
 def route_schema(procedures: list[Procedure]) -> type[BaseModel]:
     ids = [p.id for p in procedures]
     decision = create_model(
@@ -92,7 +106,8 @@ def route_schema(procedures: list[Procedure]) -> type[BaseModel]:
         __base__=_Model,
         procedure=(Literal[tuple(ids)], ...),  # type: ignore[valid-type]
         reason=(str, Field(description="One sentence, in English.")),
-        status=(Literal[ROUTE_STATUSES], ...),  # type: ignore[valid-type]
+        request=(Literal[REQUEST_ANSWERS], Field(description="Did the user express the need this procedure covers? yes, no, or none_yet (the conversation ended before the user said what they wanted at all).")),  # type: ignore[valid-type]
+        agent_responded=(Literal[RESPONDED_ANSWERS], Field(description="If request is yes: did the agent respond to that request at least once? Otherwise: no.")),  # type: ignore[valid-type]
     )
     return create_model(
         "RouteReply", __base__=_Model, procedures=(list[decision], ...), __validators__={"complete": _complete_list("procedures", "procedure", ids)}
@@ -109,7 +124,7 @@ def route_messages(procedures: list[Procedure], variables: dict[str, str], turns
             "content": [
                 _block(f"<procedures>\n{listing}\n</procedures>", cache=True),
                 _block(render_transcript(turns, tool_calls)),
-                _block("For each procedure, by its id, decide its status for this conversation."),
+                _block("For each procedure, by its id, answer both questions for this conversation."),
             ],
         },
     ]
@@ -121,7 +136,7 @@ def route(llm: LLM, procedures: list[Procedure], variables: dict[str, str], turn
     schema = route_schema(procedures)
     reply = llm.complete("fast", route_messages(procedures, variables, turns, tool_calls), schema)
     got = {d.procedure: d for d in reply.procedures}
-    return [Routed(p.id, got[p.id].status, got[p.id].reason) for p in procedures]
+    return [Routed(p.id, route_status(got[p.id].request, got[p.id].agent_responded), got[p.id].reason) for p in procedures]
 
 
 # --- check -----------------------------------------------------------------------
@@ -139,7 +154,7 @@ def check_schema(p: Procedure) -> type[BaseModel]:
         rule=(Literal[tuple(keys)], Field(description="The rule: step_N, never_N or warning_N.")),  # type: ignore[valid-type]
         reason=(str, Field(description="One sentence, in English.")),
         evidence=(list[Evidence], Field(description="Where it happened; may be empty for some statuses.")),
-        status=(Literal[ALL_STATUSES], Field(description="Steps: done, skipped, not_reached or not_applicable. Never rules: violated or ok. Warning signs: present or absent.")),  # type: ignore[valid-type]
+        status=(Literal[ALL_STATUSES], Field(description="Steps: done, skipped, not_reached or not_applicable. Never rules: violated or ok. Warning signs: present, unheeded or absent.")),  # type: ignore[valid-type]
     )
     kinds = {r.key: _KIND_STATUSES[r.kind] for r in p.rules}
     return create_model(
@@ -174,6 +189,14 @@ class Checked:
     goal_reason: str
 
 
+def _agent_quote(evidence: list[dict[str, Any]], turns: list[dict]) -> bool:
+    """Some evidence quotes an agent turn exactly (not an approximate match)."""
+    return any(
+        not e.get("approximate") and (e.get("quote") or "").strip() and isinstance(e.get("turn"), int) and turns[e["turn"]].get("role") == "agent"
+        for e in evidence
+    )
+
+
 def check(llm: LLM, p: Procedure, variables: dict[str, str], turns: list[dict], tool_calls: list[dict]) -> Checked:
     reply = llm.complete("reasoning", check_messages(p, variables, turns, tool_calls), check_schema(p))
     got = {j.rule: j for j in reply.rules}
@@ -181,6 +204,10 @@ def check(llm: LLM, p: Procedure, variables: dict[str, str], turns: list[dict], 
     for r in p.rules:
         j = got[r.key]
         evidence = verify_evidence([e.model_dump() for e in j.evidence], turns)
-        rules.append(Judged(r.id, r.kind, r.index, j.status, evidence, j.reason.strip(), r.required))
+        status, reason = j.status, j.reason.strip()
+        if status == "violated" and not _agent_quote(evidence, turns):
+            # a never rule counts as violated only on a quote of the agent's own words
+            status, reason, evidence = "ok", f"{reason} (Not counted: no quote of the agent's own words shows it.)".strip(), []
+        rules.append(Judged(r.id, r.kind, r.index, status, evidence, reason, r.required))
     goal = {"yes": True, "no": False}.get(reply.goal_reached)
     return Checked(rules, goal, reply.goal_reason.strip())

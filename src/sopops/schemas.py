@@ -422,7 +422,7 @@ SessionStatus = Literal["received", "routed", "checked", "excluded", "partial", 
 # A procedure check's rolled-up result; a session's is the worst of its procedures' (see pipeline.rollup).
 CheckResultValue = Literal["deviated", "partial", "followed", "not_measurable"]
 RuleKind = Literal["step", "never", "warning"]
-RuleStatus = Literal["done", "out_of_order", "skipped", "not_reached", "not_applicable", "violated", "ok", "present", "absent"]
+RuleStatus = Literal["done", "out_of_order", "skipped", "not_reached", "not_applicable", "violated", "ok", "present", "unheeded", "absent"]
 
 
 class TurnIn(_BaseModel):
@@ -520,7 +520,7 @@ class RuleResultOut(BaseModel):
     status: RuleStatus
     evidence: list[EvidenceOut]
     reason: str | None
-    finding: bool = Field(description="A deviation: skipped, violated or out_of_order.")
+    finding: bool = Field(description="A deviation: skipped, violated, out_of_order or unheeded.")
 
 
 class ProcedureCheckOut(BaseModel):
