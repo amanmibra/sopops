@@ -34,6 +34,24 @@ def role(value: Any) -> str:
     return ROLES.get(str(value or "").strip().lower(), "system")
 
 
+def _offset(item: dict[str, Any], start: datetime | None) -> float | None:
+    at = item.pop("at", None)
+    if item.get("offset_s") is None and at is not None and start is not None:
+        item["offset_s"] = (to_utc(at) - start).total_seconds()
+    return round(max(float(item["offset_s"]), 0.0), 3) if item.get("offset_s") is not None else None
+
+
+def normalize_tool_calls(calls: list[dict[str, Any]], started_at: datetime) -> list[dict[str, Any]]:
+    """`offset_s` from `at`, as for turns."""
+    start = to_utc(started_at)
+    out = []
+    for raw in calls:
+        c = dict(raw)
+        c["offset_s"] = _offset(c, start)
+        out.append(c)
+    return out
+
+
 def normalize_turns(turns: list[dict[str, Any]], started_at: datetime) -> list[dict[str, Any]]:
     """Canonical turns, in order. Idempotent: normalizing normalized turns changes nothing.
 
@@ -49,13 +67,7 @@ def normalize_turns(turns: list[dict[str, Any]], started_at: datetime) -> list[d
         t = dict(raw)
         t["role"] = role(t.get("role"))
         t["text"] = str(t.get("text") or "").strip()
-        at = t.pop("at", None)
-        if t.get("offset_s") is None and at is not None and start is not None:
-            t["offset_s"] = (to_utc(at) - start).total_seconds()
-        if t.get("offset_s") is not None:
-            t["offset_s"] = round(max(float(t["offset_s"]), 0.0), 3)
-        else:
-            t["offset_s"] = None
+        t["offset_s"] = _offset(t, start)
         if not t["text"] and t["role"] != "tool":
             continue
         if out and out[-1]["role"] == t["role"] and out[-1]["text"] == t["text"]:

@@ -101,7 +101,8 @@ class Sessions:
             agent_id = self._match_agent(db, ws, p.agent, p.platform, against) if p.agent and against else None
             if p.agent and against and agent_id is None:
                 warnings.append(f"No agent '{p.agent}' in release {against}; the session keeps the name as sent.")
-            started = to_utc(p.started_at) or _first_time(p) or now
+            # a turn can't come before the session started (a helper may note the start a moment late)
+            started = min((t for t in (to_utc(p.started_at), _first_time(p)) if t), default=now)
             fields = dict(
                 agent_id=agent_id,
                 agent_ref=p.agent,
@@ -130,7 +131,7 @@ class Sessions:
             self._emit(db, {"type": "created" if created else "updated", "workspace": ws, "id": row.id, "status": row.status})
             return Ingested(row.id, created, not created, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=digest))
 
-    def finish(self, ref: SessionRef, turns: list[dict], status: str, reason: str | None) -> bool:
+    def finish(self, ref: SessionRef, turns: list[dict], tool_calls: list[dict], status: str, reason: str | None) -> bool:
         """Store the pipeline's result, unless the session was re-sent since the run was queued. True if stored."""
         with self._db() as db, db.begin():
             q = select(SessionRecord).where(SessionRecord.workspace_id == ref.workspace_id, SessionRecord.id == ref.session_id)
@@ -138,7 +139,8 @@ class Sessions:
             if row is None or row.payload_hash != ref.revision:
                 return False
             now = _now()
-            row.turns, row.status, row.status_reason, row.processed_at, row.updated_at = turns, status, reason, now, now
+            row.turns, row.tool_calls, row.status, row.status_reason = turns, tool_calls, status, reason
+            row.processed_at = row.updated_at = now
             db.add(row)
             db.flush()
             self._emit(db, {"type": "updated", "workspace": row.workspace_id, "id": row.id, "status": status})

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .models import ProcessResult, SessionRef
-from .normalize import normalize_turns
+from .normalize import normalize_tool_calls, normalize_turns
 
 if TYPE_CHECKING:
     from ..store import Store
@@ -22,8 +22,9 @@ def process_session(store: Store, ref: SessionRef) -> ProcessResult:
         return ProcessResult(session_id=ref.session_id, status=session.status, turn_count=len(session.turns), skipped=True)
     try:
         turns = normalize_turns(session.turns, session.started_at)
+        tool_calls = normalize_tool_calls(session.tool_calls, session.started_at)
     except Exception as e:  # a payload we can't make sense of: keep it, and say why
-        store.sessions.finish(ref, session.turns, "failed", f"normalize: {e}")
+        store.sessions.finish(ref, session.turns, session.tool_calls, "failed", f"normalize: {e}")
         raise
     if session.status == "partial":  # set at ingest when the sender says the transcript is incomplete
         status, reason = "partial", session.status_reason
@@ -31,5 +32,5 @@ def process_session(store: Store, ref: SessionRef) -> ProcessResult:
         status, reason = "partial", "No turns."
     else:
         status, reason = "received", None
-    applied = store.sessions.finish(ref, turns, status, reason)
+    applied = store.sessions.finish(ref, turns, tool_calls, status, reason)
     return ProcessResult(session_id=ref.session_id, status=status, turn_count=len(turns), skipped=not applied)

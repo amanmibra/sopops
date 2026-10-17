@@ -17,6 +17,7 @@ T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 
 
 def session(external_id="room-1", **kw):
+    t0 = datetime.fromisoformat(kw["started_at"]).timestamp() if kw.get("started_at") else T0.timestamp()
     return {
         "platform": "livekit",
         "external_id": external_id,
@@ -24,11 +25,11 @@ def session(external_id="room-1", **kw):
         "started_at": T0.isoformat(),
         "ended_at": (T0 + timedelta(seconds=95)).isoformat(),
         "turns": [
-            {"role": "assistant", "text": " Tony's Pizza, how can I help? ", "at": T0.timestamp() + 1},
-            {"role": "user", "text": "A large pepperoni for delivery.", "at": T0.timestamp() + 4.5},
-            {"role": "user", "text": "A large pepperoni for delivery.", "at": T0.timestamp() + 4.6},  # LiveKit repeats items
-            {"role": "function", "text": "", "name": "check_delivery_zone", "at": T0.timestamp() + 9},
-            {"role": "agent", "text": "", "at": T0.timestamp() + 10},
+            {"role": "assistant", "text": " Tony's Pizza, how can I help? ", "at": t0 + 1},
+            {"role": "user", "text": "A large pepperoni for delivery.", "at": t0 + 4.5},
+            {"role": "user", "text": "A large pepperoni for delivery.", "at": t0 + 4.6},  # LiveKit repeats items
+            {"role": "function", "text": "", "name": "check_delivery_zone", "at": t0 + 9},
+            {"role": "agent", "text": "", "at": t0 + 10},
         ],
         "tool_calls": [{"name": "check_delivery_zone", "arguments": {"zip": "10001"}, "result": {"ok": True}, "offset_s": 9}],
         "metadata": {"room": "room-1"},
@@ -113,6 +114,10 @@ def test_inline_pipeline_normalizes_turns_and_sets_status(client, token):
     ]
     assert s["turns"][2]["name"] == "check_delivery_zone" and "at" not in s["turns"][0]
     assert s["duration_s"] == 95 and s["tool_call_count"] == 1 and s["metadata"] == {"room": "room-1"}
+    late = {**session("room-late", tool_calls=[{"name": "f", "at": T0.timestamp() + 9}]), "started_at": (T0 + timedelta(seconds=3)).isoformat()}
+    s = client.get(f"{WS}/sessions/{ingest(client, token, late).json()['id']}").json()
+    assert s["started_at"] == "2026-10-01T18:00:01Z"  # the first turn, not the late start the sender noted
+    assert s["turns"][0]["offset_s"] == 0 and s["tool_calls"][0]["offset_s"] == 8 and "at" not in s["tool_calls"][0]
 
     empty = ingest(client, token, session("room-empty", turns=[])).json()["id"]
     assert client.get(f"{WS}/sessions/{empty}").json()["status"] == "partial"
