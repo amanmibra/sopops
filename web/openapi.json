@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "sopops",
-    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start.",
+    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start. Sessions (voice calls and text chats) come in through the ingest endpoints.",
     "version": "0.1.0"
   },
   "paths": {
@@ -3378,6 +3378,481 @@
           }
         }
       }
+    },
+    "/v1/workspaces/{workspace}/sessions": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Ingest Session",
+        "description": "Ingest a finished session in the canonical format: an idempotent upsert on (platform, external_id).\n201 when created; 200 when it already existed (updated if its content changed, else untouched).\nStarts `process_session` for a new or changed session.",
+        "operationId": "ingest_session",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionIngested"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionIngested"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong ingest token."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "List Sessions",
+        "description": "Sessions, newest first by start time.",
+        "operationId": "list_sessions",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "sopc agent id, or the agent as sent.",
+              "title": "Agent"
+            },
+            "description": "sopc agent id, or the agent as sent."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "received",
+                    "routed",
+                    "checked",
+                    "excluded",
+                    "partial",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "livekit",
+                    "elevenlabs",
+                    "vapi",
+                    "otel",
+                    "import",
+                    "api"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Started at or after.",
+              "title": "Since"
+            },
+            "description": "Started at or after."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Started before.",
+              "title": "Until"
+            },
+            "description": "Started before."
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`next_cursor` from the previous page.",
+              "title": "Cursor"
+            },
+            "description": "`next_cursor` from the previous page."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionPage"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/stream": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Stream Sessions",
+        "description": "Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`\neach time a session is ingested or the pipeline updates it. A comment every 15s keeps the connection open.",
+        "operationId": "stream_sessions",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON.",
+            "content": {
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/{id}": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get Session",
+        "description": "One session with its transcript, tool calls and metadata.",
+        "operationId": "get_session",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ingest-token": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Get Ingest Token",
+        "description": "Whether the workspace has an ingest token, and its first characters. The token itself is never shown again.",
+        "operationId": "get_ingest_token",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestTokenInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Rotate Ingest Token",
+        "description": "Create the workspace's ingest token, or replace it (the old one stops working). Returned once.",
+        "operationId": "rotate_ingest_token",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestTokenCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Revoke Ingest Token",
+        "description": "Delete the ingest token: ingest is refused until a new one is made.",
+        "operationId": "revoke_ingest_token",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4525,6 +5000,70 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "IngestTokenCreated": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Shown once. Send as `Authorization: Bearer <token>` to the ingest endpoints."
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "prefix",
+          "created_at"
+        ],
+        "title": "IngestTokenCreated"
+      },
+      "IngestTokenInfo": {
+        "properties": {
+          "exists": {
+            "type": "boolean",
+            "title": "Exists"
+          },
+          "prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prefix",
+            "description": "The token's first characters, to tell tokens apart."
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exists",
+          "prefix",
+          "created_at"
+        ],
+        "title": "IngestTokenInfo"
       },
       "InstructionConfig": {
         "properties": {
@@ -5973,6 +6512,644 @@
         ],
         "title": "ReplaceRequest"
       },
+      "SessionDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The sopc agent, if the payload's agent matched one."
+          },
+          "agent_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Ref",
+            "description": "The agent as sent."
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Channel"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi",
+              "otel",
+              "import",
+              "api"
+            ],
+            "title": "Platform"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id"
+          },
+          "version_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Ref"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "routed",
+              "checked",
+              "excluded",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "turn_count": {
+            "type": "integer",
+            "title": "Turn Count"
+          },
+          "tool_call_count": {
+            "type": "integer",
+            "title": "Tool Call Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At",
+            "description": "When the pipeline last finished with it."
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/SessionTurn"
+            },
+            "type": "array",
+            "title": "Turns"
+          },
+          "tool_calls": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Tool Calls"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace",
+          "agent_id",
+          "agent_ref",
+          "channel",
+          "platform",
+          "external_id",
+          "release_id",
+          "version_ref",
+          "started_at",
+          "ended_at",
+          "duration_s",
+          "status",
+          "status_reason",
+          "turn_count",
+          "tool_call_count",
+          "created_at",
+          "updated_at",
+          "processed_at",
+          "turns",
+          "tool_calls",
+          "metadata"
+        ],
+        "title": "SessionDetail"
+      },
+      "SessionIn": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi",
+              "otel",
+              "import",
+              "api"
+            ],
+            "title": "Platform"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "External Id",
+            "description": "The platform's id for the session (room or job id, conversation id, call id). With `platform`, the session's unique key."
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Channel",
+            "default": "voice"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent",
+            "description": "The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`)."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The sopops release the agent ran on, as returned at session start."
+          },
+          "version_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Ref",
+            "description": "The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`)."
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "Default: the first turn's `at`, else when sopops received it."
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "The sender knows the transcript is incomplete.",
+            "default": false
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/TurnIn"
+            },
+            "type": "array",
+            "title": "Turns",
+            "description": "In order."
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCallIn"
+            },
+            "type": "array",
+            "title": "Tool Calls"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "external_id"
+        ],
+        "title": "SessionIn",
+        "description": "A finished session in the canonical format. Every transport (helpers, webhooks, imports) converts into this."
+      },
+      "SessionIngested": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created": {
+            "type": "boolean",
+            "title": "Created",
+            "description": "A new session."
+          },
+          "updated": {
+            "type": "boolean",
+            "title": "Updated",
+            "description": "An existing session whose content changed. Both false: an identical re-send, nothing changed."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "routed",
+              "checked",
+              "excluded",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "E.g. a release that doesn't exist (the session is kept without it)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created",
+          "updated",
+          "status",
+          "warnings"
+        ],
+        "title": "SessionIngested"
+      },
+      "SessionPage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SessionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor",
+            "description": "Pass as `cursor` for the next (older) page; null on the last page."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "SessionPage"
+      },
+      "SessionSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id",
+            "description": "The sopc agent, if the payload's agent matched one."
+          },
+          "agent_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Ref",
+            "description": "The agent as sent."
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Channel"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi",
+              "otel",
+              "import",
+              "api"
+            ],
+            "title": "Platform"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id"
+          },
+          "version_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Ref"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration S"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "received",
+              "routed",
+              "checked",
+              "excluded",
+              "partial",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "status_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Reason"
+          },
+          "turn_count": {
+            "type": "integer",
+            "title": "Turn Count"
+          },
+          "tool_call_count": {
+            "type": "integer",
+            "title": "Tool Call Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "processed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Processed At",
+            "description": "When the pipeline last finished with it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "workspace",
+          "agent_id",
+          "agent_ref",
+          "channel",
+          "platform",
+          "external_id",
+          "release_id",
+          "version_ref",
+          "started_at",
+          "ended_at",
+          "duration_s",
+          "status",
+          "status_reason",
+          "turn_count",
+          "tool_call_count",
+          "created_at",
+          "updated_at",
+          "processed_at"
+        ],
+        "title": "SessionSummary"
+      },
+      "SessionTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "agent",
+              "user",
+              "tool",
+              "system"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "offset_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset S"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role",
+          "text",
+          "offset_s"
+        ],
+        "title": "SessionTurn"
+      },
       "SettingsConfig": {
         "properties": {
           "version": {
@@ -6170,6 +7347,117 @@
         ],
         "title": "Step"
       },
+      "ToolCallIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "arguments": {
+            "title": "Arguments"
+          },
+          "result": {
+            "title": "Result"
+          },
+          "is_error": {
+            "type": "boolean",
+            "title": "Is Error",
+            "default": false
+          },
+          "call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Call Id"
+          },
+          "offset_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset S"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ToolCallIn"
+      },
+      "TurnIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role",
+            "description": "`agent`, `user`, `tool` or `system`. Common aliases (`assistant`, `bot`, `human`, `customer`, `function`) are mapped."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "default": ""
+          },
+          "offset_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offset S",
+            "description": "Seconds since the session started."
+          },
+          "at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At",
+            "description": "When the turn happened, if `offset_s` isn't known: ISO 8601, or Unix seconds or milliseconds. Turned into `offset_s`."
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "TurnIn",
+        "description": "One turn. Extra fields (interrupted, confidence, ...) are kept as sent."
+      },
       "Use": {
         "properties": {
           "agent": {
@@ -6326,6 +7614,13 @@
           "deleted"
         ],
         "title": "WrittenFile"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "description": "The workspace's ingest token (Settings \u2192 Ingest token).",
+        "scheme": "bearer"
       }
     }
   }

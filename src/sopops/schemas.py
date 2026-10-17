@@ -415,7 +415,9 @@ class DraftItem(BaseModel):
 # --- sessions ----------------------------------------------------------------
 
 Channel = Literal["voice", "text"]
-Platform = Literal["livekit", "elevenlabs", "vapi", "retell", "otel", "import", "api"]
+# Where a session came from: a voice platform (LiveKit first), or a transport (OpenTelemetry, a file import, the API).
+# Add a platform here (and to the UI's list) to accept it; the column is a plain string.
+Platform = Literal["livekit", "elevenlabs", "vapi", "otel", "import", "api"]
 SessionStatus = Literal["received", "routed", "checked", "excluded", "partial", "failed"]
 
 
@@ -450,7 +452,7 @@ class SessionIn(_BaseModel):
     channel: Channel = "voice"
     agent: str | None = Field(None, max_length=256, description="The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`).")
     release: int | None = Field(None, description="The sopops release the agent ran on, as returned at session start.")
-    version_ref: str | None = Field(None, max_length=256, description="The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`, Retell `agent_version`).")
+    version_ref: str | None = Field(None, max_length=256, description="The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`).")
     started_at: datetime | None = Field(None, description="Default: the first turn's `at`, else when sopops received it.")
     ended_at: datetime | None = None
     partial: bool = Field(False, description="The sender knows the transcript is incomplete.")

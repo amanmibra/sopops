@@ -1,5 +1,6 @@
 // The forms: agent builder, shared instruction, procedure, group and settings.
 import { useEffect, useRef, useState } from "react";
+import { IngestTokenPanel } from "./sessions";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
 import { DELIVERY, type Kind, PLATFORMS, slug } from "@/lib/kinds";
@@ -108,7 +109,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PLATFORMS.map((p) => (
+                  {PLATFORMS.filter((p) => !p.legacy || p.value === item?.platform).map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       {p.label}
                     </SelectItem>
@@ -397,6 +398,7 @@ function SettingsForm() {
           <Input id="f-procedures_heading" value={m.procedures_heading} onChange={(e) => set({ procedures_heading: e.target.value })} />
         </Field>
       </div>
+      <IngestTokenPanel />
       <ActionBar kind="settings" isNew={false} dirty={dirty} onSave={(note, then) => onSave({ variables: m.variables, procedures_heading: m.procedures_heading }, note, then)} />
     </Page>
   );

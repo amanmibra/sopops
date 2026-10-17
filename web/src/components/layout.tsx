@@ -199,6 +199,7 @@ export function Rail() {
         <>
           <div className="mb-[18px]">
             <RailLink href={wsHref(ws, "overview")}>Overview</RailLink>
+            <RailLink href={wsHref(ws, "sessions")}>Sessions</RailLink>
           </div>
           {group("agent", cfg.agents.map((a) => ({ id: a.id, label: a.id })))}
           {group("instruction", cfg.instructions.map((a) => ({ id: a.id, label: a.id })))}

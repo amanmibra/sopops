@@ -14,11 +14,13 @@ export const KIND: Record<Kind, { one: string; many: string; route: string; badg
 
 export const BLOCK_KINDS: BlockKind[] = ["group", "instruction", "procedure"];
 
+// The platforms sopops supports, LiveKit first. sopc also knows `retell`; an agent that already uses it keeps it
+// (`legacy`), but it isn't offered for new agents.
 export const PLATFORMS = [
-  { value: "livekit", label: "LiveKit", idLabel: "Agent name" },
-  { value: "vapi", label: "Vapi", idLabel: "Assistant ID" },
-  { value: "elevenlabs", label: "ElevenLabs", idLabel: "Agent ID" },
-  { value: "retell", label: "Retell", idLabel: "Agent ID" },
+  { value: "livekit", label: "LiveKit", idLabel: "Agent name", legacy: false },
+  { value: "elevenlabs", label: "ElevenLabs", idLabel: "Agent ID", legacy: false },
+  { value: "vapi", label: "Vapi", idLabel: "Assistant ID", legacy: false },
+  { value: "retell", label: "Retell", idLabel: "Agent ID", legacy: true },
 ] as const;
 export type Platform = (typeof PLATFORMS)[number]["value"];
 export const platformName = (p: string) => PLATFORMS.find((x) => x.value === p)?.label ?? p;

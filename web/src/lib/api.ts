@@ -1,8 +1,8 @@
 // The generated client (src/client, from FastAPI's OpenAPI spec), errors as ApiError, and the queries pages share.
-import { type QueryClient, queryOptions } from "@tanstack/react-query";
+import { type QueryClient, infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { client } from "@/client/client.gen";
 import * as sdk from "@/client/sdk.gen";
-import type { ConfigResponse, IssueOut } from "@/client/types.gen";
+import type { ConfigResponse, IssueOut, SessionSummary } from "@/client/types.gen";
 
 client.setConfig({ baseUrl: "" });
 
@@ -87,6 +87,16 @@ export const q = {
     }),
   draft: (ws: string) => queryOptions({ queryKey: ["ws", ws, "draft"], queryFn: () => call(sdk.draft(path(ws))) }),
   releases: (ws: string) => queryOptions({ queryKey: ["ws", ws, "releases"], queryFn: () => call(sdk.listReleases(path(ws))) }),
+  sessions: (ws: string, filters: SessionFilters) =>
+    infiniteQueryOptions({
+      queryKey: ["ws", ws, "sessions", filters],
+      queryFn: ({ pageParam }) =>
+        call(sdk.listSessions({ path: { workspace: ws }, query: { ...sessionQuery(filters), cursor: pageParam ?? undefined, limit: 50 } })),
+      initialPageParam: null as string | null,
+      getNextPageParam: (last) => last.next_cursor,
+    }),
+  session: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "session", id], queryFn: () => call(sdk.getSession({ path: { workspace: ws, id } })) }),
+  ingestToken: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ingest-token"], queryFn: () => call(sdk.getIngestToken(path(ws))) }),
   release: (ws: string, number: number) =>
     queryOptions({ queryKey: ["ws", ws, "release", number], queryFn: () => call(sdk.getRelease({ path: { workspace: ws, number } })), staleTime: Infinity }),
 };
@@ -95,3 +105,20 @@ export const q = {
 export async function refresh(qc: QueryClient, ws: string) {
   await Promise.all([qc.invalidateQueries({ queryKey: ["ws", ws] }), qc.invalidateQueries({ queryKey: ["workspaces"] })]);
 }
+
+/** The Sessions page's filters, as kept in the URL. `since`/`until` are local date-times (datetime-local inputs). */
+export type SessionFilters = {
+  agent?: string;
+  channel?: "voice" | "text";
+  status?: SessionSummary["status"];
+  since?: string;
+  until?: string;
+};
+
+function sessionQuery(f: SessionFilters) {
+  const iso = (local?: string) => (local ? new Date(local).toISOString() : undefined);
+  return { agent: f.agent, channel: f.channel, status: f.status, since: iso(f.since), until: iso(f.until) };
+}
+
+/** What `…/sessions/stream` sends with each `session` event. */
+export type SessionEvent = { type: "created" | "updated"; workspace: string; id: string; status: SessionSummary["status"] };

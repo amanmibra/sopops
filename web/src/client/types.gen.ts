@@ -681,6 +681,46 @@ export type HttpValidationError = {
 };
 
 /**
+ * IngestTokenCreated
+ */
+export type IngestTokenCreated = {
+    /**
+     * Token
+     *
+     * Shown once. Send as `Authorization: Bearer <token>` to the ingest endpoints.
+     */
+    token: string;
+    /**
+     * Prefix
+     */
+    prefix: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * IngestTokenInfo
+ */
+export type IngestTokenInfo = {
+    /**
+     * Exists
+     */
+    exists: boolean;
+    /**
+     * Prefix
+     *
+     * The token's first characters, to tell tokens apart.
+     */
+    prefix: string | null;
+    /**
+     * Created At
+     */
+    created_at: string | null;
+};
+
+/**
  * InstructionConfig
  */
 export type InstructionConfig = {
@@ -1551,6 +1591,337 @@ export type ReplaceRequest = {
 };
 
 /**
+ * SessionDetail
+ */
+export type SessionDetail = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Agent Id
+     *
+     * The sopc agent, if the payload's agent matched one.
+     */
+    agent_id: string | null;
+    /**
+     * Agent Ref
+     *
+     * The agent as sent.
+     */
+    agent_ref: string | null;
+    /**
+     * Channel
+     */
+    channel: 'voice' | 'text';
+    /**
+     * Platform
+     */
+    platform: 'livekit' | 'elevenlabs' | 'vapi' | 'otel' | 'import' | 'api';
+    /**
+     * External Id
+     */
+    external_id: string;
+    /**
+     * Release Id
+     */
+    release_id: number | null;
+    /**
+     * Version Ref
+     */
+    version_ref: string | null;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Status
+     */
+    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    /**
+     * Status Reason
+     */
+    status_reason: string | null;
+    /**
+     * Turn Count
+     */
+    turn_count: number;
+    /**
+     * Tool Call Count
+     */
+    tool_call_count: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Processed At
+     *
+     * When the pipeline last finished with it.
+     */
+    processed_at: string | null;
+    /**
+     * Turns
+     */
+    turns: Array<SessionTurn>;
+    /**
+     * Tool Calls
+     */
+    tool_calls: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Metadata
+     */
+    metadata: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * SessionIn
+ *
+ * A finished session in the canonical format. Every transport (helpers, webhooks, imports) converts into this.
+ */
+export type SessionIn = {
+    /**
+     * Platform
+     */
+    platform: 'livekit' | 'elevenlabs' | 'vapi' | 'otel' | 'import' | 'api';
+    /**
+     * External Id
+     *
+     * The platform's id for the session (room or job id, conversation id, call id). With `platform`, the session's unique key.
+     */
+    external_id: string;
+    /**
+     * Channel
+     */
+    channel?: 'voice' | 'text';
+    /**
+     * Agent
+     *
+     * The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`).
+     */
+    agent?: string | null;
+    /**
+     * Release
+     *
+     * The sopops release the agent ran on, as returned at session start.
+     */
+    release?: number | null;
+    /**
+     * Version Ref
+     *
+     * The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`).
+     */
+    version_ref?: string | null;
+    /**
+     * Started At
+     *
+     * Default: the first turn's `at`, else when sopops received it.
+     */
+    started_at?: string | null;
+    /**
+     * Ended At
+     */
+    ended_at?: string | null;
+    /**
+     * Partial
+     *
+     * The sender knows the transcript is incomplete.
+     */
+    partial?: boolean;
+    /**
+     * Turns
+     *
+     * In order.
+     */
+    turns?: Array<TurnIn>;
+    /**
+     * Tool Calls
+     */
+    tool_calls?: Array<ToolCallIn>;
+    /**
+     * Metadata
+     */
+    metadata?: {
+        [key: string]: unknown;
+    };
+};
+
+/**
+ * SessionIngested
+ */
+export type SessionIngested = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Created
+     *
+     * A new session.
+     */
+    created: boolean;
+    /**
+     * Updated
+     *
+     * An existing session whose content changed. Both false: an identical re-send, nothing changed.
+     */
+    updated: boolean;
+    /**
+     * Status
+     */
+    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    /**
+     * Warnings
+     *
+     * E.g. a release that doesn't exist (the session is kept without it).
+     */
+    warnings: Array<string>;
+};
+
+/**
+ * SessionPage
+ */
+export type SessionPage = {
+    /**
+     * Items
+     */
+    items: Array<SessionSummary>;
+    /**
+     * Next Cursor
+     *
+     * Pass as `cursor` for the next (older) page; null on the last page.
+     */
+    next_cursor: string | null;
+};
+
+/**
+ * SessionSummary
+ */
+export type SessionSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Agent Id
+     *
+     * The sopc agent, if the payload's agent matched one.
+     */
+    agent_id: string | null;
+    /**
+     * Agent Ref
+     *
+     * The agent as sent.
+     */
+    agent_ref: string | null;
+    /**
+     * Channel
+     */
+    channel: 'voice' | 'text';
+    /**
+     * Platform
+     */
+    platform: 'livekit' | 'elevenlabs' | 'vapi' | 'otel' | 'import' | 'api';
+    /**
+     * External Id
+     */
+    external_id: string;
+    /**
+     * Release Id
+     */
+    release_id: number | null;
+    /**
+     * Version Ref
+     */
+    version_ref: string | null;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     */
+    ended_at: string | null;
+    /**
+     * Duration S
+     */
+    duration_s: number | null;
+    /**
+     * Status
+     */
+    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    /**
+     * Status Reason
+     */
+    status_reason: string | null;
+    /**
+     * Turn Count
+     */
+    turn_count: number;
+    /**
+     * Tool Call Count
+     */
+    tool_call_count: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Processed At
+     *
+     * When the pipeline last finished with it.
+     */
+    processed_at: string | null;
+};
+
+/**
+ * SessionTurn
+ */
+export type SessionTurn = {
+    /**
+     * Role
+     */
+    role: 'agent' | 'user' | 'tool' | 'system';
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Offset S
+     */
+    offset_s: number | null;
+    [key: string]: unknown;
+};
+
+/**
  * SettingsConfig
  */
 export type SettingsConfig = {
@@ -1673,6 +2044,72 @@ export type StepOutput = {
      * Steps only: the tool call must happen.
      */
     required: boolean;
+};
+
+/**
+ * ToolCallIn
+ */
+export type ToolCallIn = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Arguments
+     */
+    arguments?: unknown;
+    /**
+     * Result
+     */
+    result?: unknown;
+    /**
+     * Is Error
+     */
+    is_error?: boolean;
+    /**
+     * Call Id
+     */
+    call_id?: string | null;
+    /**
+     * Offset S
+     */
+    offset_s?: number | null;
+    /**
+     * At
+     */
+    at?: string | number | null;
+    [key: string]: unknown;
+};
+
+/**
+ * TurnIn
+ *
+ * One turn. Extra fields (interrupted, confidence, ...) are kept as sent.
+ */
+export type TurnIn = {
+    /**
+     * Role
+     *
+     * `agent`, `user`, `tool` or `system`. Common aliases (`assistant`, `bot`, `human`, `customer`, `function`) are mapped.
+     */
+    role: string;
+    /**
+     * Text
+     */
+    text?: string;
+    /**
+     * Offset S
+     *
+     * Seconds since the session started.
+     */
+    offset_s?: number | null;
+    /**
+     * At
+     *
+     * When the turn happened, if `offset_s` isn't known: ISO 8601, or Unix seconds or milliseconds. Turned into `offset_s`.
+     */
+    at?: string | number | null;
+    [key: string]: unknown;
 };
 
 /**
@@ -3832,3 +4269,264 @@ export type ListFetchesResponses = {
 };
 
 export type ListFetchesResponse = ListFetchesResponses[keyof ListFetchesResponses];
+
+export type ListSessionsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Agent
+         *
+         * sopc agent id, or the agent as sent.
+         */
+        agent?: string | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+        /**
+         * Status
+         */
+        status?: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed' | null;
+        /**
+         * Platform
+         */
+        platform?: 'livekit' | 'elevenlabs' | 'vapi' | 'otel' | 'import' | 'api' | null;
+        /**
+         * Since
+         *
+         * Started at or after.
+         */
+        since?: string | null;
+        /**
+         * Until
+         *
+         * Started before.
+         */
+        until?: string | null;
+        /**
+         * Cursor
+         *
+         * `next_cursor` from the previous page.
+         */
+        cursor?: string | null;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/v1/workspaces/{workspace}/sessions';
+};
+
+export type ListSessionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionPage;
+};
+
+export type ListSessionsResponse = ListSessionsResponses[keyof ListSessionsResponses];
+
+export type IngestSessionData = {
+    body: SessionIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions';
+};
+
+export type IngestSessionErrors = {
+    /**
+     * Missing or wrong ingest token.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IngestSessionError = IngestSessionErrors[keyof IngestSessionErrors];
+
+export type IngestSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionIngested;
+    /**
+     * Created.
+     */
+    201: SessionIngested;
+};
+
+export type IngestSessionResponse = IngestSessionResponses[keyof IngestSessionResponses];
+
+export type StreamSessionsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/stream';
+};
+
+export type StreamSessionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StreamSessionsError = StreamSessionsErrors[keyof StreamSessionsErrors];
+
+export type StreamSessionsResponses = {
+    /**
+     * Server-sent events: `event: session`, `data: SessionEvent` JSON.
+     */
+    200: unknown;
+};
+
+export type GetSessionData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/{id}';
+};
+
+export type GetSessionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSessionError = GetSessionErrors[keyof GetSessionErrors];
+
+export type GetSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionDetail;
+};
+
+export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type RevokeIngestTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ingest-token';
+};
+
+export type RevokeIngestTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeIngestTokenError = RevokeIngestTokenErrors[keyof RevokeIngestTokenErrors];
+
+export type RevokeIngestTokenResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RevokeIngestTokenResponse = RevokeIngestTokenResponses[keyof RevokeIngestTokenResponses];
+
+export type GetIngestTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ingest-token';
+};
+
+export type GetIngestTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetIngestTokenError = GetIngestTokenErrors[keyof GetIngestTokenErrors];
+
+export type GetIngestTokenResponses = {
+    /**
+     * Successful Response
+     */
+    200: IngestTokenInfo;
+};
+
+export type GetIngestTokenResponse = GetIngestTokenResponses[keyof GetIngestTokenResponses];
+
+export type RotateIngestTokenData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ingest-token';
+};
+
+export type RotateIngestTokenErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RotateIngestTokenError = RotateIngestTokenErrors[keyof RotateIngestTokenErrors];
+
+export type RotateIngestTokenResponses = {
+    /**
+     * Successful Response
+     */
+    200: IngestTokenCreated;
+};
+
+export type RotateIngestTokenResponse = RotateIngestTokenResponses[keyof RotateIngestTokenResponses];

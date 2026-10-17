@@ -82,7 +82,7 @@ class SessionRecord(SQLModel, table=True):
     agent_id: str | None = Field(default=None, max_length=256, description="The sopc agent, when the payload's agent could be matched.")
     agent_ref: str | None = Field(default=None, max_length=256, description="The agent as the payload named it.")
     channel: str = Field(max_length=16)  # voice | text
-    platform: str = Field(max_length=32)  # livekit | elevenlabs | vapi | retell | otel | import | api
+    platform: str = Field(max_length=32)  # livekit | elevenlabs | vapi | otel | import | api (schemas.Platform)
     external_id: str = Field(max_length=256)
     release_id: int | None = Field(default=None, description="The sopops release the session ran on.")
     version_ref: str | None = Field(default=None, max_length=256, description="The platform's own version id.")
