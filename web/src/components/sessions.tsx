@@ -341,8 +341,8 @@ export function IngestTokenPanel() {
       className="mt-8"
     >
       <p className="text-muted-foreground mb-3 text-[13px]">
-        Agents and webhooks send sessions to <code>{url}/sessions</code> with <code>Authorization: Bearer &lt;token&gt;</code>. It's only for sending
-        sessions; the rest of sopops has no sign-in yet.
+        Agents and webhooks send sessions to <code>{url}/sessions</code> with <code>Authorization: Bearer &lt;token&gt;</code>. It's also the runtime
+        token: once it exists, prompt fetches (<code>…/agents/&lt;agent&gt;</code>) need it too. The rest of sopops has no sign-in yet.
       </p>
       {info.isError && <ErrorBanner error={info.error} />}
       {shown && (

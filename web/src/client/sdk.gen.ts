@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetIngestTokenData, GetIngestTokenErrors, GetIngestTokenResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, RevokeIngestTokenData, RevokeIngestTokenErrors, RevokeIngestTokenResponses, RotateIngestTokenData, RotateIngestTokenErrors, RotateIngestTokenResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, ValidateData, ValidateErrors, ValidateResponses } from './types.gen';
+import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DeletePlatformSecretData, DeletePlatformSecretErrors, DeletePlatformSecretResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, ElevenlabsConversationInitData, ElevenlabsConversationInitErrors, ElevenlabsConversationInitResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetIngestTokenData, GetIngestTokenErrors, GetIngestTokenResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListDeliveryData, ListDeliveryErrors, ListDeliveryResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListPlatformsData, ListPlatformsErrors, ListPlatformsResponses, ListPushesData, ListPushesErrors, ListPushesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RecordServedData, RecordServedErrors, RecordServedResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, RetryPushesData, RetryPushesErrors, RetryPushesResponses, RevokeIngestTokenData, RevokeIngestTokenErrors, RevokeIngestTokenResponses, RotateIngestTokenData, RotateIngestTokenErrors, RotateIngestTokenResponses, SetDeliveryData, SetDeliveryErrors, SetDeliveryResponses, SetPlatformSecretData, SetPlatformSecretErrors, SetPlatformSecretResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, TestPlatformKeyData, TestPlatformKeyErrors, TestPlatformKeyResponses, ValidateData, ValidateErrors, ValidateResponses, VapiAssistantRequestData, VapiAssistantRequestErrors, VapiAssistantRequestResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,125 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * List Delivery
+ *
+ * Every agent at head, with how it gets its prompt: `pull`, `push` or `both`.
+ */
+export const listDelivery = <ThrowOnError extends boolean = false>(options: Options<ListDeliveryData, ThrowOnError>): RequestResult<ListDeliveryResponses, ListDeliveryErrors, ThrowOnError> => (options.client ?? client).get<ListDeliveryResponses, ListDeliveryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/delivery', ...options });
+
+/**
+ * Set Delivery
+ *
+ * Set an agent's delivery mode. Push needs the platform's API key; LiveKit agents only pull.
+ */
+export const setDelivery = <ThrowOnError extends boolean = false>(options: Options<SetDeliveryData, ThrowOnError>): RequestResult<SetDeliveryResponses, SetDeliveryErrors, ThrowOnError> => (options.client ?? client).put<SetDeliveryResponses, SetDeliveryErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/runtime/delivery/{agent}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Platforms
+ *
+ * Which platform API keys and webhook secrets are stored. Never the values.
+ */
+export const listPlatforms = <ThrowOnError extends boolean = false>(options: Options<ListPlatformsData, ThrowOnError>): RequestResult<ListPlatformsResponses, ListPlatformsErrors, ThrowOnError> => (options.client ?? client).get<ListPlatformsResponses, ListPlatformsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/platforms', ...options });
+
+/**
+ * Delete Platform Secret
+ */
+export const deletePlatformSecret = <ThrowOnError extends boolean = false>(options: Options<DeletePlatformSecretData, ThrowOnError>): RequestResult<DeletePlatformSecretResponses, DeletePlatformSecretErrors, ThrowOnError> => (options.client ?? client).delete<DeletePlatformSecretResponses, DeletePlatformSecretErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/{kind}', ...options });
+
+/**
+ * Set Platform Secret
+ *
+ * Store an API key or webhook secret, encrypted with SOPOPS_SECRET_KEY. A webhook secret sent empty is
+ * generated and returned this once. 503 without SOPOPS_SECRET_KEY.
+ */
+export const setPlatformSecret = <ThrowOnError extends boolean = false>(options: Options<SetPlatformSecretData, ThrowOnError>): RequestResult<SetPlatformSecretResponses, SetPlatformSecretErrors, ThrowOnError> => (options.client ?? client).put<SetPlatformSecretResponses, SetPlatformSecretErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/{kind}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Test Platform Key
+ *
+ * Read one agent with the stored API key (a GET; nothing changes).
+ */
+export const testPlatformKey = <ThrowOnError extends boolean = false>(options: Options<TestPlatformKeyData, ThrowOnError>): RequestResult<TestPlatformKeyResponses, TestPlatformKeyErrors, ThrowOnError> => (options.client ?? client).post<TestPlatformKeyResponses, TestPlatformKeyErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/test',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List Pushes
+ *
+ * Each push-mode agent's latest push of this release: `ok`, `unchanged` (already live there) or `error`.
+ */
+export const listPushes = <ThrowOnError extends boolean = false>(options: Options<ListPushesData, ThrowOnError>): RequestResult<ListPushesResponses, ListPushesErrors, ThrowOnError> => (options.client ?? client).get<ListPushesResponses, ListPushesErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/releases/{number}/pushes', ...options });
+
+/**
+ * Retry Pushes
+ *
+ * Push again: the given agents, or every agent whose last push failed. Only the live release is pushed (409 otherwise).
+ */
+export const retryPushes = <ThrowOnError extends boolean = false>(options: Options<RetryPushesData, ThrowOnError>): RequestResult<RetryPushesResponses, RetryPushesErrors, ThrowOnError> => (options.client ?? client).post<RetryPushesResponses, RetryPushesErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/releases/{number}/pushes/retry',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Record Served
+ *
+ * Remember which release a call ran on, once its id is known, so the session that arrives later (an
+ * ElevenLabs post-call webhook) links to it. Takes the runtime token, like prompt fetches.
+ */
+export const recordServed = <ThrowOnError extends boolean = false>(options: Options<RecordServedData, ThrowOnError>): RequestResult<RecordServedResponses, RecordServedErrors, ThrowOnError> => (options.client ?? client).post<RecordServedResponses, RecordServedErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/runtime/served',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Elevenlabs Conversation Init
+ *
+ * ElevenLabs' conversation-initiation webhook: returns the compiled prompt as
+ * `conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.
+ * The agent must allow overriding its system prompt (Security → Overrides).
+ */
+export const elevenlabsConversationInit = <ThrowOnError extends boolean = false>(options: Options<ElevenlabsConversationInitData, ThrowOnError>): RequestResult<ElevenlabsConversationInitResponses, ElevenlabsConversationInitErrors, ThrowOnError> => (options.client ?? client).post<ElevenlabsConversationInitResponses, ElevenlabsConversationInitErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/elevenlabs/conversation-init', ...options });
+
+/**
+ * Vapi Assistant Request
+ *
+ * Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry
+ * the compiled prompt: `model` with the system message replaced (read from the assistant with the stored API
+ * key), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.
+ * `metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.
+ * Other server messages get an empty 200.
+ */
+export const vapiAssistantRequest = <ThrowOnError extends boolean = false>(options: Options<VapiAssistantRequestData, ThrowOnError>): RequestResult<VapiAssistantRequestResponses, VapiAssistantRequestErrors, ThrowOnError> => (options.client ?? client).post<VapiAssistantRequestResponses, VapiAssistantRequestErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/vapi/assistant-request', ...options });
 
 /**
  * Validate
@@ -478,7 +597,7 @@ export const listReleases = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Create Release
  *
- * Release head and serve it.
+ * Release head and serve it. Agents set to push get it on their platform, after the response.
  */
 export const createRelease = <ThrowOnError extends boolean = false>(options: Options<CreateReleaseData, ThrowOnError>): RequestResult<CreateReleaseResponses, CreateReleaseErrors, ThrowOnError> => (options.client ?? client).post<CreateReleaseResponses, CreateReleaseErrors, ThrowOnError>({
     url: '/v1/workspaces/{workspace}/releases',
@@ -499,7 +618,7 @@ export const getRelease = <ThrowOnError extends boolean = false>(options: Option
 /**
  * Activate
  *
- * Serve this release, e.g. to roll back.
+ * Serve this release, e.g. to roll back. Agents set to push get it on their platform, after the response.
  */
 export const activate = <ThrowOnError extends boolean = false>(options: Options<ActivateData, ThrowOnError>): RequestResult<ActivateResponses, ActivateErrors, ThrowOnError> => (options.client ?? client).post<ActivateResponses, ActivateErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/releases/{number}/activate', ...options });
 
@@ -527,21 +646,33 @@ export const listAgents = <ThrowOnError extends boolean = false>(options: Option
  *
  * What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch.
  */
-export const getAgent = <ThrowOnError extends boolean = false>(options: Options<GetAgentData, ThrowOnError>): RequestResult<GetAgentResponses, GetAgentErrors, ThrowOnError> => (options.client ?? client).get<GetAgentResponses, GetAgentErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/agents/{agent}', ...options });
+export const getAgent = <ThrowOnError extends boolean = false>(options: Options<GetAgentData, ThrowOnError>): RequestResult<GetAgentResponses, GetAgentErrors, ThrowOnError> => (options.client ?? client).get<GetAgentResponses, GetAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/agents/{agent}',
+    ...options
+});
 
 /**
  * Get Prompt
  *
  * Just the prompt text. Logs a fetch.
  */
-export const getPrompt = <ThrowOnError extends boolean = false>(options: Options<GetPromptData, ThrowOnError>): RequestResult<GetPromptResponses, GetPromptErrors, ThrowOnError> => (options.client ?? client).get<GetPromptResponses, GetPromptErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/agents/{agent}/prompt', ...options });
+export const getPrompt = <ThrowOnError extends boolean = false>(options: Options<GetPromptData, ThrowOnError>): RequestResult<GetPromptResponses, GetPromptErrors, ThrowOnError> => (options.client ?? client).get<GetPromptResponses, GetPromptErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/agents/{agent}/prompt',
+    ...options
+});
 
 /**
  * Get Sop
  *
  * What the `get_sop` tool returns for SOPs with `delivery: auto | tool`.
  */
-export const getSop = <ThrowOnError extends boolean = false>(options: Options<GetSopData, ThrowOnError>): RequestResult<GetSopResponses, GetSopErrors, ThrowOnError> => (options.client ?? client).get<GetSopResponses, GetSopErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}', ...options });
+export const getSop = <ThrowOnError extends boolean = false>(options: Options<GetSopData, ThrowOnError>): RequestResult<GetSopResponses, GetSopErrors, ThrowOnError> => (options.client ?? client).get<GetSopResponses, GetSopErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}',
+    ...options
+});
 
 /**
  * List Fetches

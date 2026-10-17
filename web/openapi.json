@@ -6,6 +6,731 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/v1/workspaces/{workspace}/runtime/delivery": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "List Delivery",
+        "description": "Every agent at head, with how it gets its prompt: `pull`, `push` or `both`.",
+        "operationId": "list_delivery",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentDeliveryOut"
+                  },
+                  "title": "Response List Delivery"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/delivery/{agent}": {
+      "put": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Set Delivery",
+        "description": "Set an agent's delivery mode. Push needs the platform's API key; LiveKit agents only pull.",
+        "operationId": "set_delivery",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliveryIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentDeliveryOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/platforms": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "List Platforms",
+        "description": "Which platform API keys and webhook secrets are stored. Never the values.",
+        "operationId": "list_platforms",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformCredentials"
+                  },
+                  "title": "Response List Platforms"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/platforms/{platform}/{kind}": {
+      "put": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Set Platform Secret",
+        "description": "Store an API key or webhook secret, encrypted with SOPOPS_SECRET_KEY. A webhook secret sent empty is\ngenerated and returned this once. 503 without SOPOPS_SECRET_KEY.",
+        "operationId": "set_platform_secret",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "api-key",
+                "webhook-secret"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SecretIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Delete Platform Secret",
+        "operationId": "delete_platform_secret",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "api-key",
+                "webhook-secret"
+              ],
+              "type": "string",
+              "title": "Kind"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/platforms/{platform}/test": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Test Platform Key",
+        "description": "Read one agent with the stored API key (a GET; nothing changes).",
+        "operationId": "test_platform_key",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/KeyTestIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyTestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/releases/{number}/pushes": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "List Pushes",
+        "description": "Each push-mode agent's latest push of this release: `ok`, `unchanged` (already live there) or `error`.",
+        "operationId": "list_pushes",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PushResultOut"
+                  },
+                  "title": "Response List Pushes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/releases/{number}/pushes/retry": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Retry Pushes",
+        "description": "Push again: the given agents, or every agent whose last push failed. Only the live release is pushed (409 otherwise).",
+        "operationId": "retry_pushes",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "number",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Number"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RetryIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PushResultOut"
+                  },
+                  "title": "Response Retry Pushes"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/served": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Record Served",
+        "description": "Remember which release a call ran on, once its id is known, so the session that arrives later (an\nElevenLabs post-call webhook) links to it. Takes the runtime token, like prompt fetches.",
+        "operationId": "record_served",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServedIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServedOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or wrong runtime token."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/elevenlabs/conversation-init": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Elevenlabs Conversation Init",
+        "description": "ElevenLabs' conversation-initiation webhook: returns the compiled prompt as\n`conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.\nThe agent must allow overriding its system prompt (Security \u2192 Overrides).",
+        "operationId": "elevenlabs_conversation_init",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The agent; default: from `agent_id` in the body.",
+              "title": "Agent"
+            },
+            "description": "The agent; default: from `agent_id` in the body."
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pin a release; default: the live one.",
+              "title": "Release"
+            },
+            "description": "Pin a release; default: the live one."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Elevenlabs Conversation Init"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed with the workspace's webhook secret or runtime token."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/runtime/vapi/assistant-request": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "Vapi Assistant Request",
+        "description": "Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry\nthe compiled prompt: `model` with the system message replaced (read from the assistant with the stored API\nkey), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.\n`metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.\nOther server messages get an empty 200.",
+        "operationId": "vapi_assistant_request",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The agent; default: the only Vapi agent in the release.",
+              "title": "Agent"
+            },
+            "description": "The agent; default: the only Vapi agent in the release."
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Pin a release; default: the live one.",
+              "title": "Release"
+            },
+            "description": "Pin a release; default: the live one."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Vapi Assistant Request"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed with the workspace's webhook secret or runtime token."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/validate": {
       "post": {
         "tags": [
@@ -2772,7 +3497,7 @@
           "releases"
         ],
         "summary": "Create Release",
-        "description": "Release head and serve it.",
+        "description": "Release head and serve it. Agents set to push get it on their platform, after the response.",
         "operationId": "create_release",
         "parameters": [
           {
@@ -2928,7 +3653,7 @@
           "releases"
         ],
         "summary": "Activate",
-        "description": "Serve this release, e.g. to roll back.",
+        "description": "Serve this release, e.g. to roll back. Agents set to push get it on their platform, after the response.",
         "operationId": "activate",
         "parameters": [
           {
@@ -3093,6 +3818,11 @@
         "summary": "Get Agent",
         "description": "What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch.",
         "operationId": "get_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3163,6 +3893,11 @@
         "summary": "Get Prompt",
         "description": "Just the prompt text. Logs a fetch.",
         "operationId": "get_prompt",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3231,6 +3966,11 @@
         "summary": "Get Sop",
         "description": "What the `get_sop` tool returns for SOPs with `delivery: auto | tool`.",
         "operationId": "get_sop",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3978,6 +4718,53 @@
         ],
         "title": "AgentConfigSaved"
       },
+      "AgentDeliveryOut": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pull",
+              "push",
+              "both"
+            ],
+            "title": "Mode"
+          },
+          "modes": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "pull",
+                "push",
+                "both"
+              ]
+            },
+            "type": "array",
+            "title": "Modes",
+            "description": "The modes this agent's platform allows (LiveKit: pull only)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform",
+          "platform_id",
+          "mode",
+          "modes"
+        ],
+        "title": "AgentDeliveryOut"
+      },
       "AgentFields": {
         "properties": {
           "platform": {
@@ -4364,6 +5151,24 @@
           "groups"
         ],
         "title": "ConfigResponse"
+      },
+      "DeliveryIn": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "pull",
+              "push",
+              "both"
+            ],
+            "title": "Mode"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "DeliveryIn"
       },
       "DraftAgent": {
         "properties": {
@@ -5351,6 +6156,47 @@
         ],
         "title": "ItemVersion"
       },
+      "KeyTestIn": {
+        "properties": {
+          "platform_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Id",
+            "description": "The agent to read; default: the first agent at head on this platform."
+          }
+        },
+        "type": "object",
+        "title": "KeyTestIn"
+      },
+      "KeyTestOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "platform_id",
+          "message"
+        ],
+        "title": "KeyTestOut"
+      },
       "LintFinding": {
         "properties": {
           "code": {
@@ -5774,6 +6620,31 @@
         ],
         "title": "NewProcedure"
       },
+      "PlatformCredentials": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "api_key": {
+            "$ref": "#/components/schemas/SecretInfo"
+          },
+          "webhook_secret": {
+            "$ref": "#/components/schemas/SecretInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "api_key",
+          "webhook_secret"
+        ],
+        "title": "PlatformCredentials"
+      },
       "PreviewBlock": {
         "properties": {
           "kind": {
@@ -6186,6 +7057,79 @@
         ],
         "title": "PublishResponse"
       },
+      "PushResultOut": {
+        "properties": {
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "unchanged",
+              "error"
+            ],
+            "title": "Status"
+          },
+          "version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Id"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release",
+          "agent",
+          "platform",
+          "platform_id",
+          "status",
+          "version_id",
+          "error",
+          "attempts",
+          "at"
+        ],
+        "title": "PushResultOut"
+      },
       "ReleaseDetail": {
         "properties": {
           "number": {
@@ -6511,6 +7455,200 @@
           "files"
         ],
         "title": "ReplaceRequest"
+      },
+      "RetryIn": {
+        "properties": {
+          "agents": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agents",
+            "description": "Push these agents again; default: every agent whose last push failed."
+          }
+        },
+        "type": "object",
+        "title": "RetryIn"
+      },
+      "SecretIn": {
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value",
+            "description": "The API key, or the webhook secret. A webhook secret left empty is generated."
+          }
+        },
+        "type": "object",
+        "title": "SecretIn"
+      },
+      "SecretInfo": {
+        "properties": {
+          "set": {
+            "type": "boolean",
+            "title": "Set"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "The last few characters."
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "set",
+          "created_at"
+        ],
+        "title": "SecretInfo"
+      },
+      "SecretSaved": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "api_key",
+              "webhook_secret"
+            ],
+            "title": "Kind"
+          },
+          "hint": {
+            "type": "string",
+            "title": "Hint"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "secret": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Secret",
+            "description": "A generated webhook secret, shown this once."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "kind",
+          "hint",
+          "created_at"
+        ],
+        "title": "SecretSaved"
+      },
+      "ServedIn": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "call_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Call Id",
+            "description": "The platform's id for the call: an ElevenLabs conversation id, a Vapi call id."
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent",
+            "description": "The sopc agent id or platform ref the instructions were fetched for."
+          },
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "call_id",
+          "agent",
+          "release"
+        ],
+        "title": "ServedIn"
+      },
+      "ServedOut": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "call_id": {
+            "type": "string",
+            "title": "Call Id"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "call_id",
+          "agent",
+          "release"
+        ],
+        "title": "ServedOut"
       },
       "SessionDetail": {
         "properties": {
