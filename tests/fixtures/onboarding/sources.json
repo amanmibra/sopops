@@ -1,0 +1,6 @@
+[
+  {"name": "marios-pizzeria", "platform": "livekit", "platform_id": "marios-pizzeria", "file": "marios-pizzeria.md", "tools": ["lookup_allergens", "transfer_to_staff", "check_delivery_zone"]},
+  {"name": "bella-pasta", "platform": "elevenlabs", "platform_id": "agent_fake_bella_0001", "file": "bella-pasta.md", "tools": ["lookup_allergens", "transfer_to_staff", "check_reservations"]},
+  {"name": "golden-wok", "platform": "vapi", "platform_id": "00000000-fake-0000-0000-goldenwok001", "file": "golden-wok.md", "tools": ["lookup_allergens", "transfer_to_staff", "check_delivery_zone"]},
+  {"name": "harbor-grill", "platform": "livekit", "platform_id": "harbor-grill", "file": "harbor-grill.md", "tools": ["lookup_allergens", "transfer_to_staff", "check_reservations"]}
+]
