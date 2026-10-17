@@ -135,11 +135,18 @@ async def entrypoint(ctx: JobContext):
 1. **normalize** the turns and tool calls;
 2. **route** (the fast model): which of the agent's procedures, in the release the session ran on, applied, and which to leave out because the session ended before the procedure started or finished;
 3. **check** (the reasoning model, one call per procedure that applied): a status for every rule, with quotes, and whether the procedure's goal was reached. Required tool steps are checked against the tool calls, when the session has them;
-4. a **result** per procedure, and the worst of them for the session: deviated, partial, followed or not measurable ([how](API.md#sop-checks)).
+4. a **result** per procedure, and the worst of them for the session: deviated, partial, followed or not measurable ([how](API.md#sop-checks));
+5. **patterns**: each finding joins its rule's pattern, and once a rule has enough findings, a model splits it into named failure modes, so the same mistake shows up once with its count. Themes group them by the phase of the session ([how](API.md#patterns-and-themes)).
 
 Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_TOKEN` set it runs on Hatchet in `sopops worker`: one run per session version, a fair share per workspace, one check per procedure in parallel, and model calls rate-limited per model (`SOPOPS_RATE_LIMIT_PER_MINUTE`, default 60). `docker compose --profile hatchet up` runs hatchet-lite (see [docker-compose.yml](docker-compose.yml)). Live updates reach the Sessions page from any process on Postgres (LISTEN/NOTIFY); on SQLite, only from the sopops process itself.
 
 Models are called through [LiteLLM](https://github.com/BerriAI/litellm), as a library (pinned, with hashes in `uv.lock`), so any provider it supports works, including a local model behind an OpenAI-compatible endpoint. Prompts are in [`src/sopops/pipeline/prompts`](src/sopops/pipeline/prompts), and every result records the model and prompt version that produced it.
+
+## Insights and the report
+
+**Insights** shows how sessions went against their procedures over a window (24 hours to a year): sessions checked, followed end to end, needing attention and excluded, against the prior window; a trend with release markers; a scoreboard per procedure. A procedure's page has its rule ladder (pass and skip rates per step and never rule, with n), the split between the last two releases, how warning signs relate to the pass rate, and its patterns by theme. Each rule has its own page, and **Release compare** puts two releases side by side, rule by rule, with 95% intervals and no flag under 10 sessions a side. Every number links to the sessions behind it. Definitions: [API.md](API.md#insights).
+
+The **Report** reads like a hand-written call review: the headline numbers, then each theme and its patterns, every one with the rule it's about ("Your procedure says never: …"), how the agent phrased it, and the sessions.
 
 ## Git or database
 
@@ -183,7 +190,7 @@ v0, renamed from sopserve. **There is no authentication yet** except the ingest 
 
 ## Roadmap
 
-- Patterns across sessions' findings, insights per procedure and release, and verdicts
+- Verdicts on patterns (real, acceptable, SOP wrong, checker wrong) and a Slack digest
 - ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
 - GitHub: load a sopc project from a repo path, and open PRs with suggested changes
 - API keys with scopes, and sign-in for the UI

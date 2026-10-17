@@ -93,7 +93,7 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | Endpoint | What it does |
 |---|---|
 | `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <ingest token>`. An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without the workspace's token. |
-| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none). |
 | `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
 | `GET …/ingest-token` | `{exists, prefix, created_at}`. The token itself is only shown when made. |
@@ -195,6 +195,49 @@ A step with `tool: x` and `required` is checked against the session's `tool_call
 
 A session's `result` is the worst of its procedures' (deviated, then partial, followed, not measurable).
 
-**Findings** are the rule results with status `skipped`, `violated`, `out_of_order` or `unheeded` (`finding: true`): things the agent did or didn't do that someone may want to fix. `not_reached` isn't one (the session ended), and neither is a warning sign that was present and handled. A `violated` never rule always quotes the agent's own words; one the model flagged without such a quote is stored as `ok`, with the reason saying so. A skipped step that leniency kept from making its procedure deviated is still a finding. Findings are stored in their own table, ready to be grouped into patterns.
+**Findings** are the rule results with status `skipped`, `violated`, `out_of_order` or `unheeded` (`finding: true`): things the agent did or didn't do that someone may want to fix. `not_reached` isn't one (the session ended), and neither is a warning sign that was present and handled. A `violated` never rule always quotes the agent's own words; one the model flagged without such a quote is stored as `ok`, with the reason saying so. A skipped step that leniency kept from making its procedure deviated is still a finding. Findings are stored in their own table and grouped into [patterns](#patterns-and-themes).
 
 Re-running a session replaces its results; a run for content that has since been re-sent writes nothing.
+
+## Patterns and themes
+
+Findings are grouped so the same mistake shows up once, with its count, instead of once per session.
+
+- **Rule pattern** (`kind: rule`): every finding on one rule. Created with the rule's first finding; named from the rule ("Step 6 missed", "Never rule 2 broken", "Warning sign 4 not acted on").
+- **Failure modes** (`kind: sub`): once a rule has 8 findings, the reasoning model splits its findings into at most 5 named ways the agent failed it, plus an `other` sub-pattern (`kind: other`) for findings that fit none. New findings on a split rule are assigned by the fast model to one of its failure modes, or to `other`.
+- **Reclustering**: a rule is split again when 25 findings arrived since its last clustering, or when `other` holds more than 25% of its findings (with at least 5 new since), plus a daily cron. New clusters are matched to the old ones by member overlap (Jaccard over finding ids, at least 0.3), so a matched failure mode keeps its id and name (and later, its verdicts). A failure mode that matches nothing is `retired`, not deleted.
+- **Themes**: the reasoning model groups a procedure's rule patterns by the phase of the session where they happen (opening, taking the order, closing...), in session order. Existing theme names and ids are kept whenever they still fit.
+
+A finding's `pattern_id` is its most specific pattern. The pipeline assigns findings right after a session is checked (inline, or the Hatchet `sopops_patterns` workflow, one run at a time per workspace); due reclustering runs right after (inline) or in `sopops_recluster`. The daily cron is `sopops_recluster_daily` (`SOPOPS_RECLUSTER_CRON`, default `0 6 * * *`); without Hatchet, run `sopops recluster` from cron.
+
+| Endpoint | What it does |
+|---|---|
+| `GET …/patterns` | `{items}`: rule patterns with their `sub_patterns`, counted in the window (default 365 days; same window filters as Insights). Filters: `procedure`, `rule`. |
+| `GET …/patterns/<id>` | One pattern: the rule it's about, its failure modes (for a rule pattern), example phrasings and its sessions in the window. |
+| `POST …/patterns/recluster` | `{procedure?, rule?, force?}`: assign unassigned findings, recluster what's due (every rule with 8+ findings with `force`), regroup themes. Calls the models, synchronously. `{assigned, reclustered, themed}`. |
+
+`sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force]` does the same from the command line.
+
+## Insights
+
+Every number comes from one module (`sopops.insights`) with one set of definitions, computed on the fly:
+
+| Term | Definition |
+|---|---|
+| Window | `[start, end]` on the session's start time, both ends inclusive, at most 366 days. `window=24h\|7d\|30d\|90d\|365d` (default 7d) or `start` and `end`. The prior window is the same length right before it. |
+| Eligible session | Status `checked` or `partial`, with a result. In-progress and failed sessions are counted, never rated; excluded sessions are counted separately. |
+| Session outcome | The worst result of its procedure checks in scope (only the `procedure` filter's, if set). **Followed end to end**: followed. **Needs attention**: deviated. |
+| Pass rate (procedure) | Checks followed / measurable checks (deviated, partial or followed); `not_measurable` checks are never rated. |
+| Pass rate (rule) | Steps: done / (done + skipped + out of order). Never rules: ok / (ok + violated). `n` is that denominator; `not_reached` and `not_applicable` are shown as a share, never counted. Warning signs are never in a pass rate: they are present (`present` or `unheeded`) or absent. |
+| Percentages | Whole numbers, rounded half up, with their `n`; null (shown "—") when the denominator is 0. Rate deltas are in points; count deltas in %. |
+| Comparisons | 95% Wilson interval per rate. A side with n < 10 is `thin` and never flagged; `regressed` / `improved` need a change of 5 points or more and intervals that don't overlap. Releases are compared by the release each session ran, never by date. |
+
+All take the window filters plus `agent`, `procedure`, `release` (repeatable) and `channel`.
+
+| Endpoint | What it returns |
+|---|---|
+| `GET …/insights/overview` | Tiles (current, prior, deltas): sessions checked, followed end to end, needs attention, excluded, procedure pass rate, goal rate. Trend per day (windows up to 31 days) or week, with release markers. Procedure scoreboard: checks, pass rate and delta, top failing rules, never violations, open patterns, excluded. |
+| `GET …/insights/procedures/<id>` | Tiles, trend, the rule ladder (per rule: n, pass, fail and skip rates, not-counted share, warning-sign presence, findings, patterns), the release split (previous vs latest release in the window, per rule), warning-sign impact (pass rate with the sign present vs absent), and patterns by theme. |
+| `GET …/insights/procedures/<id>/rules/<rule_id>` | The rule's wordings over time, its pass rate overall, per release and per agent (with intervals), its patterns, and the 5 most recent findings with their quotes. |
+| `GET …/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule, both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded. |
+| `GET …/insights/report` | The review report: headline numbers (plus sessions with problems on more than one rule), then per procedure its themes, each with its patterns: the rule they're about, failure modes, example phrasings and the sessions. |
