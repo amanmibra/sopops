@@ -30,7 +30,7 @@ from .schemas import (
     IngestTokenCreated, IngestTokenInfo, ItemVersion, LintResponse, MigrateFilesResponse, MigrateRequest, MigrateResponse, NewAgent, NewGroup, NewInstruction,
     NewProcedure, PreviewResponse, ProcedureConfig, ProcedureIn, PublishRequest, PublishResponse, ReleaseDetail,
     ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SessionDetail, SessionIn,
-    SessionIngested, SessionPage, SessionStatus, SettingsConfig, SettingsIn, SettingsSaved, Channel, Platform,
+    SessionIngested, SessionPage, SessionStatus, CheckResultValue, SettingsConfig, SettingsIn, SettingsSaved, Channel, Platform,
     ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile,
 )
 from .events import PgListener
@@ -411,6 +411,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         agent: str | None = Query(None, description="sopc agent id, or the agent as sent."),
         channel: Channel | None = None,
         status: SessionStatus | None = None,
+        result: CheckResultValue | None = Query(None, description="The session's worst procedure result."),
         platform: Platform | None = None,
         since: datetime | None = Query(None, description="Started at or after."),
         until: datetime | None = Query(None, description="Started before."),
@@ -419,7 +420,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     ) -> dict:
         """Sessions, newest first by start time."""
         return store.sessions.list(
-            workspace, agent=agent, channel=channel, status=status, platform=platform, since=since, until=until, cursor=cursor, limit=limit
+            workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit
         )
 
     @app.get(

@@ -119,6 +119,7 @@ class Sessions:
                 payload_hash=digest,
                 updated_at=now,
                 processed_at=None,
+                result=None,
             )
             created = row is None
             if created:
@@ -139,7 +140,7 @@ class Sessions:
             if row is None or row.payload_hash != ref.revision:
                 return False
             now = _now()
-            row.turns, row.tool_calls, row.status, row.status_reason = turns, tool_calls, status, reason
+            row.turns, row.tool_calls, row.status, row.status_reason, row.result = turns, tool_calls, status, reason, None
             row.processed_at = row.updated_at = now
             db.add(row)
             db.flush()
@@ -159,7 +160,7 @@ class Sessions:
 
     def get(self, workspace: str, id: str) -> dict:
         row = self.load(workspace, id)
-        return {**_summary(row), "turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta}
+        return {**_summary(row), "turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id)}
 
     def list(
         self,
@@ -168,6 +169,7 @@ class Sessions:
         agent: str | None = None,
         channel: str | None = None,
         status: str | None = None,
+        result: str | None = None,
         platform: str | None = None,
         since: datetime | None = None,
         until: datetime | None = None,
@@ -185,6 +187,8 @@ class Sessions:
             q = q.where(S.channel == channel)
         if status:
             q = q.where(S.status == status)
+        if result:
+            q = q.where(S.result == result)
         if platform:
             q = q.where(S.platform == platform)
         if since:
@@ -306,6 +310,7 @@ def _summary(r: SessionRecord) -> dict[str, Any]:
         "duration_s": (ended - started).total_seconds() if ended else None,
         "status": r.status,
         "status_reason": r.status_reason,
+        "result": r.result,
         "turn_count": len(r.turns),
         "tool_call_count": len(r.tool_calls),
         "created_at": _utc(r.created_at),

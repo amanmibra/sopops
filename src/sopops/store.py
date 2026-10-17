@@ -21,6 +21,7 @@ from sqlmodel import Session, select
 from . import forms
 from .db import engine_from_url, upgrade
 from .models import Fetch, FileVersion, Release, Workspace
+from .checks import Checks
 from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 
@@ -45,6 +46,7 @@ class Store:
         self.engine = engine_from_url(engine) if isinstance(engine, str) else engine
         self.sopc = sopc or Sopc()
         self.sessions = Sessions(self)
+        self.checks = Checks(self)
         if migrate:
             upgrade(self.engine)
 

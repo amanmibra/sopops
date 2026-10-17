@@ -16,3 +16,32 @@ class ProcessResult(BaseModel):
     status: str
     turn_count: int
     skipped: bool = Field(False, description="The session was re-sent since this run was queued, so a newer run handles it.")
+    result: str | None = Field(None, description="The worst procedure result, once checked.")
+    reason: str | None = None
+
+
+class RouteRef(SessionRef):
+    model_key: str = Field("", description="The model routing uses; Hatchet rate-limits per model key.")
+    rate_limit: int = Field(60, description="Calls per minute allowed per model key.")
+
+
+class RouteResult(BaseModel):
+    session_id: str
+    go: bool = Field(description="False: stop here (stale, nothing to check, or no model configured).")
+    status: str
+    release_id: int | None = None
+    to_check: list[str] = Field(default_factory=list, description="Procedure ids to check, in order.")
+    reason: str | None = None
+
+
+class CheckRef(SessionRef):
+    procedure_id: str
+    model_key: str = ""
+    rate_limit: int = 60
+
+
+class CheckResult(BaseModel):
+    session_id: str
+    procedure_id: str
+    result: str | None
+    stored: bool

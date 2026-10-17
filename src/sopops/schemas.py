@@ -419,6 +419,10 @@ Channel = Literal["voice", "text"]
 # Add a platform here (and to the UI's list) to accept it; the column is a plain string.
 Platform = Literal["livekit", "elevenlabs", "vapi", "otel", "import", "api"]
 SessionStatus = Literal["received", "routed", "checked", "excluded", "partial", "failed"]
+# A procedure check's rolled-up result; a session's is the worst of its procedures' (see pipeline.rollup).
+CheckResultValue = Literal["deviated", "partial", "followed", "not_measurable"]
+RuleKind = Literal["step", "never", "warning"]
+RuleStatus = Literal["done", "out_of_order", "skipped", "not_reached", "not_applicable", "violated", "ok", "present", "absent"]
 
 
 class TurnIn(_BaseModel):
@@ -484,6 +488,7 @@ class SessionSummary(BaseModel):
     duration_s: float | None
     status: SessionStatus
     status_reason: str | None
+    result: CheckResultValue | None = Field(description="The worst procedure result once checked: deviated, partial, followed or not_measurable.")
     turn_count: int
     tool_call_count: int
     created_at: datetime
@@ -499,10 +504,50 @@ class SessionTurn(_BaseModel):
     offset_s: float | None
 
 
+class EvidenceOut(BaseModel):
+    model_config = ConfigDict(extra="allow", json_schema_serialization_defaults_required=True)
+
+    turn: int | None = Field(description="Index into `turns`; null for a tool call with no tool turn.")
+    quote: str
+    source: Literal["transcript", "tool_calls"] = "transcript"
+
+
+class RuleResultOut(BaseModel):
+    rule_id: str = Field(description="sopc's stable rule id.")
+    kind: RuleKind
+    index: int = Field(description="1-based position within its kind.")
+    text: str
+    status: RuleStatus
+    evidence: list[EvidenceOut]
+    reason: str | None
+    finding: bool = Field(description="A deviation: skipped, violated or out_of_order.")
+
+
+class ProcedureCheckOut(BaseModel):
+    procedure_id: str
+    procedure_name: str | None
+    procedure_version: int | None
+    release_id: int | None
+    applicable: bool = Field(description="The procedure applied to the session (false: the router found it didn't).")
+    excluded_reason: str | None = Field(description="Applied, but the session ended before the procedure started or finished, so it isn't checked.")
+    route_reason: str | None
+    result: CheckResultValue | None = Field(description="Null unless checked.")
+    goal_reached: bool | None
+    goal_reason: str | None
+    steps_applicable: int | None
+    steps_done: int | None
+    nevers_violated: int | None
+    model: str | None
+    prompt_version: str | None
+    checked_at: datetime
+    rules: list[RuleResultOut]
+
+
 class SessionDetail(SessionSummary):
     turns: list[SessionTurn]
     tool_calls: list[dict[str, Any]]
     metadata: dict[str, Any]
+    checks: list[ProcedureCheckOut] = Field(description="Each procedure the router considered, with its rule results.")
 
 
 class SessionPage(BaseModel):

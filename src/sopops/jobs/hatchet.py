@@ -2,6 +2,11 @@
 
 Needs `pip install 'sopops[hatchet]'` and HATCHET_CLIENT_TOKEN (plus HATCHET_CLIENT_TLS_STRATEGY=none for a local
 hatchet-lite). The worker (`sopops worker`) runs the tasks; the API only queues runs.
+
+`process_session` is a DAG: normalize -> route -> check -> (done). Model calls run in child workflows so each one can
+be rate-limited by its model key (`SOPOPS_RATE_LIMIT_PER_MINUTE` calls per minute per model, default 60):
+`sopops_route` for routing, and one `sopops_check` per applicable procedure, fanned out by the `check` task, which
+then rolls the session up.
 """
 
 from __future__ import annotations
@@ -17,10 +22,25 @@ from hatchet_sdk import (
     IdempotencyCollisionError,
     StatusBasedIdempotencyConfig,
 )
+from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
 
-from ..pipeline import ProcessResult, SessionRef, process_session
+from .. import llm as llm_mod
+from ..pipeline import (
+    CheckRef,
+    CheckResult,
+    ProcessResult,
+    RouteRef,
+    RouteResult,
+    SessionRef,
+    check_procedure,
+    finish_session,
+    normalize_session,
+    route_session,
+)
 
 hatchet = Hatchet()
+RATE = int(os.environ.get("SOPOPS_RATE_LIMIT_PER_MINUTE", "60"))
+MODEL_LIMIT = RateLimit(dynamic_key="input.model_key", units=1, limit="input.rate_limit", duration=RateLimitDuration.MINUTE)
 
 # One run per session revision (a re-sent session with new content gets a new run), and workspaces share the
 # workers fairly: at most SOPOPS_WORKSPACE_CONCURRENCY runs per workspace at once, round robin across workspaces.
@@ -34,6 +54,8 @@ process_session_wf = hatchet.workflow(
     ),
     idempotency=StatusBasedIdempotencyConfig(key_expression="input.session_id + ':' + input.revision", fallback_ttl=timedelta(days=1)),
 )
+route_wf = hatchet.workflow(name="sopops_route", input_validator=RouteRef)
+check_wf = hatchet.workflow(name="sopops_check", input_validator=CheckRef)
 
 _store = None
 
@@ -50,9 +72,52 @@ def _get_store():
     return _store
 
 
+def _model_key(role: str) -> str:
+    return llm_mod.get_llm().model(role) or "none"
+
+
 @process_session_wf.task(execution_timeout=timedelta(minutes=2), retries=3, backoff_factor=2.0, backoff_max_seconds=30)
 def normalize(input: SessionRef, ctx: Context) -> ProcessResult:
-    return process_session(_get_store(), input)
+    return normalize_session(_get_store(), input)
+
+
+@process_session_wf.task(parents=[normalize], execution_timeout=timedelta(minutes=10), retries=1)
+def route(input: SessionRef, ctx: Context) -> RouteResult:
+    n = ctx.task_output(normalize)
+    if n.skipped or n.status == "failed" or n.turn_count == 0:
+        return RouteResult(session_id=input.session_id, go=False, status=n.status)
+    ref = RouteRef(**input.model_dump(), model_key=_model_key("fast"), rate_limit=RATE)
+    out = route_wf.run(ref, child_key=f"route:{input.session_id}:{input.revision}")
+    return RouteResult.model_validate(out["route_one"])
+
+
+@process_session_wf.task(parents=[route], execution_timeout=timedelta(minutes=30), retries=1)
+def check(input: SessionRef, ctx: Context) -> ProcessResult:
+    r = ctx.task_output(route)
+    if not r.go:
+        return ProcessResult(session_id=input.session_id, status=r.status, turn_count=0, skipped=r.status == "stale", reason=r.reason)
+    model_key = _model_key("reasoning")
+    runs = [
+        check_wf.create_bulk_run_item(
+            CheckRef(**input.model_dump(), procedure_id=pid, model_key=model_key, rate_limit=RATE),
+            child_key=f"check:{input.session_id}:{input.revision}:{pid}",
+        )
+        for pid in r.to_check
+    ]
+    results = [CheckResult.model_validate(o["check_one"]) for o in check_wf.run_many(runs)]
+    if not all(c.stored for c in results):
+        return ProcessResult(session_id=input.session_id, status="stale", turn_count=0, skipped=True)
+    return finish_session(_get_store(), input)
+
+
+@route_wf.task(execution_timeout=timedelta(minutes=5), retries=3, backoff_factor=2.0, backoff_max_seconds=60, rate_limits=[MODEL_LIMIT])
+def route_one(input: RouteRef, ctx: Context) -> RouteResult:
+    return route_session(_get_store(), input)
+
+
+@check_wf.task(execution_timeout=timedelta(minutes=10), retries=3, backoff_factor=2.0, backoff_max_seconds=60, rate_limits=[MODEL_LIMIT])
+def check_one(input: CheckRef, ctx: Context) -> CheckResult:
+    return check_procedure(_get_store(), input)
 
 
 def trigger_process_session(ref: SessionRef) -> None:
@@ -63,5 +128,7 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 
 def start_worker() -> None:
-    worker = hatchet.worker("sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf])
+    worker = hatchet.worker(
+        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf]
+    )
     worker.start()

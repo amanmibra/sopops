@@ -34,6 +34,18 @@ def expected(name: str) -> str:
     return (FIXTURE / "expected" / name).read_text()
 
 
+@pytest.fixture(autouse=True)
+def no_models(monkeypatch):
+    """Tests never reach a real model: no model env, and the process-wide client reset."""
+    from sopops import llm
+
+    for var in llm.ROLE_ENV.values():
+        monkeypatch.delenv(var, raising=False)
+    llm.set_llm(None)
+    yield
+    llm.set_llm(None)
+
+
 @pytest.fixture
 def files():
     return read_files(FIXTURE / "sops")

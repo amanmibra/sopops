@@ -11,6 +11,7 @@ from conftest import WS
 from sopops.cli import main as cli
 from sopops.events import Broker
 from sopops.pipeline.normalize import normalize_turns
+from sopops.pipeline.process import NO_MODEL
 from sopops.schemas import SessionIn
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
@@ -106,7 +107,7 @@ def test_the_unique_key_holds_in_the_database(client):
 def test_inline_pipeline_normalizes_turns_and_sets_status(client, token):
     sid = ingest(client, token, session()).json()["id"]
     s = client.get(f"{WS}/sessions/{sid}").json()  # TestClient runs background tasks before returning
-    assert s["processed_at"] and s["status"] == "received" and s["status_reason"] is None
+    assert s["processed_at"] and s["status"] == "received" and s["status_reason"] == NO_MODEL
     assert [(t["role"], t["text"], t["offset_s"]) for t in s["turns"]] == [
         ("agent", "Tony's Pizza, how can I help?", 1.0),
         ("user", "A large pepperoni for delivery.", 4.5),
@@ -222,9 +223,10 @@ def test_ingest_and_pipeline_publish_session_events(client, token):
         live.app.state.store.sessions.broker.subscribe("demo", got.append)
         sid = ingest(live, token, session()).json()["id"]
         deadline = time.time() + 5
-        while len(got) < 2 and time.time() < deadline:
+        while len(got) < 3 and time.time() < deadline:
             time.sleep(0.05)
-    assert [(e["type"], e["id"]) for e in got] == [("created", sid), ("updated", sid)]
+    # created, then normalized, then the router's "no model configured"
+    assert [(e["type"], e["id"]) for e in got] == [("created", sid), ("updated", sid), ("updated", sid)]
     assert got[1]["status"] == "received"
 
 
