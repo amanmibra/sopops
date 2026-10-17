@@ -318,6 +318,7 @@ class Insights:
             q = q.where(P.rule_id == rule_id)
         pats = list(db.exec(q))
         counts = self._pattern_window_counts(db, f, procedure_id)
+        theme_names = dict(db.exec(select(Theme.id, Theme.name).where(Theme.workspace_id == f.workspace)).all())
         children: dict[str, list[Pattern]] = defaultdict(list)
         for p in pats:
             if p.parent_id:
@@ -331,11 +332,11 @@ class Insights:
                 n, s = counts.get(c.id, (0, 0))
                 if c.status != "active" and n == 0:
                     continue
-                subs.append(_pattern_out(c, n, s))
+                subs.append({**_pattern_out(c, n, s), "theme_name": theme_names.get(c.theme_id or "")})
             own = counts.get(p.id, (0, 0))
             n = own[0] + sum(x["findings"] for x in subs)
             s = own[1] + sum(x["sessions"] for x in subs)  # a session has at most one finding per rule
-            out.append({**_pattern_out(p, n, s), "sub_patterns": subs})
+            out.append({**_pattern_out(p, n, s), "theme_name": theme_names.get(p.theme_id or ""), "sub_patterns": subs})
         return out
 
     # --- views ---
@@ -435,6 +436,8 @@ class Insights:
             split = self._release_split(db, f, procedure_id, ladder)
             impact = self._warning_impact(db, f, procedure_id, ladder)
             themes = self._themes(db, f, procedure_id)
+            for th in themes:
+                th.pop("_sessions", None)
             trend = self._trend(db, f)
         return {"filters": f.as_dict(), "procedure_id": procedure_id, "procedure_name": name, "tiles": tiles, "trend": trend, "rules": ladder,
                 "release_split": split, "warning_impact": impact, "themes": themes}
@@ -524,7 +527,8 @@ class Insights:
         def group(theme_id, name, description, members):
             members = sorted(members, key=lambda p: -p["findings"])
             sessions = set().union(*(sessions_of[p["pattern_id"]] for p in members)) if members else set()
-            return {"theme_id": theme_id, "name": name, "description": description, "findings": sum(p["findings"] for p in members), "sessions": len(sessions), "patterns": members}
+            return {"theme_id": theme_id, "name": name, "description": description, "findings": sum(p["findings"] for p in members), "sessions": len(sessions),
+                    "patterns": members, "_sessions": sessions}
 
         groups = [group(t.id, t.name, t.description, [p for p in pats if p["theme_id"] == t.id]) for t in themes]
         groups = [g for g in groups if g["patterns"]]
@@ -639,6 +643,11 @@ class Insights:
             if f.procedure:
                 per_session = per_session.where(F.procedure_id == f.procedure)
             multi = db.exec(select(func.count()).select_from(per_session.group_by(F.session_id).having(func.count(func.distinct(F.rule_id)) > 1).subquery())).one()
+            worst: dict[str, str] = {}
+            for sid, _pid, _name, result, *_ in checks:
+                if sid not in worst or SEVERITY[result] > SEVERITY[worst[sid]]:
+                    worst[sid] = result
+            need = {sid for sid, r in worst.items() if r == "deviated"}
             procs = []
             for pid in sorted({c[1] for c in checks}) if not f.procedure else [f.procedure]:
                 themes = self._themes(db, f, pid)
@@ -659,8 +668,10 @@ class Insights:
                             if x is p:
                                 got = [g for leaf in leaves for g in by_pat.get(leaf["pattern_id"], [])] if p["sub_patterns"] else got
                             x["examples"] = _examples(got, examples)
-                            x["session_ids"] = list(dict.fromkeys(g[0] for g in got))[:sessions_per_pattern]
-                            x["need_attention_pct"] = pct(x["sessions"], tiles["need_attention"]) if tiles["need_attention"] else None
+                            every = list(dict.fromkeys(g[0] for g in got))
+                            x["session_ids"] = every[:sessions_per_pattern]
+                            x["need_attention_pct"] = pct(len(set(every) & need), len(need)) if need else None
+                    th["need_attention_pct"] = pct(len(th.pop("_sessions") & need), len(need)) if need else None
                 procs.append({"procedure_id": pid, "procedure_name": name, "themes": themes})
         return {"filters": f.as_dict(), "headline": {**tiles, "multi_problem_sessions": multi}, "procedures": procs}
 

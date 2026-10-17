@@ -427,11 +427,12 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         pattern: str | None = Query(None, description="With a finding in this pattern (a rule pattern includes its sub-patterns)."),
         theme: str | None = Query(None, description="With a finding in a pattern of this theme."),
         finding: bool | None = Query(None, description="With (true) or without (false) any finding."),
+        eligible: bool | None = Query(None, description="Only sessions Insights rates (checked or partial, with a result); false: the others."),
     ) -> dict:
         """Sessions, newest first by start time. The drill-down filters are what Insights links to."""
         return store.sessions.list(
             workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit,
-            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding,
+            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding, eligible=eligible,
         )
 
     @app.get(

@@ -158,6 +158,7 @@ def test_rule_page_and_drill_down(env):
     assert s(procedure=ALLERGEN, procedure_result="deviated") == 8  # no window on the list unless since/until
     assert s(rule=rid, rule_status="violated") == 8 and s(rule=rid, rule_status=["ok"]) == 9
     assert s(finding=False) == 11 and s(release=2) == 6
+    assert s(eligible=True, since=env.params["start"]) == 14
     pattern = r["patterns"][0]["pattern_id"]
     assert s(pattern=pattern) == 8
 
@@ -171,7 +172,7 @@ def test_report(env):
     [pat] = theme["patterns"]
     assert pat["rule"]["kind"] == "never" and pat["rule"]["index"] == 1 and pat["findings"] == 5 and pat["need_attention_pct"] == 100
     assert pat["examples"][0]["quote"] == "totally safe" and len(pat["session_ids"]) == 5
-    assert theme["sessions"] == 5
+    assert theme["sessions"] == 5 and theme["need_attention_pct"] == 100 and pat["theme_name"] == theme["name"]
 
 
 def test_bad_filters_are_422(env):

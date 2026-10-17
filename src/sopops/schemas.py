@@ -615,9 +615,10 @@ class PatternOut(BaseModel):
     total_findings: int = Field(description="All time.")
     first_seen: datetime | None
     last_seen: datetime | None
+    theme_name: str | None = None
     examples: list[ExampleOut] = Field(default_factory=list)
-    session_ids: list[str] = Field(default_factory=list)
-    need_attention_pct: int | None = None
+    session_ids: list[str] = Field(default_factory=list, description="In the report: the most recent sessions (up to 12).")
+    need_attention_pct: int | None = Field(None, description="In the report: sessions in it that need attention / all that do.")
 
 
 class RuleRef(BaseModel):
@@ -659,6 +660,7 @@ class ThemeOut(BaseModel):
     findings: int
     sessions: int
     patterns: list[RulePatternOut]
+    need_attention_pct: int | None = Field(None, description="In the report: sessions with a finding in the theme that need attention / all that do.")
 
 
 class TilesValues(BaseModel):
