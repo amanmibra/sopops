@@ -38,6 +38,8 @@ class Instructions:
     blocks: list[dict[str, Any]] = field(default_factory=list)
     """Each file the prompt was built from, in prompt order: {kind, id, path, version}."""
     hash: str | None = None
+    platform_ref: str | None = None
+    """`livekit:tonys-pizza`, `elevenlabs:<agent id>`, `vapi:<assistant id>`."""
     tools: list[str] = field(default_factory=list)
     tool_sops: list[str] = field(default_factory=list)
     source: Source = "live"
@@ -112,7 +114,7 @@ class Sopops:
             body = res.json()
             got = Instructions(
                 text=body["prompt"], release=body["release"], agent=body["agent"], blocks=body.get("components", []),
-                hash=body.get("hash"), tools=body.get("tools", []), tool_sops=body.get("tool_sops", []),
+                hash=body.get("hash"), platform_ref=body.get("platform_ref"), tools=body.get("tools", []), tool_sops=body.get("tool_sops", []),
             )
         except (httpx.HTTPError, asyncio.TimeoutError, SopopsError, ValueError, KeyError) as e:
             reason = str(e) or type(e).__name__
@@ -149,6 +151,14 @@ class Sopops:
             os.replace(tmp, path)
         except OSError as e:
             log.warning("sopops: couldn't cache instructions for %s: %s", agent, e)
+
+    async def record_served(self, platform: str, call_id: str, agent: str, release: int, *, timeout: float = 3.0) -> None:
+        """Tell sopops which release a call ran on once the platform's id for it is known (an ElevenLabs
+        conversation id, a Vapi call id), so the session its post-call webhook sends links to that release."""
+        async with self._client(timeout) as http:
+            res = await http.post("/runtime/served", json={"platform": platform, "call_id": call_id, "agent": agent, "release": release})
+        if res.status_code >= 400:
+            raise SopopsError(f"sopops answered {res.status_code}: {_detail(res)}")
 
     # --- call end ----------------------------------------------------------------------------
 

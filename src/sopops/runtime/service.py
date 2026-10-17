@@ -287,10 +287,14 @@ class Runtime:
             raise NotFound(f"no {NAMES[platform]} agent '{ref or ''}' in release {rel['number']}")
         return {"agent": match, "release": rel["number"], **built[match]}
 
-    def record_serve(self, workspace: str, platform: str, call_ids: Iterable[str | None], served: dict) -> None:
-        """Log the fetch, and remember the release per call id for the session that arrives later."""
-        ws = workspace
-        self.store.log_fetch(ws, served["agent"], served["release"], served["hash"])
+    def record_serve(self, workspace: str, platform: str, call_ids: Iterable[str | None], served: dict, log_fetch: bool = True) -> None:
+        """Log the fetch (unless the client already fetched it), and remember the release per call id for the
+        session that arrives later."""
+        from ..store import _ws
+
+        ws = _ws(workspace)
+        if log_fetch:
+            self.store.log_fetch(ws, served["agent"], served["release"], served["hash"])
         ids = [c for c in dict.fromkeys(call_ids) if c]
         if not ids:
             return

@@ -72,3 +72,17 @@ class PushResultOut(BaseModel):
 
 class RetryIn(BaseModel):
     agents: list[str] | None = Field(None, description="Push these agents again; default: every agent whose last push failed.")
+
+
+class ServedIn(BaseModel):
+    platform: PushPlatform
+    call_id: str = Field(min_length=1, max_length=256, description="The platform's id for the call: an ElevenLabs conversation id, a Vapi call id.")
+    agent: str = Field(description="The sopc agent id or platform ref the instructions were fetched for.")
+    release: int
+
+
+class ServedOut(BaseModel):
+    platform: PushPlatform
+    call_id: str
+    agent: str
+    release: int

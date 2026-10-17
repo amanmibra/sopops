@@ -120,8 +120,9 @@ def push(platform: str, key: str, platform_id: str, prompt: str) -> Pushed:
 
 
 def _version(agent: dict[str, Any]) -> str | None:
-    """The platform's version of the agent, when it returns one (ElevenLabs `version_id` with versioning on)."""
-    for k in ("version_id", "versionId", "assistantVersion", "version"):
+    """The platform's version of the agent, when it returns one: ElevenLabs `version_id` (with versioning on),
+    Vapi `latestVersion` (orgs on assistant versioning)."""
+    for k in ("version_id", "latestVersion", "versionId", "assistantVersion", "version"):
         v = agent.get(k)
         if isinstance(v, (str, int)) and str(v):
             return str(v)

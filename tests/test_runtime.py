@@ -280,7 +280,10 @@ def test_vapi_assistant_request_overrides_the_system_prompt(client, published):
     out = client.post(url, json=req).json()  # no API key: the prompt goes in as a variable only
     assert out == {
         "assistantId": "asst_sakura",
-        "assistantOverrides": {"variableValues": {"sopops_prompt": prompt, "sopops_release": published, "sopops_agent": "sakura-sushi"}},
+        "assistantOverrides": {
+            "variableValues": {"sopops_prompt": prompt, "sopops_release": published, "sopops_agent": "sakura-sushi"},
+            "metadata": {"sopops_release": published, "sopops_agent": "sakura-sushi"},
+        },
     }
 
     keys(client)
@@ -322,3 +325,30 @@ def test_sessions_link_to_the_release_a_webhook_served(client, files, published)
     assert ingest(platform="elevenlabs", external_id="conv_1", metadata={"phone_call": {"call_sid": "CA9"}})["release_id"] == published
     assert ingest(platform="vapi", external_id="call_unknown")["release_id"] is None
     assert ingest(platform="vapi", external_id="call_10", release=newer)["release_id"] == newer  # what the sender says wins
+
+
+def test_a_client_reports_the_call_its_prompt_served(client, files, published):
+    """The TypeScript client's ElevenLabs adapter fetches the prompt itself, then reports the conversation id."""
+    body = {"platform": "elevenlabs", "call_id": "conv_42", "agent": "elevenlabs:agent_luigi", "release": published}
+    assert client.post(f"{WS}/runtime/served", json=body).json() == {**body, "agent": "luigis-trattoria"}
+    assert client.post(f"{WS}/runtime/served", json={**body, "release": 99}).status_code == 404
+    token = client.post(f"{WS}/ingest-token").json()["token"]
+    assert client.post(f"{WS}/runtime/served", json=body).status_code == 401
+    auth = {"Authorization": f"Bearer {token}"}
+    assert client.post(f"{WS}/runtime/served", json=body, headers=auth).status_code == 200
+    republish(client, files, "Later.")
+    res = client.post(f"{WS}/sessions", json={"platform": "elevenlabs", "external_id": "conv_42", "turns": []}, headers=auth)
+    assert client.get(f"{WS}/sessions/{res.json()['id']}").json()["release_id"] == published
+
+
+def test_cors_for_browser_clients(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from conftest import SOPC_BIN
+    from sopops import Sopc, Store, create_app
+
+    monkeypatch.setenv("SOPOPS_CORS_ORIGINS", "https://app.example.com")
+    c = TestClient(create_app(Store(f"sqlite:///{tmp_path / 'c.db'}", Sopc(SOPC_BIN))))
+    pre = c.options(f"{WS}/agents/x", headers={"Origin": "https://app.example.com", "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"})
+    assert pre.headers["access-control-allow-origin"] == "https://app.example.com"
+    assert "access-control-allow-origin" not in c.get("/v1/workspaces", headers={"Origin": "https://evil.example"}).headers

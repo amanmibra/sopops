@@ -10,15 +10,19 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from fastapi import BackgroundTasks, FastAPI, Query, Request, Response
+import os
+
+from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.responses import JSONResponse
 
 from ..store import Conflict, Store
 from .crypto import SecretKeyMissing
 from .schemas import (
     AgentDeliveryOut, DeliveryIn, KeyTestIn, KeyTestOut, PlatformCredentials, PushPlatform, PushResultOut, RetryIn,
-    SecretIn, SecretKind, SecretSaved,
+    SecretIn, SecretKind, SecretSaved, ServedIn, ServedOut,
 )
 from .service import AssistantCache, BadRequest, Runtime
 
@@ -29,6 +33,11 @@ def register(app: FastAPI, store: Store) -> Runtime:
     runtime = Runtime(store)
     assistants = AssistantCache()
     app.state.runtime = runtime
+    bearer = HTTPBearer(auto_error=False, description="The workspace's runtime token (Settings → Ingest token), once it has one.")
+
+    # Browsers calling sopops directly (the TypeScript client's ElevenLabs adapter in a web app) need CORS.
+    if origins := [o.strip() for o in os.environ.get("SOPOPS_CORS_ORIGINS", "").split(",") if o.strip()]:
+        app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST"], allow_headers=["Authorization", "Content-Type"])
 
     @app.exception_handler(BadRequest)
     def _bad_request(_, exc: BadRequest) -> JSONResponse:
@@ -90,6 +99,17 @@ def register(app: FastAPI, store: Store) -> Runtime:
         req = req or RetryIn()
         return runtime.push_release(workspace, number, agents=req.agents, only_failed=req.agents is None)
 
+    # a client fetched the prompt itself (e.g. ElevenLabs overrides from a web app) and reports the call it ran
+
+    @app.post(f"{WS}/runtime/served", response_model=ServedOut, tags=["runtime"], responses={401: {"description": "Missing or wrong runtime token."}})
+    def record_served(workspace: str, req: ServedIn, credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
+        """Remember which release a call ran on, once its id is known, so the session that arrives later (an
+        ElevenLabs post-call webhook) links to it. Takes the runtime token, like prompt fetches."""
+        runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
+        served = runtime.resolve(workspace, req.platform, req.agent, req.release)
+        runtime.record_serve(workspace, req.platform, [req.call_id], served, log_fetch=False)
+        return {"platform": req.platform, "call_id": req.call_id, "agent": served["agent"], "release": served["release"]}
+
     # call-start webhooks: the platform asks for the prompt (pull)
 
     async def verified(request: Request, workspace: str, platform: str) -> dict[str, Any]:
@@ -147,6 +167,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
         """Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry
         the compiled prompt: `model` with the system message replaced (read from the assistant with the stored API
         key), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.
+        `metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.
         Other server messages get an empty 200."""
         body = await verified(request, workspace, "vapi")
         message = body.get("message") or {}
@@ -161,7 +182,8 @@ def register(app: FastAPI, store: Store) -> Runtime:
             return {**served, "platform_id": pid, "model": assistants.model_with_prompt(runtime, workspace, pid, served["prompt"])}
 
         served = await run_in_threadpool(serve)
-        overrides: dict[str, Any] = {"variableValues": {"sopops_prompt": served["prompt"], "sopops_release": served["release"], "sopops_agent": served["agent"]}}
+        tags = {"sopops_release": served["release"], "sopops_agent": served["agent"]}
+        overrides: dict[str, Any] = {"variableValues": {"sopops_prompt": served["prompt"], **tags}, "metadata": tags}
         if served["model"] is not None:
             overrides["model"] = served["model"]
         return {"assistantId": served["platform_id"], "assistantOverrides": overrides}

@@ -28,7 +28,7 @@ def test_fetch_instructions(client):
     route = respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
     ins = run(client.fetch_instructions("tonys-pizza"))
     assert (ins.text, ins.release, ins.agent, ins.source) == ("You are Tony's.", 3, "tonys-pizza", "live")
-    assert ins.blocks == AGENT["components"] and ins.tools == ["check_zone"]
+    assert ins.blocks == AGENT["components"] and ins.tools == ["check_zone"] and ins.platform_ref == "livekit:tonys-pizza"
     req = route.calls.last.request
     assert req.headers["Authorization"] == "Bearer sopops_tok" and "release" not in req.url.params
 
@@ -101,3 +101,10 @@ def test_env(monkeypatch, tmp_path):
     monkeypatch.delenv("SOPOPS_URL")
     with pytest.raises(ValueError):
         Sopops()
+
+
+@respx.mock
+def test_record_served(client):
+    route = respx.post(f"{URL}/runtime/served").mock(return_value=httpx.Response(200, json={}))
+    run(client.record_served("elevenlabs", "conv_1", "tonys-pizza", 3))
+    assert json.loads(route.calls.last.request.content) == {"platform": "elevenlabs", "call_id": "conv_1", "agent": "tonys-pizza", "release": 3}
