@@ -14,7 +14,10 @@ dependencies = [
 
 [project.optional-dependencies]
 postgres = [
-    "psycopg[binary]>=3.1",
+    "psycopg[binary]>=3.2",
+]
+hatchet = [
+    "hatchet-sdk==1.42.1",
 ]
 
 [project.scripts]

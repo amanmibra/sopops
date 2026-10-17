@@ -21,6 +21,7 @@ from sqlmodel import Session, select
 from . import forms
 from .db import engine_from_url, upgrade
 from .models import Fetch, FileVersion, Release, Workspace
+from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -43,6 +44,7 @@ class Store:
         """`migrate`: run the Alembic migrations up to head first (see `db.upgrade`)."""
         self.engine = engine_from_url(engine) if isinstance(engine, str) else engine
         self.sopc = sopc or Sopc()
+        self.sessions = Sessions(self)
         if migrate:
             upgrade(self.engine)
 

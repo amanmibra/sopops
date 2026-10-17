@@ -7,12 +7,17 @@ There is no authentication yet: run it on a private network.
 
 from __future__ import annotations
 
+import asyncio
+import json
 import os
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Query, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi import BackgroundTasks, Depends, FastAPI, Query, Request, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, create_model
 
@@ -22,11 +27,15 @@ from .db import database_url
 from .schemas import (
     AgentConfig, AgentFields, AgentIn, AgentOut, AgentSaved, AgentsResponse, BlockRequest, ConfigResponse, DraftResponse,
     EditRequest, FetchOut, FileOut, FilesRequest, FilesResponse, GroupConfig, GroupIn, InstructionConfig, InstructionIn,
-    ItemVersion, LintResponse, MigrateFilesResponse, MigrateRequest, MigrateResponse, NewAgent, NewGroup, NewInstruction,
+    IngestTokenCreated, IngestTokenInfo, ItemVersion, LintResponse, MigrateFilesResponse, MigrateRequest, MigrateResponse, NewAgent, NewGroup, NewInstruction,
     NewProcedure, PreviewResponse, ProcedureConfig, ProcedureIn, PublishRequest, PublishResponse, ReleaseDetail,
-    ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SettingsConfig, SettingsIn,
-    SettingsSaved, ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile,
+    ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SessionDetail, SessionIn,
+    SessionIngested, SessionPage, SessionStatus, SettingsConfig, SettingsIn, SettingsSaved, Channel, Platform,
+    ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile,
 )
+from .events import PgListener
+from .jobs import Jobs
+from .sessions import BadCursor, Unauthorized
 from .sopc import Invalid, Sopc, SopcUnavailable, without_build
 from .store import Conflict, NotFound, Store
 
@@ -54,14 +63,32 @@ def _operation_id(route: APIRoute) -> str:
 # --- app ----------------------------------------------------------------------
 
 
-def create_app(store: Store) -> FastAPI:
+def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
+    jobs = jobs or Jobs(store)
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # On Postgres, session events from every process (a Hatchet worker too) arrive by LISTEN/NOTIFY.
+        listener = None
+        if store.sessions.postgres:
+            url = store.engine.url.set(drivername="postgresql").render_as_string(hide_password=False)
+            listener = PgListener(url, store.sessions.broker)
+            listener.start()
+            app.state.pg_listener = listener
+        yield
+        if listener:
+            listener.stop()
+
     app = FastAPI(
         title="sopops",
         version=__version__,
-        description="Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start.",
+        description="Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start. "
+        "Sessions (voice calls and text chats) come in through the ingest endpoints.",
         generate_unique_id_function=_operation_id,
+        lifespan=lifespan,
     )
     app.state.store = store
+    app.state.jobs = jobs
     invalid = {422: {"model": ValidateResponse, "description": "The files don't compile; sopc's issues."}}
 
     @app.exception_handler(Invalid)
@@ -79,6 +106,14 @@ def create_app(store: Store) -> FastAPI:
     @app.exception_handler(SopcUnavailable)
     def _sopc_unavailable(_, exc: SopcUnavailable) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
+
+    @app.exception_handler(Unauthorized)
+    def _unauthorized(_, exc: Unauthorized) -> JSONResponse:
+        return JSONResponse(status_code=401, content={"detail": str(exc)}, headers={"WWW-Authenticate": "Bearer"})
+
+    @app.exception_handler(BadCursor)
+    def _bad_cursor(_, exc: BadCursor) -> JSONResponse:
+        return JSONResponse(status_code=400, content={"detail": str(exc)})
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
@@ -342,6 +377,108 @@ def create_app(store: Store) -> FastAPI:
     def list_fetches(workspace: str, agent: str | None = Query(None, description="sopc agent id."), limit: int = Query(100, ge=1, le=1000)) -> list[dict]:
         """Which release and prompt hash each agent was served, newest first."""
         return store.fetches(workspace, agent, limit)
+
+    # sessions: voice calls and text chats. Ingest takes the workspace's ingest token; reading is open like the rest (v0).
+
+    bearer = HTTPBearer(auto_error=False, description="The workspace's ingest token (Settings → Ingest token).")
+
+    @app.post(
+        "/v1/workspaces/{workspace}/sessions",
+        response_model=SessionIngested,
+        tags=["sessions"],
+        responses={201: {"model": SessionIngested, "description": "Created."}, 401: {"description": "Missing or wrong ingest token."}},
+    )
+    def ingest_session(
+        workspace: str,
+        req: SessionIn,
+        response: Response,
+        background: BackgroundTasks,
+        credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    ) -> dict:
+        """Ingest a finished session in the canonical format: an idempotent upsert on (platform, external_id).
+        201 when created; 200 when it already existed (updated if its content changed, else untouched).
+        Starts `process_session` for a new or changed session."""
+        store.sessions.check_token(workspace, f"Bearer {credentials.credentials}" if credentials else None)
+        done = store.sessions.ingest(workspace, req)
+        if done.changed:
+            jobs.process_session(done.ref, background)
+        response.status_code = 201 if done.created else 200
+        return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}
+
+    @app.get("/v1/workspaces/{workspace}/sessions", response_model=SessionPage, dependencies=v1, tags=["sessions"])
+    def list_sessions(
+        workspace: str,
+        agent: str | None = Query(None, description="sopc agent id, or the agent as sent."),
+        channel: Channel | None = None,
+        status: SessionStatus | None = None,
+        platform: Platform | None = None,
+        since: datetime | None = Query(None, description="Started at or after."),
+        until: datetime | None = Query(None, description="Started before."),
+        cursor: str | None = Query(None, description="`next_cursor` from the previous page."),
+        limit: int = Query(50, ge=1, le=200),
+    ) -> dict:
+        """Sessions, newest first by start time."""
+        return store.sessions.list(
+            workspace, agent=agent, channel=channel, status=status, platform=platform, since=since, until=until, cursor=cursor, limit=limit
+        )
+
+    @app.get(
+        "/v1/workspaces/{workspace}/sessions/stream",
+        dependencies=v1,
+        tags=["sessions"],
+        response_class=StreamingResponse,
+        responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON."}},
+    )
+    async def stream_sessions(workspace: str, request: Request) -> StreamingResponse:
+        """Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`
+        each time a session is ingested or the pipeline updates it. A comment every 15s keeps the connection open."""
+        from .store import _ws
+
+        ws = _ws(workspace)
+        loop = asyncio.get_running_loop()
+        queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=1000)
+
+        def put(event: dict) -> None:
+            if not queue.full():
+                queue.put_nowait(event)
+
+        unsubscribe = store.sessions.broker.subscribe(ws, lambda e: loop.call_soon_threadsafe(put, e))
+
+        async def events():
+            try:
+                yield "retry: 3000\n: connected\n\n"
+                while not await request.is_disconnected():
+                    try:
+                        event = await asyncio.wait_for(queue.get(), timeout=15)
+                    except TimeoutError:
+                        yield ": keepalive\n\n"
+                        continue
+                    yield f"event: session\ndata: {json.dumps(event)}\n\n"
+            finally:
+                unsubscribe()
+
+        return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+    @app.get("/v1/workspaces/{workspace}/sessions/{id}", response_model=SessionDetail, dependencies=v1, tags=["sessions"])
+    def get_session(workspace: str, id: str) -> dict:
+        """One session with its transcript, tool calls and metadata."""
+        return store.sessions.get(workspace, id)
+
+    @app.get("/v1/workspaces/{workspace}/ingest-token", response_model=IngestTokenInfo, dependencies=v1, tags=["sessions"])
+    def get_ingest_token(workspace: str) -> dict:
+        """Whether the workspace has an ingest token, and its first characters. The token itself is never shown again."""
+        return store.sessions.token_info(workspace)
+
+    @app.post("/v1/workspaces/{workspace}/ingest-token", response_model=IngestTokenCreated, dependencies=v1, tags=["sessions"])
+    def rotate_ingest_token(workspace: str) -> dict:
+        """Create the workspace's ingest token, or replace it (the old one stops working). Returned once."""
+        return store.sessions.rotate_token(workspace)
+
+    @app.delete("/v1/workspaces/{workspace}/ingest-token", status_code=204, dependencies=v1, tags=["sessions"])
+    def revoke_ingest_token(workspace: str) -> Response:
+        """Delete the ingest token: ingest is refused until a new one is made."""
+        store.sessions.revoke_token(workspace)
+        return Response(status_code=204)
 
     # the web UI: built assets, and index.html for every other path so the client-side router can take it
     ui = web_dir()
