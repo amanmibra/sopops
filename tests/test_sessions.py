@@ -245,3 +245,13 @@ def test_stream_endpoint_sends_events(client, token):
 
     msg = asyncio.run(run())
     assert msg.startswith("event: session\ndata: ") and json.loads(msg.split("data: ", 1)[1])["id"] == "s1"
+
+
+def test_pipeline_skips_stale_and_missing_sessions(client, token):
+    from sopops.pipeline import SessionRef, process_session
+
+    store = client.app.state.store
+    sid = ingest(client, token, session()).json()["id"]
+    assert process_session(store, SessionRef(workspace_id="demo", session_id="gone", revision="x")).skipped
+    stale = process_session(store, SessionRef(workspace_id="demo", session_id=sid, revision="an-older-payload"))
+    assert stale.skipped and stale.status == "received"

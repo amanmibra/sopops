@@ -12,7 +12,12 @@ if TYPE_CHECKING:
 
 
 def process_session(store: Store, ref: SessionRef) -> ProcessResult:
-    session = store.sessions.load(ref.workspace_id, ref.session_id)
+    from ..store import NotFound
+
+    try:
+        session = store.sessions.load(ref.workspace_id, ref.session_id)
+    except NotFound:  # deleted since: nothing to do, and nothing to retry
+        return ProcessResult(session_id=ref.session_id, status="failed", turn_count=0, skipped=True)
     if session.payload_hash != ref.revision:
         return ProcessResult(session_id=ref.session_id, status=session.status, turn_count=len(session.turns), skipped=True)
     try:

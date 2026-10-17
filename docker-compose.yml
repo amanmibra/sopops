@@ -1,5 +1,12 @@
 # sopops with Postgres. `docker compose up --build`, then open http://127.0.0.1:8484.
-# There is no authentication yet, so the port is bound to localhost only.
+# There is no authentication yet, so the ports are bound to localhost only.
+#
+# The session pipeline runs inside the app by default. To run it on Hatchet (hatchet-lite, Postgres only, no
+# RabbitMQ) with a separate worker:
+#   docker compose --profile hatchet up -d hatchet
+#   echo "HATCHET_CLIENT_TOKEN=$(docker compose exec hatchet /hatchet-admin token create --config /config --tenant-id 707d0855-80ab-4e1f-a156-f1c4546cbf52)" > .env
+#   docker compose --profile hatchet up --build
+# Hatchet's dashboard is on http://127.0.0.1:8888 (admin@example.com / Admin123!!).
 services:
   db:
     image: postgres:16-alpine
@@ -17,15 +24,71 @@ services:
 
   app:
     build: .
-    environment:
+    environment: &app-env
       DATABASE_URL: postgresql://sopops:sopops@db:5432/sopops
+      HATCHET_CLIENT_TOKEN: ${HATCHET_CLIENT_TOKEN:-}
+      HATCHET_CLIENT_TLS_STRATEGY: none
+      HATCHET_CLIENT_HOST_PORT: hatchet:7077
     ports:
       - "127.0.0.1:8484:8484"
     depends_on:
       db:
         condition: service_healthy
 
-  # hatchet: the workflow engine for call QA comes in a later phase.
+  worker:
+    profiles: [hatchet]
+    build: .
+    command: ["sopops", "worker"]
+    environment: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+      hatchet:
+        condition: service_started
+      app:
+        condition: service_started  # the app runs the migrations
+
+  hatchet-db:
+    profiles: [hatchet]
+    image: postgres:16-alpine
+    command: postgres -c max_connections=200
+    environment:
+      POSTGRES_USER: hatchet
+      POSTGRES_PASSWORD: hatchet
+      POSTGRES_DB: hatchet
+    volumes:
+      - hatchet-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d hatchet -U hatchet"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  hatchet:
+    profiles: [hatchet]
+    image: ghcr.io/hatchet-dev/hatchet/hatchet-lite:latest
+    ports:
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:7077:7077"
+    depends_on:
+      hatchet-db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://hatchet:hatchet@hatchet-db:5432/hatchet?sslmode=disable
+      SERVER_MSGQUEUE_KIND: postgres
+      SERVER_AUTH_COOKIE_DOMAIN: localhost
+      SERVER_AUTH_COOKIE_INSECURE: "t"
+      SERVER_AUTH_SET_EMAIL_VERIFIED: "t"
+      SERVER_GRPC_BIND_ADDRESS: "0.0.0.0"
+      SERVER_GRPC_INSECURE: "t"
+      SERVER_GRPC_BROADCAST_ADDRESS: hatchet:7077
+      SERVER_GRPC_PORT: "7077"
+      SERVER_URL: http://localhost:8888
+      SERVER_INTERNAL_CLIENT_INTERNAL_GRPC_BROADCAST_ADDRESS: localhost:7077
+    volumes:
+      - hatchet-config:/config
 
 volumes:
   pgdata:
+  hatchet-pgdata:
+  hatchet-config:

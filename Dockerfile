@@ -21,7 +21,7 @@ COPY pyproject.toml README.md hatch_build.py ./
 COPY src ./src
 COPY --from=web /web/dist ./web/dist
 # The build hook bundles web/dist into the package as sopops/static.
-RUN pip install --no-cache-dir ".[postgres]" && rm -rf web
+RUN pip install --no-cache-dir ".[postgres,hatchet]" && rm -rf web
 
 # Set DATABASE_URL to Postgres in production; the SQLite default lives in the /data volume.
 # Migrations run on startup.

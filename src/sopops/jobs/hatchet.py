@@ -57,7 +57,7 @@ def normalize(input: SessionRef, ctx: Context) -> ProcessResult:
 
 def trigger_process_session(ref: SessionRef) -> None:
     try:
-        process_session_wf.run_no_wait(ref)
+        process_session_wf.run(ref, wait_for_result=False)
     except IdempotencyCollisionError:
         pass  # this revision is already queued or done
 
