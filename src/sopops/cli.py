@@ -1,6 +1,7 @@
 """sopops [serve] [--host H] [--port P] [--database-url URL]
 sopops import FILE.jsonl --workspace WS [--database-url URL]
 sopops worker
+sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force] [--database-url URL]
 
 Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
@@ -18,13 +19,13 @@ from pydantic import ValidationError
 
 from .db import database_url
 
-COMMANDS = ("serve", "import", "worker")
+COMMANDS = ("serve", "import", "worker", "recluster")
 
 
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     command = argv.pop(0) if argv and argv[0] in COMMANDS else "serve"
-    {"serve": serve, "import": import_sessions, "worker": worker}[command](argv)
+    {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster}[command](argv)
 
 
 def serve(argv: list[str]) -> None:
@@ -97,6 +98,43 @@ def worker(argv: list[str]) -> None:
     except ImportError:
         sys.exit("sopops worker: install the Hatchet SDK: pip install 'sopops[hatchet]'")
     start_worker()
+
+
+def recluster(argv: list[str]) -> None:
+    """Assign unassigned findings to patterns, recluster rules and regroup themes (what the daily cron runs)."""
+    from .sopc import Sopc
+    from .store import Store
+
+    parser = argparse.ArgumentParser(prog="sopops recluster", description="Assign findings to patterns, recluster rules whose triggers fired (every rule with --force), and regroup themes. Calls the models.")
+    parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
+    parser.add_argument("--procedure", help="Only this procedure's rules (with --force).")
+    parser.add_argument("--rule", help="Only this rule (with --procedure).")
+    parser.add_argument("--force", action="store_true", help="Recluster even where no trigger fired (rules still need 8 findings).")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    if args.rule and not args.procedure:
+        parser.error("--rule needs --procedure")
+    store = Store(args.database_url, Sopc())
+    pats = store.patterns
+    out = pats.assign_pending(args.workspace)
+    if args.rule:
+        workspaces = [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]
+        for ws in workspaces:
+            if pats.recluster(ws, args.procedure, args.rule, force=args.force):
+                out.reclustered.append(args.rule)
+                if pats.regroup_themes(ws, args.procedure, force=True):
+                    out.themed.append(args.procedure)
+    elif args.force:
+        workspaces = [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]
+        for ws in workspaces:
+            more = pats.recluster_all(ws, args.procedure)
+            out.reclustered += more.reclustered
+            out.themed += more.themed
+    else:
+        more = pats.recluster_due(args.workspace)
+        out.reclustered += more.reclustered
+        out.themed += more.themed
+    print(f"{out.assigned} findings assigned, {len(out.reclustered)} rules reclustered, {len(set(out.themed))} procedures regrouped into themes")
 
 
 def _short(e: Exception) -> str:

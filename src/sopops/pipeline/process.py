@@ -5,6 +5,9 @@
    procedure started or finished. Status routed, or excluded when there's nothing to check.
 3. check (reasoning model, one call per applicable procedure): every rule's status, the goal, and the rollup.
 4. finish: status checked (a partial session stays partial), with the worst procedure result.
+5. patterns: each new finding joins its rule's pattern (the fast model picks a failure mode on split rules), then
+   rules and themes that are due are reclustered and regrouped (see `sopops.patterns`). A failure here never fails the
+   session; the findings stay unassigned until the next run or the daily recluster.
 
 Each step is a plain function, so it runs the same inline and as a Hatchet task (`sopops.jobs.hatchet`). With no
 model configured the session stays `received`, with the reason, instead of failing.
@@ -12,6 +15,8 @@ model configured the session stays `received`, with the reason, instead of faili
 
 from __future__ import annotations
 
+import logging
+import threading
 from typing import TYPE_CHECKING
 
 from .. import llm as llm_mod
@@ -23,9 +28,11 @@ from .rollup import apply_tool_calls, mark_out_of_order, rollup
 
 if TYPE_CHECKING:
     from ..llm import LLM
+    from ..patterns import Outcome
     from ..models import SessionRecord
     from ..store import Store
 
+log = logging.getLogger("sopops.pipeline")
 NO_MODEL = "No model configured: set SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING to check sessions against procedures."
 SENDER_PARTIAL = "The sender marked the transcript incomplete."
 
@@ -42,7 +49,10 @@ def process_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Pr
         c = check_procedure(store, CheckRef(**ref.model_dump(), procedure_id=pid), llm)
         if not c.stored:
             return ProcessResult(session_id=ref.session_id, status=n.status, turn_count=n.turn_count, skipped=True)
-    return finish_session(store, ref, n.turn_count)
+    done = finish_session(store, ref, n.turn_count)
+    if not done.skipped:
+        assign_patterns(store, ref, llm)
+    return done
 
 
 def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
@@ -155,3 +165,23 @@ def finish_session(store: Store, ref: SessionRef, turn_count: int | None = None)
         return ProcessResult(session_id=ref.session_id, status=s.status, turn_count=len(s.turns), skipped=True)
     status, result = done
     return ProcessResult(session_id=ref.session_id, status=status, turn_count=turn_count if turn_count is not None else len(s.turns), result=result)
+
+
+_ws_locks: dict[str, threading.Lock] = {}
+_ws_locks_guard = threading.Lock()
+
+
+def _ws_lock(workspace: str) -> threading.Lock:
+    with _ws_locks_guard:
+        return _ws_locks.setdefault(workspace, threading.Lock())
+
+
+def assign_patterns(store: Store, ref: SessionRef, llm: LLM | None = None, recluster: bool = True) -> Outcome | None:
+    """Step 5, in this process: one workspace's pattern writes at a time (Hatchet runs them with concurrency 1 per
+    workspace instead). Returns None if it failed (logged)."""
+    try:
+        with _ws_lock(ref.workspace_id):
+            return store.patterns.assign_session(ref.workspace_id, ref.session_id, llm, recluster=recluster)
+    except Exception:
+        log.exception("assigning patterns failed for session %s", ref.session_id)
+        return None

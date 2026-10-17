@@ -45,3 +45,10 @@ class CheckResult(BaseModel):
     procedure_id: str
     result: str | None
     stored: bool
+
+
+class ReclusterRef(BaseModel):
+    workspace_id: str
+    procedure_id: str
+    rule_id: str | None = Field(None, description="Recluster this rule (if due, or `force`); none: only regroup the procedure's themes if due.")
+    force: bool = False

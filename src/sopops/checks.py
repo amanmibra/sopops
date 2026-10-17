@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
-from .models import Finding, ProcedureCheck, RuleResult, SessionRecord
+from .models import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
 from .pipeline.models import SessionRef
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 
@@ -147,6 +147,12 @@ class Checks:
         with self._db() as db:
             checks = list(db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id == session_id)))
             rules = list(db.exec(select(RuleResult).where(RuleResult.session_id == session_id)))
+            pats = {
+                rr_id: (pid, name)
+                for rr_id, pid, name in db.exec(
+                    select(Finding.rule_result_id, Pattern.id, Pattern.name).join(Pattern, Pattern.id == Finding.pattern_id).where(Finding.session_id == session_id)
+                )
+            }
         by_proc: dict[str, list[RuleResult]] = {}
         for r in rules:
             by_proc.setdefault(r.procedure_id, []).append(r)
@@ -161,7 +167,8 @@ class Checks:
                 "checked_at": _utc(c.checked_at),
                 "rules": [
                     {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "text": r.rule_text, "status": r.status, "evidence": r.evidence,
-                     "reason": r.reason, "finding": r.status in FINDING_STATUSES}
+                     "reason": r.reason, "finding": r.status in FINDING_STATUSES, "pattern_id": pats.get(r.id, (None, None))[0],
+                     "pattern_name": pats.get(r.id, (None, None))[1]}
                     for r in rr
                 ],
             })

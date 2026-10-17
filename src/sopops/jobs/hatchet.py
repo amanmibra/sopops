@@ -6,7 +6,9 @@ hatchet-lite). The worker (`sopops worker`) runs the tasks; the API only queues 
 `process_session` is a DAG: normalize -> route -> check -> (done). Model calls run in child workflows so each one can
 be rate-limited by its model key (`SOPOPS_RATE_LIMIT_PER_MINUTE` calls per minute per model, default 60):
 `sopops_route` for routing, and one `sopops_check` per applicable procedure, fanned out by the `check` task, which
-then rolls the session up.
+then rolls the session up. The `patterns` task then assigns the session's findings to patterns; pattern writes run one
+at a time per workspace (`sopops_patterns`), and so do reclustering and themes (`sopops_recluster`, queued when due),
+plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC).
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
 from .. import llm as llm_mod
 from ..pipeline import (
     CheckRef,
+    ReclusterRef,
     CheckResult,
     ProcessResult,
     RouteRef,
@@ -56,6 +59,11 @@ process_session_wf = hatchet.workflow(
 )
 route_wf = hatchet.workflow(name="sopops_route", input_validator=RouteRef)
 check_wf = hatchet.workflow(name="sopops_check", input_validator=CheckRef)
+# pattern writes for a workspace never race: one assign or recluster run at a time per workspace
+_per_workspace = ConcurrencyExpression(expression="input.workspace_id", max_runs=1, limit_strategy=ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN)
+patterns_wf = hatchet.workflow(name="sopops_patterns", input_validator=SessionRef, concurrency=_per_workspace)
+recluster_wf = hatchet.workflow(name="sopops_recluster", input_validator=ReclusterRef, concurrency=_per_workspace)
+recluster_daily_wf = hatchet.workflow(name="sopops_recluster_daily", on_crons=[os.environ.get("SOPOPS_RECLUSTER_CRON", "0 6 * * *")])
 
 _store = None
 
@@ -110,6 +118,51 @@ def check(input: SessionRef, ctx: Context) -> ProcessResult:
     return finish_session(_get_store(), input)
 
 
+@process_session_wf.task(parents=[check], execution_timeout=timedelta(minutes=10), retries=1)
+def patterns(input: SessionRef, ctx: Context) -> ProcessResult:
+    c = ctx.task_output(check)
+    if c.skipped or c.result is None:
+        return c
+    patterns_wf.run(input, child_key=f"patterns:{input.session_id}:{input.revision}")
+    return c
+
+
+@patterns_wf.task(execution_timeout=timedelta(minutes=10), retries=2, backoff_factor=2.0, backoff_max_seconds=60)
+def assign_one(input: SessionRef, ctx: Context) -> dict:
+    store = _get_store()
+    out = store.patterns.assign_session(input.workspace_id, input.session_id, recluster=False)
+    for pid in sorted({p for p, _ in out.due}):
+        for rid in sorted({r for p, r in out.due if p == pid}):
+            recluster_wf.run(ReclusterRef(workspace_id=input.workspace_id, procedure_id=pid, rule_id=rid), wait_for_result=False)
+    for pid in sorted({f.procedure_id for f in _session_findings(store, input)} - {p for p, _ in out.due}):
+        if store.patterns.themes_due(input.workspace_id, pid):
+            recluster_wf.run(ReclusterRef(workspace_id=input.workspace_id, procedure_id=pid), wait_for_result=False)
+    return {"assigned": out.assigned, "due": [list(d) for d in out.due]}
+
+
+@recluster_wf.task(execution_timeout=timedelta(minutes=20), retries=2, backoff_factor=2.0, backoff_max_seconds=120)
+def recluster_one(input: ReclusterRef, ctx: Context) -> dict:
+    store = _get_store()
+    done = bool(input.rule_id) and store.patterns.recluster(input.workspace_id, input.procedure_id, input.rule_id or "", force=input.force)
+    themed = store.patterns.regroup_themes(input.workspace_id, input.procedure_id, force=done)
+    return {"reclustered": done, "themed": themed}
+
+
+@recluster_daily_wf.task(execution_timeout=timedelta(hours=2), retries=1)
+def recluster_daily(input, ctx: Context) -> dict:
+    out = _get_store().patterns.recluster_due()
+    return {"reclustered": out.reclustered, "themed": out.themed}
+
+
+def _session_findings(store, ref: SessionRef):
+    from sqlmodel import Session, select
+
+    from ..models import Finding
+
+    with Session(store.engine) as db:
+        return list(db.exec(select(Finding).where(Finding.session_id == ref.session_id)))
+
+
 @route_wf.task(execution_timeout=timedelta(minutes=5), retries=3, backoff_factor=2.0, backoff_max_seconds=60, rate_limits=[MODEL_LIMIT])
 def route_one(input: RouteRef, ctx: Context) -> RouteResult:
     return route_session(_get_store(), input)
@@ -129,6 +182,6 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 def start_worker() -> None:
     worker = hatchet.worker(
-        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf]
+        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf]
     )
     worker.start()

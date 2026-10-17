@@ -175,12 +175,46 @@ class Sessions:
         until: datetime | None = None,
         cursor: str | None = None,
         limit: int = 50,
+        release: int | None = None,
+        procedure: str | None = None,
+        procedure_result: str | None = None,
+        rule: str | None = None,
+        rule_status: list[str] | None = None,
+        pattern: str | None = None,
+        theme: str | None = None,
+        finding: bool | None = None,
     ) -> dict:
-        """Newest first (by start time). `agent` matches the sopc agent or the agent as sent."""
+        """Newest first (by start time). `agent` matches the sopc agent or the agent as sent. The drill-down filters
+        (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
+        check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it."""
+        from .models import Finding, Pattern, ProcedureCheck, RuleResult
         from .store import _ws
 
         S = SessionRecord
         q = select(S).where(S.workspace_id == _ws(workspace))
+        if release is not None:
+            q = q.where(S.release_id == release)
+        if procedure or procedure_result:
+            pc = select(ProcedureCheck.session_id)
+            if procedure:
+                pc = pc.where(ProcedureCheck.procedure_id == procedure)
+            if procedure_result:
+                pc = pc.where(ProcedureCheck.result == procedure_result)
+            q = q.where(S.id.in_(pc))
+        if rule:
+            rr = select(RuleResult.session_id).where(RuleResult.rule_id == rule)
+            if procedure:
+                rr = rr.where(RuleResult.procedure_id == procedure)
+            if rule_status:
+                rr = rr.where(RuleResult.status.in_(rule_status))
+            q = q.where(S.id.in_(rr))
+        if pattern or theme:
+            pats = select(Pattern.id).where(Pattern.workspace_id == _ws(workspace))
+            pats = pats.where(or_(Pattern.id == pattern, Pattern.parent_id == pattern)) if pattern else pats.where(Pattern.theme_id == theme)
+            q = q.where(S.id.in_(select(Finding.session_id).where(Finding.pattern_id.in_(pats))))
+        if finding is not None:
+            has = S.id.in_(select(Finding.session_id).where(Finding.workspace_id == _ws(workspace)))
+            q = q.where(has if finding else ~has)
         if agent:
             q = q.where(or_(S.agent_id == agent, S.agent_ref == agent))
         if channel:

@@ -22,6 +22,8 @@ from . import forms
 from .db import engine_from_url, upgrade
 from .models import Fetch, FileVersion, Release, Workspace
 from .checks import Checks
+from .insights import Insights
+from .patterns import Patterns
 from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 
@@ -47,6 +49,8 @@ class Store:
         self.sopc = sopc or Sopc()
         self.sessions = Sessions(self)
         self.checks = Checks(self)
+        self.patterns = Patterns(self)
+        self.insights = Insights(self)
         if migrate:
             upgrade(self.engine)
 

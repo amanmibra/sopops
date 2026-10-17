@@ -9,7 +9,8 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
-from conftest import SOPC_BIN, WS
+from conftest import SOPC_BIN, WS, fresh_db_url
+from fakes import PATTERN_SCHEMAS, pattern_reply
 from sopops import Sopc, Store, create_app
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM, LiteLLM, text_of
@@ -53,6 +54,8 @@ class Scenario:
         self.route, self.checks = route, checks
 
     def __call__(self, role, messages, schema):
+        if schema.__name__ in PATTERN_SCHEMAS:
+            return pattern_reply(role, messages, schema)
         if role == "fast":
             ids = re.findall(r'<procedure id="([^"]+)">', text_of(messages))
             answers = {"applied": ("yes", "yes"), "not_applicable": ("no", "no"), "ended_before_start": ("none_yet", "no"), "ended_before_finish": ("yes", "no")}
@@ -88,7 +91,7 @@ BASE = Scenario(
 
 @pytest.fixture
 def env(tmp_path, files):
-    store = Store(f"sqlite:///{tmp_path / 'checks.db'}", Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
     fake = FakeLLM(BASE)
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, llm=fake)))
     client.put(f"{WS}/files", json={"files": files})
@@ -138,7 +141,7 @@ def test_route_and_check_statuses_and_rollup(env):
         findings = sorted((f.procedure_id, f.status) for f in db.exec(select(Finding)))
     assert findings == [(ALLERGEN, "violated"), (DELIVERY, "out_of_order")]
     # one route call, one check per applicable procedure; the transcript block is cached for the checks
-    assert [c[0] for c in env.fake.calls] == ["fast", "reasoning", "reasoning"]
+    assert [c[0] for c in env.fake.calls if c[2].__name__ not in PATTERN_SCHEMAS] == ["fast", "reasoning", "reasoning"]
     check_msgs = env.fake.calls[1][1]
     assert check_msgs[1]["content"][0]["cache_control"] == {"type": "ephemeral"} and "<transcript>" in check_msgs[1]["content"][0]["text"]
     assert "allergen" in check_msgs[1]["content"][1]["text"] and "tonys.com/allergens" in check_msgs[1]["content"][1]["text"]  # variables filled

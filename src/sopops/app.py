@@ -31,8 +31,10 @@ from .schemas import (
     NewProcedure, PreviewResponse, ProcedureConfig, ProcedureIn, PublishRequest, PublishResponse, ReleaseDetail,
     ReleaseRequest, ReleaseResponse, ReleaseSummary, RenderResponse, ReplaceRequest, SessionDetail, SessionIn,
     SessionIngested, SessionPage, SessionStatus, CheckResultValue, SettingsConfig, SettingsIn, SettingsSaved, Channel, Platform,
-    ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile,
+    ValidateResponse, WorkspaceOut, WriteResponse, WrittenFile, RuleStatus, PatternsResponse, PatternDetail, ReclusterRequest, ReclusterResponse,
+    OverviewResponse, ProcedureInsights, RuleInsights, CompareResponse, ReportResponse,
 )
+from .insights import BadFilter, Filters
 from .events import PgListener
 from .jobs import Jobs
 from .sessions import BadCursor, Unauthorized
@@ -417,10 +419,19 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         until: datetime | None = Query(None, description="Started before."),
         cursor: str | None = Query(None, description="`next_cursor` from the previous page."),
         limit: int = Query(50, ge=1, le=200),
+        release: int | None = Query(None, description="The release the session ran."),
+        procedure: str | None = Query(None, description="Sessions the router considered this procedure for."),
+        procedure_result: CheckResultValue | None = Query(None, description="With a procedure check with this result (of `procedure`, if given)."),
+        rule: str | None = Query(None, description="With a result on this rule id."),
+        rule_status: list[RuleStatus] | None = Query(None, description="With `rule`: only these statuses (e.g. skipped)."),
+        pattern: str | None = Query(None, description="With a finding in this pattern (a rule pattern includes its sub-patterns)."),
+        theme: str | None = Query(None, description="With a finding in a pattern of this theme."),
+        finding: bool | None = Query(None, description="With (true) or without (false) any finding."),
     ) -> dict:
-        """Sessions, newest first by start time."""
+        """Sessions, newest first by start time. The drill-down filters are what Insights links to."""
         return store.sessions.list(
-            workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit
+            workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit,
+            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding,
         )
 
     @app.get(
@@ -480,6 +491,94 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         """Delete the ingest token: ingest is refused until a new one is made."""
         store.sessions.revoke_token(workspace)
         return Response(status_code=204)
+
+    # patterns and insights: every number from sopops.insights, with one definition of eligible sessions and rates
+
+    def insight_filters(
+        workspace: str,
+        window: str | None = Query(None, description="24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."),
+        start: datetime | None = Query(None, description="Window start (inclusive), on session start time."),
+        end: datetime | None = Query(None, description="Window end (inclusive; default now)."),
+        agent: str | None = None,
+        procedure: str | None = None,
+        release: list[int] | None = Query(None, description="Only sessions that ran these releases."),
+        channel: Channel | None = None,
+    ) -> Filters:
+        from .store import _ws
+
+        return Filters.make(_ws(workspace), window, start, end, agent, procedure, release, channel)
+
+    @app.exception_handler(BadFilter)
+    def _bad_filter(_, exc: BadFilter) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    def pattern_filters(workspace: str, window: str | None = Query(None, description="Default 365d."), start: datetime | None = None, end: datetime | None = None,
+                        agent: str | None = None, release: list[int] | None = Query(None), channel: Channel | None = None) -> Filters:
+        from .store import _ws
+
+        return Filters.make(_ws(workspace), window or "365d", start, end, agent, None, release, channel)
+
+    @app.get("/v1/workspaces/{workspace}/patterns", response_model=PatternsResponse, dependencies=v1, tags=["patterns"])
+    def list_patterns(workspace: str, procedure: str | None = None, rule: str | None = None, f: Filters = Depends(pattern_filters)) -> dict:
+        """Rule patterns (every finding on a rule) with their named failure modes, counted in the window."""
+        return store.insights.patterns(f, procedure, rule)
+
+    @app.get("/v1/workspaces/{workspace}/patterns/{pattern_id}", response_model=PatternDetail, dependencies=v1, tags=["patterns"])
+    def get_pattern(workspace: str, pattern_id: str, f: Filters = Depends(pattern_filters)) -> dict:
+        """One pattern: the rule it's about, example phrasings and its sessions in the window."""
+        out = store.insights.pattern(f, pattern_id)
+        if out is None:
+            raise NotFound(f"no pattern '{pattern_id}'")
+        return out
+
+    @app.post("/v1/workspaces/{workspace}/patterns/recluster", response_model=ReclusterResponse, dependencies=v1, tags=["patterns"])
+    def recluster_patterns(workspace: str, req: ReclusterRequest | None = None) -> dict:
+        """Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.
+        Runs here and now (it calls the models); the daily cron does the same for every workspace."""
+        from .store import _ws
+
+        req = req or ReclusterRequest()
+        ws = _ws(workspace)
+        pats = store.patterns
+        out = pats.assign_pending(ws, jobs.llm)
+        if req.rule and req.procedure:
+            done = pats.recluster(ws, req.procedure, req.rule, jobs.llm, force=req.force)
+            out.reclustered += [req.rule] if done else []
+            if pats.regroup_themes(ws, req.procedure, jobs.llm, force=done):
+                out.themed.append(req.procedure)
+        else:
+            more = pats.recluster_due(ws, jobs.llm) if not req.force else pats.recluster_all(ws, req.procedure, jobs.llm)
+            out.reclustered += more.reclustered
+            out.themed += more.themed
+        return {"assigned": out.assigned, "reclustered": sorted(set(out.reclustered)), "themed": sorted(set(out.themed))}
+
+    @app.get("/v1/workspaces/{workspace}/insights/overview", response_model=OverviewResponse, dependencies=v1, tags=["insights"])
+    def insights_overview(f: Filters = Depends(insight_filters)) -> dict:
+        """Tiles (current and prior window), the outcome trend with release markers, and the procedure scoreboard."""
+        return store.insights.overview(f)
+
+    @app.get("/v1/workspaces/{workspace}/insights/procedures/{procedure_id}", response_model=ProcedureInsights, dependencies=v1, tags=["insights"])
+    def insights_procedure(procedure_id: str, f: Filters = Depends(insight_filters)) -> dict:
+        """One procedure: tiles, the rule ladder, the release split, warning-sign impact, and patterns by theme."""
+        return store.insights.procedure(f, procedure_id)
+
+    @app.get("/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}", response_model=RuleInsights, dependencies=v1, tags=["insights"])
+    def insights_rule(procedure_id: str, rule_id: str, f: Filters = Depends(insight_filters)) -> dict:
+        """One rule: its wordings, pass rate per release and per agent, its patterns, and recent findings."""
+        return store.insights.rule(f, procedure_id, rule_id)
+
+    @app.get("/v1/workspaces/{workspace}/insights/releases/compare", response_model=CompareResponse, dependencies=v1, tags=["insights"])
+    def insights_compare(a: int | None = Query(None, description="Baseline release (default: the one before b)."),
+                         b: int | None = Query(None, description="Candidate release (default: the latest with sessions in the window)."),
+                         f: Filters = Depends(insight_filters)) -> dict:
+        """Per-rule and per-procedure pass rates of release B against release A, with n, 95% intervals and flags."""
+        return store.insights.compare(f, a, b)
+
+    @app.get("/v1/workspaces/{workspace}/insights/report", response_model=ReportResponse, dependencies=v1, tags=["insights"])
+    def insights_report(f: Filters = Depends(insight_filters)) -> dict:
+        """The review report: headline numbers, then themes and their patterns, each with the rule quoted, example
+        phrasings and the sessions."""
+        return store.insights.report(f)
 
     # the web UI: built assets, and index.html for every other path so the client-side router can take it
     ui = web_dir()
