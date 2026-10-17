@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetIngestTokenData, GetIngestTokenErrors, GetIngestTokenResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, RevokeIngestTokenData, RevokeIngestTokenErrors, RevokeIngestTokenResponses, RotateIngestTokenData, RotateIngestTokenErrors, RotateIngestTokenResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, ValidateData, ValidateErrors, ValidateResponses } from './types.gen';
+import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetIngestTokenData, GetIngestTokenErrors, GetIngestTokenResponses, GetPatternData, GetPatternErrors, GetPatternResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, InsightsCompareData, InsightsCompareErrors, InsightsCompareResponses, InsightsOverviewData, InsightsOverviewErrors, InsightsOverviewResponses, InsightsProcedureData, InsightsProcedureErrors, InsightsProcedureResponses, InsightsReportData, InsightsReportErrors, InsightsReportResponses, InsightsRuleData, InsightsRuleErrors, InsightsRuleResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, ReclusterPatternsData, ReclusterPatternsErrors, ReclusterPatternsResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, RevokeIngestTokenData, RevokeIngestTokenErrors, RevokeIngestTokenResponses, RotateIngestTokenData, RotateIngestTokenErrors, RotateIngestTokenResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, ValidateData, ValidateErrors, ValidateResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -553,7 +553,7 @@ export const listFetches = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * List Sessions
  *
- * Sessions, newest first by start time.
+ * Sessions, newest first by start time. The drill-down filters are what Insights links to.
  */
 export const listSessions = <ThrowOnError extends boolean = false>(options: Options<ListSessionsData, ThrowOnError>): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> => (options.client ?? client).get<ListSessionsResponses, ListSessionsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/sessions', ...options });
 
@@ -609,3 +609,68 @@ export const getIngestToken = <ThrowOnError extends boolean = false>(options: Op
  * Create the workspace's ingest token, or replace it (the old one stops working). Returned once.
  */
 export const rotateIngestToken = <ThrowOnError extends boolean = false>(options: Options<RotateIngestTokenData, ThrowOnError>): RequestResult<RotateIngestTokenResponses, RotateIngestTokenErrors, ThrowOnError> => (options.client ?? client).post<RotateIngestTokenResponses, RotateIngestTokenErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/ingest-token', ...options });
+
+/**
+ * List Patterns
+ *
+ * Rule patterns (every finding on a rule) with their named failure modes, counted in the window.
+ */
+export const listPatterns = <ThrowOnError extends boolean = false>(options: Options<ListPatternsData, ThrowOnError>): RequestResult<ListPatternsResponses, ListPatternsErrors, ThrowOnError> => (options.client ?? client).get<ListPatternsResponses, ListPatternsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns', ...options });
+
+/**
+ * Get Pattern
+ *
+ * One pattern: the rule it's about, example phrasings and its sessions in the window.
+ */
+export const getPattern = <ThrowOnError extends boolean = false>(options: Options<GetPatternData, ThrowOnError>): RequestResult<GetPatternResponses, GetPatternErrors, ThrowOnError> => (options.client ?? client).get<GetPatternResponses, GetPatternErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns/{pattern_id}', ...options });
+
+/**
+ * Recluster Patterns
+ *
+ * Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.
+ * Runs here and now (it calls the models); the daily cron does the same for every workspace.
+ */
+export const reclusterPatterns = <ThrowOnError extends boolean = false>(options: Options<ReclusterPatternsData, ThrowOnError>): RequestResult<ReclusterPatternsResponses, ReclusterPatternsErrors, ThrowOnError> => (options.client ?? client).post<ReclusterPatternsResponses, ReclusterPatternsErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/patterns/recluster',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Insights Overview
+ *
+ * Tiles (current and prior window), the outcome trend with release markers, and the procedure scoreboard.
+ */
+export const insightsOverview = <ThrowOnError extends boolean = false>(options: Options<InsightsOverviewData, ThrowOnError>): RequestResult<InsightsOverviewResponses, InsightsOverviewErrors, ThrowOnError> => (options.client ?? client).get<InsightsOverviewResponses, InsightsOverviewErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/insights/overview', ...options });
+
+/**
+ * Insights Procedure
+ *
+ * One procedure: tiles, the rule ladder, the release split, warning-sign impact, and patterns by theme.
+ */
+export const insightsProcedure = <ThrowOnError extends boolean = false>(options: Options<InsightsProcedureData, ThrowOnError>): RequestResult<InsightsProcedureResponses, InsightsProcedureErrors, ThrowOnError> => (options.client ?? client).get<InsightsProcedureResponses, InsightsProcedureErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}', ...options });
+
+/**
+ * Insights Rule
+ *
+ * One rule: its wordings, pass rate per release and per agent, its patterns, and recent findings.
+ */
+export const insightsRule = <ThrowOnError extends boolean = false>(options: Options<InsightsRuleData, ThrowOnError>): RequestResult<InsightsRuleResponses, InsightsRuleErrors, ThrowOnError> => (options.client ?? client).get<InsightsRuleResponses, InsightsRuleErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}', ...options });
+
+/**
+ * Insights Compare
+ *
+ * Per-rule and per-procedure pass rates of release B against release A, with n, 95% intervals and flags.
+ */
+export const insightsCompare = <ThrowOnError extends boolean = false>(options: Options<InsightsCompareData, ThrowOnError>): RequestResult<InsightsCompareResponses, InsightsCompareErrors, ThrowOnError> => (options.client ?? client).get<InsightsCompareResponses, InsightsCompareErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/insights/releases/compare', ...options });
+
+/**
+ * Insights Report
+ *
+ * The review report: headline numbers, then themes and their patterns, each with the rule quoted, example
+ * phrasings and the sessions.
+ */
+export const insightsReport = <ThrowOnError extends boolean = false>(options: Options<InsightsReportData, ThrowOnError>): RequestResult<InsightsReportResponses, InsightsReportErrors, ThrowOnError> => (options.client ?? client).get<InsightsReportResponses, InsightsReportErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/insights/report', ...options });

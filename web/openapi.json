@@ -3454,7 +3454,7 @@
           "sessions"
         ],
         "summary": "List Sessions",
-        "description": "Sessions, newest first by start time.",
+        "description": "Sessions, newest first by start time. The drill-down filters are what Insights links to.",
         "operationId": "list_sessions",
         "parameters": [
           {
@@ -3643,6 +3643,189 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The release the session ran.",
+              "title": "Release"
+            },
+            "description": "The release the session ran."
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sessions the router considered this procedure for.",
+              "title": "Procedure"
+            },
+            "description": "Sessions the router considered this procedure for."
+          },
+          {
+            "name": "procedure_result",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "deviated",
+                    "partial",
+                    "followed",
+                    "not_measurable"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With a procedure check with this result (of `procedure`, if given).",
+              "title": "Procedure Result"
+            },
+            "description": "With a procedure check with this result (of `procedure`, if given)."
+          },
+          {
+            "name": "rule",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With a result on this rule id.",
+              "title": "Rule"
+            },
+            "description": "With a result on this rule id."
+          },
+          {
+            "name": "rule_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "done",
+                      "out_of_order",
+                      "skipped",
+                      "not_reached",
+                      "not_applicable",
+                      "violated",
+                      "ok",
+                      "present",
+                      "unheeded",
+                      "absent"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With `rule`: only these statuses (e.g. skipped).",
+              "title": "Rule Status"
+            },
+            "description": "With `rule`: only these statuses (e.g. skipped)."
+          },
+          {
+            "name": "pattern",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With a finding in this pattern (a rule pattern includes its sub-patterns).",
+              "title": "Pattern"
+            },
+            "description": "With a finding in this pattern (a rule pattern includes its sub-patterns)."
+          },
+          {
+            "name": "theme",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With a finding in a pattern of this theme.",
+              "title": "Theme"
+            },
+            "description": "With a finding in a pattern of this theme."
+          },
+          {
+            "name": "finding",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With (true) or without (false) any finding.",
+              "title": "Finding"
+            },
+            "description": "With (true) or without (false) any finding."
+          },
+          {
+            "name": "eligible",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions Insights rates (checked or partial, with a result); false: the others.",
+              "title": "Eligible"
+            },
+            "description": "Only sessions Insights rates (checked or partial, with a result); false: the others."
           }
         ],
         "responses": {
@@ -3864,6 +4047,1330 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns": {
+      "get": {
+        "tags": [
+          "patterns"
+        ],
+        "summary": "List Patterns",
+        "description": "Rule patterns (every finding on a rule) with their named failure modes, counted in the window.",
+        "operationId": "list_patterns",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "rule",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default 365d.",
+              "title": "Window"
+            },
+            "description": "Default 365d."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Release"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatternsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns/{pattern_id}": {
+      "get": {
+        "tags": [
+          "patterns"
+        ],
+        "summary": "Get Pattern",
+        "description": "One pattern: the rule it's about, example phrasings and its sessions in the window.",
+        "operationId": "get_pattern",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "pattern_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pattern Id"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default 365d.",
+              "title": "Window"
+            },
+            "description": "Default 365d."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Release"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatternDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns/recluster": {
+      "post": {
+        "tags": [
+          "patterns"
+        ],
+        "summary": "Recluster Patterns",
+        "description": "Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.\nRuns here and now (it calls the models); the daily cron does the same for every workspace.",
+        "operationId": "recluster_patterns",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReclusterRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReclusterResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/overview": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Overview",
+        "description": "Tiles (current and prior window), the outcome trend with release markers, and the procedure scoreboard.",
+        "operationId": "insights_overview",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/procedures/{procedure_id}": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Procedure",
+        "description": "One procedure: tiles, the rule ladder, the release split, warning-sign impact, and patterns by theme.",
+        "operationId": "insights_procedure",
+        "parameters": [
+          {
+            "name": "procedure_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Procedure Id"
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProcedureInsights"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Rule",
+        "description": "One rule: its wordings, pass rate per release and per agent, its patterns, and recent findings.",
+        "operationId": "insights_rule",
+        "parameters": [
+          {
+            "name": "procedure_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Procedure Id"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleInsights"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/releases/compare": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Compare",
+        "description": "Per-rule and per-procedure pass rates of release B against release A, with n, 95% intervals and flags.",
+        "operationId": "insights_compare",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "a",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Baseline release (default: the one before b).",
+              "title": "A"
+            },
+            "description": "Baseline release (default: the one before b)."
+          },
+          {
+            "name": "b",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Candidate release (default: the latest with sessions in the window).",
+              "title": "B"
+            },
+            "description": "Candidate release (default: the latest with sessions in the window)."
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/report": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Report",
+        "description": "The review report: headline numbers, then themes and their patterns, each with the rule quoted, example\nphrasings and the sessions.",
+        "operationId": "insights_report",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportResponse"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -4183,6 +5690,101 @@
         ],
         "title": "AgentOut"
       },
+      "AgentRate": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes"
+          },
+          "fails": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fails"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval",
+            "description": "95% Wilson interval, whole percentages."
+          },
+          "not_counted": {
+            "type": "integer",
+            "title": "Not Counted"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin",
+            "description": "n below the minimum (10): not flagged."
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "passes",
+          "fails",
+          "pass_rate",
+          "interval",
+          "not_counted",
+          "thin",
+          "agent"
+        ],
+        "title": "AgentRate"
+      },
       "AgentSaved": {
         "properties": {
           "item": {
@@ -4288,6 +5890,297 @@
           "block"
         ],
         "title": "BlockRequest"
+      },
+      "CompareProcedure": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "a": {
+            "$ref": "#/components/schemas/CompareRate"
+          },
+          "b": {
+            "$ref": "#/components/schemas/CompareRate"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points"
+          },
+          "flag": {
+            "type": "string",
+            "enum": [
+              "thin",
+              "regressed",
+              "improved",
+              "steady"
+            ],
+            "title": "Flag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "procedure_name",
+          "a",
+          "b",
+          "delta_points",
+          "flag"
+        ],
+        "title": "CompareProcedure"
+      },
+      "CompareRate": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "passes": {
+            "type": "integer",
+            "title": "Passes"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "passes",
+          "pass_rate",
+          "interval"
+        ],
+        "title": "CompareRate"
+      },
+      "CompareResponse": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "a": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A"
+          },
+          "b": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B"
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases"
+          },
+          "min_n": {
+            "type": "integer",
+            "title": "Min N"
+          },
+          "flag_points": {
+            "type": "integer",
+            "title": "Flag Points"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/CompareProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/CompareRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "a",
+          "b",
+          "releases",
+          "min_n",
+          "flag_points",
+          "procedures",
+          "rules"
+        ],
+        "title": "CompareResponse"
+      },
+      "CompareRule": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "rule_change": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "new",
+                  "removed",
+                  "changed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Change"
+          },
+          "a": {
+            "$ref": "#/components/schemas/RateOut"
+          },
+          "b": {
+            "$ref": "#/components/schemas/RateOut"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points",
+            "description": "B minus A, in points; null unless both sides have at least min_n."
+          },
+          "raw_delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Delta Points"
+          },
+          "flag": {
+            "type": "string",
+            "enum": [
+              "thin",
+              "regressed",
+              "improved",
+              "steady"
+            ],
+            "title": "Flag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "rule_change",
+          "a",
+          "b",
+          "delta_points",
+          "raw_delta_points",
+          "flag"
+        ],
+        "title": "CompareRule"
       },
       "Component": {
         "properties": {
@@ -4726,6 +6619,117 @@
         ],
         "title": "EvidenceOut"
       },
+      "ExampleOut": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "turn",
+          "quote",
+          "status"
+        ],
+        "title": "ExampleOut"
+      },
+      "FailingRule": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "fails": {
+            "type": "integer",
+            "title": "Fails"
+          },
+          "fail_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "n",
+          "fails",
+          "fail_rate"
+        ],
+        "title": "FailingRule"
+      },
       "FetchOut": {
         "properties": {
           "id": {
@@ -4912,6 +6916,70 @@
           "files"
         ],
         "title": "FilesResponse"
+      },
+      "FiltersOut": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure"
+          },
+          "releases": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Releases"
+          },
+          "channel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "agent",
+          "procedure",
+          "releases",
+          "channel"
+        ],
+        "title": "FiltersOut"
       },
       "GroupConfig": {
         "properties": {
@@ -5412,6 +7480,199 @@
         ],
         "title": "ItemVersion"
       },
+      "LadderRow": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "wordings": {
+            "type": "integer",
+            "title": "Wordings",
+            "description": "How many wordings the rule has had; more than 1: it was reworded."
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "description": "Passes + fails (not reached and not applicable left out). Warning signs: every judgment."
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes"
+          },
+          "fails": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fails"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "fail_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Rate"
+          },
+          "skip_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Rate"
+          },
+          "present": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Present"
+          },
+          "present_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Present Rate"
+          },
+          "unheeded": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unheeded"
+          },
+          "not_counted": {
+            "type": "integer",
+            "title": "Not Counted"
+          },
+          "not_counted_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Not Counted Pct"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings"
+          },
+          "pattern_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Id"
+          },
+          "patterns": {
+            "type": "integer",
+            "title": "Patterns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "wordings",
+          "total",
+          "counts",
+          "n",
+          "passes",
+          "fails",
+          "pass_rate",
+          "fail_rate",
+          "skip_rate",
+          "present",
+          "present_rate",
+          "unheeded",
+          "not_counted",
+          "not_counted_pct",
+          "findings",
+          "pattern_id",
+          "patterns"
+        ],
+        "title": "LadderRow"
+      },
       "LintFinding": {
         "properties": {
           "code": {
@@ -5834,6 +8095,402 @@
           "id"
         ],
         "title": "NewProcedure"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "tiles": {
+            "$ref": "#/components/schemas/Tiles"
+          },
+          "trend": {
+            "$ref": "#/components/schemas/Trend"
+          },
+          "scoreboard": {
+            "items": {
+              "$ref": "#/components/schemas/ScoreboardRow"
+            },
+            "type": "array",
+            "title": "Scoreboard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "tiles",
+          "trend",
+          "scoreboard"
+        ],
+        "title": "OverviewResponse"
+      },
+      "PatternDetail": {
+        "properties": {
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "sub",
+              "other"
+            ],
+            "title": "Kind",
+            "description": "`rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "theme_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "title": "Status"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings",
+            "description": "Findings in the window."
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "Sessions with a finding in the window."
+          },
+          "total_findings": {
+            "type": "integer",
+            "title": "Total Findings",
+            "description": "All time."
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "theme_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Name"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ExampleOut"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Session Ids",
+            "description": "In the report: the most recent sessions (up to 12)."
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct",
+            "description": "In the report: sessions in it that need attention / all that do."
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleRef"
+          },
+          "sub_patterns": {
+            "items": {
+              "$ref": "#/components/schemas/PatternOut"
+            },
+            "type": "array",
+            "title": "Sub Patterns"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pattern_id",
+          "procedure_id",
+          "rule_id",
+          "parent_id",
+          "kind",
+          "name",
+          "description",
+          "theme_id",
+          "status",
+          "findings",
+          "sessions",
+          "total_findings",
+          "first_seen",
+          "last_seen",
+          "theme_name",
+          "examples",
+          "session_ids",
+          "need_attention_pct",
+          "rule",
+          "sub_patterns"
+        ],
+        "title": "PatternDetail"
+      },
+      "PatternOut": {
+        "properties": {
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "sub",
+              "other"
+            ],
+            "title": "Kind",
+            "description": "`rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "theme_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "title": "Status"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings",
+            "description": "Findings in the window."
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "Sessions with a finding in the window."
+          },
+          "total_findings": {
+            "type": "integer",
+            "title": "Total Findings",
+            "description": "All time."
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "theme_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Name"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ExampleOut"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Session Ids",
+            "description": "In the report: the most recent sessions (up to 12)."
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct",
+            "description": "In the report: sessions in it that need attention / all that do."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pattern_id",
+          "procedure_id",
+          "rule_id",
+          "parent_id",
+          "kind",
+          "name",
+          "description",
+          "theme_id",
+          "status",
+          "findings",
+          "sessions",
+          "total_findings",
+          "first_seen",
+          "last_seen",
+          "theme_name",
+          "examples",
+          "session_ids",
+          "need_attention_pct"
+        ],
+        "title": "PatternOut"
+      },
+      "PatternsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RulePatternOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "PatternsResponse"
       },
       "PreviewBlock": {
         "properties": {
@@ -6379,6 +9036,71 @@
         ],
         "title": "ProcedureIn"
       },
+      "ProcedureInsights": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "tiles": {
+            "$ref": "#/components/schemas/Tiles"
+          },
+          "trend": {
+            "$ref": "#/components/schemas/Trend"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/LadderRow"
+            },
+            "type": "array",
+            "title": "Rules"
+          },
+          "release_split": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReleaseSplit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "warning_impact": {
+            "items": {
+              "$ref": "#/components/schemas/WarningImpact"
+            },
+            "type": "array",
+            "title": "Warning Impact"
+          },
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/ThemeOut"
+            },
+            "type": "array",
+            "title": "Themes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "procedure_id",
+          "procedure_name",
+          "tiles",
+          "trend",
+          "rules",
+          "release_split",
+          "warning_impact",
+          "themes"
+        ],
+        "title": "ProcedureInsights"
+      },
       "PublishRequest": {
         "properties": {
           "files": {
@@ -6443,6 +9165,224 @@
           "changed"
         ],
         "title": "PublishResponse"
+      },
+      "RateOut": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes"
+          },
+          "fails": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fails"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval",
+            "description": "95% Wilson interval, whole percentages."
+          },
+          "not_counted": {
+            "type": "integer",
+            "title": "Not Counted"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin",
+            "description": "n below the minimum (10): not flagged."
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "passes",
+          "fails",
+          "pass_rate",
+          "interval",
+          "not_counted",
+          "thin"
+        ],
+        "title": "RateOut"
+      },
+      "RecentFinding": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "title": "Finding Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "pattern_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "session_id",
+          "started_at",
+          "status",
+          "reason",
+          "evidence",
+          "pattern_id"
+        ],
+        "title": "RecentFinding"
+      },
+      "ReclusterRequest": {
+        "properties": {
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure",
+            "description": "Only this procedure's rules."
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule",
+            "description": "Only this rule (with `procedure`)."
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "description": "Recluster even if no trigger fired (a rule still needs 8 findings).",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "ReclusterRequest"
+      },
+      "ReclusterResponse": {
+        "properties": {
+          "assigned": {
+            "type": "integer",
+            "title": "Assigned"
+          },
+          "reclustered": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reclustered",
+            "description": "Rule ids."
+          },
+          "themed": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Themed",
+            "description": "Procedure ids whose themes were regrouped."
+          }
+        },
+        "type": "object",
+        "required": [
+          "assigned",
+          "reclustered",
+          "themed"
+        ],
+        "title": "ReclusterResponse"
       },
       "ReleaseDetail": {
         "properties": {
@@ -6509,6 +9449,120 @@
         ],
         "title": "ReleaseDetail"
       },
+      "ReleaseMarker": {
+        "properties": {
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "first_session": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release",
+          "first_session"
+        ],
+        "title": "ReleaseMarker"
+      },
+      "ReleaseRate": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes"
+          },
+          "fails": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fails"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval",
+            "description": "95% Wilson interval, whole percentages."
+          },
+          "not_counted": {
+            "type": "integer",
+            "title": "Not Counted"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin",
+            "description": "n below the minimum (10): not flagged."
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "passes",
+          "fails",
+          "pass_rate",
+          "interval",
+          "not_counted",
+          "thin",
+          "release"
+        ],
+        "title": "ReleaseRate"
+      },
       "ReleaseRequest": {
         "properties": {
           "author": {
@@ -6554,6 +9608,37 @@
           "created"
         ],
         "title": "ReleaseResponse"
+      },
+      "ReleaseSplit": {
+        "properties": {
+          "a": {
+            "type": "integer",
+            "title": "A"
+          },
+          "b": {
+            "type": "integer",
+            "title": "B"
+          },
+          "min_n": {
+            "type": "integer",
+            "title": "Min N"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/SplitRow"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "a",
+          "b",
+          "min_n",
+          "rules"
+        ],
+        "title": "ReleaseSplit"
       },
       "ReleaseSummary": {
         "properties": {
@@ -6770,6 +9855,514 @@
         ],
         "title": "ReplaceRequest"
       },
+      "ReportHeadline": {
+        "properties": {
+          "sessions_checked": {
+            "type": "integer",
+            "title": "Sessions Checked",
+            "description": "Eligible sessions: checked (or partial) with a result."
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed",
+            "description": "Followed end to end: every procedure check in scope followed."
+          },
+          "need_attention": {
+            "type": "integer",
+            "title": "Need Attention",
+            "description": "Some procedure check in scope deviated."
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
+          },
+          "excluded": {
+            "type": "integer",
+            "title": "Excluded"
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "followed_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Pct"
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct"
+          },
+          "checks": {
+            "type": "integer",
+            "title": "Checks"
+          },
+          "measurable_checks": {
+            "type": "integer",
+            "title": "Measurable Checks"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate",
+            "description": "Procedure checks followed / measurable checks."
+          },
+          "goal_n": {
+            "type": "integer",
+            "title": "Goal N"
+          },
+          "goal_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Rate"
+          },
+          "multi_problem_sessions": {
+            "type": "integer",
+            "title": "Multi Problem Sessions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions_checked",
+          "followed",
+          "need_attention",
+          "partial",
+          "not_measurable",
+          "excluded",
+          "in_progress",
+          "failed",
+          "followed_pct",
+          "need_attention_pct",
+          "checks",
+          "measurable_checks",
+          "pass_rate",
+          "goal_n",
+          "goal_rate",
+          "multi_problem_sessions"
+        ],
+        "title": "ReportHeadline"
+      },
+      "ReportProcedure": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "themes": {
+            "items": {
+              "$ref": "#/components/schemas/ThemeOut"
+            },
+            "type": "array",
+            "title": "Themes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "procedure_name",
+          "themes"
+        ],
+        "title": "ReportProcedure"
+      },
+      "ReportResponse": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "headline": {
+            "$ref": "#/components/schemas/ReportHeadline"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/ReportProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "headline",
+          "procedures"
+        ],
+        "title": "ReportResponse"
+      },
+      "RuleInsights": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "wordings": {
+            "items": {
+              "$ref": "#/components/schemas/Wording"
+            },
+            "type": "array",
+            "title": "Wordings"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/RateOut"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseRate"
+            },
+            "type": "array",
+            "title": "Releases"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRate"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "patterns": {
+            "items": {
+              "$ref": "#/components/schemas/RulePatternOut"
+            },
+            "type": "array",
+            "title": "Patterns"
+          },
+          "recent_findings": {
+            "items": {
+              "$ref": "#/components/schemas/RecentFinding"
+            },
+            "type": "array",
+            "title": "Recent Findings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "procedure_id",
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "wordings",
+          "overall",
+          "releases",
+          "agents",
+          "patterns",
+          "recent_findings"
+        ],
+        "title": "RuleInsights"
+      },
+      "RulePatternOut": {
+        "properties": {
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "sub",
+              "other"
+            ],
+            "title": "Kind",
+            "description": "`rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "theme_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "title": "Status"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings",
+            "description": "Findings in the window."
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "Sessions with a finding in the window."
+          },
+          "total_findings": {
+            "type": "integer",
+            "title": "Total Findings",
+            "description": "All time."
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "theme_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Name"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ExampleOut"
+            },
+            "type": "array",
+            "title": "Examples"
+          },
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Session Ids",
+            "description": "In the report: the most recent sessions (up to 12)."
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct",
+            "description": "In the report: sessions in it that need attention / all that do."
+          },
+          "sub_patterns": {
+            "items": {
+              "$ref": "#/components/schemas/PatternOut"
+            },
+            "type": "array",
+            "title": "Sub Patterns"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleRef"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "pattern_id",
+          "procedure_id",
+          "rule_id",
+          "parent_id",
+          "kind",
+          "name",
+          "description",
+          "theme_id",
+          "status",
+          "findings",
+          "sessions",
+          "total_findings",
+          "first_seen",
+          "last_seen",
+          "theme_name",
+          "examples",
+          "session_ids",
+          "need_attention_pct",
+          "sub_patterns",
+          "rule"
+        ],
+        "title": "RulePatternOut"
+      },
+      "RuleRef": {
+        "properties": {
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "index",
+          "text"
+        ],
+        "title": "RuleRef"
+      },
       "RuleResultOut": {
         "properties": {
           "rule_id": {
@@ -6806,6 +10399,7 @@
               "violated",
               "ok",
               "present",
+              "unheeded",
               "absent"
             ],
             "title": "Status"
@@ -6831,7 +10425,30 @@
           "finding": {
             "type": "boolean",
             "title": "Finding",
-            "description": "A deviation: skipped, violated or out_of_order."
+            "description": "A deviation: skipped, violated, out_of_order or unheeded."
+          },
+          "pattern_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Id",
+            "description": "For a finding: the pattern it joined (its most specific one)."
+          },
+          "pattern_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Name"
           }
         },
         "type": "object",
@@ -6843,9 +10460,124 @@
           "status",
           "evidence",
           "reason",
-          "finding"
+          "finding",
+          "pattern_id",
+          "pattern_name"
         ],
         "title": "RuleResultOut"
+      },
+      "ScoreboardRow": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "checks": {
+            "type": "integer",
+            "title": "Checks"
+          },
+          "measurable": {
+            "type": "integer",
+            "title": "Measurable"
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed"
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "deviated": {
+            "type": "integer",
+            "title": "Deviated"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
+          },
+          "excluded": {
+            "type": "integer",
+            "title": "Excluded"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "prior_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior Pass Rate"
+          },
+          "prior_measurable": {
+            "type": "integer",
+            "title": "Prior Measurable"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points"
+          },
+          "top_failing_rules": {
+            "items": {
+              "$ref": "#/components/schemas/FailingRule"
+            },
+            "type": "array",
+            "title": "Top Failing Rules"
+          },
+          "never_violations": {
+            "type": "integer",
+            "title": "Never Violations"
+          },
+          "open_patterns": {
+            "type": "integer",
+            "title": "Open Patterns",
+            "description": "Patterns (each finding's most specific one) with findings in the window."
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "procedure_name",
+          "checks",
+          "measurable",
+          "followed",
+          "partial",
+          "deviated",
+          "not_measurable",
+          "excluded",
+          "pass_rate",
+          "prior_pass_rate",
+          "prior_measurable",
+          "delta_points",
+          "top_failing_rules",
+          "never_violations",
+          "open_patterns"
+        ],
+        "title": "ScoreboardRow"
       },
       "SessionDetail": {
         "properties": {
@@ -7665,6 +11397,77 @@
         ],
         "title": "SettingsSaved"
       },
+      "SplitRow": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "a_n": {
+            "type": "integer",
+            "title": "A N"
+          },
+          "a_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Pass Rate"
+          },
+          "b_n": {
+            "type": "integer",
+            "title": "B N"
+          },
+          "b_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "B Pass Rate"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points",
+            "description": "Null unless both sides have at least min_n."
+          },
+          "flag": {
+            "type": "string",
+            "enum": [
+              "thin",
+              "regressed",
+              "improved",
+              "steady"
+            ],
+            "title": "Flag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "a_n",
+          "a_pass_rate",
+          "b_n",
+          "b_pass_rate",
+          "delta_points",
+          "flag"
+        ],
+        "title": "SplitRow"
+      },
       "Step-Input": {
         "properties": {
           "text": {
@@ -7729,6 +11532,236 @@
         ],
         "title": "Step"
       },
+      "ThemeOut": {
+        "properties": {
+          "theme_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Id",
+            "description": "Null for patterns not grouped into a theme yet."
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "patterns": {
+            "items": {
+              "$ref": "#/components/schemas/RulePatternOut"
+            },
+            "type": "array",
+            "title": "Patterns"
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct",
+            "description": "In the report: sessions with a finding in the theme that need attention / all that do."
+          }
+        },
+        "type": "object",
+        "required": [
+          "theme_id",
+          "name",
+          "description",
+          "findings",
+          "sessions",
+          "patterns",
+          "need_attention_pct"
+        ],
+        "title": "ThemeOut"
+      },
+      "Tiles": {
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/TilesValues"
+          },
+          "prior": {
+            "$ref": "#/components/schemas/TilesValues"
+          },
+          "delta_points": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Delta Points"
+          },
+          "delta_pct": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Delta Pct"
+          }
+        },
+        "type": "object",
+        "required": [
+          "current",
+          "prior",
+          "delta_points",
+          "delta_pct"
+        ],
+        "title": "Tiles"
+      },
+      "TilesValues": {
+        "properties": {
+          "sessions_checked": {
+            "type": "integer",
+            "title": "Sessions Checked",
+            "description": "Eligible sessions: checked (or partial) with a result."
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed",
+            "description": "Followed end to end: every procedure check in scope followed."
+          },
+          "need_attention": {
+            "type": "integer",
+            "title": "Need Attention",
+            "description": "Some procedure check in scope deviated."
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
+          },
+          "excluded": {
+            "type": "integer",
+            "title": "Excluded"
+          },
+          "in_progress": {
+            "type": "integer",
+            "title": "In Progress"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "followed_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Followed Pct"
+          },
+          "need_attention_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need Attention Pct"
+          },
+          "checks": {
+            "type": "integer",
+            "title": "Checks"
+          },
+          "measurable_checks": {
+            "type": "integer",
+            "title": "Measurable Checks"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate",
+            "description": "Procedure checks followed / measurable checks."
+          },
+          "goal_n": {
+            "type": "integer",
+            "title": "Goal N"
+          },
+          "goal_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sessions_checked",
+          "followed",
+          "need_attention",
+          "partial",
+          "not_measurable",
+          "excluded",
+          "in_progress",
+          "failed",
+          "followed_pct",
+          "need_attention_pct",
+          "checks",
+          "measurable_checks",
+          "pass_rate",
+          "goal_n",
+          "goal_rate"
+        ],
+        "title": "TilesValues"
+      },
       "ToolCallIn": {
         "properties": {
           "name": {
@@ -7790,6 +11823,90 @@
           "name"
         ],
         "title": "ToolCallIn"
+      },
+      "Trend": {
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "day",
+              "week"
+            ],
+            "title": "Bucket"
+          },
+          "buckets": {
+            "items": {
+              "$ref": "#/components/schemas/TrendBucket"
+            },
+            "type": "array",
+            "title": "Buckets"
+          },
+          "releases": {
+            "items": {
+              "$ref": "#/components/schemas/ReleaseMarker"
+            },
+            "type": "array",
+            "title": "Releases"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket",
+          "buckets",
+          "releases"
+        ],
+        "title": "Trend"
+      },
+      "TrendBucket": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed"
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "deviated": {
+            "type": "integer",
+            "title": "Deviated"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "followed",
+          "partial",
+          "deviated",
+          "not_measurable",
+          "pass_rate",
+          "n"
+        ],
+        "title": "TrendBucket"
       },
       "TurnIn": {
         "properties": {
@@ -7926,6 +12043,135 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WarningImpact": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "present_n": {
+            "type": "integer",
+            "title": "Present N"
+          },
+          "present_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Present Pass Rate"
+          },
+          "absent_n": {
+            "type": "integer",
+            "title": "Absent N"
+          },
+          "absent_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Absent Pass Rate"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points"
+          },
+          "flag": {
+            "type": "boolean",
+            "title": "Flag",
+            "description": "The pass rate drops 10 points or more when the sign is present (min n on both sides)."
+          },
+          "unheeded": {
+            "type": "integer",
+            "title": "Unheeded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "index",
+          "text",
+          "present_n",
+          "present_pass_rate",
+          "absent_n",
+          "absent_pass_rate",
+          "delta_points",
+          "flag",
+          "unheeded"
+        ],
+        "title": "WarningImpact"
+      },
+      "Wording": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "text_hash": {
+            "type": "string",
+            "title": "Text Hash"
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "results": {
+            "type": "integer",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "text_hash",
+          "first_seen",
+          "last_seen",
+          "results"
+        ],
+        "title": "Wording"
       },
       "WorkspaceOut": {
         "properties": {

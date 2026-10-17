@@ -202,6 +202,51 @@ export type AgentOut = {
 };
 
 /**
+ * AgentRate
+ */
+export type AgentRate = {
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number | null;
+    /**
+     * Fails
+     */
+    fails: number | null;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     *
+     * 95% Wilson interval, whole percentages.
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Not Counted
+     */
+    not_counted: number;
+    /**
+     * Thin
+     *
+     * n below the minimum (10): not flagged.
+     */
+    thin: boolean;
+    /**
+     * Agent
+     */
+    agent: string | null;
+};
+
+/**
  * AgentSaved
  */
 export type AgentSaved = {
@@ -268,6 +313,136 @@ export type BlockRequest = {
      * A shared instruction, procedure or group id.
      */
     block: string;
+};
+
+/**
+ * CompareProcedure
+ */
+export type CompareProcedure = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    a: CompareRate;
+    b: CompareRate;
+    /**
+     * Delta Points
+     */
+    delta_points: number | null;
+    /**
+     * Flag
+     */
+    flag: 'thin' | 'regressed' | 'improved' | 'steady';
+};
+
+/**
+ * CompareRate
+ */
+export type CompareRate = {
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+};
+
+/**
+ * CompareResponse
+ */
+export type CompareResponse = {
+    filters: FiltersOut;
+    /**
+     * A
+     */
+    a: number | null;
+    /**
+     * B
+     */
+    b: number | null;
+    /**
+     * Releases
+     */
+    releases: Array<number>;
+    /**
+     * Min N
+     */
+    min_n: number;
+    /**
+     * Flag Points
+     */
+    flag_points: number;
+    /**
+     * Procedures
+     */
+    procedures: Array<CompareProcedure>;
+    /**
+     * Rules
+     */
+    rules: Array<CompareRule>;
+};
+
+/**
+ * CompareRule
+ */
+export type CompareRule = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+    /**
+     * Rule Change
+     */
+    rule_change: 'new' | 'removed' | 'changed' | null;
+    a: RateOut;
+    b: RateOut;
+    /**
+     * Delta Points
+     *
+     * B minus A, in points; null unless both sides have at least min_n.
+     */
+    delta_points: number | null;
+    /**
+     * Raw Delta Points
+     */
+    raw_delta_points: number | null;
+    /**
+     * Flag
+     */
+    flag: 'thin' | 'regressed' | 'improved' | 'steady';
 };
 
 /**
@@ -501,6 +676,62 @@ export type EvidenceOut = {
 };
 
 /**
+ * ExampleOut
+ */
+export type ExampleOut = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Turn
+     */
+    turn: number | null;
+    /**
+     * Quote
+     */
+    quote: string;
+    /**
+     * Status
+     */
+    status: string;
+};
+
+/**
+ * FailingRule
+ */
+export type FailingRule = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Fails
+     */
+    fails: number;
+    /**
+     * Fail Rate
+     */
+    fail_rate: number | null;
+};
+
+/**
  * FetchOut
  */
 export type FetchOut = {
@@ -614,6 +845,36 @@ export type FilesResponse = {
      * Files
      */
     files: Array<FileOut>;
+};
+
+/**
+ * FiltersOut
+ */
+export type FiltersOut = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     */
+    end: string;
+    /**
+     * Agent
+     */
+    agent: string | null;
+    /**
+     * Procedure
+     */
+    procedure: string | null;
+    /**
+     * Releases
+     */
+    releases: Array<number>;
+    /**
+     * Channel
+     */
+    channel: string | null;
 };
 
 /**
@@ -897,6 +1158,102 @@ export type ItemVersion = {
 };
 
 /**
+ * LadderRow
+ */
+export type LadderRow = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Wordings
+     *
+     * How many wordings the rule has had; more than 1: it was reworded.
+     */
+    wordings: number;
+    /**
+     * Total
+     */
+    total: number;
+    /**
+     * Counts
+     */
+    counts: {
+        [key: string]: number;
+    };
+    /**
+     * N
+     *
+     * Passes + fails (not reached and not applicable left out). Warning signs: every judgment.
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number | null;
+    /**
+     * Fails
+     */
+    fails: number | null;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Fail Rate
+     */
+    fail_rate: number | null;
+    /**
+     * Skip Rate
+     */
+    skip_rate: number | null;
+    /**
+     * Present
+     */
+    present: number | null;
+    /**
+     * Present Rate
+     */
+    present_rate: number | null;
+    /**
+     * Unheeded
+     */
+    unheeded: number | null;
+    /**
+     * Not Counted
+     */
+    not_counted: number;
+    /**
+     * Not Counted Pct
+     */
+    not_counted_pct: number | null;
+    /**
+     * Findings
+     */
+    findings: number;
+    /**
+     * Pattern Id
+     */
+    pattern_id: string | null;
+    /**
+     * Patterns
+     */
+    patterns: number;
+};
+
+/**
  * LintFinding
  */
 export type LintFinding = {
@@ -1173,6 +1530,214 @@ export type NewProcedure = {
 };
 
 /**
+ * OverviewResponse
+ */
+export type OverviewResponse = {
+    filters: FiltersOut;
+    tiles: Tiles;
+    trend: Trend;
+    /**
+     * Scoreboard
+     */
+    scoreboard: Array<ScoreboardRow>;
+};
+
+/**
+ * PatternDetail
+ */
+export type PatternDetail = {
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Parent Id
+     */
+    parent_id: string | null;
+    /**
+     * Kind
+     *
+     * `rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none.
+     */
+    kind: 'rule' | 'sub' | 'other';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Theme Id
+     */
+    theme_id: string | null;
+    /**
+     * Status
+     */
+    status: 'active' | 'retired';
+    /**
+     * Findings
+     *
+     * Findings in the window.
+     */
+    findings: number;
+    /**
+     * Sessions
+     *
+     * Sessions with a finding in the window.
+     */
+    sessions: number;
+    /**
+     * Total Findings
+     *
+     * All time.
+     */
+    total_findings: number;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Theme Name
+     */
+    theme_name: string | null;
+    /**
+     * Examples
+     */
+    examples: Array<ExampleOut>;
+    /**
+     * Session Ids
+     *
+     * In the report: the most recent sessions (up to 12).
+     */
+    session_ids: Array<string>;
+    /**
+     * Need Attention Pct
+     *
+     * In the report: sessions in it that need attention / all that do.
+     */
+    need_attention_pct: number | null;
+    rule: RuleRef;
+    /**
+     * Sub Patterns
+     */
+    sub_patterns: Array<PatternOut>;
+};
+
+/**
+ * PatternOut
+ */
+export type PatternOut = {
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Parent Id
+     */
+    parent_id: string | null;
+    /**
+     * Kind
+     *
+     * `rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none.
+     */
+    kind: 'rule' | 'sub' | 'other';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Theme Id
+     */
+    theme_id: string | null;
+    /**
+     * Status
+     */
+    status: 'active' | 'retired';
+    /**
+     * Findings
+     *
+     * Findings in the window.
+     */
+    findings: number;
+    /**
+     * Sessions
+     *
+     * Sessions with a finding in the window.
+     */
+    sessions: number;
+    /**
+     * Total Findings
+     *
+     * All time.
+     */
+    total_findings: number;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Theme Name
+     */
+    theme_name: string | null;
+    /**
+     * Examples
+     */
+    examples: Array<ExampleOut>;
+    /**
+     * Session Ids
+     *
+     * In the report: the most recent sessions (up to 12).
+     */
+    session_ids: Array<string>;
+    /**
+     * Need Attention Pct
+     *
+     * In the report: sessions in it that need attention / all that do.
+     */
+    need_attention_pct: number | null;
+};
+
+/**
+ * PatternsResponse
+ */
+export type PatternsResponse = {
+    /**
+     * Items
+     */
+    items: Array<RulePatternOut>;
+};
+
+/**
  * PreviewBlock
  */
 export type PreviewBlock = {
@@ -1444,6 +2009,36 @@ export type ProcedureIn = {
 };
 
 /**
+ * ProcedureInsights
+ */
+export type ProcedureInsights = {
+    filters: FiltersOut;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    tiles: Tiles;
+    trend: Trend;
+    /**
+     * Rules
+     */
+    rules: Array<LadderRow>;
+    release_split: ReleaseSplit | null;
+    /**
+     * Warning Impact
+     */
+    warning_impact: Array<WarningImpact>;
+    /**
+     * Themes
+     */
+    themes: Array<ThemeOut>;
+};
+
+/**
  * PublishRequest
  */
 export type PublishRequest = {
@@ -1480,6 +2075,127 @@ export type PublishResponse = {
      * Changed
      */
     changed: Array<WrittenFile>;
+};
+
+/**
+ * RateOut
+ */
+export type RateOut = {
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number | null;
+    /**
+     * Fails
+     */
+    fails: number | null;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     *
+     * 95% Wilson interval, whole percentages.
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Not Counted
+     */
+    not_counted: number;
+    /**
+     * Thin
+     *
+     * n below the minimum (10): not flagged.
+     */
+    thin: boolean;
+};
+
+/**
+ * RecentFinding
+ */
+export type RecentFinding = {
+    /**
+     * Finding Id
+     */
+    finding_id: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Started At
+     */
+    started_at: string | null;
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Reason
+     */
+    reason: string | null;
+    /**
+     * Evidence
+     */
+    evidence: Array<EvidenceOut>;
+    /**
+     * Pattern Id
+     */
+    pattern_id: string | null;
+};
+
+/**
+ * ReclusterRequest
+ */
+export type ReclusterRequest = {
+    /**
+     * Procedure
+     *
+     * Only this procedure's rules.
+     */
+    procedure?: string | null;
+    /**
+     * Rule
+     *
+     * Only this rule (with `procedure`).
+     */
+    rule?: string | null;
+    /**
+     * Force
+     *
+     * Recluster even if no trigger fired (a rule still needs 8 findings).
+     */
+    force?: boolean;
+};
+
+/**
+ * ReclusterResponse
+ */
+export type ReclusterResponse = {
+    /**
+     * Assigned
+     */
+    assigned: number;
+    /**
+     * Reclustered
+     *
+     * Rule ids.
+     */
+    reclustered: Array<string>;
+    /**
+     * Themed
+     *
+     * Procedure ids whose themes were regrouped.
+     */
+    themed: Array<string>;
 };
 
 /**
@@ -1523,6 +2239,65 @@ export type ReleaseDetail = {
 };
 
 /**
+ * ReleaseMarker
+ */
+export type ReleaseMarker = {
+    /**
+     * Release
+     */
+    release: number;
+    /**
+     * First Session
+     */
+    first_session: string;
+};
+
+/**
+ * ReleaseRate
+ */
+export type ReleaseRate = {
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number | null;
+    /**
+     * Fails
+     */
+    fails: number | null;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     *
+     * 95% Wilson interval, whole percentages.
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Not Counted
+     */
+    not_counted: number;
+    /**
+     * Thin
+     *
+     * n below the minimum (10): not flagged.
+     */
+    thin: boolean;
+    /**
+     * Release
+     */
+    release: number | null;
+};
+
+/**
  * ReleaseRequest
  */
 export type ReleaseRequest = {
@@ -1547,6 +2322,28 @@ export type ReleaseResponse = {
      * False if head was already the current release.
      */
     created: boolean;
+};
+
+/**
+ * ReleaseSplit
+ */
+export type ReleaseSplit = {
+    /**
+     * A
+     */
+    a: number;
+    /**
+     * B
+     */
+    b: number;
+    /**
+     * Min N
+     */
+    min_n: number;
+    /**
+     * Rules
+     */
+    rules: Array<SplitRow>;
 };
 
 /**
@@ -1692,6 +2489,275 @@ export type ReplaceRequest = {
 };
 
 /**
+ * ReportHeadline
+ */
+export type ReportHeadline = {
+    /**
+     * Sessions Checked
+     *
+     * Eligible sessions: checked (or partial) with a result.
+     */
+    sessions_checked: number;
+    /**
+     * Followed
+     *
+     * Followed end to end: every procedure check in scope followed.
+     */
+    followed: number;
+    /**
+     * Need Attention
+     *
+     * Some procedure check in scope deviated.
+     */
+    need_attention: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
+    /**
+     * Excluded
+     */
+    excluded: number;
+    /**
+     * In Progress
+     */
+    in_progress: number;
+    /**
+     * Failed
+     */
+    failed: number;
+    /**
+     * Followed Pct
+     */
+    followed_pct: number | null;
+    /**
+     * Need Attention Pct
+     */
+    need_attention_pct: number | null;
+    /**
+     * Checks
+     */
+    checks: number;
+    /**
+     * Measurable Checks
+     */
+    measurable_checks: number;
+    /**
+     * Pass Rate
+     *
+     * Procedure checks followed / measurable checks.
+     */
+    pass_rate: number | null;
+    /**
+     * Goal N
+     */
+    goal_n: number;
+    /**
+     * Goal Rate
+     */
+    goal_rate: number | null;
+    /**
+     * Multi Problem Sessions
+     */
+    multi_problem_sessions: number;
+};
+
+/**
+ * ReportProcedure
+ */
+export type ReportProcedure = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    /**
+     * Themes
+     */
+    themes: Array<ThemeOut>;
+};
+
+/**
+ * ReportResponse
+ */
+export type ReportResponse = {
+    filters: FiltersOut;
+    headline: ReportHeadline;
+    /**
+     * Procedures
+     */
+    procedures: Array<ReportProcedure>;
+};
+
+/**
+ * RuleInsights
+ */
+export type RuleInsights = {
+    filters: FiltersOut;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+    /**
+     * Wordings
+     */
+    wordings: Array<Wording>;
+    overall: RateOut;
+    /**
+     * Releases
+     */
+    releases: Array<ReleaseRate>;
+    /**
+     * Agents
+     */
+    agents: Array<AgentRate>;
+    /**
+     * Patterns
+     */
+    patterns: Array<RulePatternOut>;
+    /**
+     * Recent Findings
+     */
+    recent_findings: Array<RecentFinding>;
+};
+
+/**
+ * RulePatternOut
+ */
+export type RulePatternOut = {
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Parent Id
+     */
+    parent_id: string | null;
+    /**
+     * Kind
+     *
+     * `rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none.
+     */
+    kind: 'rule' | 'sub' | 'other';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Theme Id
+     */
+    theme_id: string | null;
+    /**
+     * Status
+     */
+    status: 'active' | 'retired';
+    /**
+     * Findings
+     *
+     * Findings in the window.
+     */
+    findings: number;
+    /**
+     * Sessions
+     *
+     * Sessions with a finding in the window.
+     */
+    sessions: number;
+    /**
+     * Total Findings
+     *
+     * All time.
+     */
+    total_findings: number;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Theme Name
+     */
+    theme_name: string | null;
+    /**
+     * Examples
+     */
+    examples: Array<ExampleOut>;
+    /**
+     * Session Ids
+     *
+     * In the report: the most recent sessions (up to 12).
+     */
+    session_ids: Array<string>;
+    /**
+     * Need Attention Pct
+     *
+     * In the report: sessions in it that need attention / all that do.
+     */
+    need_attention_pct: number | null;
+    /**
+     * Sub Patterns
+     */
+    sub_patterns: Array<PatternOut>;
+    rule: RuleRef | null;
+};
+
+/**
+ * RuleRef
+ */
+export type RuleRef = {
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+};
+
+/**
  * RuleResultOut
  */
 export type RuleResultOut = {
@@ -1718,7 +2784,7 @@ export type RuleResultOut = {
     /**
      * Status
      */
-    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'absent';
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
     /**
      * Evidence
      */
@@ -1730,9 +2796,91 @@ export type RuleResultOut = {
     /**
      * Finding
      *
-     * A deviation: skipped, violated or out_of_order.
+     * A deviation: skipped, violated, out_of_order or unheeded.
      */
     finding: boolean;
+    /**
+     * Pattern Id
+     *
+     * For a finding: the pattern it joined (its most specific one).
+     */
+    pattern_id: string | null;
+    /**
+     * Pattern Name
+     */
+    pattern_name: string | null;
+};
+
+/**
+ * ScoreboardRow
+ */
+export type ScoreboardRow = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    /**
+     * Checks
+     */
+    checks: number;
+    /**
+     * Measurable
+     */
+    measurable: number;
+    /**
+     * Followed
+     */
+    followed: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Deviated
+     */
+    deviated: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
+    /**
+     * Excluded
+     */
+    excluded: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Prior Pass Rate
+     */
+    prior_pass_rate: number | null;
+    /**
+     * Prior Measurable
+     */
+    prior_measurable: number;
+    /**
+     * Delta Points
+     */
+    delta_points: number | null;
+    /**
+     * Top Failing Rules
+     */
+    top_failing_rules: Array<FailingRule>;
+    /**
+     * Never Violations
+     */
+    never_violations: number;
+    /**
+     * Open Patterns
+     *
+     * Patterns (each finding's most specific one) with findings in the window.
+     */
+    open_patterns: number;
 };
 
 /**
@@ -2166,6 +3314,42 @@ export type SettingsSaved = {
 };
 
 /**
+ * SplitRow
+ */
+export type SplitRow = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * A N
+     */
+    a_n: number;
+    /**
+     * A Pass Rate
+     */
+    a_pass_rate: number | null;
+    /**
+     * B N
+     */
+    b_n: number;
+    /**
+     * B Pass Rate
+     */
+    b_pass_rate: number | null;
+    /**
+     * Delta Points
+     *
+     * Null unless both sides have at least min_n.
+     */
+    delta_points: number | null;
+    /**
+     * Flag
+     */
+    flag: 'thin' | 'regressed' | 'improved' | 'steady';
+};
+
+/**
  * Step
  */
 export type StepInput = {
@@ -2210,6 +3394,138 @@ export type StepOutput = {
 };
 
 /**
+ * ThemeOut
+ */
+export type ThemeOut = {
+    /**
+     * Theme Id
+     *
+     * Null for patterns not grouped into a theme yet.
+     */
+    theme_id: string | null;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Findings
+     */
+    findings: number;
+    /**
+     * Sessions
+     */
+    sessions: number;
+    /**
+     * Patterns
+     */
+    patterns: Array<RulePatternOut>;
+    /**
+     * Need Attention Pct
+     *
+     * In the report: sessions with a finding in the theme that need attention / all that do.
+     */
+    need_attention_pct: number | null;
+};
+
+/**
+ * Tiles
+ */
+export type Tiles = {
+    current: TilesValues;
+    prior: TilesValues;
+    /**
+     * Delta Points
+     */
+    delta_points: {
+        [key: string]: number | null;
+    };
+    /**
+     * Delta Pct
+     */
+    delta_pct: {
+        [key: string]: number | null;
+    };
+};
+
+/**
+ * TilesValues
+ */
+export type TilesValues = {
+    /**
+     * Sessions Checked
+     *
+     * Eligible sessions: checked (or partial) with a result.
+     */
+    sessions_checked: number;
+    /**
+     * Followed
+     *
+     * Followed end to end: every procedure check in scope followed.
+     */
+    followed: number;
+    /**
+     * Need Attention
+     *
+     * Some procedure check in scope deviated.
+     */
+    need_attention: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
+    /**
+     * Excluded
+     */
+    excluded: number;
+    /**
+     * In Progress
+     */
+    in_progress: number;
+    /**
+     * Failed
+     */
+    failed: number;
+    /**
+     * Followed Pct
+     */
+    followed_pct: number | null;
+    /**
+     * Need Attention Pct
+     */
+    need_attention_pct: number | null;
+    /**
+     * Checks
+     */
+    checks: number;
+    /**
+     * Measurable Checks
+     */
+    measurable_checks: number;
+    /**
+     * Pass Rate
+     *
+     * Procedure checks followed / measurable checks.
+     */
+    pass_rate: number | null;
+    /**
+     * Goal N
+     */
+    goal_n: number;
+    /**
+     * Goal Rate
+     */
+    goal_rate: number | null;
+};
+
+/**
  * ToolCallIn
  */
 export type ToolCallIn = {
@@ -2242,6 +3558,58 @@ export type ToolCallIn = {
      */
     at?: string | number | null;
     [key: string]: unknown;
+};
+
+/**
+ * Trend
+ */
+export type Trend = {
+    /**
+     * Bucket
+     */
+    bucket: 'day' | 'week';
+    /**
+     * Buckets
+     */
+    buckets: Array<TrendBucket>;
+    /**
+     * Releases
+     */
+    releases: Array<ReleaseMarker>;
+};
+
+/**
+ * TrendBucket
+ */
+export type TrendBucket = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * Followed
+     */
+    followed: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Deviated
+     */
+    deviated: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * N
+     */
+    n: number;
 };
 
 /**
@@ -2331,6 +3699,80 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * WarningImpact
+ */
+export type WarningImpact = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Present N
+     */
+    present_n: number;
+    /**
+     * Present Pass Rate
+     */
+    present_pass_rate: number | null;
+    /**
+     * Absent N
+     */
+    absent_n: number;
+    /**
+     * Absent Pass Rate
+     */
+    absent_pass_rate: number | null;
+    /**
+     * Delta Points
+     */
+    delta_points: number | null;
+    /**
+     * Flag
+     *
+     * The pass rate drops 10 points or more when the sign is present (min n on both sides).
+     */
+    flag: boolean;
+    /**
+     * Unheeded
+     */
+    unheeded: number;
+};
+
+/**
+ * Wording
+ */
+export type Wording = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Text Hash
+     */
+    text_hash: string;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Results
+     */
+    results: number;
 };
 
 /**
@@ -4488,6 +5930,60 @@ export type ListSessionsData = {
          * Limit
          */
         limit?: number;
+        /**
+         * Release
+         *
+         * The release the session ran.
+         */
+        release?: number | null;
+        /**
+         * Procedure
+         *
+         * Sessions the router considered this procedure for.
+         */
+        procedure?: string | null;
+        /**
+         * Procedure Result
+         *
+         * With a procedure check with this result (of `procedure`, if given).
+         */
+        procedure_result?: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
+        /**
+         * Rule
+         *
+         * With a result on this rule id.
+         */
+        rule?: string | null;
+        /**
+         * Rule Status
+         *
+         * With `rule`: only these statuses (e.g. skipped).
+         */
+        rule_status?: Array<'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent'> | null;
+        /**
+         * Pattern
+         *
+         * With a finding in this pattern (a rule pattern includes its sub-patterns).
+         */
+        pattern?: string | null;
+        /**
+         * Theme
+         *
+         * With a finding in a pattern of this theme.
+         */
+        theme?: string | null;
+        /**
+         * Finding
+         *
+         * With (true) or without (false) any finding.
+         */
+        finding?: boolean | null;
+        /**
+         * Eligible
+         *
+         * Only sessions Insights rates (checked or partial, with a result); false: the others.
+         */
+        eligible?: boolean | null;
     };
     url: '/v1/workspaces/{workspace}/sessions';
 };
@@ -4699,3 +6195,521 @@ export type RotateIngestTokenResponses = {
 };
 
 export type RotateIngestTokenResponse = RotateIngestTokenResponses[keyof RotateIngestTokenResponses];
+
+export type ListPatternsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Rule
+         */
+        rule?: string | null;
+        /**
+         * Window
+         *
+         * Default 365d.
+         */
+        window?: string | null;
+        /**
+         * Start
+         */
+        start?: string | null;
+        /**
+         * End
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Release
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/patterns';
+};
+
+export type ListPatternsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListPatternsError = ListPatternsErrors[keyof ListPatternsErrors];
+
+export type ListPatternsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PatternsResponse;
+};
+
+export type ListPatternsResponse = ListPatternsResponses[keyof ListPatternsResponses];
+
+export type GetPatternData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Pattern Id
+         */
+        pattern_id: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * Default 365d.
+         */
+        window?: string | null;
+        /**
+         * Start
+         */
+        start?: string | null;
+        /**
+         * End
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Release
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}';
+};
+
+export type GetPatternErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetPatternError = GetPatternErrors[keyof GetPatternErrors];
+
+export type GetPatternResponses = {
+    /**
+     * Successful Response
+     */
+    200: PatternDetail;
+};
+
+export type GetPatternResponse = GetPatternResponses[keyof GetPatternResponses];
+
+export type ReclusterPatternsData = {
+    /**
+     * Req
+     */
+    body?: ReclusterRequest | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/patterns/recluster';
+};
+
+export type ReclusterPatternsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReclusterPatternsError = ReclusterPatternsErrors[keyof ReclusterPatternsErrors];
+
+export type ReclusterPatternsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReclusterResponse;
+};
+
+export type ReclusterPatternsResponse = ReclusterPatternsResponses[keyof ReclusterPatternsResponses];
+
+export type InsightsOverviewData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/overview';
+};
+
+export type InsightsOverviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsOverviewError = InsightsOverviewErrors[keyof InsightsOverviewErrors];
+
+export type InsightsOverviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: OverviewResponse;
+};
+
+export type InsightsOverviewResponse = InsightsOverviewResponses[keyof InsightsOverviewResponses];
+
+export type InsightsProcedureData = {
+    body?: never;
+    path: {
+        /**
+         * Procedure Id
+         */
+        procedure_id: string;
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}';
+};
+
+export type InsightsProcedureErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsProcedureError = InsightsProcedureErrors[keyof InsightsProcedureErrors];
+
+export type InsightsProcedureResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProcedureInsights;
+};
+
+export type InsightsProcedureResponse = InsightsProcedureResponses[keyof InsightsProcedureResponses];
+
+export type InsightsRuleData = {
+    body?: never;
+    path: {
+        /**
+         * Procedure Id
+         */
+        procedure_id: string;
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}';
+};
+
+export type InsightsRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsRuleError = InsightsRuleErrors[keyof InsightsRuleErrors];
+
+export type InsightsRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleInsights;
+};
+
+export type InsightsRuleResponse = InsightsRuleResponses[keyof InsightsRuleResponses];
+
+export type InsightsCompareData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * A
+         *
+         * Baseline release (default: the one before b).
+         */
+        a?: number | null;
+        /**
+         * B
+         *
+         * Candidate release (default: the latest with sessions in the window).
+         */
+        b?: number | null;
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/releases/compare';
+};
+
+export type InsightsCompareErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsCompareError = InsightsCompareErrors[keyof InsightsCompareErrors];
+
+export type InsightsCompareResponses = {
+    /**
+     * Successful Response
+     */
+    200: CompareResponse;
+};
+
+export type InsightsCompareResponse = InsightsCompareResponses[keyof InsightsCompareResponses];
+
+export type InsightsReportData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/report';
+};
+
+export type InsightsReportErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsReportError = InsightsReportErrors[keyof InsightsReportErrors];
+
+export type InsightsReportResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReportResponse;
+};
+
+export type InsightsReportResponse = InsightsReportResponses[keyof InsightsReportResponses];

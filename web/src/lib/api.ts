@@ -2,7 +2,7 @@
 import { type QueryClient, infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { client } from "@/client/client.gen";
 import * as sdk from "@/client/sdk.gen";
-import type { ConfigResponse, IssueOut, SessionSummary } from "@/client/types.gen";
+import type { ConfigResponse, IssueOut, RuleResultOut, SessionSummary } from "@/client/types.gen";
 
 client.setConfig({ baseUrl: "" });
 
@@ -99,7 +99,45 @@ export const q = {
   ingestToken: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ingest-token"], queryFn: () => call(sdk.getIngestToken(path(ws))) }),
   release: (ws: string, number: number) =>
     queryOptions({ queryKey: ["ws", ws, "release", number], queryFn: () => call(sdk.getRelease({ path: { workspace: ws, number } })), staleTime: Infinity }),
+  insightsOverview: (ws: string, f: InsightFilters) =>
+    queryOptions({ queryKey: ["ws", ws, "insights", "overview", f], queryFn: () => call(sdk.insightsOverview({ path: { workspace: ws }, query: insightQuery(f) })) }),
+  insightsProcedure: (ws: string, id: string, f: InsightFilters) =>
+    queryOptions({
+      queryKey: ["ws", ws, "insights", "procedure", id, f],
+      queryFn: () => call(sdk.insightsProcedure({ path: { workspace: ws, procedure_id: id }, query: insightQuery({ ...f, procedure: undefined }) })),
+    }),
+  insightsRule: (ws: string, procedureId: string, ruleId: string, f: InsightFilters) =>
+    queryOptions({
+      queryKey: ["ws", ws, "insights", "rule", procedureId, ruleId, f],
+      queryFn: () => call(sdk.insightsRule({ path: { workspace: ws, procedure_id: procedureId, rule_id: ruleId }, query: insightQuery({ ...f, procedure: undefined }) })),
+    }),
+  insightsCompare: (ws: string, f: InsightFilters, a?: number, b?: number) =>
+    queryOptions({
+      queryKey: ["ws", ws, "insights", "compare", f, a, b],
+      queryFn: () => call(sdk.insightsCompare({ path: { workspace: ws }, query: { ...insightQuery({ ...f, release: undefined }), a, b } })),
+    }),
+  insightsReport: (ws: string, f: InsightFilters) =>
+    queryOptions({ queryKey: ["ws", ws, "insights", "report", f], queryFn: () => call(sdk.insightsReport({ path: { workspace: ws }, query: insightQuery(f) })) }),
+  patterns: (ws: string, procedure?: string) =>
+    queryOptions({ queryKey: ["ws", ws, "patterns", procedure], queryFn: () => call(sdk.listPatterns({ path: { workspace: ws }, query: { procedure } })) }),
+  pattern: (ws: string, id: string) =>
+    queryOptions({ queryKey: ["ws", ws, "pattern", id], queryFn: () => call(sdk.getPattern({ path: { workspace: ws, pattern_id: id } })) }),
 };
+
+/** The Insights pages' filters, as kept in the URL. */
+export const WINDOWS = ["24h", "7d", "30d", "90d", "365d"] as const;
+export type InsightWindow = (typeof WINDOWS)[number];
+export type InsightFilters = {
+  window?: InsightWindow;
+  agent?: string;
+  procedure?: string;
+  release?: number[];
+  channel?: "voice" | "text";
+};
+
+function insightQuery(f: InsightFilters) {
+  return { window: f.window ?? "7d", agent: f.agent, procedure: f.procedure, release: f.release?.length ? f.release : undefined, channel: f.channel };
+}
 
 /** After a write: refetch everything about the workspace (and the workspace list, which a first write adds to). */
 export async function refresh(qc: QueryClient, ws: string) {
@@ -114,11 +152,37 @@ export type SessionFilters = {
   result?: NonNullable<SessionSummary["result"]>;
   since?: string;
   until?: string;
+  // drill-down filters, set by links from Insights and the report
+  release?: number;
+  procedure?: string;
+  procedure_result?: NonNullable<SessionSummary["result"]>;
+  rule?: string;
+  rule_status?: RuleResultOut["status"][];
+  pattern?: string;
+  theme?: string;
+  finding?: boolean;
+  eligible?: boolean;
 };
 
 function sessionQuery(f: SessionFilters) {
   const iso = (local?: string) => (local ? new Date(local).toISOString() : undefined);
-  return { agent: f.agent, channel: f.channel, status: f.status, result: f.result, since: iso(f.since), until: iso(f.until) };
+  return {
+    agent: f.agent,
+    channel: f.channel,
+    status: f.status,
+    result: f.result,
+    since: iso(f.since),
+    until: iso(f.until),
+    release: f.release,
+    procedure: f.procedure,
+    procedure_result: f.procedure_result,
+    rule: f.rule,
+    rule_status: f.rule_status?.length ? f.rule_status : undefined,
+    pattern: f.pattern,
+    theme: f.theme,
+    finding: f.finding,
+    eligible: f.eligible,
+  };
 }
 
 /** What `…/sessions/stream` sends with each `session` event. */

@@ -2,8 +2,11 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api";
+import { sessionsHref } from "@/lib/insights";
 import { cn } from "@/lib/utils";
+import { useWs } from "@/lib/workspace";
 import { Note, Tag } from "./bits";
+import { HrefLink } from "./href-link";
 
 export type Result = NonNullable<SessionSummary["result"]>;
 
@@ -38,6 +41,7 @@ const STATUS: Record<Status, { label: string; tone: string }> = {
   skipped: { label: "skipped", tone: "bg-err-soft text-err border-transparent" },
   violated: { label: "violated", tone: "bg-err-soft text-err border-transparent" },
   present: { label: "present", tone: "bg-warn-soft text-warn border-transparent" },
+  unheeded: { label: "unheeded", tone: "bg-warn-soft text-warn border-transparent font-semibold" },
 };
 
 const KIND: Record<RuleResultOut["kind"], string> = { step: "Step", never: "Never", warning: "Warning sign" };
@@ -97,6 +101,7 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
   const s = STATUS[rule.status];
   const key = ruleKey(procedureId, rule);
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
+  const { ws } = useWs();
   return (
     <li className={cn("rounded-md border border-transparent px-2 py-1.5", active && "border-border bg-muted", rule.finding && !active && "bg-err-soft/40")}>
       <button type="button" className="grid w-full grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
@@ -122,6 +127,14 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
               <span className="text-muted-foreground mr-1.5 font-mono text-xs">{e.source === "tool_calls" ? "tool call" : `#${e.turn}`}</span>“{e.quote}”
             </button>
           ))}
+          {rule.pattern_id && (
+            <span className="text-[13px]">
+              Pattern:{" "}
+              <HrefLink href={sessionsHref(ws, { pattern: rule.pattern_id })} title="Every session in this pattern">
+                {rule.pattern_name ?? "this pattern"}
+              </HrefLink>
+            </span>
+          )}
           <span className="text-muted-foreground font-mono text-[11px]">rule {rule.rule_id}</span>
         </div>
       )}

@@ -4,6 +4,7 @@ import { Copy, KeyRound, Radio } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, call, q, sdk } from "@/lib/api";
+import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
@@ -82,6 +83,62 @@ function FilterSelect<T extends string>({
   );
 }
 
+const DRILL: (keyof SessionFilters)[] = ["eligible", "release", "procedure", "procedure_result", "rule", "rule_status", "pattern", "theme", "finding"];
+
+/** The drill-down filters Insights links set, as removable chips. */
+function DrillChips({ filters, onFilters }: { filters: SessionFilters; onFilters: (f: SessionFilters) => void }) {
+  const { ws, cfg } = useWs();
+  const pattern = useQuery({ ...q.pattern(ws, filters.pattern ?? ""), enabled: !!filters.pattern });
+  const rules = useQuery({ ...q.patterns(ws, filters.procedure), enabled: !!filters.rule || !!filters.theme });
+  const active = DRILL.filter((k) => filters[k] != null && !(Array.isArray(filters[k]) && !(filters[k] as unknown[]).length));
+  if (!active.length) return null;
+  const procName = (id?: string) => cfg.procedures.find((p) => p.id === id)?.name ?? id;
+  const rulePat = rules.data?.items.find((p) => p.rule_id === filters.rule);
+  const label = (k: keyof SessionFilters): string => {
+    switch (k) {
+      case "release":
+        return `Release #${filters.release}`;
+      case "procedure":
+        return `Procedure: ${procName(filters.procedure)}`;
+      case "procedure_result":
+        return `Procedure result: ${RESULT[filters.procedure_result!].label}`;
+      case "rule":
+        return `Rule: ${rulePat?.rule?.kind ? ruleName(rulePat.rule.kind, rulePat.rule.index) : filters.rule}`;
+      case "rule_status":
+        return `Rule status: ${filters.rule_status!.map((x) => x.replace("_", " ")).join(" or ")}`;
+      case "pattern":
+        return `Pattern: ${pattern.data?.name ?? "…"}`;
+      case "theme": {
+        const named = rules.data?.items.flatMap((p) => [p, ...p.sub_patterns]).find((p) => p.theme_id === filters.theme && p.theme_name);
+        return `Theme: ${named?.theme_name ?? "…"}`;
+      }
+      case "eligible":
+        return filters.eligible ? "Checked (rated by Insights)" : "Not rated by Insights";
+      case "finding":
+        return filters.finding ? "With findings" : "Without findings";
+      default:
+        return k;
+    }
+  };
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label="Drill-down filters">
+      {active.map((k) => (
+        <span key={k} className="bg-brand-soft inline-flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2.5 text-[13px]">
+          {label(k)}
+          <button
+            type="button"
+            aria-label={`Remove ${label(k)}`}
+            className="hover:bg-card text-muted-foreground cursor-pointer rounded-full px-1.5"
+            onClick={() => onFilters({ ...filters, [k]: undefined, ...(k === "rule" ? { rule_status: undefined } : {}) })}
+          >
+            ×
+          </button>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function SessionsView({ filters, onFilters }: { filters: SessionFilters; onFilters: (f: SessionFilters) => void }) {
   const { ws, cfg } = useWs();
   const go = useGo();
@@ -89,7 +146,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
   const list = useInfiniteQuery(q.sessions(ws, filters));
   const rows = list.data?.pages.flatMap((p) => p.items) ?? [];
   const set = (patch: Partial<SessionFilters>) => onFilters({ ...filters, ...patch });
-  const filtered = Object.values(filters).some(Boolean);
+  const filtered = Object.values(filters).some((v) => v != null && v !== "" && !(Array.isArray(v) && !v.length));
   const agents = [...new Set([...cfg.agents.map((a) => a.id), ...(filters.agent ? [filters.agent] : [])])];
 
   return (
@@ -128,6 +185,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         )}
       </div>
 
+      <DrillChips filters={filters} onFilters={onFilters} />
       {list.isError && <ErrorBanner error={list.error} />}
       {list.isPending ? (
         <p className="text-muted-foreground">Loading…</p>
