@@ -1,0 +1,74 @@
+"""API shapes for runtime delivery (kept apart from `sopops.schemas`)."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+DeliveryMode = Literal["pull", "push", "both"]
+PushPlatform = Literal["elevenlabs", "vapi"]
+SecretKind = Literal["api-key", "webhook-secret"]
+
+
+class AgentDeliveryOut(BaseModel):
+    agent: str
+    platform: str
+    platform_id: str
+    mode: DeliveryMode
+    modes: list[DeliveryMode] = Field(description="The modes this agent's platform allows (LiveKit: pull only).")
+
+
+class DeliveryIn(BaseModel):
+    mode: DeliveryMode
+
+
+class SecretInfo(BaseModel):
+    set: bool
+    hint: str | None = Field(None, description="The last few characters.")
+    created_at: datetime | None
+
+
+class PlatformCredentials(BaseModel):
+    platform: PushPlatform
+    api_key: SecretInfo
+    webhook_secret: SecretInfo
+
+
+class SecretIn(BaseModel):
+    value: str | None = Field(None, description="The API key, or the webhook secret. A webhook secret left empty is generated.")
+
+
+class SecretSaved(BaseModel):
+    platform: PushPlatform
+    kind: Literal["api_key", "webhook_secret"]
+    hint: str
+    created_at: datetime
+    secret: str | None = Field(None, description="A generated webhook secret, shown this once.")
+
+
+class KeyTestIn(BaseModel):
+    platform_id: str | None = Field(None, description="The agent to read; default: the first agent at head on this platform.")
+
+
+class KeyTestOut(BaseModel):
+    ok: bool
+    platform_id: str
+    message: str
+
+
+class PushResultOut(BaseModel):
+    release: int
+    agent: str
+    platform: str
+    platform_id: str
+    status: Literal["ok", "unchanged", "error"]
+    version_id: str | None
+    error: str | None
+    attempts: int
+    at: datetime
+
+
+class RetryIn(BaseModel):
+    agents: list[str] | None = Field(None, description="Push these agents again; default: every agent whose last push failed.")
