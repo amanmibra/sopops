@@ -4,7 +4,7 @@ import { Copy, KeyRound, Radio } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, call, q, sdk } from "@/lib/api";
-import { when } from "@/lib/kinds";
+import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
@@ -240,7 +240,8 @@ export function SessionView({ id }: { id: string }) {
         {agentName(s)}, {when(s.started_at)}
       </PageTitle>
       <Sub>
-        {s.turn_count} turns{s.tool_call_count ? `, ${s.tool_call_count} tool calls` : ""}
+        {plural(s.turn_count, "turn", "turns")}
+        {s.tool_call_count ? `, ${plural(s.tool_call_count, "tool call", "tool calls")}` : ""}
         {s.duration_s != null ? `, ${clock(s.duration_s)} long` : ""}.
       </Sub>
       {s.status_reason && <Banner tone={s.status === "failed" ? "err" : "warn"}>{s.status_reason}</Banner>}
