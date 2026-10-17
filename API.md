@@ -2,7 +2,7 @@
 
 Every endpoint. Paths below are under `/v1/workspaces/<ws>` unless they start with `/v1/`. The OpenAPI spec at `/openapi.json` has every field; `/docs` lets you try them.
 
-There is no authentication yet: keep sopops on a private network.
+There is no authentication yet beyond the workspace token (session ingest, and prompt fetches once the workspace has one): keep sopops on a private network.
 
 Each operation's `operationId` is its route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients have readable function names; the web UI's typed client (`web/src/client`) is generated this way. Paths outside `/v1` (and `/docs`, `/openapi.json`) serve the web UI.
 
@@ -75,7 +75,34 @@ Paths under `build/` in uploads are ignored; absolute paths and `..` are rejecte
 | `GET …/agents/<agent>/sops/<id>` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. |
 | `GET …/fetches?agent=` | Which release and prompt hash each agent was served, newest first. |
 
+`GET …/agents/<agent>`, `…/prompt` and `…/sops/<id>` take the workspace's token (the ingest token, also called the runtime token) as `Authorization: Bearer <token>` once the workspace has one, and answer `401` without it. A workspace without a token serves them openly (local mode).
+
 `<agent>` is the sopc agent id (`tonys-pizza`) or its platform ref (`livekit:tonys-pizza`). `components` lists each file the prompt was built from, in prompt order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9).
+
+## Runtime delivery
+
+How each agent gets its prompt: **pull** (the agent, or its platform's call-start webhook, fetches it) or **push** (sopops writes it into the agent on ElevenLabs or Vapi when a release goes live), or both.
+
+| Endpoint | What it does |
+|---|---|
+| `GET …/runtime/delivery` | Every agent at head: `{agent, platform, platform_id, mode, modes}`. No setting means `pull`; LiveKit agents only pull. |
+| `PUT …/runtime/delivery/<agent>` | `{mode: pull \| push \| both}`. `400` for a mode the platform doesn't allow. |
+| `GET …/runtime/platforms` | For `elevenlabs` and `vapi`: `{api_key, webhook_secret}`, each `{set, hint, created_at}`. Never the values. |
+| `PUT …/runtime/platforms/<platform>/api-key` | `{value}`: store the platform API key, encrypted with `SOPOPS_SECRET_KEY` (Fernet). `503` if that isn't set. |
+| `PUT …/runtime/platforms/<platform>/webhook-secret` | `{value?}`: store a webhook secret; without a value one is made and returned once as `secret`. |
+| `DELETE …/runtime/platforms/<platform>/<api-key \| webhook-secret>` | Remove it. |
+| `POST …/runtime/platforms/<platform>/test` | `{platform_id?}`: read one agent with the stored key (a GET; default: the first agent at head on that platform). `{ok, platform_id, message}`. |
+| `GET …/releases/<n>/pushes` | Each push-mode agent's latest push of the release: `{agent, platform, platform_id, status: ok \| unchanged \| error, version_id, error, attempts, at}`. |
+| `POST …/releases/<n>/pushes/retry` | `{agents?}`: push again (default: the agents whose last push failed). `409` unless the release is live. |
+| `POST …/runtime/served` | `{platform, call_id, agent, release}` with the runtime token: a client that fetched the prompt itself reports the call it served, so the session links to the release. |
+| `POST …/runtime/elevenlabs/conversation-init` | ElevenLabs' conversation-initiation webhook (`?agent=`, `?release=` optional; default: the agent named by `agent_id` in the body, live release). Returns `{type: "conversation_initiation_client_data", dynamic_variables: {sopops_release, sopops_agent}, conversation_config_override: {agent: {prompt: {prompt}}}}`. |
+| `POST …/runtime/vapi/assistant-request` | Vapi's server URL (`?agent=` needed if the release has more than one Vapi agent; `?release=` optional). For `assistant-request`: `{assistantId, assistantOverrides: {model, variableValues: {sopops_prompt, sopops_release, sopops_agent}, metadata}}`, where `model` is the assistant's own (read with the stored key, cached 5 minutes) with the system message replaced; without a key, only `variableValues` (use `{{sopops_prompt}}` as the system message). Other message types get `{}`. |
+
+**Push.** Creating a release (`POST …/releases`, `…/publish`) or activating one pushes it to every push-mode agent, after the response. ElevenLabs: `GET /v1/convai/agents/<id>`, then `PATCH` with `{conversation_config: {agent: {prompt: {prompt}}}}`; an agent whose workflow has nodes besides start and end is refused, since its main prompt isn't the whole prompt. Vapi: `GET /assistant/<id>`, then `PATCH {model}` with every model field kept and the one system message replaced (added if there's none; refused if there are several). A prompt that's already live is recorded as `unchanged` without a write. `version_id` is ElevenLabs' `version_id` or Vapi's `latestVersion` when returned.
+
+**Webhook authentication.** A request is accepted with the platform's webhook secret, as `Authorization: Bearer`, `X-Sopops-Secret` or `X-Vapi-Secret`, or as an HMAC-SHA256 signature: ElevenLabs' `ElevenLabs-Signature: t=…,v0=…` over `"{t}.{body}"` (at most 30 minutes old), or Vapi's `x-signature` (hex) and `x-timestamp` over `"{timestamp}.{body}"` (within 5 minutes). The runtime token as a bearer works too. A workspace with neither a webhook secret nor a token accepts them unauthenticated (local mode).
+
+**Linking sessions.** Each prompt served by a webhook, or reported to `…/runtime/served`, is kept for 7 days keyed by the call id: Vapi's `call.id`, ElevenLabs' `conversation_id` or `call_sid`. A session ingested without a `release` takes it from there, matching `external_id`, `metadata.call_sid` or `metadata.phone_call.call_sid`.
 
 ## Stateless
 
@@ -100,7 +127,7 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | `POST …/ingest-token` | Make the workspace's ingest token, or replace it (the old one stops working): `{token, prefix, created_at}`. Stored as a hash. |
 | `DELETE …/ingest-token` | Delete it; ingest is refused until a new one is made. |
 
-Only ingest needs the token; the rest of the API is open, as above.
+Ingest needs the token, and so do prompt fetches once it exists (see Serving); the rest of the API is open, as above.
 
 ### The canonical format
 
