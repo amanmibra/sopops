@@ -73,6 +73,8 @@ class SessionRecord(SQLModel, table=True):
     __table_args__ = (
         UniqueConstraint("workspace_id", "platform", "external_id", name="uq_sessions_key"),
         Index("ix_sessions_workspace_started", "workspace_id", "started_at"),
+        Index("ix_sessions_workspace_release", "workspace_id", "release_id"),
+        Index("ix_sessions_workspace_agent_started", "workspace_id", "agent_id", "started_at"),
         ForeignKeyConstraint(["workspace_id"], ["workspaces.workspace"], name="fk_sessions_workspace"),
         ForeignKeyConstraint(["workspace_id", "release_id"], ["releases.workspace", "releases.number"], name="fk_sessions_release"),
     )
@@ -160,7 +162,8 @@ class RuleResult(SQLModel, table=True):
 
 
 class Finding(SQLModel, table=True):
-    """A rule result that is a deviation (see `pipeline.rollup.FINDING_STATUSES`). Patterns (M3) group findings."""
+    """A rule result that is a deviation (see `pipeline.rollup.FINDING_STATUSES`). `pattern_id`: its most specific
+    pattern (a sub-pattern once its rule is split, else the rule pattern); null until assigned."""
 
     __tablename__ = "findings"
     __table_args__ = (
@@ -179,6 +182,57 @@ class Finding(SQLModel, table=True):
     status: str = Field(max_length=16)
     pattern_id: str | None = Field(default=None, max_length=36)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class Theme(SQLModel, table=True):
+    """A phase of a procedure's sessions (opening, taking the order, closing...) that groups its patterns. Named by a
+    model; names and ids stay stable across regrouping."""
+
+    __tablename__ = "themes"
+    __table_args__ = (Index("ix_themes_workspace_procedure", "workspace_id", "procedure_id"),)
+
+    id: str = Field(primary_key=True, max_length=36)
+    workspace_id: str = Field(max_length=128)
+    procedure_id: str = Field(max_length=256)
+    name: str = Field(max_length=256)
+    description: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    position: int = Field(default=0, description="Order within the procedure: where in a session the phase comes.")
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class Pattern(SQLModel, table=True):
+    """Findings grouped. Every rule with findings has one `rule` pattern (parent_id null). Once it has enough findings,
+    a model splits it into named failure modes: `sub` patterns, plus one `other` sub-pattern for findings that fit none.
+    A finding's `pattern_id` is its most specific pattern. Ids and names stay stable across reclustering (new clusters
+    are matched to old ones by member overlap), so verdicts attached to a pattern keep applying."""
+
+    __tablename__ = "patterns"
+    __table_args__ = (
+        Index("ix_patterns_workspace_rule", "workspace_id", "procedure_id", "rule_id"),
+        Index("ix_patterns_parent", "parent_id"),
+    )
+
+    id: str = Field(primary_key=True, max_length=36)
+    workspace_id: str = Field(max_length=128)
+    procedure_id: str = Field(max_length=256)
+    rule_id: str = Field(max_length=64)
+    parent_id: str | None = Field(default=None, max_length=36, description="The rule pattern, for a sub-pattern.")
+    kind: str = Field(max_length=8)  # rule | sub | other
+    name: str = Field(max_length=256)
+    description: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    theme_id: str | None = Field(default=None, max_length=36)
+    status: str = Field(default="active", max_length=16)  # active | retired (a recluster found no cluster like it)
+    finding_count: int = 0
+    session_count: int = 0
+    first_seen: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    last_seen: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    clustered_count: int = Field(default=0, description="Rule patterns: findings on the rule at the last clustering.")
+    clustered_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    model: str | None = Field(default=None, max_length=256)
+    prompt_version: str | None = Field(default=None, max_length=64)
+    created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
 class IngestToken(SQLModel, table=True):

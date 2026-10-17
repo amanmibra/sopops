@@ -14,7 +14,7 @@ from sopops.models import metadata
 def test_migrations_match_the_models(tmp_path):
     engine = create_engine(f"sqlite:///{tmp_path / 'm.db'}")
     upgrade(engine)
-    assert current_revision(engine) == "0003"
+    assert current_revision(engine) == "0004"
     with engine.connect() as conn:
         assert compare_metadata(MigrationContext.configure(conn), metadata) == []
     upgrade(engine)  # again: nothing to do
@@ -30,7 +30,7 @@ def test_a_database_from_before_alembic_is_stamped_and_kept(tmp_path, files):
     assert "alembic_version" not in inspect(engine).get_table_names()
 
     client = TestClient(create_app(Store(url, Sopc(SOPC_BIN))))
-    assert current_revision(engine) == "0003"
+    assert current_revision(engine) == "0004"
     assert client.get("/v1/workspaces").json() == [{"workspace": "demo", "current_release": None}]
     assert client.put(f"{WS}/files", json={"files": files}).status_code == 200
 
