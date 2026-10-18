@@ -515,12 +515,15 @@ class Insights:
         rising = [(p, count(now, family[p.id] if p.kind == "rule" else [p.id]), count(before, family[p.id] if p.kind == "rule" else [p.id]))
                   for p in pats if p.kind in ("rule", "sub")]
         fired = set()
+        prior_checks = sum(1 for c in self._checks(db, f.prior().with_(procedure=procedure_id)) if c[3] in MEASURABLE)
+        if prior_checks < MIN_N:  # nothing to rise from: a window before any sessions would make every pattern "rising"
+            rising = []
         for p, n, was in sorted(rising, key=lambda x: (x[0].kind != "rule", -x[1])):
             if n < RISING_MIN or n < 2 * was or (p.parent_id and p.parent_id in fired):
                 continue
             fired.add(p.id)
             out.append({"id": f"rising:{p.id}", "kind": "rising_pattern", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name, "rule_id": p.rule_id,
-                        "title": f"“{p.name}” is rising", "body": f"{n} findings in this window, up from {was} in the one before.",
+                        "title": f"“{p.name}” is rising on {name}", "body": f"{n} findings in this window, up from {was} in the one before ({prior_checks} checks then).",
                         "drill": {"pattern": p.id}})
         return out
 

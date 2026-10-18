@@ -216,13 +216,14 @@ def test_ladder_tones_and_most_failed(env):
     assert p["callouts"] == [] and {x["type"] for x in p["problems"]} >= {"never", "skipped"} and p["agents"][0]["measurable"] == 14
 
 
-def test_callouts_hot_rule_and_rising_pattern(env):
+def test_callouts_hot_rule_and_no_rising_from_nothing(env):
     wide = {"start": (T0 - timedelta(hours=13)).isoformat(), "end": env.params["end"]}  # the prior window's 3 deviated sessions too
     o = get(env, "overview", **wide)
     kinds = {c["kind"]: c for c in o["callouts"]}
     hot = kinds["hot_rule"]
     assert hot["rule_id"] == env.rules[("never", 1)] and hot["title"].endswith("fails 47% of the time") and hot["drill"]["rule_status"] == ["violated"]
-    assert kinds["rising_pattern"]["drill"]["pattern"] and "release" not in kinds  # release 2 is thin
+    # the window before has no sessions: nothing can be "rising" from it; release 2 is thin, so no release callout
+    assert "rising_pattern" not in kinds and "release" not in kinds
     assert o["scoreboard"][0]["callouts"] == len(o["callouts"])
 
 
