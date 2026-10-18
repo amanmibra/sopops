@@ -10,12 +10,12 @@ export const MODES: { mode: Mode; label: string; tip: string }[] = [
 ];
 
 const SECTIONS: Record<string, Mode> = {
-  overview: "qa",
   sessions: "qa",
   insights: "qa",
   patterns: "qa",
   suggestions: "qa",
   report: "qa",
+  overview: "instructions",
   agents: "instructions",
   instructions: "instructions",
   procedures: "instructions",
@@ -77,5 +77,5 @@ export function rememberPage(ws: string, pathname: string, searchStr: string) {
 export function modeHref(ws: string, mode: Mode): string {
   const last = read(key(ws, mode));
   if (last && decodeURIComponent(last).startsWith(`/w/${ws}/`) && routeMode(last.split("?")[0]) === mode) return last;
-  return wsHref(ws, mode === "qa" ? "overview" : "agents");
+  return wsHref(ws, mode === "qa" ? "insights" : "agents");
 }

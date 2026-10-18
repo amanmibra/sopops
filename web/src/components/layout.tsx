@@ -311,9 +311,8 @@ export function Rail() {
         <div className="mb-[18px]">{releases}</div>
       ) : mode === "qa" ? (
         <div className="mb-[18px]">
-          <RailLink href={wsHref(ws, "overview")}>Overview</RailLink>
-          <RailLink href={wsHref(ws, "sessions")}>Sessions</RailLink>
           <RailLink href={wsHref(ws, "insights")}>Insights</RailLink>
+          <RailLink href={wsHref(ws, "sessions")}>Sessions</RailLink>
           <RailLink href={wsHref(ws, "patterns")} extra={<CountBadge n={needsReview} title="Patterns needing a verdict" />}>
             Patterns
           </RailLink>
@@ -324,6 +323,9 @@ export function Rail() {
         </div>
       ) : (
         <>
+          <div className="mb-[18px]">
+            <RailLink href={wsHref(ws, "overview")}>Overview</RailLink>
+          </div>
           {group("agent", cfg.agents.map((a) => ({ id: a.id, label: a.id })))}
           {group("instruction", cfg.instructions.map((a) => ({ id: a.id, label: a.id })))}
           {group("procedure", [...cfg.procedures].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, label: p.name })))}
