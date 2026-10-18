@@ -1,6 +1,6 @@
-"""Sign-in: GitHub and Google behind respx (no network), email links (dev mode's log, and a fake SMTP server), who
-joins which org, adding people, login sessions, CSRF, roles, authors, the route auth table in both modes, and token and
-webhook routes working without a session."""
+"""Sign-in: GitHub and Google behind respx (no network), email links (dev mode's log, and a fake SMTP server), passwords
+(the first account, invites, reset links, rate limits), who joins which org, adding people, login sessions, CSRF, roles,
+authors, the route auth table in both modes, and token and webhook routes working without a session."""
 
 import base64
 import json
@@ -19,11 +19,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, create_app, mail
+from sopops import Sopc, Store, cli, create_app, mail
 from sopops.auth import access, mode, providers
 from sopops.auth.service import csrf_token
 from sopops.db import upgrade
-from sopops.orm import EmailLink, FileVersion, Identity, LoginSession, Membership, Org, User, Workspace
+from sopops.orm import EmailLink, FileVersion, Identity, Invite, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
 
 GH_TOKEN = "https://github.com/login/oauth/access_token"
 GH_API = "https://api.github.com"
@@ -123,8 +123,9 @@ def test_the_mode_follows_the_providers_and_the_override(monkeypatch, providers_
 def test_github_sign_in_makes_a_user_and_a_session(app, files):
     c = TestClient(app)
     assert c.get("/v1/auth/session").json() == {"required": True, "providers": [{"id": "github", "label": "GitHub", "redirects": True},
-                                                                              {"id": "google", "label": "Google", "redirects": True}],
-                                                 "user": None, "org": None, "orgs": []}
+                                                                              {"id": "google", "label": "Google", "redirects": True},
+                                                                              {"id": "password", "label": "Password", "redirects": False}],
+                                                 "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False}
     with respx.mock(assert_all_called=False) as router:
         gh = GitHub(router, "42", "Ana@Example.com", name="Ana")
         st = start(c, "github", next="/w/demo/sessions")
@@ -399,14 +400,15 @@ def url(path: str) -> str:
 
 EXPECTED = {
     access.OPEN: {"spa", "healthz", "openapi", "swagger_ui_html", "swagger_ui_redirect", "redoc_html", "auth_session", "sign_in", "auth_callback",
-                  "lookup_invite", "request_email_link", "confirm_email_link"},
-    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org"},
+                  "lookup_invite", "request_email_link", "confirm_email_link", "password_login", "first_account", "join_with_password",
+                  "request_password_link", "lookup_password_link", "set_password"},
+    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password"},
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check"},
     access.TOKEN_OR_SESSION: {"get_agent", "get_prompt", "get_sop"},
     access.WEBHOOK: {"github_webhook", "livekit_webhook", "elevenlabs_post_call", "elevenlabs_conversation_init", "vapi_assistant_request"},
     access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
-                   "github_app_manifest", "github_app_manifest_callback"},
+                   "create_password_link", "github_app_manifest", "github_app_manifest_callback"},
 }
 
 
@@ -434,7 +436,8 @@ def test_with_sign_in_on_every_session_route_needs_one(app):
 
 def test_with_sign_in_off_nothing_needs_one(client, files):
     assert not mode.required()
-    assert client.get("/v1/auth/session").json() == {"required": False, "providers": [], "user": None, "org": None, "orgs": []}
+    assert client.get("/v1/auth/session").json() == {"required": False, "providers": [], "user": None, "org": None, "orgs": [], "first_account": False,
+                                                     "password_email": False, "sign_up": False}
     for name, method, path in routes(client.app):
         if method != "GET" or name in ("stream_sessions", "import_stream") or access.ROUTES[name] == access.TOKEN:
             continue  # reading only (no side effects); streams don't end; token routes check their own token either way
@@ -623,7 +626,7 @@ def confirm(c: TestClient, token: str) -> httpx.Response:
 
 
 def test_email_sign_in_turns_sign_in_on(monkeypatch, dev_email):
-    assert mode.required() and [p.id for p in providers.configured()] == ["email"]
+    assert mode.required() and [p.id for p in providers.configured()] == ["email", "password"]
     monkeypatch.delenv("SOPOPS_EMAIL_DEV")
     assert not mode.required()
     monkeypatch.setenv("SOPOPS_SMTP_HOST", "smtp.example.com")
@@ -635,7 +638,7 @@ def test_email_sign_in_turns_sign_in_on(monkeypatch, dev_email):
 def test_an_email_link_signs_in_once(tmp_path, files, dev_email, caplog):
     app = create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
     c = TestClient(app)
-    assert c.get("/v1/auth/session").json()["providers"] == [{"id": "email", "label": "Email", "redirects": False}]
+    assert c.get("/v1/auth/session").json()["providers"] == [{"id": "email", "label": "Email", "redirects": False}, {"id": "password", "label": "Password", "redirects": False}]
     assert c.get("/v1/auth/login/email", follow_redirects=False).status_code == 404  # it doesn't redirect
     token = ask_link(c, "Ana@Example.com", caplog, next="/w/demo/sessions")
     assert token and "ana@example.com" in caplog.text
@@ -836,3 +839,325 @@ def test_who_can_add_people_and_change_roles(owner, app):
     assert owner.patch(f"/v1/org/members/{ids['mia@example.com']}", json={"role": "owner"}).json()["role"] == "owner"
     assert member.patch(f"/v1/org/members/{ids['ana@example.com']}", json={"role": "member"}).json()["role"] == "member"  # mia, an owner now
     assert member.delete(f"/v1/org/members/{ids['mia@example.com']}").status_code == 409  # she's the last one now
+
+
+# --- passwords -----------------------------------------------------------------------------
+
+PW = "correct horse battery"
+PW_LINK = re.compile(r"/set-password#([A-Za-z0-9_-]+)")
+
+
+@pytest.fixture
+def pw_app(tmp_path, monkeypatch, files):
+    """Sign-in forced on with no provider and no email: passwords only."""
+    monkeypatch.setenv("SOPOPS_AUTH_REQUIRED", "true")
+    app = create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    app.state.store.replace("demo", files)
+    return app
+
+
+def with_csrf(c: TestClient, res: httpx.Response) -> httpx.Response:
+    if c.cookies.get(access.CSRF_COOKIE):
+        c.headers[access.CSRF_HEADER] = c.cookies.get(access.CSRF_COOKIE)
+    return res
+
+
+def pw_login(c: TestClient, email: str, password: str = PW, next: str = "/") -> httpx.Response:
+    return with_csrf(c, c.post("/v1/auth/password/login", json={"email": email, "password": password, "next": next}))
+
+
+@pytest.fixture
+def pw_owner(pw_app) -> TestClient:
+    c = TestClient(pw_app)
+    res = with_csrf(c, c.post("/v1/auth/password/first-account", json={"email": "ana@example.com", "name": "Ana", "password": PW}))
+    assert res.status_code == 200, res.text
+    return c
+
+
+def pw_member(owner: TestClient, app, email: str, role: str = "member", password: str = PW) -> TestClient:
+    token = owner.post("/v1/org/invites", json={"email": email, "role": role}).json()["link"].split("#")[1]
+    c = TestClient(app)
+    res = with_csrf(c, c.post("/v1/auth/invites/join", json={"token": token, "name": email.split("@")[0].title(), "password": password}))
+    assert res.status_code == 200, res.text
+    return c
+
+
+def ids(owner: TestClient) -> dict[str, str]:
+    return {m["email"]: m["user_id"] for m in owner.get("/v1/org/members").json()}
+
+
+def test_passwords_alone_and_the_first_account(pw_app):
+    c = TestClient(pw_app)
+    state = c.get("/v1/auth/session").json()
+    assert state["required"] and state["providers"] == [{"id": "password", "label": "Password", "redirects": False}]
+    assert state["first_account"] and not state["password_email"] and not state["sign_up"]
+    for bad, why in (("short", "at least 10"), ("x" * 257, "at most 256"), ("Ana@Example.com", "can't be your email")):
+        res = c.post("/v1/auth/password/first-account", json={"email": "ana@example.com", "password": bad})
+        assert res.status_code == 400 and why in res.json()["detail"], res.text
+    res = with_csrf(c, c.post("/v1/auth/password/first-account", json={"email": "Ana@Example.com", "name": "Ana", "password": PW}))
+    assert res.status_code == 200 and res.json()["org"]["role"] == "owner" and res.json()["user"]["has_password"]
+    assert [w["workspace"] for w in c.get("/v1/workspaces").json()] == ["demo"]
+    with db(c) as d:
+        ident = d.exec(select(Identity)).one()
+        assert ident.provider == "password" and ident.password_hash.startswith("$argon2id$") and PW not in ident.password_hash
+
+    # sign-up is closed now: no second first account, and nothing to sign up with
+    anon = TestClient(pw_app)
+    assert not anon.get("/v1/auth/session").json()["first_account"]
+    res = anon.post("/v1/auth/password/first-account", json={"email": "eve@example.com", "name": "Eve", "password": PW})
+    assert res.status_code == 409 and "already made the first account" in res.json()["detail"]
+    assert anon.post("/v1/auth/password/email", json={"email": "eve@example.com"}).status_code == 404  # no email: no sign-up, no forgot password
+    with db(c) as d:
+        assert [u.email for u in d.exec(select(User))] == ["ana@example.com"]
+
+
+def test_password_sign_in_and_the_same_answer_for_any_mistake(pw_owner, pw_app):
+    c = TestClient(pw_app)
+    wrong = c.post("/v1/auth/password/login", json={"email": "ana@example.com", "password": "not the password"})
+    unknown = c.post("/v1/auth/password/login", json={"email": "nobody@example.com", "password": PW})
+    assert wrong.status_code == unknown.status_code == 401
+    assert wrong.json() == unknown.json() == {"detail": "That email and password don't match."}
+    assert c.get("/v1/workspaces").status_code == 401
+    res = pw_login(c, " ANA@example.com ", next="/w/demo/sessions")
+    assert res.status_code == 200 and res.json()["next"] == "/w/demo/sessions" and res.json()["user"]["email"] == "ana@example.com"
+    assert any(h.startswith("sopops_session=") and "HttpOnly" in h for h in res.headers.get_list("set-cookie"))
+    assert c.get("/v1/workspaces").status_code == 200
+    form = TestClient(pw_app).post("/v1/auth/password/login", content=f"email=ana@example.com&password={PW}",
+                                   headers={"Content-Type": "application/x-www-form-urlencoded"})
+    assert form.status_code == 422  # JSON only: another site's form can't sign a browser in
+
+
+def test_password_sign_in_is_rate_limited(pw_owner, pw_app):
+    c = TestClient(pw_app)
+    for _ in range(10):
+        assert c.post("/v1/auth/password/login", json={"email": "ana@example.com", "password": "wrong guess!"}).status_code == 401
+    res = c.post("/v1/auth/password/login", json={"email": "ana@example.com", "password": PW})
+    assert res.status_code == 429 and "Wait 15 minutes" in res.json()["detail"]  # even the right password, for now
+    with db(c) as d, d.begin():
+        for row in d.exec(select(LoginAttempt)):
+            row.created_at -= timedelta(minutes=16)
+            d.add(row)
+    assert pw_login(c, "ana@example.com").status_code == 200  # the window moved on
+    with db(c) as d:
+        assert d.exec(select(LoginAttempt)).all() == []  # a match clears the address's tries
+    other = TestClient(pw_app)  # 30 per client, whatever the address
+    for i in range(30):
+        assert other.post("/v1/auth/password/login", json={"email": f"p{i}@example.com", "password": PW}).status_code == 401
+    assert other.post("/v1/auth/password/login", json={"email": "ana@example.com", "password": PW}).status_code == 429
+
+
+def test_an_invite_joins_with_a_password(pw_owner, pw_app):
+    made = pw_owner.post("/v1/org/invites", json={"email": "bo@example.com", "role": "admin"}).json()
+    token = made["link"].split("#")[1]
+    anon = TestClient(pw_app)
+    info = anon.post("/v1/auth/invites/lookup", json={"token": token}).json()
+    assert info["email"] == "bo@example.com" and info["has_account"] is False
+    assert anon.post("/v1/auth/invites/join", json={"token": token, "name": "Bo", "password": "short"}).status_code == 400
+    bo = TestClient(pw_app)
+    res = with_csrf(bo, bo.post("/v1/auth/invites/join", json={"token": token, "name": "Bo", "password": PW}))
+    assert res.status_code == 200 and res.json()["org"]["role"] == "admin" and res.json()["user"]["name"] == "Bo"
+    assert bo.get("/v1/workspaces").status_code == 200
+    assert pw_owner.get("/v1/org/invites").json() == []
+    again = TestClient(pw_app).post("/v1/auth/invites/join", json={"token": token, "name": "Mallory", "password": "mallory's password"})
+    assert again.status_code == 404  # used
+    assert pw_login(TestClient(pw_app), "bo@example.com").status_code == 200
+
+    # expired invites don't work
+    late = pw_owner.post("/v1/org/invites", json={"email": "late@example.com"}).json()
+    with db(pw_owner) as d, d.begin():
+        inv = d.get(Invite, late["id"])
+        inv.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        d.add(inv)
+    assert TestClient(pw_app).post("/v1/auth/invites/join", json={"token": late["link"].split("#")[1], "password": PW}).status_code == 404
+
+
+def test_an_invite_cant_set_a_password_on_an_existing_account(owner, app):
+    """Bob has a GitHub account; an owner of another org invites him. The link can't be used to give his account a
+    password, or anyone holding it could take the account over."""
+    bob = TestClient(app)
+    sign_in(bob, "github", "2", "bob@example.com")
+    token = owner.post("/v1/org/invites", json={"email": "bob@example.com"}).json()["link"].split("#")[1]
+    anon = TestClient(app)
+    assert anon.post("/v1/auth/invites/lookup", json={"token": token}).json()["has_account"] is True
+    res = anon.post("/v1/auth/invites/join", json={"token": token, "name": "Not Bob", "password": PW})
+    assert res.status_code == 409 and "already has an account. Sign in to join" in res.json()["detail"]
+    assert pw_login(TestClient(app), "bob@example.com").status_code == 401
+    with db(owner) as d:
+        assert d.exec(select(Identity).where(Identity.provider == "password")).all() == []
+    assert anon.post("/v1/auth/password/first-account", json={"email": "bob@example.com", "password": PW}).status_code == 409
+
+
+def test_a_reset_link_from_an_admin(pw_owner, pw_app):
+    mia = pw_member(pw_owner, pw_app, "mia@example.com")
+    laptop = TestClient(pw_app)
+    pw_login(laptop, "mia@example.com")
+    made = pw_owner.post(f"/v1/org/members/{ids(pw_owner)['mia@example.com']}/password-link")
+    assert made.status_code == 201 and made.json()["email"] == "mia@example.com"
+    link = made.json()["link"]
+    assert link.startswith("http://testserver/set-password#")
+    token = link.split("#")[1]
+    expires = datetime.fromisoformat(made.json()["expires_at"])
+    assert timedelta(minutes=59) < expires - datetime.now(timezone.utc) <= timedelta(hours=1)
+    with db(pw_owner) as d:
+        row = d.exec(select(PasswordLink)).one()
+        assert row.token_hash != token and token not in json.dumps(row.model_dump(), default=str)  # stored hashed
+
+    anon = TestClient(pw_app)
+    assert anon.post("/v1/auth/password/link", json={"token": token}).json()["has_account"] is True
+    assert anon.post("/v1/auth/password/set", json={"token": token, "password": "mia@example.com"}).status_code == 400  # not used up by a bad password
+    res = with_csrf(anon, anon.post("/v1/auth/password/set", json={"token": token, "password": "a brand new password"}))
+    assert res.status_code == 200 and res.json()["user"]["email"] == "mia@example.com"
+    assert anon.get("/v1/workspaces").status_code == 200
+    assert mia.get("/v1/workspaces").status_code == 401 and laptop.get("/v1/workspaces").status_code == 401  # her other sessions ended
+    assert pw_login(TestClient(pw_app), "mia@example.com").status_code == 401  # the old password is gone
+    assert pw_login(TestClient(pw_app), "mia@example.com", "a brand new password").status_code == 200
+    again = TestClient(pw_app).post("/v1/auth/password/set", json={"token": token, "password": "yet another password"})
+    assert again.status_code == 404 and "used already" in again.json()["detail"]  # single use
+
+    late = pw_owner.post(f"/v1/org/members/{ids(pw_owner)['mia@example.com']}/password-link").json()["link"].split("#")[1]
+    with db(pw_owner) as d, d.begin():
+        for row in d.exec(select(PasswordLink).where(PasswordLink.used_at.is_(None))):
+            row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+            d.add(row)
+    assert TestClient(pw_app).post("/v1/auth/password/link", json={"token": late}).status_code == 404
+    assert TestClient(pw_app).post("/v1/auth/password/set", json={"token": late, "password": "yet another password"}).status_code == 404
+
+
+def test_who_can_make_reset_links(pw_owner, pw_app):
+    admin = pw_member(pw_owner, pw_app, "adam@example.com", "admin")
+    member = pw_member(pw_owner, pw_app, "mia@example.com")
+    who = ids(pw_owner)
+    assert member.post(f"/v1/org/members/{who['adam@example.com']}/password-link").status_code == 403
+    res = admin.post(f"/v1/org/members/{who['ana@example.com']}/password-link")
+    assert res.status_code == 403 and "only an owner" in res.json()["detail"]  # an admin can't act on an owner
+    assert admin.post(f"/v1/org/members/{who['mia@example.com']}/password-link").status_code == 201
+    assert pw_owner.post(f"/v1/org/members/{who['adam@example.com']}/password-link").status_code == 201
+    assert pw_owner.post(f"/v1/org/members/{uuid.uuid4()}/password-link").status_code == 404
+    csrf = admin.headers.pop(access.CSRF_HEADER)
+    assert admin.post(f"/v1/org/members/{who['mia@example.com']}/password-link").status_code == 403  # needs the CSRF token
+    admin.headers[access.CSRF_HEADER] = csrf
+
+    # someone also in an org the admin doesn't run: not theirs to reset
+    with db(pw_owner) as d, d.begin():
+        d.add(Org(id="other-org", name="Other", slug="other", allowed_domains=[], created_at=datetime.now(timezone.utc)))
+        d.flush()
+        d.add(Membership(org_id="other-org", user_id=who["mia@example.com"], role="member", created_at=datetime.now(timezone.utc)))
+    res = admin.post(f"/v1/org/members/{who['mia@example.com']}/password-link")
+    assert res.status_code == 403 and "also in another org" in res.json()["detail"]
+
+
+def test_the_cli_prints_a_reset_link(pw_owner, pw_app, capsys, monkeypatch):
+    url = str(pw_app.state.store.engine.url)
+    cli.main(["reset-password", "ANA@example.com", "--database-url", url, "--url", "https://sopops.example/"])
+    out = capsys.readouterr().out
+    token = PW_LINK.search(out).group(1)
+    assert "https://sopops.example/set-password#" in out and "ana@example.com" in out
+    c = TestClient(pw_app)
+    assert with_csrf(c, c.post("/v1/auth/password/set", json={"token": token, "password": "the owner's new one"})).json()["org"]["role"] == "owner"
+    assert pw_owner.get("/v1/workspaces").status_code == 401  # the owner's other session ended
+    assert TestClient(pw_app).post("/v1/auth/password/set", json={"token": token, "password": "and another one"}).status_code == 404
+    with pytest.raises(SystemExit, match="no account for nobody@example.com"):
+        cli.main(["reset-password", "nobody@example.com", "--database-url", url])
+
+
+def test_changing_your_password_ends_your_other_sessions(pw_owner, pw_app):
+    phone = TestClient(pw_app)
+    pw_login(phone, "ana@example.com")
+    assert pw_owner.get("/v1/auth/session").json()["user"]["has_password"]
+    res = pw_owner.post("/v1/auth/password/change", json={"current_password": "not it at all", "password": "a new password here"})
+    assert res.status_code == 401 and "current password" in res.json()["detail"]
+    assert pw_owner.post("/v1/auth/password/change", json={"current_password": PW, "password": "short"}).status_code == 400
+    csrf = pw_owner.headers.pop(access.CSRF_HEADER)
+    assert pw_owner.post("/v1/auth/password/change", json={"current_password": PW, "password": "a new password here"}).status_code == 403
+    pw_owner.headers[access.CSRF_HEADER] = csrf
+    assert pw_owner.post("/v1/auth/password/change", json={"current_password": PW, "password": "a new password here"}).status_code == 204
+    assert pw_owner.get("/v1/workspaces").status_code == 200  # this one stays
+    assert phone.get("/v1/workspaces").status_code == 401  # the others end
+    assert pw_login(TestClient(pw_app), "ana@example.com").status_code == 401
+    assert pw_login(TestClient(pw_app), "ana@example.com", "a new password here").status_code == 200
+    assert TestClient(pw_app).post("/v1/auth/password/change", json={"current_password": PW, "password": "whatever it is"}).status_code == 401
+
+
+def test_a_github_user_has_no_password_to_change(owner):
+    assert owner.get("/v1/auth/session").json()["user"]["has_password"] is False
+    res = owner.post("/v1/auth/password/change", json={"current_password": "anything at all", "password": "a new password here"})
+    assert res.status_code == 400 and "sign in another way" in res.json()["detail"]
+
+
+def test_email_options_only_with_email_set_up(pw_owner, pw_app, monkeypatch, caplog):
+    state = TestClient(pw_app).get("/v1/auth/session").json()
+    assert [p["id"] for p in state["providers"]] == ["password"] and not state["password_email"]  # no magic link without SMTP
+    assert TestClient(pw_app).post("/v1/auth/email", json={"email": "ana@example.com"}).status_code == 404
+    monkeypatch.setenv("SOPOPS_EMAIL_DEV", "1")
+    state = TestClient(pw_app).get("/v1/auth/session").json()
+    assert [p["id"] for p in state["providers"]] == ["email", "password"] and state["password_email"] and not state["sign_up"]
+
+
+def ask_password_link(c: TestClient, email: str, caplog) -> str | None:
+    caplog.clear()
+    with caplog.at_level("INFO", logger="sopops.auth"):
+        res = c.post("/v1/auth/password/email", json={"email": email})
+    assert res.status_code == 202 and "we sent a link to set one" in res.json()["message"]
+    found = [m for m in caplog.messages if "[SOPOPS_EMAIL_DEV]" in m]
+    return PW_LINK.search(found[-1]).group(1) if found else None
+
+
+def test_forgot_password_by_email(pw_owner, pw_app, dev_email, caplog):
+    c = TestClient(pw_app)
+    assert ask_password_link(c, "nobody@example.com", caplog) is None  # no account, and sign-up is closed: the same answer
+    token = ask_password_link(c, "ana@example.com", caplog)
+    assert token and c.post("/v1/auth/password/link", json={"token": token}).json()["has_account"]
+    res = with_csrf(c, c.post("/v1/auth/password/set", json={"token": token, "password": "remembered it now"}))
+    assert res.status_code == 200 and res.json()["org"]["role"] == "owner"
+    assert pw_owner.get("/v1/workspaces").status_code == 401
+    for _ in range(4):
+        assert ask_password_link(c, "ana@example.com", caplog)
+    assert ask_password_link(c, "ana@example.com", caplog) is None  # 5 per address in 15 minutes
+
+
+def test_forgot_password_emails_with_smtp(pw_owner, pw_app, smtp):
+    assert TestClient(pw_app).post("/v1/auth/password/email", json={"email": "ana@example.com"}).status_code == 202
+    (msg,) = smtp.sent
+    text_part = msg.get_body(("plain",)).get_content()
+    assert msg["Subject"] == "Reset your sopops password" and "an hour" in text_part and "—" not in text_part
+    assert PW_LINK.search(text_part)
+
+
+def test_sign_up_at_allowed_domains_by_email_link(pw_owner, pw_app, dev_email, caplog, monkeypatch):
+    monkeypatch.setenv("SOPOPS_ALLOWED_EMAIL_DOMAINS", "example.com,team.example")
+    pw_owner.patch("/v1/org", json={"allowed_domains": ["team.example"]})
+    c = TestClient(pw_app)
+    assert c.get("/v1/auth/session").json()["sign_up"]
+    assert ask_password_link(c, "eve@elsewhere.example", caplog) is None  # not an allowed domain
+    token = ask_password_link(c, "tam@team.example", caplog)
+    info = c.post("/v1/auth/password/link", json={"token": token}).json()
+    assert info == {**info, "email": "tam@team.example", "has_account": False}
+    res = with_csrf(c, c.post("/v1/auth/password/set", json={"token": token, "name": "Tam", "password": "tam's own password"}))
+    assert res.status_code == 200 and res.json()["user"]["name"] == "Tam" and res.json()["org"]["role"] == "member"  # the org takes the domain
+    assert pw_login(TestClient(pw_app), "tam@team.example", "tam's own password").status_code == 200
+
+
+def test_passwords_are_off_with_sign_in_off(client):
+    assert client.post("/v1/auth/password/login", json={"email": "ana@example.com", "password": PW}).status_code == 404
+    assert client.post("/v1/auth/password/first-account", json={"email": "ana@example.com", "password": PW}).status_code == 404
+
+
+def test_a_plugin_can_take_passwords_away(pw_owner, pw_app):
+    taken = providers.get("password")
+    providers.unregister("password")
+    try:
+        assert pw_login(TestClient(pw_app), "ana@example.com").status_code == 404
+        assert TestClient(pw_app).get("/v1/auth/session").json()["providers"] == []
+    finally:
+        providers.register(taken)
+
+
+def test_the_password_migration_goes_down_and_up(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'p.db'}")
+    upgrade(engine)
+    downgrade(engine, "0024")
+    with engine.connect() as conn:
+        assert "password_hash" not in [c[1] for c in conn.execute(text("PRAGMA table_info(identities)"))]
+    upgrade(engine)
+    with engine.connect() as conn:
+        assert "password_hash" in [c[1] for c in conn.execute(text("PRAGMA table_info(identities)"))]

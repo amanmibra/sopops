@@ -13,9 +13,10 @@ Role = Literal["owner", "admin", "member"]
 
 
 class ProviderOut(BaseModel):
-    id: str = Field(description="`github`, `google`, `email`, or a plugin's.")
+    id: str = Field(description="`github`, `google`, `email`, `password`, or a plugin's.")
     label: str
-    redirects: bool = Field(description="Signing in goes through `/v1/auth/login/<id>`. False for `email`: post the address to `/v1/auth/email`.")
+    redirects: bool = Field(description="Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) "
+                            "and `password` (post to `/v1/auth/password/login`).")
 
 
 class UserOut(BaseModel):
@@ -23,6 +24,7 @@ class UserOut(BaseModel):
     email: str
     name: str
     avatar_url: str | None
+    has_password: bool = Field(description="They can sign in with a password, so they can change it.")
 
 
 class OrgSummary(BaseModel):
@@ -38,6 +40,9 @@ class AuthState(BaseModel):
     user: UserOut | None = Field(description="Who's signed in, if anyone.")
     org: OrgSummary | None = Field(description="The org you're working in; none until someone adds you to one.")
     orgs: list[OrgSummary] = Field(description="Every org you're in.")
+    first_account: bool = Field(False, description="Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.")
+    password_email: bool = Field(False, description="sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.")
+    sign_up: bool = Field(False, description="People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.")
 
 
 class SignedIn(AuthState):
@@ -131,3 +136,53 @@ class InviteInfo(BaseModel):
     role: Role
     expires_at: datetime
     accepted: bool = Field(description="You used it already: you're in the org.")
+    has_account: bool = Field(False, description="The email has an account here: sign in to join. False: join by making one with a password.")
+
+
+class PasswordLoginIn(BaseModel):
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=1024)
+    next: str | None = Field(None, max_length=512, description="A path on this site to open after signing in.")
+
+
+class FirstAccountIn(BaseModel):
+    email: str = Field(max_length=320)
+    name: str = Field("", max_length=256)
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+
+
+class InviteJoinIn(BaseModel):
+    token: str = Field(max_length=256, description="From the invite link (the part after #).")
+    name: str = Field("", max_length=256)
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+
+
+class PasswordEmailIn(BaseModel):
+    email: str = Field(max_length=320)
+
+
+class PasswordLinkTokenIn(BaseModel):
+    token: str = Field(max_length=256, description="From the link (the part after #).")
+
+
+class PasswordLinkInfo(BaseModel):
+    email: str
+    has_account: bool = Field(description="False: using the link makes the account, so ask for a name too.")
+    expires_at: datetime
+
+
+class PasswordSetIn(BaseModel):
+    token: str = Field(max_length=256, description="From the link (the part after #).")
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+    name: str = Field("", max_length=256, description="For a new account.")
+
+
+class PasswordChangeIn(BaseModel):
+    current_password: str = Field(max_length=1024)
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+
+
+class PasswordLinkCreated(BaseModel):
+    email: str
+    link: str = Field(description="Shown once. It sets their password, works once, for an hour, and ends their login sessions.")
+    expires_at: datetime

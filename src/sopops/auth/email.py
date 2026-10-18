@@ -7,7 +7,8 @@ part to a server, so it stays out of access logs, and a mail scanner that fetche
 then asks for one click, which posts the token (`POST /v1/auth/email/confirm`), so a scanner that runs the page's
 script doesn't sign in either.
 
-Also the emails themselves: the sign-in link and invites (`invite_message`).
+Also the emails themselves: the sign-in link, invites (`invite_message`) and links that set a password
+(`password_message`).
 """
 
 from __future__ import annotations
@@ -72,17 +73,37 @@ def invite_message(to: str, link: str, inviter: str, org: str, role: str, days: 
     return mail.Message(to=to, subject=f"{who} invited you to {org} on sopops", text=text, html=_page(body))
 
 
+def password_message(to: str, link: str, site: str, has_account: bool) -> mail.Message:
+    """A link that sets a password: "Forgot password?", or making an account at an allowed domain."""
+    asked = f"reset the password for {to}" if has_account else f"make an account with {to}"
+    after = "Your password stays the same." if has_account else "Nobody gets an account without the link."
+    text = (
+        f"Someone, hopefully you, asked to {asked} on sopops at {site}.\n\n"
+        f"Open this link to set a password:\n{link}\n\n"
+        "It works once, for an hour.\n\n"
+        f"If you didn't ask for this, ignore this email. {after}\n"
+    )
+    body = (
+        f"<p>Someone, hopefully you, asked to {_e(asked)} on sopops at {_e(site)}.</p>"
+        f'<p><a href="{_e(link)}" style="{BUTTON}">Set a password</a></p>'
+        "<p>It works once, for an hour.</p>"
+        f"<p>If you didn't ask for this, ignore this email. {after}</p>"
+    )
+    subject = "Reset your sopops password" if has_account else "Make your sopops account"
+    return mail.Message(to=to, subject=subject, text=text, html=_page(body))
+
+
 def deliver(msg: mail.Message, link: str) -> None:
-    """Send a sign-in link, or in dev mode write it to the log. Never raises: the person asking is told the same thing
-    either way, and a failure is logged without the link."""
+    """Send a sign-in or password link, or in dev mode write it to the log. Never raises: the person asking is told
+    the same thing either way, and a failure is logged without the link."""
     if mail.dev():
         _show_dev_log()
-        dev_log.info("[SOPOPS_EMAIL_DEV] sign-in link for %s (not emailed): %s", msg.to, link)
+        dev_log.info("[SOPOPS_EMAIL_DEV] %s for %s (not emailed): %s", "sign-in link" if msg.subject == SIGN_IN_SUBJECT else "password link", msg.to, link)
         return
     try:
         mail.send(msg)
     except mail.MailError as e:
-        log.warning("couldn't email a sign-in link to %s: %s", msg.to, e)
+        log.warning("couldn't email a link to %s: %s", msg.to, e)
 
 
 def _show_dev_log() -> None:

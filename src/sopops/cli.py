@@ -6,10 +6,11 @@ sopops calibrate --workspace WS [--procedure P] [--dry-run] [--database-url URL]
 sopops pr-status [--workspace WS] [--database-url URL]
 sopops lineage rebuild [--workspace WS] [--database-url URL]
 sopops patterns rename [--workspace WS] [--all] [--database-url URL]
+sopops reset-password EMAIL [--url URL] [--database-url URL]
 
 Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
-Database migrations (Alembic) run on startup. There is no authentication yet: keep it on a private network.
+Database migrations (Alembic) run on startup. Sign-in: see "Sign in" in the README.
 """
 
 from __future__ import annotations
@@ -24,22 +25,23 @@ from pydantic import ValidationError
 
 from . import repo_sync
 from .app import create_app
+from .auth.service import Accounts
 from .db import database_url
-from .errors import SAFE_ID
+from .errors import SAFE_ID, NotFound
 from .jobs import Jobs
 from .onboarding import pulls
 from .schemas import SessionIn
 from .sopc import Sopc
 from .store import Store
 
-COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage", "patterns")
+COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage", "patterns", "reset-password")
 
 
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     command = argv.pop(0) if argv and argv[0] in COMMANDS else "serve"
     {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster, "calibrate": calibrate, "pr-status": pr_status,
-     "lineage": lineage, "patterns": patterns}[command](argv)
+     "lineage": lineage, "patterns": patterns, "reset-password": reset_password}[command](argv)
 
 
 def serve(argv: list[str]) -> None:
@@ -203,6 +205,23 @@ def patterns(argv: list[str]) -> None:
     store = Store(args.database_url, Sopc())
     for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
         print(f"{ws}: {store.patterns.name(ws, force=args.all)} rule patterns renamed")
+
+
+def reset_password(argv: list[str]) -> None:
+    """Print a link that sets someone's password: for an owner who can't sign in, or anyone without email set up."""
+    parser = argparse.ArgumentParser(prog="sopops reset-password", description="Print a link that sets the password for an account. It works once, for "
+                                     "an hour, and ends the account's login sessions.")
+    parser.add_argument("email")
+    parser.add_argument("--url", default=os.environ.get("SOPOPS_PUBLIC_URL") or f"http://{os.environ.get('HOST', '127.0.0.1')}:{os.environ.get('PORT', 8484)}",
+                        help="Where people reach sopops (default: SOPOPS_PUBLIC_URL, else HOST and PORT).")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    try:
+        info, token = Accounts(Store(args.database_url, Sopc())).cli_password_link(args.email)
+    except NotFound as e:
+        sys.exit(f"sopops reset-password: {e}")
+    print(f"Open this link to set the password for {info['email']}. It works once, for an hour:")
+    print(f"{args.url.rstrip('/')}/set-password#{token}")
 
 
 def _short(e: Exception) -> str:

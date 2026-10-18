@@ -1,4 +1,4 @@
-"""Users, identities, orgs, memberships, invites, email sign-in links and login sessions.
+"""Users, identities, orgs, memberships, invites, email sign-in links, passwords and login sessions.
 
 **Signing in** (`sign_in`) takes a provider's profile. Its email must be verified, and in SOPOPS_ALLOWED_EMAIL_DOMAINS
 when that's set. The identity (provider, provider's user id) finds the user; failing that, a user with the same
@@ -15,6 +15,16 @@ Someone with no membership can sign in but sees only "Ask an owner to invite you
 links to a GitHub or Google user with that verified email. Each address gets at most 5 links per 15 minutes, and each
 client IP 20; past that, and for addresses this sopops doesn't take, no link is made, and the caller says the same thing
 either way. Using a link also uses up the address's other open links.
+
+**Passwords** (`password_login`, `first_account`, `join_with_password`, `password_link`, `use_password_link`,
+`change_password`; hashing and the rules are in `sopops.auth.password`). The first account on a fresh install (no users
+at all) is made with a password and owns the org. After that, a password is set only through an invite for an address
+with no account yet, or a password link: one an owner or admin makes for a member, one `sopops reset-password` prints,
+or one emailed to the address ("Forgot password?", and with SOPOPS_ALLOWED_EMAIL_DOMAINS set, making an account at
+those domains). A password link is a random token, stored as a sha256 hash, that works once, for an hour. Setting a
+password through a link, or changing it, ends the user's other login sessions. Signing in with a password allows 10
+failed tries per address and 30 per client IP in 15 minutes, and says the same thing for an unknown address and a wrong
+password.
 
 **Login sessions** are a random token in an HttpOnly cookie, stored as a sha256 hash. They last 30 days from the last
 use (sliding; `last_seen_at` and `expires_at` move at most every few minutes) and end early when revoked (sign out).
@@ -37,13 +47,13 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, update
+from sqlalchemy import delete, func, update
 from sqlmodel import Session, select
 
 from ..errors import Conflict, NotFound
-from ..orm import EmailLink, Identity, Invite, LoginSession, Membership, Org, User, Workspace
+from ..orm import EmailLink, Identity, Invite, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
 from ..tokens import Forbidden
-from . import actor
+from . import actor, password
 from .providers import Profile
 
 if TYPE_CHECKING:
@@ -60,6 +70,12 @@ LINK_WINDOW = timedelta(minutes=15)
 LINKS_PER_EMAIL = 5
 LINKS_PER_IP = 20
 ALLOWED_DOMAINS_ENV = "SOPOPS_ALLOWED_EMAIL_DOMAINS"
+PASSWORD = "password"
+PASSWORD_LINK_TTL = timedelta(hours=1)
+TRIES_WINDOW = timedelta(minutes=15)
+TRIES_PER_EMAIL = 10
+TRIES_PER_IP = 30
+WRONG_PASSWORD = "That email and password don't match."
 
 
 class LinkInvalid(Exception):
@@ -68,6 +84,14 @@ class LinkInvalid(Exception):
 
 class Refused(Exception):
     """Sign-in refused: no verified email, or an email domain this sopops doesn't allow. The message is safe to show."""
+
+
+class WrongPassword(Exception):
+    """A password sign-in that didn't match: the same for an unknown address."""
+
+
+class TooManyTries(Exception):
+    """Too many failed password sign-ins for the address or the client, in the last 15 minutes."""
 
 
 @dataclass(frozen=True)
@@ -185,6 +209,214 @@ class Accounts:
             email, next = link.email, link.next
         user, session = self.sign_in(Profile(provider="email", provider_user_id=email, email=email))
         return user, session, next
+
+    # --- passwords ------------------------------------------------------------------
+
+    def password_login(self, email: str, secret: str, ip: str | None) -> tuple[User, str]:
+        """Sign in with a password: the user and a new login session's token. Raises WrongPassword or TooManyTries.
+        The try is written down before the password is checked, so many at once still count."""
+        email = (email or "").strip().lower()[:320]
+        now = _now()
+        since = now - TRIES_WINDOW
+        with self._db() as db, db.begin():
+            by_email = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.email == email, LoginAttempt.created_at > since)).one()
+            by_ip = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.ip == ip, LoginAttempt.created_at > since)).one() if ip else 0
+            if by_email >= TRIES_PER_EMAIL or by_ip >= TRIES_PER_IP:
+                raise TooManyTries("too many tries. Wait 15 minutes, then try again")
+            db.add(LoginAttempt(id=str(uuid.uuid4()), email=email, ip=ip[:64] if ip else None, created_at=now))
+        with self._db() as db:
+            user = db.exec(select(User).where(User.email == email)).first()
+            ident = self._password_identity(db, user.id) if user else None
+        ok = password.verify(ident.password_hash if ident else None, secret)  # an unknown address checks a dummy hash
+        if not ok or user is None or ident is None or not server_allows(email):
+            raise WrongPassword(WRONG_PASSWORD)
+        with self._db() as db, db.begin():
+            db.execute(delete(LoginAttempt).where(LoginAttempt.email == email))  # type: ignore[arg-type]
+            if password.needs_rehash(ident.password_hash or ""):
+                ident.password_hash = password.hash(secret)
+                db.add(ident)
+        return self.sign_in(Profile(provider=PASSWORD, provider_user_id=user.id, email=email))
+
+    def has_users(self) -> bool:
+        with self._db() as db:
+            return db.exec(select(User.id).limit(1)).first() is not None
+
+    def has_password(self, user_id: str) -> bool:
+        with self._db() as db:
+            return self._password_identity(db, user_id) is not None
+
+    def first_account(self, email: str, name: str, secret: str) -> tuple[User, str]:
+        """On a fresh install (no users at all), make the first account with a password. It owns the org. Raises
+        Conflict once anyone has an account, ValueError for a bad address or password, Refused for a domain this
+        sopops doesn't take."""
+        email = clean_email(email)
+        password.check(secret, email)
+        if not server_allows(email):
+            raise Refused(f"this sopops doesn't take sign-ins from {domain(email)} addresses")
+        with self._db() as db, db.begin():
+            if db.exec(select(User.id).limit(1)).first() is not None:
+                raise Conflict("someone already made the first account. Sign in, or ask an owner to invite you")
+            user = self._new_password_user(db, email, name, secret)
+        return self.sign_in(Profile(provider=PASSWORD, provider_user_id=user.id, email=email))
+
+    def join_with_password(self, token: str, name: str, secret: str) -> tuple[User, str]:
+        """Accept an invite by making an account with a password. Only for an address with no account: anyone else
+        signs in the way they always do, which accepts it. Raises NotFound, Conflict, ValueError or Refused."""
+        info = self.invite_info(token)
+        email = info["email"]
+        password.check(secret, email)
+        if not server_allows(email):
+            raise Refused(f"this sopops doesn't take sign-ins from {domain(email)} addresses")
+        with self._db() as db, db.begin():
+            if db.exec(select(User).where(User.email == email)).first() is not None:
+                raise Conflict(f"{email} already has an account. Sign in to join")
+            user = self._new_password_user(db, email, name, secret)
+        return self.sign_in(Profile(provider=PASSWORD, provider_user_id=user.id, email=email))  # accepts the invite
+
+    def _new_password_user(self, db: Session, email: str, name: str, secret: str) -> User:
+        now = _now()
+        user = User(id=str(uuid.uuid4()), email=email, name=(name or "").strip()[:256] or email.split("@")[0], created_at=now)
+        db.add(user)
+        db.flush()
+        db.add(Identity(id=str(uuid.uuid4()), user_id=user.id, provider=PASSWORD, provider_user_id=user.id, email=email,
+                        password_hash=password.hash(secret), created_at=now))
+        return user
+
+    def _password_identity(self, db: Session, user_id: str) -> Identity | None:
+        return db.exec(select(Identity).where(Identity.user_id == user_id, Identity.provider == PASSWORD)).first()
+
+    def change_password(self, cur: Current, current: str, new: str) -> None:
+        """Change the signed-in user's password. The current one must match; the user's other login sessions end.
+        Raises WrongPassword, TooManyTries or ValueError."""
+        email = cur.user.email
+        password.check(new, email)
+        with self._db() as db:
+            ident = self._password_identity(db, cur.user.id)
+        if ident is None:
+            raise ValueError("you don't have a password here: you sign in another way")
+        self._count_try(email, None)
+        if not password.verify(ident.password_hash, current):
+            raise WrongPassword("that isn't your current password")
+        with self._db() as db, db.begin():
+            db.execute(delete(LoginAttempt).where(LoginAttempt.email == email))  # type: ignore[arg-type]
+            ident = db.get(Identity, ident.id)
+            if ident is not None:
+                ident.password_hash = password.hash(new)
+                db.add(ident)
+            self._end_sessions(db, cur.user.id, keep=cur.session_id)
+
+    def _count_try(self, email: str, ip: str | None) -> None:
+        now = _now()
+        with self._db() as db, db.begin():
+            tries = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.email == email, LoginAttempt.created_at > now - TRIES_WINDOW)).one()
+            if tries >= TRIES_PER_EMAIL:
+                raise TooManyTries("too many tries. Wait 15 minutes, then try again")
+            db.add(LoginAttempt(id=str(uuid.uuid4()), email=email, ip=ip[:64] if ip else None, created_at=now))
+
+    def password_link(self, org_id: str, by: str, by_role: str, user_id: str) -> tuple[dict, str]:
+        """A link that sets a member's password, made by an owner or admin: the member's email and when it expires,
+        and the token. Only an owner acts on an owner, and someone who's also in another org needs a manager there
+        too (else an admin here could take over their account in an org they don't run)."""
+        with self._db() as db, db.begin():
+            m = db.get(Membership, (org_id, user_id))
+            user = db.get(User, user_id)
+            if m is None or user is None:
+                raise NotFound(f"no member '{user_id}'")
+            if m.role == OWNER and by_role != OWNER:
+                raise Forbidden("only an owner can reset an owner's password")
+            elsewhere = set(db.exec(select(Membership.org_id).where(Membership.user_id == user_id, Membership.org_id != org_id)))
+            if elsewhere:
+                managed = set(db.exec(select(Membership.org_id).where(Membership.user_id == by, Membership.role.in_(MANAGERS))))  # type: ignore[attr-defined]
+                if not elsewhere <= managed:
+                    raise Forbidden(f"{user.email} is also in another org, so they reset it themselves, or whoever runs sopops does (`sopops reset-password`)")
+            row, token = self._new_password_link(db, user.email, by=by)
+        return {"email": user.email, "expires_at": _utc(row.expires_at)}, token
+
+    def cli_password_link(self, email: str) -> tuple[dict, str]:
+        """A link that sets the password for an account, for `sopops reset-password`. Raises NotFound."""
+        email = (email or "").strip().lower()
+        with self._db() as db, db.begin():
+            if db.exec(select(User).where(User.email == email)).first() is None:
+                raise NotFound(f"no account for {email}")
+            row, token = self._new_password_link(db, email)
+        return {"email": email, "expires_at": _utc(row.expires_at)}, token
+
+    def request_password_link(self, email: str, ip: str | None) -> tuple[str, bool] | None:
+        """For "Forgot password?" and making an account at SOPOPS_ALLOWED_EMAIL_DOMAINS: a link's token for this
+        address and whether it has an account, or None when it gets none (no account and sign-up isn't open to its
+        domain, or over the rate limit: 5 per address and 20 per client per 15 minutes). The caller says the same
+        thing either way. Raises ValueError for something that isn't an email address."""
+        email = clean_email(email)
+        if not server_allows(email):
+            return None
+        now = _now()
+        since = now - LINK_WINDOW
+        with self._db() as db, db.begin():
+            exists = db.exec(select(User.id).where(User.email == email)).first() is not None
+            if not exists and not sign_up_open(email):
+                return None
+            by_email = db.exec(select(func.count()).select_from(PasswordLink).where(PasswordLink.email == email, PasswordLink.created_at > since)).one()
+            by_ip = db.exec(select(func.count()).select_from(PasswordLink).where(PasswordLink.ip == ip, PasswordLink.created_at > since)).one() if ip else 0
+            if by_email >= LINKS_PER_EMAIL or by_ip >= LINKS_PER_IP:
+                return None
+            _, token = self._new_password_link(db, email, ip=ip)
+        return token, exists
+
+    def _new_password_link(self, db: Session, email: str, by: str | None = None, ip: str | None = None) -> tuple[PasswordLink, str]:
+        now = _now()
+        token = secrets.token_urlsafe(32)
+        row = PasswordLink(id=str(uuid.uuid4()), token_hash=_hash(token), email=email, ip=ip[:64] if ip else None, created_by=by, created_at=now,
+                           expires_at=now + PASSWORD_LINK_TTL)
+        db.add(row)
+        return row, token
+
+    def password_link_info(self, token: str) -> dict:
+        """What a password link is for, to show before using it. Raises LinkInvalid."""
+        with self._db() as db:
+            link = self._open_password_link(db, token)
+            user = db.exec(select(User).where(User.email == link.email)).first()
+        return {"email": link.email, "has_account": user is not None, "expires_at": _utc(link.expires_at)}
+
+    def _open_password_link(self, db: Session, token: str) -> PasswordLink:
+        link = db.exec(select(PasswordLink).where(PasswordLink.token_hash == _hash(token or ""))).first()
+        if link is None or link.used_at is not None or _utc(link.expires_at) <= _now():
+            raise LinkInvalid("this link has expired or was used already")
+        return link
+
+    def use_password_link(self, token: str, secret: str, name: str = "") -> tuple[User, str]:
+        """Set the password with a link: the account is made if there's none yet (only an emailed link can do that),
+        every login session the user had ends, and a new one starts. Raises LinkInvalid, ValueError or Refused."""
+        now = _now()
+        with self._db() as db, db.begin():
+            link = self._open_password_link(db, token)
+            password.check(secret, link.email)
+            if not server_allows(link.email):
+                raise Refused(f"this sopops doesn't take sign-ins from {domain(link.email)} addresses")
+            used = db.execute(update(PasswordLink).where(PasswordLink.id == link.id, PasswordLink.used_at.is_(None)).values(used_at=now))  # type: ignore[union-attr, arg-type]
+            if used.rowcount != 1:  # used twice at once: only one wins
+                raise LinkInvalid("this link has expired or was used already")
+            db.execute(update(PasswordLink).where(PasswordLink.email == link.email, PasswordLink.used_at.is_(None)).values(used_at=now))  # type: ignore[union-attr, arg-type]
+            email = link.email
+            user = db.exec(select(User).where(User.email == email)).first()
+            if user is None:
+                user = self._new_password_user(db, email, name, secret)  # an emailed link: they opened it, so the address is theirs
+            else:
+                ident = self._password_identity(db, user.id)
+                if ident is None:
+                    db.add(Identity(id=str(uuid.uuid4()), user_id=user.id, provider=PASSWORD, provider_user_id=user.id, email=email,
+                                    password_hash=password.hash(secret), created_at=now))
+                else:
+                    ident.password_hash = password.hash(secret)
+                    db.add(ident)
+                self._end_sessions(db, user.id)
+            db.execute(delete(LoginAttempt).where(LoginAttempt.email == email))  # type: ignore[arg-type]
+        return self.sign_in(Profile(provider=PASSWORD, provider_user_id=user.id, email=email))
+
+    def _end_sessions(self, db: Session, user_id: str, keep: str | None = None) -> None:
+        q = update(LoginSession).where(LoginSession.user_id == user_id, LoginSession.revoked_at.is_(None))  # type: ignore[union-attr, arg-type]
+        if keep is not None:
+            q = q.where(LoginSession.id != keep)  # type: ignore[arg-type]
+        db.execute(q.values(revoked_at=_now()))
 
     # --- login sessions ------------------------------------------------------------
 
@@ -392,8 +624,9 @@ class Accounts:
             if inv is None or inv.revoked_at is not None or (inv.accepted_at is not None and not mine) or (not mine and _utc(inv.expires_at) <= _now()):
                 raise NotFound("this invite link has expired, was used, or was withdrawn. Ask for a new one")
             org = db.get(Org, inv.org_id)
+            has_account = db.exec(select(User.id).where(User.email == inv.email)).first() is not None
         return {"org_id": inv.org_id, "org_name": org.name if org else "", "email": inv.email, "role": inv.role, "expires_at": _utc(inv.expires_at),
-                "accepted": mine}
+                "accepted": mine, "has_account": has_account}
 
     def accept(self, token: str, cur: Current) -> str:
         """Join the invite's org as the signed-in user, whose email must be the invite's. Returns the org id."""
@@ -460,8 +693,18 @@ def clean_domains(domains: list[str]) -> list[str]:
 
 def server_allows(email: str) -> bool:
     """SOPOPS_ALLOWED_EMAIL_DOMAINS (comma-separated), when set, is the only domains anyone signs in from."""
-    allowed = [d.strip().lower().lstrip("@") for d in os.environ.get(ALLOWED_DOMAINS_ENV, "").split(",") if d.strip()]
+    allowed = sign_up_domains()
     return not allowed or domain(email) in allowed
+
+
+def sign_up_domains() -> list[str]:
+    return [d.strip().lower().lstrip("@") for d in os.environ.get(ALLOWED_DOMAINS_ENV, "").split(",") if d.strip()]
+
+
+def sign_up_open(email: str) -> bool:
+    """Whether someone with no account can make one with this address by email link: only at the domains in
+    SOPOPS_ALLOWED_EMAIL_DOMAINS (with it unset, people join through invites)."""
+    return domain(email) in sign_up_domains()
 
 
 def _hash(token: str) -> str:

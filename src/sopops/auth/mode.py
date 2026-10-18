@@ -1,8 +1,9 @@
 """The auth mode: whether this sopops needs people to sign in.
 
 With no login provider configured, sopops runs with no sign-in (local use, demos). With at least one (GitHub, Google,
-or email, which is on with SMTP set up or SOPOPS_EMAIL_DEV), sign-in is on.
-SOPOPS_AUTH_REQUIRED (true or false) forces it either way. Read on every request, so it follows the environment.
+or email, which is on with SMTP set up or SOPOPS_EMAIL_DEV), sign-in is on. Passwords don't count: they're offered
+whenever sign-in is on. SOPOPS_AUTH_REQUIRED (true or false) forces it either way, and `true` alone is how a team signs
+in with passwords and nothing else. Read on every request, so it follows the environment.
 """
 
 from __future__ import annotations
@@ -20,4 +21,4 @@ def required() -> bool:
         return True
     if forced in ("0", "false", "no", "off"):
         return False
-    return bool(providers.configured())
+    return any(p.configured() for p in providers.registered() if p.turns_on_sign_in)

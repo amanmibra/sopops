@@ -9,6 +9,13 @@ Email sign-in: `POST /v1/auth/email` mails a link (`<sopops>/sign-in/email#<toke
 whether the address gets one or not. The page posts the token to `/v1/auth/email/confirm` when the person clicks, which
 starts a login session (see `sopops.auth.email` for why the token is after `#` and needs the click).
 
+Passwords (`sopops.auth.password`): `POST /v1/auth/password/login` signs in. On a fresh install,
+`/v1/auth/password/first-account` makes the owner. `/v1/auth/invites/join` accepts an invite by making an account with a
+password. Links that set a password (`<sopops>/set-password#<token>`) come from an owner or admin
+(`/v1/org/members/<id>/password-link`), from `sopops reset-password`, or by email (`/v1/auth/password/email`), and the
+page posts the token to `/v1/auth/password/set`. These routes are open, like the rest of signing in, and take JSON only:
+another site can't make a browser send JSON here without CORS, which sopops doesn't allow by default.
+
 Invite links carry their token after `#`, so it never reaches the server's access log; the page posts it here. With
 SMTP set up, sopops also emails them.
 """
@@ -29,7 +36,7 @@ from fastapi.responses import RedirectResponse
 
 from .. import mail
 from ..auth import access, email, mode, providers
-from ..auth.service import INVITE_DAYS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused
+from ..auth.service import INVITE_DAYS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword, sign_up_domains
 from ..orm import Org
 from ..schemas.auth import (
     AddPeopleIn,
@@ -37,14 +44,23 @@ from ..schemas.auth import (
     EmailLinkConfirmIn,
     EmailLinkIn,
     EmailLinkSent,
+    FirstAccountIn,
     InviteCreated,
     InviteIn,
     InviteInfo,
     InviteOut,
+    InviteJoinIn,
     InviteTokenIn,
     MemberOut,
     OrgIn,
     OrgOut,
+    PasswordChangeIn,
+    PasswordEmailIn,
+    PasswordLinkCreated,
+    PasswordLinkInfo,
+    PasswordLinkTokenIn,
+    PasswordLoginIn,
+    PasswordSetIn,
     PersonAdded,
     RoleIn,
     SignedIn,
@@ -60,6 +76,7 @@ OAUTH_COOKIE_PATH = "/v1/auth/callback"
 OAUTH_TTL_S = 600
 SESSION_MAX_AGE = SESSION_DAYS * 24 * 3600
 LINK_SENT = "If that address can sign in, we sent a link. It works for 15 minutes."
+PASSWORD_LINK_SENT = "If that address can have a password here, we sent a link to set one. It works for an hour."
 
 
 def public_url(request: Request) -> str:
@@ -69,6 +86,14 @@ def public_url(request: Request) -> str:
 
 def callback_url(request: Request, provider: str) -> str:
     return f"{public_url(request)}/v1/auth/callback/{provider}"
+
+
+def set_password_url(public: str, token: str) -> str:
+    return f"{public}/set-password#{token}"
+
+
+def client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
 
 
 def safe_next(next: str | None) -> str:
@@ -96,14 +121,31 @@ def router(accounts: Accounts) -> APIRouter:
             raise Forbidden(access.NO_MEMBERSHIP)
         return cur, cur.org_id, cur.memberships[cur.org_id]
 
+    def passwords() -> bool:
+        p = providers.get("password")
+        return p is not None and p.configured()
+
+    def need_passwords() -> None:
+        if not passwords():
+            raise HTTPException(404, "sign-in with a password isn't on for this sopops")
+
     def state(cur: Current | None) -> dict:
         found = [{"id": p.id, "label": p.label, "redirects": p.redirects} for p in providers.configured()]
+        pw = passwords()
+        by_email = pw and email.EmailLogin().configured()
+        extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains())}
         if cur is None:
-            return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": []}
+            return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra}
         orgs = [{"id": o.id, "name": o.name, "slug": o.slug, "role": cur.memberships[o.id]} for o in accounts.orgs(list(cur.memberships))]
         u = cur.user
-        return {"required": True, "providers": found, "user": {"id": u.id, "email": u.email, "name": u.name, "avatar_url": u.avatar_url},
-                "org": next((o for o in orgs if o["id"] == cur.org_id), None), "orgs": orgs}
+        return {"required": True, "providers": found, "user": {"id": u.id, "email": u.email, "name": u.name, "avatar_url": u.avatar_url,
+                                                               "has_password": accounts.has_password(u.id)},
+                "org": next((o for o in orgs if o["id"] == cur.org_id), None), "orgs": orgs, **extra}
+
+    def signed_in(request: Request, response: Response, user_id: str, token: str, how: str, next: str | None = "/") -> dict:
+        log.info("user %s signed in with %s", user_id, how)
+        access.set_session_cookies(response, request, token, SESSION_MAX_AGE)
+        return {**state(accounts.current(token)), "next": safe_next(next)}
 
     # --- signing in -----------------------------------------------------------------
 
@@ -189,9 +231,105 @@ def router(accounts: Accounts) -> APIRouter:
             raise HTTPException(404, f"{e}. Ask for a new one") from None
         except Refused as e:
             raise HTTPException(403, str(e)) from None
-        log.info("user %s signed in with email", user.id)
-        access.set_session_cookies(response, request, token, SESSION_MAX_AGE)
-        return {**state(accounts.current(token)), "next": safe_next(next)}
+        return signed_in(request, response, user.id, token, "email", next)
+
+    # --- passwords --------------------------------------------------------------------
+
+    @r.post("/v1/auth/password/login", response_model=SignedIn, responses={401: {"description": "Wrong email or password."},
+                                                                             429: {"description": "Too many tries."}})
+    def password_login(req: PasswordLoginIn, request: Request, response: Response) -> dict:
+        """Sign in with an email and password. The answer is the same for an unknown address and a wrong password. 10
+        failed tries per address and 30 per client in 15 minutes, then 429."""
+        need_passwords()
+        try:
+            user, token = accounts.password_login(req.email, req.password, client_ip(request))
+        except WrongPassword as e:
+            raise HTTPException(401, str(e)) from None
+        except TooManyTries as e:
+            raise HTTPException(429, str(e)) from None
+        return signed_in(request, response, user.id, token, "a password", req.next)
+
+    @r.post("/v1/auth/password/first-account", response_model=SignedIn, responses={409: {"description": "Someone has an account already."}})
+    def first_account(req: FirstAccountIn, request: Request, response: Response) -> dict:
+        """On a fresh install, with nobody signed up yet: make the first account, which owns the org, and sign in."""
+        need_passwords()
+        try:
+            user, token = accounts.first_account(req.email, req.name, req.password)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Refused as e:
+            raise HTTPException(403, str(e)) from None
+        return signed_in(request, response, user.id, token, "a new password (the first account)")
+
+    @r.post("/v1/auth/invites/join", response_model=SignedIn, responses={404: {"description": "Unknown, used, withdrawn or expired."},
+                                                                         409: {"description": "The email has an account: sign in instead."}})
+    def join_with_password(req: InviteJoinIn, request: Request, response: Response) -> dict:
+        """Accept an invite by making an account with a name and password, for an email that has no account yet."""
+        need_passwords()
+        try:
+            user, token = accounts.join_with_password(req.token, req.name, req.password)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Refused as e:
+            raise HTTPException(403, str(e)) from None
+        return signed_in(request, response, user.id, token, "a new password (an invite)")
+
+    @r.post("/v1/auth/password/email", response_model=EmailLinkSent, status_code=202, responses={404: {"description": "Email isn't set up."}})
+    def request_password_link(req: PasswordEmailIn, request: Request, background: BackgroundTasks) -> dict:
+        """Email a link that sets a password: "Forgot password?", or making an account at SOPOPS_ALLOWED_EMAIL_DOMAINS.
+        The answer is the same whether or not the address gets one."""
+        need_passwords()
+        if not email.EmailLogin().configured():
+            raise HTTPException(404, "sopops can't send email here. Ask an owner or admin for a link to reset your password")
+        try:
+            got = accounts.request_password_link(req.email, client_ip(request))
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        if got is not None:
+            token, has_account = got
+            to, site = req.email.strip().lower(), public_url(request)
+            link = set_password_url(site, token)
+            background.add_task(email.deliver, email.password_message(to, link, site, has_account), link)
+        return {"message": PASSWORD_LINK_SENT}
+
+    @r.post("/v1/auth/password/link", response_model=PasswordLinkInfo, responses={404: {"description": "Unknown, used or expired."}})
+    def lookup_password_link(req: PasswordLinkTokenIn) -> dict:
+        """What a password link is for: the email, and whether using it makes the account."""
+        need_passwords()
+        try:
+            return accounts.password_link_info(req.token)
+        except LinkInvalid as e:
+            raise HTTPException(404, f"{e}. Ask for a new one") from None
+
+    @r.post("/v1/auth/password/set", response_model=SignedIn, responses={404: {"description": "Unknown, used or expired."}})
+    def set_password(req: PasswordSetIn, request: Request, response: Response) -> dict:
+        """Set the password with a link (used up here), making the account if it's new. Every login session the user
+        had ends, and this browser signs in."""
+        need_passwords()
+        try:
+            user, token = accounts.use_password_link(req.token, req.password, req.name)
+        except LinkInvalid as e:
+            raise HTTPException(404, f"{e}. Ask for a new one") from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Refused as e:
+            raise HTTPException(403, str(e)) from None
+        return signed_in(request, response, user.id, token, "a password link")
+
+    @r.post("/v1/auth/password/change", status_code=204, responses={401: {"description": "The current password is wrong."}})
+    def change_password(req: PasswordChangeIn, request: Request) -> Response:
+        """Change your password. The current one must match. Your other login sessions end; this one stays."""
+        cur = login(request)
+        try:
+            accounts.change_password(cur, req.current_password, req.password)
+        except WrongPassword as e:
+            raise HTTPException(401, str(e)) from None
+        except TooManyTries as e:
+            raise HTTPException(429, str(e)) from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        log.info("user %s changed their password", cur.user.id)
+        return Response(status_code=204)
 
     @r.post("/v1/auth/logout", status_code=204)
     def sign_out(request: Request) -> Response:
@@ -286,6 +424,15 @@ def router(accounts: Accounts) -> APIRouter:
         _, org_id, role = org_of(request)
         accounts.remove_member(org_id, role, user_id)
         return Response(status_code=204)
+
+    @r.post("/v1/org/members/{user_id}/password-link", response_model=PasswordLinkCreated, status_code=201)
+    def create_password_link(user_id: str, request: Request) -> dict:
+        """A link that sets a member's password, to send them yourself. It works once, for an hour, and ends their
+        login sessions. Only an owner makes one for an owner."""
+        cur, org_id, role = org_of(request)
+        info, token = accounts.password_link(org_id, cur.user.id, role, user_id)
+        log.info("user %s made a password link for user %s", cur.user.id, user_id)
+        return {**info, "link": set_password_url(public_url(request), token)}
 
     @r.get("/v1/org/invites", response_model=list[InviteOut])
     def list_invites(request: Request) -> list[dict]:

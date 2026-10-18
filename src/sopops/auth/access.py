@@ -2,7 +2,7 @@
 
 | Kind | With sign-in on | With sign-in off |
 |---|---|---|
-| `open` | anyone (the sign-in flow, email sign-in links, the UI's files, health, API docs) | anyone |
+| `open` | anyone (the sign-in flow, email sign-in links, passwords, the UI's files, health, API docs) | anyone |
 | `token` | the route checks its own token (ingest, runtime or onboarding); no login session | same |
 | `webhook` | the route checks the sender's signature or secret; no login session | same |
 | `token_or_session` | a login session, or the route's runtime token (prompt fetches) | as before |
@@ -16,7 +16,9 @@ listed. Workspaces in another org answer 404, as if they weren't there.
 **CSRF.** Cookie-authenticated requests that change things (POST, PUT, PATCH, DELETE) must send `X-CSRF-Token` with
 the value of the `sopops_csrf` cookie, which is an HMAC of the session token (`service.csrf_token`): another site can
 make the browser send the session cookie, but can't read the CSRF cookie to copy it into a header. The session cookie
-is also SameSite=Lax. Token and webhook routes take no cookie, so they need no CSRF token.
+is also SameSite=Lax. Token and webhook routes take no cookie, so they need no CSRF token. The open routes that sign in
+(a password, an email link, an invite) have no session to check against; they take only JSON, which another site can't
+make a browser send without passing CORS.
 """
 
 from __future__ import annotations
@@ -30,7 +32,7 @@ from starlette.responses import Response
 from ..errors import NotFound
 from ..tokens import Forbidden, Unauthorized
 from . import actor, github, google, mode  # noqa: F401  (github and google register their providers)
-from . import email  # noqa: F401, I001  (registers its provider after them, so it's listed last)
+from . import email, password  # noqa: F401, I001  (register their providers after them, so they're listed last)
 from .service import MANAGERS, Accounts, Current, csrf_token
 
 OPEN, TOKEN, WEBHOOK, TOKEN_OR_SESSION, SIGNED_IN, SESSION, ADMIN = "open", "token", "webhook", "token_or_session", "signed_in", "session", "admin"
@@ -47,8 +49,10 @@ ROUTES: dict[str, str] = {
     # open: the sign-in flow, the UI's files, health and the API docs
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
     "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
+    "password_login": OPEN, "first_account": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
+    "set_password": OPEN,
     # signed in, with or without a membership
-    "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN,
+    "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN, "change_password": SIGNED_IN,
     # tokens: ingest (sessions), runtime (served calls), onboarding (a coding agent through sopops-mcp)
     "ingest_session": TOKEN, "open_session": TOKEN, "append_session_events": TOKEN, "close_session": TOKEN,
     "record_served": TOKEN,
@@ -62,7 +66,7 @@ ROUTES: dict[str, str] = {
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
     "update_org": ADMIN, "add_members": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN,
-    "resend_invite": ADMIN, "revoke_invite": ADMIN,
+    "resend_invite": ADMIN, "revoke_invite": ADMIN, "create_password_link": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
     # everything else in the app: any member

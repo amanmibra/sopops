@@ -8,8 +8,11 @@ from sqlmodel import Column, DateTime, Field, ForeignKeyConstraint, Index, SQLMo
 
 
 class Identity(SQLModel, table=True):
-    """A login provider's account for a user (`github` or `google`, or one a plugin registers). One user can have one
-    per provider. `email` is the verified address the provider gave at the last sign-in."""
+    """A login provider's account for a user (`github`, `google`, `email` or `password`, or one a plugin registers). One
+    user can have one per provider. `email` is the verified address the provider gave at the last sign-in.
+
+    A `password` identity's `provider_user_id` is the user's id, and `password_hash` its argon2id hash (None for every
+    other provider)."""
 
     __tablename__ = "identities"
     __table_args__ = (
@@ -23,4 +26,5 @@ class Identity(SQLModel, table=True):
     provider: str = Field(max_length=32)
     provider_user_id: str = Field(max_length=255)
     email: str = Field(max_length=320)
+    password_hash: str | None = Field(default=None, max_length=255)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

@@ -19,6 +19,7 @@ dependencies = [
     # fallback client: pinned below with hashes in uv.lock (1.82.7 and 1.82.8 on PyPI were compromised, March 2026).
     "dspy==3.4.1",
     "authlib>=1.6",  # sign-in with GitHub and Google (OAuth 2.0 with PKCE, OpenID Connect)
+    "argon2-cffi>=23.1",  # password hashes (argon2id)
 ]
 
 [project.optional-dependencies]
