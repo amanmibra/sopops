@@ -18,9 +18,14 @@ from .findings import Finding
 from .github_apps import GitHubApp
 from .github_deliveries import GitHubDelivery
 from .github_installations import GitHubInstallation
+from .identities import Identity
 from .import_events import ImportEvent
 from .imports import ImportRecord
+from .invites import Invite
+from .login_sessions import LoginSession
+from .memberships import Membership
 from .model_calls import ModelCall
+from .orgs import Org
 from .patterns import Pattern
 from .platform_secrets import PlatformSecret
 from .procedure_checks import ProcedureCheck
@@ -36,10 +41,11 @@ from .suggestions import Suggestion
 from .sync_conflicts import SyncConflict
 from .themes import Theme
 from .tokens import Token
+from .users import User
 from .verdicts import Verdict
 from .workspaces import Workspace
 
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "CaptureSetting", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "CaptureSetting", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JSONDoc", "LoginSession", "Membership", "ModelCall", "Org", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]

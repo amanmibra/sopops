@@ -45,3 +45,4 @@ class ImportRecord(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     created_by: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`created_by` keeps the name).")

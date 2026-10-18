@@ -1,13 +1,14 @@
-"""Serving: what each agent loads at call start (prompt fetches take a runtime-scoped token once the workspace has one), and the fetch log."""
+"""Serving: what each agent loads at call start (prompt fetches take a runtime-scoped token once the workspace has one, or\nalways with sign-in on, unless someone signed in is looking), and the fetch log."""
 
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import PlainTextResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ..auth import access
 from ..errors import NotFound
 from ..runtime.service import Runtime
 from ..schemas import AgentOut, AgentsResponse, FetchOut
@@ -20,8 +21,9 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
 
     runtime_bearer = HTTPBearer(auto_error=False, description="A token with the runtime scope (Settings → Tokens), once the workspace has one.")
 
-    def runtime_token(workspace: str, credentials: HTTPAuthorizationCredentials | None = Depends(runtime_bearer)) -> None:
-        runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
+    def runtime_token(workspace: str, request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(runtime_bearer)) -> None:
+        if access.signed_in(request) is None:  # someone signed in may look; agents send their runtime token
+            runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
 
     fetch_auth = [Depends(runtime_token)]
 

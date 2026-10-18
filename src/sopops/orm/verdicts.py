@@ -21,5 +21,6 @@ class Verdict(SQLModel, table=True):
     verdict: str = Field(max_length=16)  # real | acceptable | sop_wrong | checker_wrong
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     reviewer: str | None = Field(default=None, max_length=256, description="Free text until there's auth.")
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`reviewer` keeps the name).")
     carried_from: str | None = Field(default=None, max_length=36, description="The retired pattern a recluster carried this verdict over from.")
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

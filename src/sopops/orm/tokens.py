@@ -23,6 +23,7 @@ class Token(SQLModel, table=True):
     scopes: list[str] = Field(sa_column=Column(JSON, nullable=False))
     import_id: str | None = Field(default=None, max_length=36, index=True)
     created_by: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`created_by` keeps the name).")
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     expires_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))

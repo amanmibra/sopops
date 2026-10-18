@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, delete
 
 from .. import github_app, github_webhooks
+from ..auth import access
 from ..errors import workspace_id
 from ..github import GitHubError
 from ..orm import GitHubDelivery
@@ -44,12 +45,15 @@ def router(store: Store) -> APIRouter:
         return {"url": github_app.install_url(store, workspace_id(workspace), return_to)}
 
     @r.get("/v1/github/setup", include_in_schema=False)
-    def github_setup(installation_id: int | None = None, state: str | None = None, setup_action: str | None = None) -> Response:
+    def github_setup(request: Request, installation_id: int | None = None, state: str | None = None, setup_action: str | None = None) -> Response:
         """The App's setup URL: GitHub sends the browser here after an install, with the installation's id and our state."""
         try:
             data = github_app.read_state(store, state)
             if not data.get("ws"):
                 raise GitHubError("this link didn't come from an install started in sopops", 400)
+            cur = access.signed_in(request)
+            if cur is not None and request.app.state.accounts.workspace_org(data["ws"]) not in (*cur.memberships, None):
+                raise GitHubError("this install was started from a workspace you're not in", 403)
             if installation_id is None:
                 raise GitHubError("GitHub didn't say which installation this is", 400)
             github_app.record_installation(store, data["ws"], installation_id)

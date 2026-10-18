@@ -36,6 +36,17 @@ def expected(name: str) -> str:
     return (FIXTURE / "expected" / name).read_text()
 
 
+AUTH_ENV = ("SOPOPS_GITHUB_OAUTH_CLIENT_ID", "SOPOPS_GITHUB_OAUTH_CLIENT_SECRET", "SOPOPS_GOOGLE_CLIENT_ID", "SOPOPS_GOOGLE_CLIENT_SECRET",
+            "SOPOPS_AUTH_REQUIRED", "SOPOPS_ALLOWED_EMAIL_DOMAINS", "SOPOPS_PUBLIC_URL")
+
+
+@pytest.fixture(autouse=True)
+def no_sign_in(monkeypatch):
+    """Sign-in is off unless a test turns it on (tests/test_auth.py)."""
+    for var in AUTH_ENV:
+        monkeypatch.delenv(var, raising=False)
+
+
 @pytest.fixture(autouse=True)
 def no_models(monkeypatch):
     """Tests never reach a real model: no model env, and the process-wide client reset."""

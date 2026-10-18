@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, func, select, update
 
 from . import forms
+from .auth import actor
 from .calibrate import Calibrate
 from .checks import Checks
 from .db import engine_from_url, upgrade
@@ -60,9 +61,13 @@ class Store:
 
     # --- workspaces & files ----------------------------------------------------
 
-    def workspaces(self) -> list[dict]:
+    def workspaces(self, org_id: str | None = None) -> list[dict]:
+        """Every workspace, or the org's."""
+        q = select(Workspace).order_by(Workspace.workspace)
+        if org_id is not None:
+            q = q.where(Workspace.org_id == org_id)
         with self._session() as db:
-            return [w.model_dump() for w in db.exec(select(Workspace).order_by(Workspace.workspace))]
+            return [w.model_dump() for w in db.exec(q)]
 
     def head(self, workspace: str, content: bool = False) -> list[dict]:
         """The latest version of every file that isn't deleted."""
@@ -574,7 +579,8 @@ class Store:
             with self._session() as db, db.begin():
                 name = db.get_bind().dialect.name
                 dialect = postgresql if name == "postgresql" else sqlite
-                db.execute(dialect.insert(Workspace.__table__).values(workspace=ws).on_conflict_do_nothing())
+                if db.get(Workspace, ws) is None:
+                    db.execute(dialect.insert(Workspace.__table__).values(workspace=ws, org_id=actor.workspace_org(db)).on_conflict_do_nothing())
                 if name == "postgresql":
                     db.exec(select(Workspace.workspace).where(Workspace.workspace == ws).with_for_update())
                 yield db
@@ -633,9 +639,11 @@ class Store:
         }
         number = (db.exec(select(func.max(Release.number)).where(Release.workspace == workspace)).one() or 0) + 1
         row = {"workspace": workspace, "number": number, "created_at": _now(), "author": author, "note": note, "files": versions, "build": build}
-        db.add(Release(**row))
+        rel = Release(**row)
+        db.add(rel)
         db.execute(update(Workspace).where(Workspace.workspace == workspace).values(current_release=number))
         db.flush()
+        row["author"] = rel.author  # signed in: the user's name (sopops.auth.actor)
         # which rules the new release rewords, against the release that was live (patterns follow; sopops.lineage)
         record(db, self.sopc, workspace, current["number"] if current else None, number, follow=rekey)
         return _summary(row, True), True

@@ -2,18 +2,20 @@
 
 `create_app` builds the FastAPI app and mounts the routers in `sopops.api`. Its OpenAPI spec (/openapi.json) is what
 SDKs are generated from. Set DATABASE_URL for the database (default sqlite:///sopops.db) and SOPC_BIN for the sopc
-binary (default: `sopc` on PATH). The management endpoints have no authentication yet: run it on a private network.
+binary (default: `sopc` on PATH). Sign-in with GitHub or Google is on once a login provider is configured
+(`sopops.auth`); `sopops.auth.access` says how every route is authenticated.
 """
 
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.routing import APIRoute
 
 from . import __version__
 from .api import (
+    auth,
     capture,
     config,
     errors,
@@ -36,6 +38,8 @@ from .api import (
     usage,
 )
 from .api.deps import OPEN
+from .auth import access, providers
+from .auth.service import Accounts
 from .db import database_url
 from .events import PgListener
 from .jobs import Jobs
@@ -72,8 +76,11 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         "Sessions (voice calls and text chats) come in through the ingest endpoints.",
         generate_unique_id_function=_operation_id,
         lifespan=lifespan,
+        dependencies=[Depends(access.guard)],  # every route: its kind in access.ROUTES, and who the request acts as
     )
+    providers.load_plugins()
     app.state.store = store
+    app.state.accounts = Accounts(store)
     app.state.jobs = jobs
     # Jobs(ai=...) reaches imports too
     app.state.onboarding = Onboarding(store, ai=lambda: jobs.ai if jobs.ai is not None else ai_from_env())
@@ -85,6 +92,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         return {"ok": True}
 
     for r in (
+        auth.router(app.state.accounts),
         stateless.router(store),
         files.router(store),
         config.router(store),

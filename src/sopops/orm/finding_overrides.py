@@ -28,4 +28,5 @@ class FindingOverride(SQLModel, table=True):
     correct: bool
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     reviewer: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`reviewer` keeps the name).")
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

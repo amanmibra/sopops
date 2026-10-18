@@ -18,4 +18,5 @@ class FileVersion(SQLModel, table=True):
     content: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     author: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`author` keeps the name).")
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))

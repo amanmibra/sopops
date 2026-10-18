@@ -1,5 +1,6 @@
 """The schema: Alembic migrations, databases from before Alembic, and the UI's catch-all route."""
 
+from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
@@ -8,7 +9,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 
 from sopops import Sopc, Store, create_app
-from sopops.db import alembic_config, current_revision, upgrade
+from sopops.db import INITIAL, alembic_config, current_revision, upgrade
 from sopops.orm import metadata
 
 
@@ -24,8 +25,11 @@ def test_migrations_match_the_models(tmp_path):
 def test_a_database_from_before_alembic_is_stamped_and_kept(tmp_path, files):
     url = f"sqlite:///{tmp_path / 'old.db'}"
     engine = create_engine(url)
-    old = [metadata.tables[t] for t in ("workspaces", "file_versions", "releases", "fetches")]
-    metadata.create_all(engine, tables=old)  # how sopops made its tables before Alembic
+    cfg = alembic_config()
+    with engine.begin() as conn:  # the tables as sopops made them before Alembic: the initial revision's, unstamped
+        cfg.attributes["connection"] = conn
+        command.upgrade(cfg, INITIAL)
+        conn.execute(text("DROP TABLE alembic_version"))
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO workspaces (workspace, current_release) VALUES ('demo', NULL)"))
     assert "alembic_version" not in inspect(engine).get_table_names()

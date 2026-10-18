@@ -17,6 +17,7 @@ class Release(SQLModel, table=True):
     number: int = Field(primary_key=True)
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     author: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`author` keeps the name).")
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     files: dict[str, int] = Field(sa_column=Column(JSON, nullable=False))
     # {"agents": {id: {platform_ref, hash, prompt, tools, sops, components}}}

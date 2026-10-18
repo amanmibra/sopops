@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 
 import pytest
 from conftest import FIXTURE, WS, expected, read_files
-from sqlalchemy import insert
+from sqlalchemy import insert, select
 
-from sopops.orm import FileVersion, Release, Workspace
+from sopops.orm import FileVersion, Org, Release, Workspace
 
 CFG = f"{WS}/config"
 OLD = FIXTURE.parent / "old-format" / "sops"
@@ -490,7 +490,7 @@ def store_old(client, release: bool = False) -> None:
         for path, content in old.items():
             conn.execute(insert(FileVersion).values(workspace="demo", path=path, version=1, content=content, created_at=now, author="ana"))
         if release:
-            conn.execute(insert(Workspace).values(workspace="demo", current_release=1))
+            conn.execute(insert(Workspace).values(workspace="demo", current_release=1, org_id=conn.execute(select(Org.id)).scalar()))
             conn.execute(insert(Release).values(workspace="demo", number=1, created_at=now, files={p: 1 for p in old}, build={"agents": {}}))
 
 

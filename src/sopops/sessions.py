@@ -21,6 +21,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, or_, select, text
 
 from . import lineage
+from .auth import actor
 from .events import CHANNEL, Broker
 from .orm import (
     Finding,
@@ -393,7 +394,8 @@ class Sessions:
 
     def _ensure_workspace(self, db: Session, ws: str) -> None:
         dialect = postgresql if self.postgres else sqlite
-        db.execute(dialect.insert(Workspace.__table__).values(workspace=ws).on_conflict_do_nothing())
+        if db.get(Workspace, ws) is None:
+            db.execute(dialect.insert(Workspace.__table__).values(workspace=ws, org_id=actor.workspace_org(db)).on_conflict_do_nothing())
 
     def notify(self, event: dict) -> None:
         """Publish an event that isn't part of a session write (a repository sync, say) to the workspace's stream, in

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Query
 
+from ..auth import actor
 from ..schemas import (
     EditRequest,
     FileOut,
@@ -22,7 +23,9 @@ def router(store: Store) -> APIRouter:
 
     @r.get("/v1/workspaces", response_model=list[WorkspaceOut], dependencies=OPEN, tags=["workspaces"])
     def list_workspaces() -> list[dict]:
-        return store.workspaces()
+        """The workspaces of the org you're working in (every workspace, with sign-in off)."""
+        a = actor.get()
+        return store.workspaces(a.org_id if a else None)
 
     @r.get("/v1/workspaces/{workspace}/files", response_model=FilesResponse, dependencies=OPEN, tags=["files"])
     def list_files(workspace: str, content: bool = Query(False, description="Include each file's content, e.g. to export to git.")) -> dict:

@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 
 from sqlmodel import Session, delete, select
 
+from ..auth import mode
 from ..errors import NotFound, workspace_id
 from ..orm import AgentDelivery, PlatformSecret, PushResult, RuntimeServe
 from ..tokens import RUNTIME, Forbidden, Unauthorized
@@ -59,8 +60,8 @@ class Runtime:
 
     def check_fetch(self, workspace: str, authorization: str | None) -> None:
         """Prompt fetches take a token with the `runtime` scope. A workspace without an unrevoked runtime token is in
-        local mode: fetches are open."""
-        if self._has_token(workspace):
+        local mode: fetches are open, unless sign-in is on (then the token is always needed)."""
+        if mode.required() or self._has_token(workspace):
             self.store.tokens.check(workspace, authorization, RUNTIME)
 
     def _has_token(self, workspace: str) -> bool:

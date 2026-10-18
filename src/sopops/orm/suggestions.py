@@ -41,6 +41,7 @@ class Suggestion(SQLModel, table=True):
     merged_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))  # when sopops saw it merged
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True), description="Why it was dismissed (or that it was rewritten).")
     reviewer: str | None = Field(default=None, max_length=256)
+    author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`reviewer` keeps the name).")
     attempts: int = 0
     model: str | None = Field(default=None, max_length=256)
     prompt_version: str | None = Field(default=None, max_length=64)

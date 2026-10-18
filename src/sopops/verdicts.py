@@ -168,7 +168,8 @@ def carry_over(db: Session, ws: str, pairs: list[tuple[str, str]], now: datetime
         v = own.get(old)
         if v is None or new in own:
             continue
-        own[new] = Verdict(id=str(uuid.uuid4()), workspace_id=ws, pattern_id=new, verdict=v.verdict, note=v.note, reviewer=v.reviewer, carried_from=old, created_at=now)
+        own[new] = Verdict(id=str(uuid.uuid4()), workspace_id=ws, pattern_id=new, verdict=v.verdict, note=v.note, reviewer=v.reviewer, author_id=v.author_id,
+                           carried_from=old, created_at=now)
         db.add(own[new])
 
 
