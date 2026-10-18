@@ -33,7 +33,7 @@ import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { Page } from "./item-shell";
-import { ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
+import { ConflictTag, ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
 import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
@@ -867,6 +867,7 @@ export function PatternView({ id }: { id: string }) {
                 {suggestions.map((s) => (
                   <li key={s.suggestion_id} className="flex items-center gap-2 text-[13px]">
                     <SuggestionStatusTag status={s.status} />
+                    <ConflictTag freshness={s.freshness} />
                     <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="min-w-0 flex-1 truncate">
                       {summaryOf(s) ?? "Suggested change"}
                     </HrefLink>

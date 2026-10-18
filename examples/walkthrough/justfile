@@ -68,6 +68,10 @@ replay *args:
 verify:
     {{py}} verify.py --models {{models}}
 
+# 9. two suggestions on one procedure: one merges, one conflicts and is rewritten
+conflicts:
+    {{py}} conflicts.py --models {{models}}
+
 # remove out/ (the database, generated calls, tokens)
 clean:
     rm -rf out

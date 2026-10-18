@@ -117,6 +117,18 @@ export function SuggestionStatusTag({ status, big }: { status: SuggestionSummary
   );
 }
 
+/** On a proposed suggestion whose procedure changed since it was written, on the same lines (`freshness`). */
+export function ConflictTag({ freshness, big }: { freshness: SuggestionSummary["freshness"]; big?: boolean }) {
+  if (freshness !== "conflict") return null;
+  return (
+    <Hint focusable={false} tip={<TipBody head="Conflicts">The procedure changed since this was written, in the same place. It can't be applied. Rewrite it against the current text.</TipBody>}>
+      <Tag big={big} className="bg-err-soft text-err border-transparent">
+        Conflicts
+      </Tag>
+    </Hint>
+  );
+}
+
 /** After asking for a fix: waits for it, then links to it. */
 export function SuggestionState({ patternId, initial }: { patternId: string; initial: SuggestionSummary | null | undefined }) {
   const { ws } = useWs();

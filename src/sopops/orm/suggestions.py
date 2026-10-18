@@ -39,10 +39,13 @@ class Suggestion(SQLModel, table=True):
     applied_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     pr_opened_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     merged_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))  # when sopops saw it merged
-    note: str | None = Field(default=None, sa_column=Column(Text, nullable=True), description="Why it was dismissed.")
+    note: str | None = Field(default=None, sa_column=Column(Text, nullable=True), description="Why it was dismissed (or that it was rewritten).")
     reviewer: str | None = Field(default=None, max_length=256)
     attempts: int = 0
     model: str | None = Field(default=None, max_length=256)
     prompt_version: str | None = Field(default=None, max_length=64)
+    merged_into_version: int | None = Field(default=None, description="The file's version the edit was merged into when applied, when the "
+                                            "procedure had changed since it was written (`sopops.merge`).")
+    rewrite_of: str | None = Field(default=None, max_length=36, description="The suggestion this one rewrites against the current text.")
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

@@ -12,7 +12,7 @@ import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note } from "./bits";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
-import { ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
+import { ConflictTag, ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 
 /** Sessions so far toward a fix holding (once its release is live). */
@@ -131,6 +131,7 @@ function SuggestionLink({ s }: { s: SuggestionSummary }) {
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
       <SuggestionStatusTag status={s.status} />
+      <ConflictTag freshness={s.freshness} />
       <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="min-w-0 truncate font-medium">
         {summaryOf(s) ?? "The fix"}
       </HrefLink>
@@ -343,6 +344,7 @@ function SuggestionLinkInline({ s }: { s: SuggestionSummary }) {
   return (
     <span className="flex min-w-0 items-center gap-1.5">
       <SuggestionStatusTag status={s.status} />
+      <ConflictTag freshness={s.freshness} />
       <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="block min-w-0 flex-1 truncate" title={summaryOf(s) ?? undefined}>
         {summaryOf(s) ?? "The fix"}
       </HrefLink>

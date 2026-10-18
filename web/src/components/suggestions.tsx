@@ -1,13 +1,15 @@
 // Suggestions: SOP changes written from a pattern's verdict, by status, and one with its rationale, the source
-// pattern, the block diff, how each affected agent's prompt changes, and apply / dismiss / regenerate.
+// pattern, the block diff, how each affected agent's prompt changes, and apply / dismiss / regenerate. A proposed one
+// says how it fits the procedure as it is now: unchanged, changed but merging cleanly, or in conflict (then it can be
+// rewritten against the current text, as a new suggestion).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, GitPullRequest, Loader2, Sparkles } from "lucide-react";
+import { ExternalLink, GitMerge, GitPullRequest, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ApiError, refresh } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
-import { type PlanAgent, SUGGESTION_STATUSES, type SuggestionDetail, type SuggestionStatus, review, rq, summaryOf } from "@/lib/review";
+import { type MergeConflict, type PlanAgent, SUGGESTION_STATUSES, type SinceWritten, type SuggestionDetail, type SuggestionStatus, review, rq, summaryOf } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, Note, PageTitle, Sub, Tag } from "./bits";
@@ -18,7 +20,7 @@ import { repoQuery } from "./repo";
 import { Skel } from "./insights/kit";
 import { Page } from "./item-shell";
 import { sessionAt } from "./review";
-import { ReviewStateChip, SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
+import { ConflictTag, ReviewStateChip, SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Collapsible } from "./views";
@@ -79,6 +81,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
             <li key={s.suggestion_id}>
               <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="text-foreground hover:bg-muted/60 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:no-underline">
                 <SuggestionStatusTag status={s.status} />
+                <ConflictTag freshness={s.freshness} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{summaryOf(s) ?? s.pattern_name ?? "Suggested change"}</span>
                   <span className="text-muted-foreground block text-xs">
@@ -172,13 +175,72 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
   );
 }
 
+function ChangesSince({ since, open = false }: { since: SinceWritten; open?: boolean }) {
+  if (!since.changes) return null;
+  return (
+    <Collapsible open={open} summary={<span className="text-[13px] font-medium">What changed in the procedure since</span>}>
+      <PatchView patch={since.changes} />
+    </Collapsible>
+  );
+}
+
+function Side({ label, text }: { label: string; text: string }) {
+  return (
+    <div className="min-w-0">
+      <div className="text-muted-foreground mb-1 text-xs font-medium">{label}</div>
+      <pre className="bg-card overflow-x-auto rounded-md border px-2.5 py-2 font-mono text-xs whitespace-pre-wrap">{text.replace(/^\n+|\n+$/g, "") || <span className="text-muted-foreground italic">Nothing</span>}</pre>
+    </div>
+  );
+}
+
+function ConflictPart({ c }: { c: MergeConflict }) {
+  return (
+    <div className="grid gap-1.5">
+      <div className="text-xs font-semibold">At line {c.line}</div>
+      <div className="grid gap-2 md:grid-cols-2">
+        <Side label="The procedure now" text={c.current} />
+        <Side label="This suggestion" text={c.suggested} />
+      </div>
+    </div>
+  );
+}
+
+/** A proposed suggestion whose procedure changed since it was written, in the same place (or the merge doesn't compile). */
+function ConflictCallout({ since, busy, onRewrite }: { since: SinceWritten; busy: boolean; onRewrite: () => void }) {
+  return (
+    <section role="alert" className="border-err/40 bg-err-soft/60 mb-4 grid gap-3 rounded-lg border px-4 py-3.5">
+      <div>
+        <h2 className="text-err text-[14.5px] font-semibold">This conflicts with changes made since it was written</h2>
+        <p className="mt-0.5 text-[13px]">
+          {since.conflicts.length
+            ? `Someone changed the same ${since.conflicts.length === 1 ? "part" : "parts"} of the procedure. Applying it would undo their edit, so it can't be applied.`
+            : since.issues && since.changes
+              ? "The edits don't overlap, but together the file doesn't compile. It can't be applied."
+              : "It can't be applied."}{" "}
+          Rewrite it against the current text to keep both.
+        </p>
+      </div>
+      {since.conflicts.map((c, i) => (
+        <ConflictPart key={i} c={c} />
+      ))}
+      {since.issues && <pre className="bg-card overflow-x-auto rounded-md border px-2.5 py-2 font-mono text-xs whitespace-pre-wrap">{since.issues}</pre>}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button disabled={busy} onClick={onRewrite}>
+          {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} Rewrite against the current text
+        </Button>
+        <Note>A new suggestion, written from the procedure as it is now. This one is dismissed.</Note>
+      </div>
+    </section>
+  );
+}
+
 export function SuggestionView({ id }: { id: string }) {
   const { ws, cfg, href } = useWs();
   const qc = useQueryClient();
   const go = useGo();
   const repo = useQuery({ ...repoQuery(ws), retry: false });
   const res = useQuery({ ...rq.suggestion(ws, id), refetchInterval: (query) => (query.state.data?.status === "generating" ? 2500 : false) });
-  const [busy, setBusy] = useState<null | "apply" | "dismiss" | "regenerate">(null);
+  const [busy, setBusy] = useState<null | "apply" | "dismiss" | "regenerate" | "rewrite">(null);
   const [note, setNote] = useState("");
   const [dismissing, setDismissing] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -203,14 +265,22 @@ export function SuggestionView({ id }: { id: string }) {
   const procName = cfg.procedures.find((x) => x.id === s.block_id || x.id === s.procedure_id)?.name ?? s.procedure_id;
   const agents = s.plan?.agents ?? [];
   const patternName = s.pattern?.name ?? s.pattern_name;
+  const since = open ? s.since_written : null;
+  const conflict = since?.state === "conflict";
 
-  const act = async (what: "apply" | "dismiss" | "regenerate") => {
+  const act = async (what: "apply" | "dismiss" | "regenerate" | "rewrite") => {
     setBusy(what);
     setError(null);
     try {
       if (what === "apply") {
         const r = await review.apply(ws, id, author());
-        toast.success(r.status === "pr_open" ? "Pull request opened." : "Saved as a draft. Publish from Unpublished changes to send it to agents.");
+        const merged = r.merged_into_version != null ? " Merged with the changes made since." : "";
+        toast.success(r.status === "pr_open" ? `Pull request opened.${merged}` : `Saved as a draft.${merged} Publish from Unpublished changes to send it to agents.`);
+      } else if (what === "rewrite") {
+        const r = await review.rewrite(ws, id, author());
+        toast.success("Rewriting it against the current text.");
+        await refresh(qc, ws);
+        return void go(wsHref(ws, "suggestions", r.suggestion_id), { replace: true });
       } else if (what === "dismiss") {
         await review.dismiss(ws, id, note.trim() || null, author());
         toast.success("Dismissed.");
@@ -223,7 +293,9 @@ export function SuggestionView({ id }: { id: string }) {
       }
       await refresh(qc, ws);
     } catch (e) {
-      setError(what === "apply" && e instanceof ApiError && e.status === 409 ? new Error(`${e.message} If the procedure changed since this suggestion was written, regenerate it to get one against the current text.`) : e);
+      const stale = what === "apply" && e instanceof ApiError && e.status === 409;
+      setError(stale && !/rewrite/i.test(e.message) ? new Error(`${e.message} If the procedure changed since this suggestion was written, rewrite it against the current text.`) : e);
+      if (stale) await refresh(qc, ws);
     } finally {
       setBusy(null);
     }
@@ -239,6 +311,12 @@ export function SuggestionView({ id }: { id: string }) {
         An edit to procedure <HrefLink href={href("procedure", s.block_id ?? s.procedure_id ?? undefined)}>{procName}</HrefLink>, written {when(s.created_at)}
         {agents.length > 0 && `, changing ${plural(agents.length, "agent's prompt", "agents' prompts")}`}
         {s.attempts > 1 && ` (took ${s.attempts} tries to compile)`}.
+        {s.rewrite_of && (
+          <>
+            {" "}
+            It replaces <HrefLink href={wsHref(ws, "suggestions", s.rewrite_of)}>an earlier suggestion</HrefLink> that conflicted with later edits.
+          </>
+        )}
       </Sub>
 
       {s.status === "generating" && (
@@ -251,7 +329,8 @@ export function SuggestionView({ id }: { id: string }) {
       {s.status === "failed" && <Banner tone="err">This suggestion couldn't be made{s.error ? `: ${s.error}` : "."} Regenerate to try again.</Banner>}
       {s.status === "applied" && (
         <Banner tone="ok">
-          Applied as a draft edit{s.reviewer ? ` by ${s.reviewer}` : ""}. <HrefLink href={wsHref(ws, "changes")}>Review and publish it in Unpublished changes</HrefLink>.
+          Applied as a draft edit{s.reviewer ? ` by ${s.reviewer}` : ""}.{s.merged_into_version != null && " Merged with changes made since it was written."}{" "}
+          <HrefLink href={wsHref(ws, "changes")}>Review and publish it in Unpublished changes</HrefLink>.
         </Banner>
       )}
       {s.status === "pr_open" && s.pr_url && (
@@ -260,20 +339,27 @@ export function SuggestionView({ id }: { id: string }) {
           <a href={s.pr_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1">
             {s.pr_url.replace(/^https?:\/\/(www\.)?github\.com\//, "")} <ExternalLink className="size-3.5" />
           </a>
+          {s.merged_into_version != null && " Merged with changes made since it was written."}
         </Banner>
       )}
-      {s.status === "dismissed" && (
-        <Banner>
-          Dismissed{s.reviewer ? ` by ${s.reviewer}` : ""}
-          {s.note ? `: “${s.note}”` : "."} Regenerate to get a new one.
-        </Banner>
-      )}
+      {s.status === "dismissed" &&
+        (s.rewritten_as ? (
+          <Banner>
+            Rewritten against the current text{s.reviewer ? ` by ${s.reviewer}` : ""}. <HrefLink href={wsHref(ws, "suggestions", s.rewritten_as)}>Open the new suggestion</HrefLink>.
+          </Banner>
+        ) : (
+          <Banner>
+            Dismissed{s.reviewer ? ` by ${s.reviewer}` : ""}
+            {s.note ? `: “${s.note}”` : "."} Regenerate to get a new one.
+          </Banner>
+        ))}
+      {since && conflict && <ConflictCallout since={since} busy={!!busy} onRewrite={() => void act("rewrite")} />}
       {error != null && <ErrorBanner error={error} lead="This couldn't be done:" />}
 
       {s.status !== "generating" && s.status !== "applied" && s.status !== "pr_open" && (
         <div className="bg-card mb-4 flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3">
           {open && (
-            <Button disabled={!!busy || !s.new_text} onClick={() => void act("apply")}>
+            <Button variant={conflict ? "outline" : "default"} disabled={!!busy || !s.new_text || conflict} title={conflict ? "It conflicts with changes made since. Rewrite it first." : undefined} onClick={() => void act("apply")}>
               {busy === "apply" ? <Loader2 className="animate-spin" /> : pr ? <GitPullRequest /> : null}
               {pr ? "Open PR" : "Save as draft"}
             </Button>
@@ -294,12 +380,20 @@ export function SuggestionView({ id }: { id: string }) {
                 Dismiss…
               </Button>
             ))}
-          <Button variant="ghost" disabled={!!busy} onClick={() => void act("regenerate")}>
-            {busy === "regenerate" ? <Loader2 className="animate-spin" /> : <Sparkles />} Regenerate
-          </Button>
-          {open && <Note className="basis-full sm:ml-auto sm:basis-auto">{pr ? `Opens a pull request on ${repo.data!.owner}/${repo.data!.repo}.` : "No repository connected: it lands as an unpublished draft."}</Note>}
+          {!conflict && (
+            <Button variant="ghost" disabled={!!busy} onClick={() => void act("regenerate")}>
+              {busy === "regenerate" ? <Loader2 className="animate-spin" /> : <Sparkles />} Regenerate
+            </Button>
+          )}
+          {open && !conflict && <Note className="basis-full sm:ml-auto sm:basis-auto">{pr ? `Opens a pull request on ${repo.data!.owner}/${repo.data!.repo}.` : "No repository connected: it lands as an unpublished draft."}</Note>}
+          {since?.state === "merges" && (
+            <p className="text-muted-foreground flex basis-full items-center gap-1.5 text-[13px]">
+              <GitMerge className="size-4 shrink-0" /> The procedure changed since this was written. It merges cleanly.
+            </p>
+          )}
         </div>
       )}
+      {since && since.state !== "current" && <ChangesSince since={since} open={conflict && !since.conflicts.length} />}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">

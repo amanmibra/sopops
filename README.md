@@ -161,7 +161,7 @@ A single finding can be marked wrong too. A pattern with a verdict exports its s
 
 Each pattern then moves through review states: **needs review** (no verdict, or a recluster changed its findings since), **open** (a real mistake or a wrong SOP, not fixed yet), **fixing** (a suggestion applied or its pull request open or merged, waiting for the release to go live and for 10 sessions on it), **fixed**, or **regressed** (it came back on sessions that ran the fix, so it's back in the queue), and **closed** for acceptable and checker-wrong. Pull requests are followed on GitHub: merged moves the pattern on, closed reopens it.
 
-**Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows each agent's prompt diff. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. Details: [API.md](API.md#review-and-suggestions).
+**Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows each agent's prompt diff. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. When the procedure changed after a suggestion was written (another one was applied, or someone edited it), the edit is merged into the file as it is now if the two touch different lines and the result compiles; if they overlap, the suggestion shows the conflicting lines and can't be applied, and **Rewrite against the current text** writes it again from the file as it is, keeping the edits made since. Details: [API.md](API.md#review-and-suggestions).
 
 ## Models
 

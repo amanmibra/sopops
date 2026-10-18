@@ -11,6 +11,7 @@ from .base import BaseModel
 from .verdicts import VerdictOut
 
 SuggestionStatus = Literal["generating", "proposed", "applied", "dismissed", "pr_open", "merged", "failed"]
+Freshness = Literal["current", "merges", "conflict"]
 
 
 class SuggestionSummary(BaseModel):
@@ -32,6 +33,9 @@ class SuggestionSummary(BaseModel):
     merged_at: datetime | None = Field(None, description="When sopops saw its pull request merged (checked every 15 minutes, and when it's read).")
     released_in: int | None = Field(None, description="The first release whose file is the suggested text (for a repo: after the merge is pulled and published).")
     released_at: datetime | None = Field(None, description="When that release was published.")
+    freshness: Freshness | None = Field(None, description="A proposed suggestion against the procedure's file now: `current` (unchanged since it was written), "
+                                        "`merges` (changed; the edit merges in and the result compiles) or `conflict` (the same lines were changed, or the "
+                                        "merged file doesn't compile: apply is refused; rewrite it). None for any other status.")
 
 
 class AgentPromptChange(BaseModel):
@@ -54,6 +58,22 @@ class SuggestionPattern(BaseModel):
     rule_id: str
 
 
+class MergeConflict(BaseModel):
+    line: int = Field(description="Where the part starts in the file now, 1-based.")
+    base: str = Field(description="The lines as they were when the suggestion was written (empty where both sides added lines).")
+    current: str = Field(description="The lines now.")
+    suggested: str = Field(description="The lines as the suggestion has them.")
+
+
+class SinceWritten(BaseModel):
+    state: Freshness
+    head_version: int | None = Field(description="The file's version now (None if the file is gone).")
+    changes: str | None = Field(description="A unified diff of the file, as written against to now (None when unchanged).")
+    merged_text: str | None = Field(description="`merges`: the file applying would write, the edit merged into the file now.")
+    conflicts: list[MergeConflict] = Field(description="`conflict`: the parts both changed, each side as it reads.")
+    issues: str | None = Field(description="`conflict`: sopc's errors with the merged file, or why there's nothing to merge into.")
+
+
 class SuggestionDetail(SuggestionSummary):
     path: str | None = Field(description="The procedure's file.")
     base_version: int | None = Field(description="The file's version it was made from; applying needs head to still be it.")
@@ -67,6 +87,10 @@ class SuggestionDetail(SuggestionSummary):
     prompt_version: str | None
     pattern: SuggestionPattern | None
     verdict: VerdictOut | None = Field(description="The verdict it was made for.")
+    merged_into_version: int | None = Field(None, description="Applied into this version of the file, merged with changes made since it was written.")
+    rewrite_of: str | None = Field(None, description="The suggestion this one rewrites against the current text.")
+    rewritten_as: str | None = Field(None, description="The suggestion that rewrote this one.")
+    since_written: SinceWritten | None = Field(None, description="A proposed suggestion: how the procedure's file changed since it was written, and how the edit fits it now.")
 
 
 class SuggestionsResponse(BaseModel):
@@ -74,6 +98,10 @@ class SuggestionsResponse(BaseModel):
 
 
 class ApplyIn(BaseModel):
+    reviewer: str | None = None
+
+
+class RewriteIn(BaseModel):
     reviewer: str | None = None
 
 

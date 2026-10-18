@@ -17,6 +17,7 @@ walkthrough/
   review.py              step 6: verdicts, suggestions, release 2
   replay.py              step 7: new calls through the LiveKit adapter, as if live
   verify.py              step 8: the pass/fail checklist
+  conflicts.py           step 9: two suggestions on one procedure, one merging and one in conflict
   run_all.py, justfile   every step, or one at a time
 ```
 
@@ -28,7 +29,7 @@ From the repo root, with [just](https://github.com/casey/just) (`brew install ju
 just examples/walkthrough/all          # fake mode: no keys, no cost, about a minute
 ```
 
-It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 8, prints the checklist, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
+It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 9, prints the checklists, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
 
 To go step by step instead, run `just examples/walkthrough/fresh` in one terminal and each step's `just` recipe in another.
 
@@ -206,6 +207,19 @@ Expected in fake mode, all PASS:
 - Reworded rules keep their history: release 2's delivery never rule 1 continues release 1's (linked by the applied suggestion), with one row in release compare and in the rule ladder ("reworded in release 2"), and one rule pattern holding both releases' findings and the eta verdict.
 - Calibration answers (a preview, nothing saved): every procedure has enough verdicts to fit. Try it under **the gear icon → Calibration**: Preview shows the labels used and each threshold before and after. In fake mode the scripted decisions answer every question alike, so every threshold stays where it is; with real models some move.
 
+### 9. Two suggestions on one procedure
+
+```sh
+just examples/walkthrough/conflicts
+```
+
+Suggestions are written against the procedure as it is, and nothing stops two being written for one procedure before either is applied. This step asks for two more on each of two procedures, applies the first of each pair, and looks at the second:
+
+- **Delivery orders**: guidance for "Took a delivery address without checking the zone", then an exception on the delivery-time rule. They change different lines, so once the first is applied the second says "The procedure changed since this was written. It merges cleanly." **Save as draft** writes both edits.
+- **Allergen check**: guidance for "Answered the allergy question without the allergen list", then for "Didn't transfer an allergy emergency". Both add a paragraph at the same place, so the second shows "This conflicts with changes made since it was written", with the procedure's lines now beside its own, and can't be applied. **Rewrite against the current text** writes it again from the file as it is, told to keep the first edit; the old one is dismissed and links to the new one, which applies cleanly.
+
+Expected in fake mode, all PASS: both pairs current before either is applied, `merges` then applied with `merged_into_version`, `conflict` with one conflicting part and apply refused (409), the rewrite current and the old one dismissed, and the final file with both paragraphs. The edits stay as unpublished drafts in **Instructions → Changes**. In real mode the states are printed rather than checked, since a real model's edits may land elsewhere.
+
 ## Running it in CI
 
-`tests/test_walkthrough.py` runs `run_all.py --stop --fast` in fake mode on a free port with its own database: SQLite, or Postgres when `SOPOPS_TEST_DATABASE_URL` is set, like the rest of the suite.
+`tests/test_walkthrough.py` runs `run_all.py --stop --fast` (steps 2 to 9) in fake mode on a free port with its own database: SQLite, or Postgres when `SOPOPS_TEST_DATABASE_URL` is set, like the rest of the suite.

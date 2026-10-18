@@ -218,7 +218,8 @@ GUIDANCE = {
 
 
 def suggest(inputs: dict[str, Any]) -> dict[str, Any]:
-    """`SuggestEdit`: an exception added to the rule (acceptable, sop_wrong), or guidance under the goal (real)."""
+    """`SuggestEdit`: an exception added to the rule (acceptable, sop_wrong), or guidance under the goal (real). Edits
+    the file it's given, so a rewrite (`changes_since`) keeps what changed since."""
     text: str = inputs["procedure_file"]
     lines = text.split("\n")
     if inputs["verdict"] in ("acceptable", "sop_wrong"):
@@ -235,10 +236,14 @@ def suggest(inputs: dict[str, Any]) -> dict[str, Any]:
         why = "Narrowed the rule to the case it was written for; the flagged behavior is fine."
     else:
         title = next((x[2:].strip() for x in lines if x.startswith("# ")), "")
-        paragraph = GUIDANCE.get(title, f"Watch for this: {inputs['pattern'].split('.')[0].lower()}.")
+        paragraph = GUIDANCE.get(title, "")
+        if not paragraph or paragraph in text:  # the procedure's scripted guidance is there already (step 9's suggestions)
+            paragraph = f"Watch for this: {inputs['pattern'].split('.')[0].lower()}."
         at = next((i for i, x in enumerate(lines) if x.startswith("**When:**")), 1)
         lines[at + 1 : at + 1] = ["", paragraph]
         why = "Added guidance that names the situation, so the agent stops making the mistake."
+    if inputs.get("changes_since"):  # a rewrite: `procedure_file` already has the edits made since, and they stay
+        why = "Kept the edits made since the last suggestion. " + why
     return {"block_id": inputs["procedure_id"], "new_text": "\n".join(lines), "rationale": why}
 
 

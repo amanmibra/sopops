@@ -49,7 +49,7 @@ from typing import TYPE_CHECKING, Any
 import dspy
 from sqlmodel import Session, and_, func, or_, select
 
-from . import lineage
+from . import lineage, merge
 from .errors import Conflict, NotFound
 from .orm import (
     Finding,
@@ -115,12 +115,13 @@ def release_with(db: Session, ws: str, s: Suggestion) -> Release | None:
     suggestion that wasn't applied)."""
     if s.status not in lineage.FIX_STATUSES or not s.path or s.new_text is None:
         return None
+    # its edit may have gone out merged with others (`sopops.merge.contains`)
     for rel in db.exec(select(Release).where(Release.workspace == ws, Release.created_at >= s.created_at).order_by(Release.number)):
         version = rel.files.get(s.path)
         if version is None:
             continue
         content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == s.path, FileVersion.version == version)).first()
-        if content == s.new_text:
+        if content == s.new_text or (content is not None and s.old_text is not None and merge.contains(s.old_text, s.new_text, content)):
             return rel
     return None
 
@@ -351,7 +352,7 @@ class Verdicts:
             suggs = summaries(db, ws, sugg, p.name)
             state = self.state(db, ws, p, v)
         return {"verdict": verdict_out(*v) if v else None, "verdict_history": [verdict_out(x) for x in history],
-                "suppressed_count": self.suppressed_count(ws, p), "suggestions": suggs, **state}
+                "suppressed_count": self.suppressed_count(ws, p), "suggestions": self.store.suggestions.annotate(ws, suggs), **state}
 
     def annotate(self, ws: str, items: list[dict[str, Any]]) -> None:
         """Add `verdict`, `review_state` and `review_note` to pattern dicts (the patterns list)."""
@@ -440,6 +441,7 @@ class Verdicts:
                     items.append((p, v, state))
             items.sort(key=lambda x: (-x[0].session_count, -x[0].finding_count, x[0].name, x[0].id))
             out = [self._item(db, ws, p, v, state) for p, v, state in items[:limit]]
+        self.store.suggestions.annotate(ws, [x["suggestion"] for x in out if x["suggestion"]])
         return {"items": out, "total": len(items), "counts": counts, "clustered_at": self.clustered_at(ws)}
 
     def _item(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None, state: dict[str, Any]) -> dict[str, Any]:

@@ -13,7 +13,7 @@ export const VERDICT: Record<Verdict, { label: string; key: string; help: string
   checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Hidden, and used to recalibrate.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
-export type { CalibrateOut, CalibratedProcedure, CalibratedRule, OverrideOut as FindingOverride, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
+export type { CalibrateOut, CalibratedProcedure, CalibratedRule, MergeConflict, OverrideOut as FindingOverride, SinceWritten, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
 export type SuggestionStatus = SuggestionSummary["status"];
 export const SUGGESTION_STATUSES: SuggestionStatus[] = ["proposed", "pr_open", "merged", "applied", "dismissed", "failed"];
 
@@ -58,6 +58,8 @@ export const review = {
   override: (ws: string, findingId: string, body: OverrideIn) => call(sdk.overrideFinding({ path: { ...path(ws), finding_id: findingId }, body })),
   suggest: (ws: string, id: string) => call(sdk.suggestEdit({ path: { ...path(ws), pattern_id: id } })),
   apply: (ws: string, id: string, reviewer: string | null) => call(sdk.applySuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
+  /** A new suggestion against the procedure as it is now; the old one is dismissed. */
+  rewrite: (ws: string, id: string, reviewer: string | null) => call(sdk.rewriteSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
   calibrate: (ws: string, body: CalibrateIn) => call(sdk.calibrate({ path: path(ws), body })),
   dismiss: (ws: string, id: string, note: string | null, reviewer: string | null) => call(sdk.dismissSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { note, reviewer } })),
 };

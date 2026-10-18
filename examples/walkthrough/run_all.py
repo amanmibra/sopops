@@ -6,7 +6,7 @@
     WALKTHROUGH_ONBOARD=sopc python examples/walkthrough/run_all.py   # onboard from the existing sopc project instead
 
 Starts `serve.py --fresh` on WALKTHROUGH_PORT (default 8585), then runs onboard.py, generate.py, backfill.py,
-review.py, replay.py and verify.py. Exits with verify.py's status.
+review.py, replay.py, verify.py and conflicts.py. Exits with the checks' status (verify.py's and conflicts.py's).
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ STEPS = [
     ("6. Review patterns, verdicts and suggestions; publish release 2", ["review.py"]),
     ("7. Replay new calls through the SDK", ["replay.py"]),
     ("8. Verify", ["verify.py"]),
+    ("9. Two suggestions on one procedure: one merges, one conflicts and is rewritten", ["conflicts.py"]),
 ]
 
 
@@ -66,10 +67,11 @@ def main() -> None:
         for title, script in STEPS:
             print(f"\n== {title}", flush=True)
             extra = ["--rate", "50", "--speed", "2000"] if args.fast and script[0] == "replay.py" else []
-            extra += ["--models", args.models] if script[0] == "verify.py" else []
-            status = run(script, extra)
-            if status and script[0] != "verify.py":
-                sys.exit(f"{script[0]} failed ({status})")
+            extra += ["--models", args.models] if script[0] in ("verify.py", "conflicts.py") else []
+            got = run(script, extra)
+            if got and script[0] not in ("verify.py", "conflicts.py"):
+                sys.exit(f"{script[0]} failed ({got})")
+            status = status or got if script[0] == "conflicts.py" else got
     finally:
         if args.stop or status:
             server.terminate()

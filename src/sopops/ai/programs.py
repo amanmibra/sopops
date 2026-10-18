@@ -120,18 +120,20 @@ class RouteDecisions(dspy.Module):
 
 class SuggestEdits(dspy.Module):
     """A procedure edit from the reasoning model (`SuggestEdit`), checked by `validate(block_id, new_text)`, which
-    returns an error message or None. A proposal that fails is sent back once with the error. `forward` gives
+    returns an error message or None. `changes_since`: for a rewrite, the edits made to the file since the suggestion
+    it replaces was written (a unified diff), for the model to keep. A proposal that fails is sent back once with the error. `forward` gives
     `block_id`, `new_text`, `rationale`, `attempts`, and `error` (None when the last proposal passed)."""
 
     def __init__(self, ai: AI, validate: Callable[[str, str], str | None], retries: int = 1):
         super().__init__()
         self.ai, self.validate, self.retries = ai, validate, retries
 
-    def forward(self, procedure_id: str, procedure_file: str, rule: str, pattern: str, verdict: str, note: str, examples: list[ExampleIn]) -> dspy.Prediction:
+    def forward(self, procedure_id: str, procedure_file: str, rule: str, pattern: str, verdict: str, note: str, examples: list[ExampleIn],
+                changes_since: str = "") -> dspy.Prediction:
         text, error, reply = "", "", None
         for attempt in range(1, self.retries + 2):
             reply = self.ai.predict("reasoning", SuggestEdit, procedure_id=procedure_id, procedure_file=procedure_file, rule=rule, pattern=pattern,
-                                    verdict=verdict, note=note, examples=examples, previous_text=text, previous_error=error)
+                                    verdict=verdict, note=note, examples=examples, changes_since=changes_since, previous_text=text, previous_error=error)
             text = reply.new_text
             error = self.validate(reply.block_id.strip(), text) or ""
             if not error:

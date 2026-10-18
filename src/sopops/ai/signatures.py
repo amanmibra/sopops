@@ -36,7 +36,7 @@ VERSIONS = {
     "cluster": "cluster-2",
     "name": "name-1",
     "themes": "themes-2",
-    "suggest": "suggest-1",
+    "suggest": "suggest-2",
     "segment": "segment-2",
     "procedure": "procedure-2",
     "variables": "variables-2",
@@ -439,6 +439,7 @@ class SuggestEdit(dspy.Signature):
     - Don't mention QA, patterns, reviewers or this edit in the file. Write instructions, in the file's language.
     - `block_id`: the id of the block you edited, `procedure_id`.
     - `rationale`: one or two sentences for the reviewer, in English: what you changed and why it settles the pattern.
+    - If `changes_since` isn't empty, an earlier suggestion for this pattern was written against an older version of the file, and someone has edited the file since (the diff, older to current). `procedure_file` already has those edits. Keep them and build on them: don't undo, reword or move what they changed, unless the verdict is about exactly that text.
     - If `previous_error` isn't empty, your last proposal (`previous_text`) didn't compile; fix that problem.
     """
 
@@ -449,6 +450,7 @@ class SuggestEdit(dspy.Signature):
     verdict: Literal["real", "acceptable", "sop_wrong"] = dspy.InputField()
     note: str = dspy.InputField(desc="The reviewer's note; may be empty")
     examples: list[ExampleIn] = dspy.InputField(desc="Up to 5 conversations in the pattern")
+    changes_since: str = dspy.InputField(desc="Edits made to the file since an earlier suggestion for this pattern was written, as a unified diff; else empty")
     previous_text: str = dspy.InputField(desc="Your last proposal, if it didn't compile; else empty")
     previous_error: str = dspy.InputField(desc="Why it didn't compile; else empty")
     block_id: str = dspy.OutputField()

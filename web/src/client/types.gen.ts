@@ -2430,6 +2430,36 @@ export type LintSource = {
 };
 
 /**
+ * MergeConflict
+ */
+export type MergeConflict = {
+    /**
+     * Line
+     *
+     * Where the part starts in the file now, 1-based.
+     */
+    line: number;
+    /**
+     * Base
+     *
+     * The lines as they were when the suggestion was written (empty where both sides added lines).
+     */
+    base: string;
+    /**
+     * Current
+     *
+     * The lines now.
+     */
+    current: string;
+    /**
+     * Suggested
+     *
+     * The lines as the suggestion has them.
+     */
+    suggested: string;
+};
+
+/**
  * MigrateFilesResponse
  */
 export type MigrateFilesResponse = {
@@ -5160,6 +5190,16 @@ export type ReviewResponse = {
 };
 
 /**
+ * RewriteIn
+ */
+export type RewriteIn = {
+    /**
+     * Reviewer
+     */
+    reviewer?: string | null;
+};
+
+/**
  * RolePrice
  */
 export type RolePrice = {
@@ -6336,6 +6376,46 @@ export type SettingsSaved = {
 };
 
 /**
+ * SinceWritten
+ */
+export type SinceWritten = {
+    /**
+     * State
+     */
+    state: 'current' | 'merges' | 'conflict';
+    /**
+     * Head Version
+     *
+     * The file's version now (None if the file is gone).
+     */
+    head_version: number | null;
+    /**
+     * Changes
+     *
+     * A unified diff of the file, as written against to now (None when unchanged).
+     */
+    changes: string | null;
+    /**
+     * Merged Text
+     *
+     * `merges`: the file applying would write, the edit merged into the file now.
+     */
+    merged_text: string | null;
+    /**
+     * Conflicts
+     *
+     * `conflict`: the parts both changed, each side as it reads.
+     */
+    conflicts: Array<MergeConflict>;
+    /**
+     * Issues
+     *
+     * `conflict`: sopc's errors with the merged file, or why there's nothing to merge into.
+     */
+    issues: string | null;
+};
+
+/**
  * SourcePrompt
  *
  * One existing agent's prompt, as it runs today.
@@ -6588,6 +6668,12 @@ export type SuggestionDetail = {
      */
     released_at: string | null;
     /**
+     * Freshness
+     *
+     * A proposed suggestion against the procedure's file now: `current` (unchanged since it was written), `merges` (changed; the edit merges in and the result compiles) or `conflict` (the same lines were changed, or the merged file doesn't compile: apply is refused; rewrite it). None for any other status.
+     */
+    freshness: 'current' | 'merges' | 'conflict' | null;
+    /**
      * Path
      *
      * The procedure's file.
@@ -6637,6 +6723,28 @@ export type SuggestionDetail = {
      * The verdict it was made for.
      */
     verdict: VerdictOut | null;
+    /**
+     * Merged Into Version
+     *
+     * Applied into this version of the file, merged with changes made since it was written.
+     */
+    merged_into_version: number | null;
+    /**
+     * Rewrite Of
+     *
+     * The suggestion this one rewrites against the current text.
+     */
+    rewrite_of: string | null;
+    /**
+     * Rewritten As
+     *
+     * The suggestion that rewrote this one.
+     */
+    rewritten_as: string | null;
+    /**
+     * A proposed suggestion: how the procedure's file changed since it was written, and how the edit fits it now.
+     */
+    since_written: SinceWritten | null;
 };
 
 /**
@@ -6769,6 +6877,12 @@ export type SuggestionSummary = {
      * When that release was published.
      */
     released_at: string | null;
+    /**
+     * Freshness
+     *
+     * A proposed suggestion against the procedure's file now: `current` (unchanged since it was written), `merges` (changed; the edit merges in and the result compiles) or `conflict` (the same lines were changed, or the merged file doesn't compile: apply is refused; rewrite it). None for any other status.
+     */
+    freshness: 'current' | 'merges' | 'conflict' | null;
 };
 
 /**
@@ -11192,6 +11306,43 @@ export type ApplySuggestionResponses = {
 };
 
 export type ApplySuggestionResponse = ApplySuggestionResponses[keyof ApplySuggestionResponses];
+
+export type RewriteSuggestionData = {
+    /**
+     * Req
+     */
+    body?: RewriteIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Suggestion Id
+         */
+        suggestion_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}/rewrite';
+};
+
+export type RewriteSuggestionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RewriteSuggestionError = RewriteSuggestionErrors[keyof RewriteSuggestionErrors];
+
+export type RewriteSuggestionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionDetail;
+};
+
+export type RewriteSuggestionResponse = RewriteSuggestionResponses[keyof RewriteSuggestionResponses];
 
 export type DismissSuggestionData = {
     /**

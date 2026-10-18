@@ -6020,7 +6020,7 @@
           "suggestions"
         ],
         "summary": "Apply Suggestion",
-        "description": "A pull request when the workspace has a repo connection (`pr_open`), else a draft edit of the procedure\n(`applied`; it shows in Unpublished changes). 409 unless it's proposed and the procedure is unchanged since.",
+        "description": "A pull request when the workspace has a repo connection (`pr_open`), else a draft edit of the procedure\n(`applied`; it shows in Unpublished changes). When the procedure changed since the suggestion was written, the\nedit is merged into it (`merged_into_version`). 409 unless it's proposed and not in conflict (`freshness`).",
         "operationId": "apply_suggestion",
         "parameters": [
           {
@@ -6049,6 +6049,75 @@
                 "anyOf": [
                   {
                     "$ref": "#/components/schemas/ApplyIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/suggestions/{suggestion_id}/rewrite": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "Rewrite Suggestion",
+        "description": "Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was\nwritten. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);\nthis one is dismissed. 409 unless it's proposed.",
+        "operationId": "rewrite_suggestion",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "suggestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Suggestion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RewriteIn"
                   },
                   {
                     "type": "null"
@@ -13184,6 +13253,38 @@
         ],
         "title": "LintSource"
       },
+      "MergeConflict": {
+        "properties": {
+          "line": {
+            "type": "integer",
+            "title": "Line",
+            "description": "Where the part starts in the file now, 1-based."
+          },
+          "base": {
+            "type": "string",
+            "title": "Base",
+            "description": "The lines as they were when the suggestion was written (empty where both sides added lines)."
+          },
+          "current": {
+            "type": "string",
+            "title": "Current",
+            "description": "The lines now."
+          },
+          "suggested": {
+            "type": "string",
+            "title": "Suggested",
+            "description": "The lines as the suggestion has them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "line",
+          "base",
+          "current",
+          "suggested"
+        ],
+        "title": "MergeConflict"
+      },
       "MigrateFilesResponse": {
         "properties": {
           "migrated": {
@@ -17842,6 +17943,23 @@
         ],
         "title": "ReviewResponse"
       },
+      "RewriteIn": {
+        "properties": {
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          }
+        },
+        "type": "object",
+        "title": "RewriteIn"
+      },
       "RolePrice": {
         "properties": {
           "role": {
@@ -20059,6 +20177,85 @@
         ],
         "title": "SettingsSaved"
       },
+      "SinceWritten": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "current",
+              "merges",
+              "conflict"
+            ],
+            "title": "State"
+          },
+          "head_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head Version",
+            "description": "The file's version now (None if the file is gone)."
+          },
+          "changes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Changes",
+            "description": "A unified diff of the file, as written against to now (None when unchanged)."
+          },
+          "merged_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Text",
+            "description": "`merges`: the file applying would write, the edit merged into the file now."
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/MergeConflict"
+            },
+            "type": "array",
+            "title": "Conflicts",
+            "description": "`conflict`: the parts both changed, each side as it reads."
+          },
+          "issues": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issues",
+            "description": "`conflict`: sopc's errors with the merged file, or why there's nothing to merge into."
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "head_version",
+          "changes",
+          "merged_text",
+          "conflicts",
+          "issues"
+        ],
+        "title": "SinceWritten"
+      },
       "SourcePrompt": {
         "properties": {
           "name": {
@@ -20471,6 +20668,23 @@
             "title": "Released At",
             "description": "When that release was published."
           },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "current",
+                  "merges",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "A proposed suggestion against the procedure's file now: `current` (unchanged since it was written), `merges` (changed; the edit merges in and the result compiles) or `conflict` (the same lines were changed, or the merged file doesn't compile: apply is refused; rewrite it). None for any other status."
+          },
           "path": {
             "anyOf": [
               {
@@ -20597,6 +20811,53 @@
               }
             ],
             "description": "The verdict it was made for."
+          },
+          "merged_into_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged Into Version",
+            "description": "Applied into this version of the file, merged with changes made since it was written."
+          },
+          "rewrite_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rewrite Of",
+            "description": "The suggestion this one rewrites against the current text."
+          },
+          "rewritten_as": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rewritten As",
+            "description": "The suggestion that rewrote this one."
+          },
+          "since_written": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SinceWritten"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "A proposed suggestion: how the procedure's file changed since it was written, and how the edit fits it now."
           }
         },
         "type": "object",
@@ -20618,6 +20879,7 @@
           "merged_at",
           "released_in",
           "released_at",
+          "freshness",
           "path",
           "base_version",
           "old_text",
@@ -20629,7 +20891,11 @@
           "model",
           "prompt_version",
           "pattern",
-          "verdict"
+          "verdict",
+          "merged_into_version",
+          "rewrite_of",
+          "rewritten_as",
+          "since_written"
         ],
         "title": "SuggestionDetail"
       },
@@ -20855,6 +21121,23 @@
             ],
             "title": "Released At",
             "description": "When that release was published."
+          },
+          "freshness": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "current",
+                  "merges",
+                  "conflict"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Freshness",
+            "description": "A proposed suggestion against the procedure's file now: `current` (unchanged since it was written), `merges` (changed; the edit merges in and the result compiles) or `conflict` (the same lines were changed, or the merged file doesn't compile: apply is refused; rewrite it). None for any other status."
           }
         },
         "type": "object",
@@ -20875,7 +21158,8 @@
           "pr_opened_at",
           "merged_at",
           "released_in",
-          "released_at"
+          "released_at",
+          "freshness"
         ],
         "title": "SuggestionSummary"
       },

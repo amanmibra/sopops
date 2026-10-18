@@ -35,7 +35,7 @@ SAFE = 'Never say an item is "allergen-free" or "safe"'
 class Model:
     """Every session goes to the allergen check. The user's first turn says `MODE:X`: the check breaks never rule 1
     (and skips step 2 with `ALSO`), with `mode X` in the reason; `MODE:CLEAN` follows every rule. `SuggestEdit` answers with `edits` in turn (the last
-    one again once they run out)."""
+    one again once they run out); an edit can be a function of the procedure's file."""
 
     def __init__(self):
         self.edits: list[str] = []
@@ -45,6 +45,7 @@ class Model:
         if signature is SuggestEdit:
             self.suggest_inputs.append(inputs)
             text = self.edits.pop(0) if len(self.edits) > 1 else self.edits[0]
+            text = text(inputs["procedure_file"]) if callable(text) else text
             return {"block_id": inputs["procedure_id"], "new_text": text, "rationale": "Adds the exception."}
         if signature is SplitRule:
             return {"checks": {"condition": None, "actions": [] if inputs["kind"] == "never" else ["The agent does it."],
@@ -473,6 +474,99 @@ def test_suggestions_retry_apply_and_dismiss(env):
     assert env.client.post(f"{WS}/suggestions/{later['suggestion_id']}/apply").status_code == 409
     d = env.client.post(f"{WS}/suggestions/{later['suggestion_id']}/dismiss", json={"note": "Superseded."}).json()
     assert d["status"] == "dismissed" and d["note"] == "Superseded."
+
+
+STEP = "  - Ask if anyone in the order has a food allergy\n"
+
+
+def suggested(env, pattern_id: str, edit) -> dict:
+    """A suggestion for the pattern, generated with `edit` (a text, or a function of the procedure's file)."""
+    env.model.edits = [edit]
+    s = env.client.post(f"{WS}/patterns/{pattern_id}/suggest").json()
+    s = env.client.get(f"{WS}/suggestions/{s['suggestion_id']}").json()
+    assert s["status"] == "proposed", s
+    return s
+
+
+def test_suggestions_made_before_another_was_applied_merge_into_it(env):
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    verdict(env, never["pattern_id"], "acceptable")
+    old = env.files[PATH]
+    a = suggested(env, never["pattern_id"], old.replace(f"  - {SAFE}\n", f"  - {SAFE}, unless you have just checked the item with lookup_allergens\n"))
+    b = suggested(env, never["pattern_id"], old.replace(STEP, STEP.replace("allergy", "allergy, and who it is for")))
+    assert a["freshness"] == b["freshness"] == "current" and b["since_written"]["changes"] is None and b["since_written"]["head_version"] == b["base_version"]
+
+    assert env.client.post(f"{WS}/suggestions/{a['suggestion_id']}/apply").json()["merged_into_version"] is None
+    got = env.client.get(f"{WS}/suggestions/{b['suggestion_id']}").json()
+    since = got["since_written"]
+    assert got["freshness"] == since["state"] == "merges" and since["conflicts"] == [] and since["issues"] is None
+    assert "+  - " + SAFE + ", unless you have just checked" in since["changes"] and since["head_version"] == b["base_version"] + 1
+    assert "lookup_allergens" in since["merged_text"] and "and who it is for" in since["merged_text"]
+    assert {x["suggestion_id"]: x["freshness"] for x in env.client.get(f"{WS}/suggestions").json()["items"]} == {a["suggestion_id"]: None, b["suggestion_id"]: "merges"}
+    assert [x["freshness"] for x in env.client.get(f"{WS}/patterns/{never['pattern_id']}").json()["suggestions"]] == ["merges", None]
+
+    applied = env.client.post(f"{WS}/suggestions/{b['suggestion_id']}/apply").json()
+    assert applied["status"] == "applied" and applied["merged_into_version"] == since["head_version"] and applied["freshness"] is None
+    assert env.client.get(f"{WS}/files/{PATH}").json()["content"] == since["merged_text"]
+    # one release with both edits: each suggestion finds its edit in it
+    release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
+    assert [x["released_in"] for x in env.client.get(f"{WS}/suggestions").json()["items"]] == [release, release]
+
+
+def test_conflicting_suggestions_are_refused_and_rewritten_against_the_current_text(env):
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    verdict(env, never["pattern_id"], "sop_wrong")
+    old = env.files[PATH]
+    c = suggested(env, never["pattern_id"], old.replace(f"  - {SAFE}\n", f"  - {SAFE}, unless you have just checked the item with lookup_allergens\n"))
+    d = suggested(env, never["pattern_id"], old.replace(f"  - {SAFE}\n", f"  - {SAFE} about a dish you haven't looked up\n"))
+    env.client.post(f"{WS}/suggestions/{c['suggestion_id']}/apply")
+
+    got = env.client.get(f"{WS}/suggestions/{d['suggestion_id']}").json()
+    (part,) = got["since_written"]["conflicts"]
+    assert got["freshness"] == "conflict" and got["since_written"]["merged_text"] is None
+    assert part["base"] == f"  - {SAFE}\n" and "lookup_allergens" in part["current"] and "haven't looked up" in part["suggested"]
+    assert part["line"] == old.splitlines().index(f"  - {SAFE}") + 1
+    assert env.client.get(f"{WS}/suggestions", params={"status": "proposed"}).json()["items"][0]["freshness"] == "conflict"
+    refused = env.client.post(f"{WS}/suggestions/{d['suggestion_id']}/apply")
+    assert refused.status_code == 409 and "Rewrite it against the current text" in refused.json()["detail"]
+
+    # rewritten: a new suggestion from the file as it is now, told about the edit made since; the old one dismissed
+    current = env.client.get(f"{WS}/files/{PATH}").json()["content"]
+    env.model.edits = [lambda text: text.replace(STEP, STEP.replace("allergy", "allergy, and who it is for"))]
+    r = env.client.post(f"{WS}/suggestions/{d['suggestion_id']}/rewrite", json={"reviewer": "qa"})
+    assert r.status_code == 200 and r.json()["status"] == "generating" and r.json()["rewrite_of"] == d["suggestion_id"]
+    new = env.client.get(f"{WS}/suggestions/{r.json()['suggestion_id']}").json()
+    assert new["status"] == "proposed" and new["freshness"] == "current" and new["old_text"] == current and new["prompt_version"] == "suggest-2"
+    asked = env.model.suggest_inputs[-1]
+    assert asked["procedure_file"] == current and "+  - " + SAFE + ", unless you have just checked" in asked["changes_since"]
+    assert env.model.suggest_inputs[-2]["changes_since"] == ""  # a suggestion that isn't a rewrite gets none
+    was = env.client.get(f"{WS}/suggestions/{d['suggestion_id']}").json()
+    assert (was["status"], was["note"], was["reviewer"], was["rewritten_as"], was["freshness"]) == ("dismissed", "Rewritten against the current text.", "qa", new["suggestion_id"], None)
+    assert env.client.post(f"{WS}/suggestions/{d['suggestion_id']}/rewrite").status_code == 409  # only a proposed one
+    assert env.client.post(f"{WS}/suggestions/{new['suggestion_id']}/apply").json()["status"] == "applied"
+    final = env.client.get(f"{WS}/files/{PATH}").json()["content"]
+    assert "lookup_allergens\n" in final and "and who it is for" in final
+
+
+def test_a_merge_that_doesnt_compile_is_a_conflict(env):
+    """Each side adds a `guidance` at a different place: the lines merge, the file has the key twice."""
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    verdict(env, never["pattern_id"], "real")
+    guidance = "guidance: |\n  Parents often ask on behalf of a child. Confirm who the allergy is for before checking items.\n"
+    base = env.files[PATH].replace(guidance, "")
+    env.store.edit("demo", {PATH: base})
+    s = suggested(env, never["pattern_id"], base + "guidance: Read the allergen list aloud.\n")
+    env.store.edit("demo", {PATH: base.replace("scope: ", "guidance: Ask who the allergy is for.\nscope: ")})
+    got = env.client.get(f"{WS}/suggestions/{s['suggestion_id']}").json()
+    assert got["freshness"] == "conflict" and got["since_written"]["conflicts"] == [] and "guidance" in got["since_written"]["issues"]
+    refused = env.client.post(f"{WS}/suggestions/{s['suggestion_id']}/apply")
+    assert refused.status_code == 409 and "doesn't compile" in refused.json()["detail"]
 
 
 def test_suggestions_fail_and_need_a_verdict_that_calls_for_one(env):

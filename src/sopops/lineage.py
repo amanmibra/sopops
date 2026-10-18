@@ -41,6 +41,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, delete, func, or_, select
 
+from . import merge
 from .errors import Conflict, NotFound
 from .orm import FileVersion, Release, RuleLineage, RuleResult, SessionRecord, Suggestion, Workspace
 from .sopc import Invalid, Sopc
@@ -150,8 +151,8 @@ def snapshot(db: Session, sopc: Sopc, ws: str, number: int) -> Snapshot | None:
 
 
 def _suggested(db: Session, ws: str, procedure_id: str, old: list[dict[str, Any]], new: list[dict[str, Any]], content: str | None) -> dict[str, str]:
-    """{old rule id: new rule id} from applied suggestions whose suggested text is the procedure's file in the new
-    release: the rule each one edited, and the new rule at its position (else the most similar new one of its kind)."""
+    """{old rule id: new rule id} from applied suggestions whose edit is in the procedure's file in the new release (its
+    suggested text, or that merged with other edits): the rule each one edited, and the new rule at its position (else the most similar new one of its kind)."""
     if content is None:
         return {}
     q = select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.procedure_id == procedure_id, Suggestion.status.in_(FIX_STATUSES))
@@ -161,7 +162,7 @@ def _suggested(db: Session, ws: str, procedure_id: str, old: list[dict[str, Any]
     out = {}
     for s in db.exec(q.order_by(Suggestion.created_at)):
         o = old_by_id.get(s.rule_id)
-        if s.new_text != content or o is None or o["id"] in new_ids:
+        if o is None or o["id"] in new_ids or not (s.new_text == content or (s.old_text is not None and s.new_text is not None and merge.contains(s.old_text, s.new_text, content))):
             continue
         same = [r for r in came if r["kind"] == o["kind"]]
         n = next((r for r in same if r["index"] == o["index"]), None) or max(same, key=lambda r: similarity(o["text"], r["text"]), default=None)

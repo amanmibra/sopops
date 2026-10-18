@@ -9,8 +9,18 @@
   if it doesn't, it's sent back once with sopc's issues, else the suggestion fails with them. `plan` records which
   agents' prompts change and how (a unified diff per agent).
 - **Apply**: with a repo connection (`sopops.github`), a pull request with the file; without one, a draft edit of the
-  file, as if saved in the editor, so it shows in Unpublished changes and goes out with the next publish. Either way
-  only while the file at head is still the one the suggestion was made from.
+  file, as if saved in the editor, so it shows in Unpublished changes and goes out with the next publish.
+- **Since it was written**: when the file at head isn't the one the suggestion was made from (another suggestion was
+  applied, or someone edited it), the edit is merged into it (`sopops.merge`, a three-way line merge) and the result
+  checked like a proposal: it must compile with the rest of head and still define the procedure. `since_written`,
+  computed when a proposed suggestion is read: `current` (unchanged), `merges` (applying writes the merged file and
+  records `merged_into_version`) or `conflict` (the same lines were changed, or the merged file doesn't compile; apply
+  is refused).
+- **Rewrite**: a conflicting suggestion is written again as a new one (`rewrite`, then `generate`), from the file as it
+  is now, with the edits made since the old one was written given to the model to keep. The old one is dismissed
+  ("Rewritten against the current text") and the new one's `rewrite_of` points to it. A new row, not the old one
+  regenerated in place: a suggestion is one proposal against one base, so the history (and what was dismissed) stays
+  as it was, and generating is the same job as for any suggestion.
 """
 
 from __future__ import annotations
@@ -23,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
 
-from . import forms, github, lineage
+from . import forms, github, lineage, merge
 from .ai import lm as ai_lm
 from .ai import spend
 from .ai.programs import SuggestEdits
@@ -41,6 +51,7 @@ if TYPE_CHECKING:
 log = logging.getLogger("sopops.suggestions")
 
 PR_CHECK_EVERY = timedelta(minutes=1)  # a pull request's state is read from GitHub at most this often per suggestion
+REWRITTEN = "Rewritten against the current text."
 
 
 def _now() -> datetime:
@@ -61,9 +72,15 @@ def prompt_plan(before: dict[str, dict], after: dict[str, dict]) -> dict[str, An
     return {"agents": agents}
 
 
+def changes(path: str, before: str, after: str) -> str:
+    """A unified diff of the procedure's file, as written against to now."""
+    return "\n".join(difflib.unified_diff(before.splitlines(), after.splitlines(), f"{path} (when written)", f"{path} (now)", n=2, lineterm=""))
+
+
 class Suggestions:
     def __init__(self, store: Store):
         self.store = store
+        self._fits: dict[tuple[str, str, tuple[tuple[str, int], ...]], dict[str, Any]] = {}  # since_written by suggestion and head
 
     def _db(self) -> Session:
         return Session(self.store.engine, expire_on_commit=False)
@@ -74,15 +91,76 @@ class Suggestions:
             raise NotFound(f"no suggestion '{suggestion_id}'")
         return s
 
-    def _out(self, db: Session, s: Suggestion) -> dict[str, Any]:
+    def _out(self, db: Session, s: Suggestion, since: dict[str, Any] | None = None) -> dict[str, Any]:
         p = db.get(Pattern, s.pattern_id)
         v = db.get(Verdict, s.verdict_id) if s.verdict_id else None
+        after = db.exec(select(Suggestion.id).where(Suggestion.workspace_id == s.workspace_id, Suggestion.rewrite_of == s.id).order_by(Suggestion.created_at.desc())).first()
         return {
             **suggestion_summary(s, p.name if p else None, release_with(db, s.workspace_id, s)), "path": s.path, "base_version": s.base_version, "old_text": s.old_text, "new_text": s.new_text,
             "plan": s.plan, "note": s.note, "reviewer": s.reviewer, "attempts": s.attempts, "model": s.model, "prompt_version": s.prompt_version,
             "pattern": {"pattern_id": p.id, "kind": p.kind, "name": p.name, "description": _description(db, p), "procedure_id": p.procedure_id, "rule_id": p.rule_id} if p else None,
-            "verdict": verdict_out(v) if v else None,
+            "verdict": verdict_out(v) if v else None, "merged_into_version": s.merged_into_version, "rewrite_of": s.rewrite_of, "rewritten_as": after,
+            "freshness": since["state"] if since else None, "since_written": since,
         }
+
+    # --- since it was written ------------------------------------------------------------------------------------
+
+    def _issues(self, files: dict[str, str], path: str, procedure_id: str, text: str) -> str | None:
+        """Why `text` can't be the procedure's file with the rest of `files`: sopc's errors, or the procedure gone."""
+        changed = {**files, path: _eol(text)}
+        compiled = self.store.sopc.compile(changed)
+        if not compiled.valid:
+            return "; ".join(forms.locate(i).text or i.message for i in compiled.issues if i.severity == "error")
+        try:
+            found = forms.find(forms.from_export(self.store.sopc.export(changed)), "procedure", procedure_id)
+        except Invalid as e:
+            return str(e)
+        return None if found is not None else f"The file must still define the procedure '{procedure_id}'."
+
+    def _since(self, s: Suggestion, head: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+        """How a proposed suggestion fits the procedure's file at head (`head`: path -> {version, content}): `current`,
+        `merges` (with the merged file) or `conflict` (with the conflicting parts, or sopc's issues). None for any
+        other suggestion. Kept per suggestion and head versions, so reading it again doesn't compile again."""
+        if s.status != "proposed" or not s.path or s.old_text is None or s.new_text is None:
+            return None
+        now = head.get(s.path)
+        out: dict[str, Any] = {"state": "current", "head_version": now["version"] if now else None, "changes": None, "merged_text": None, "conflicts": [], "issues": None}
+        if now is not None and now["content"] == s.old_text:
+            return out
+        if now is None:
+            return {**out, "state": "conflict", "issues": f"The procedure's file {s.path} isn't in the workspace any more."}
+        key = (s.workspace_id, s.id, tuple(sorted((p, f["version"]) for p, f in head.items())))
+        if key in self._fits:
+            return self._fits[key]
+        out["changes"] = changes(s.path, s.old_text, now["content"])
+        got = merge.merge(s.old_text, now["content"], s.new_text)
+        if not got.clean:
+            out |= {"state": "conflict", "conflicts": [{"line": c.line, "base": c.base, "current": c.ours, "suggested": c.theirs} for c in got.conflicts]}
+        else:
+            assert got.text is not None
+            issues = self._issues({p: f["content"] for p, f in head.items()}, s.path, s.procedure_id, got.text)
+            out |= {"state": "conflict", "issues": issues} if issues else {"state": "merges", "merged_text": _eol(got.text)}
+        if len(self._fits) > 512:
+            self._fits.clear()
+        self._fits[key] = out
+        return out
+
+    def _head(self, ws: str) -> dict[str, dict[str, Any]]:
+        return {f["path"]: f for f in self.store.head(ws, content=True)}
+
+    def annotate(self, ws: str, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Set `freshness` on suggestion summaries that are proposed (head is read once, and only if there's one)."""
+        ids = [x["suggestion_id"] for x in items if x and x.get("status") == "proposed"]
+        if not ids:
+            return items
+        head = self._head(ws)
+        with self._db() as db:
+            rows = {s.id: s for s in db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.id.in_(ids)))}
+        for x in items:
+            if x and x["suggestion_id"] in rows:
+                since = self._since(rows[x["suggestion_id"]], head)
+                x["freshness"] = since["state"] if since else None
+        return items
 
     # --- reads ---------------------------------------------------------------------------------------------------
 
@@ -93,7 +171,10 @@ class Suggestions:
         if s.status == "pr_open":
             self._sync_pr(s)
         with self._db() as db:
-            return self._out(db, self._row(db, ws, suggestion_id))
+            s = self._row(db, ws, suggestion_id)
+        since = self._since(s, self._head(ws)) if s.status == "proposed" else None
+        with self._db() as db:
+            return self._out(db, s, since)
 
     def sync_prs(self, ws: str | None = None, force: bool = False) -> dict[str, int]:
         """Check every open pull request (of one workspace, or all): {merged, closed, open, failed}."""
@@ -131,11 +212,12 @@ class Suggestions:
             q = select(Suggestion, Pattern.name).join(Pattern, Pattern.id == Suggestion.pattern_id, isouter=True).where(Suggestion.workspace_id == ws)
             if status:
                 q = q.where(Suggestion.status == status)
-            return [suggestion_summary(s, name, release_with(db, ws, s)) for s, name in db.exec(q.order_by(Suggestion.created_at.desc()))]
+            items = [suggestion_summary(s, name, release_with(db, ws, s)) for s, name in db.exec(q.order_by(Suggestion.created_at.desc()))]
+        return self.annotate(ws, items)
 
     # --- writes --------------------------------------------------------------------------------------------------
 
-    def create(self, ws: str, pattern_id: str) -> dict[str, Any]:
+    def create(self, ws: str, pattern_id: str, rewrite_of: str | None = None) -> dict[str, Any]:
         """A suggestion waiting to be generated (`generate`), for the pattern's current verdict."""
         p, v = self.store.verdicts.effective_verdict(ws, pattern_id)
         if v is None or v.verdict not in SUGGESTIBLE:
@@ -143,10 +225,21 @@ class Suggestions:
         now = _now()
         with self._db() as db, db.begin():
             s = Suggestion(id=str(uuid.uuid4()), workspace_id=ws, pattern_id=p.id, verdict_id=v.id, procedure_id=p.procedure_id, rule_id=p.rule_id,
-                           status="generating", created_at=now, updated_at=now)
+                           status="generating", rewrite_of=rewrite_of, created_at=now, updated_at=now)
             db.add(s)
         with self._db() as db:
             return self._out(db, s)
+
+    def rewrite(self, ws: str, suggestion_id: str, reviewer: str | None = None) -> dict[str, Any]:
+        """A new suggestion for the same pattern, to be generated (`generate`) against the procedure's file as it is
+        now, keeping the edits made since this one was written. This one is dismissed, pointing to it."""
+        with self._db() as db:
+            old = self._row(db, ws, suggestion_id)
+        if old.status != "proposed":
+            raise Conflict(f"only a proposed suggestion can be rewritten; this one is {old.status}")
+        new = self.create(ws, old.pattern_id, rewrite_of=old.id)
+        self._save(old, status="dismissed", note=REWRITTEN, reviewer=reviewer or old.reviewer)
+        return new
 
     def _save(self, s: Suggestion, **fields: Any) -> dict[str, Any]:
         with self._db() as db, db.begin():
@@ -162,16 +255,18 @@ class Suggestions:
         with self._db() as db:
             s = self._row(db, ws, suggestion_id)
             v = db.get(Verdict, s.verdict_id) if s.verdict_id else None
+            before = db.get(Suggestion, s.rewrite_of) if s.rewrite_of else None
         if s.status != "generating":
             return self.get(ws, suggestion_id)
         try:
             with spend.scope(self.store.engine, ws, "suggestion"):
-                return self._generate(ws, s, v, ai or ai_lm.get_ai())
+                return self._generate(ws, s, v, ai or ai_lm.get_ai(), before)
         except Exception as e:  # a model or sopc outage: the suggestion fails with the reason, and can be made again
             log.exception("generating suggestion %s failed", s.id)
             return self._save(s, status="failed", error=f"{type(e).__name__}: {str(e)[:1000]}")
 
-    def _generate(self, ws: str, s: Suggestion, v: Verdict | None, ai: AI) -> dict[str, Any]:
+    def _generate(self, ws: str, s: Suggestion, v: Verdict | None, ai: AI, before: Suggestion | None = None) -> dict[str, Any]:
+        """`before`: the suggestion this one rewrites; the edits to the file since it was written go to the model."""
         if v is None or v.verdict not in SUGGESTIBLE:
             return self._save(s, status="failed", error="The pattern's verdict doesn't call for an edit.")
         head = {f["path"]: f for f in self.store.head(ws, content=True)}
@@ -194,20 +289,16 @@ class Suggestions:
                 return f"block_id must be '{s.procedure_id}', the procedure's id."
             if text.strip() == old.strip():
                 return "The file is unchanged."
-            compiled = self.store.sopc.compile({**files, path: _eol(text)})
-            if not compiled.valid:
-                return "; ".join(forms.locate(i).text or i.message for i in compiled.issues if i.severity == "error")
-            try:
-                found = forms.find(forms.from_export(self.store.sopc.export({**files, path: _eol(text)})), "procedure", s.procedure_id)
-            except Invalid as e:
-                return str(e)
-            return None if found is not None else f"The file must still define the procedure '{s.procedure_id}'."
+            return self._issues(files, path, s.procedure_id, text)
+
+        since = changes(path, before.old_text, old) if before is not None and before.old_text is not None and before.path == path and before.old_text != old else ""
 
         got = SuggestEdits(ai, validate)(
             procedure_id=s.procedure_id, procedure_file=old, rule=f"{KIND_LABEL.get(rule['kind'], rule['kind'])} {rule['index']}: {rule['text']}",
             pattern=p.name if p.kind == "rule" else f"{p.name}. {p.description or ''}".strip(), verdict=v.verdict, note=v.note or "",
             examples=[ExampleIn(status=e["status"], reason=e["reason"] or "", quotes=[str(x.get("quote")) for x in e["evidence"] if x.get("quote")][:3])
                       for e in examples],
+            changes_since=since,
         )
         common = {"new_text": _eol(got.new_text), "rationale": got.rationale, "attempts": got.attempts, "model": ai.model("reasoning"), "prompt_version": VERSIONS["suggest"]}
         if got.error:
@@ -240,21 +331,23 @@ class Suggestions:
         if s.status != "proposed":
             raise Conflict(f"only a proposed suggestion can be applied; this one is {s.status}")
         assert s.path is not None and s.new_text is not None
-        try:
-            current = self.store.file(ws, s.path)["content"]
-        except NotFound:
-            current = None
-        if current != s.old_text:
-            raise Conflict("the procedure changed since this suggestion was made; make a new one")
+        since = self._since(s, self._head(ws))
+        assert since is not None
+        if since["state"] == "conflict":
+            why = (f"the merged file doesn't compile: {since['issues']}" if since["issues"] and not since["conflicts"] else
+                   since["issues"] or ("the same part of the file was changed" if len(since["conflicts"]) == 1 else f"{len(since['conflicts'])} parts of the file were changed both ways"))
+            raise Conflict(f"the procedure changed since this suggestion was written, and the two don't merge ({why}). Rewrite it against the current text.")
+        text, merged = (since["merged_text"], since["head_version"]) if since["state"] == "merges" else (s.new_text, None)
         repo = github.repo_connection(self.store, ws)
         name = p.name if p else s.pattern_id
         if repo is not None:
             agents = [a["agent"] for a in (s.plan or {}).get("agents", [])]
-            body = "\n\n".join(x for x in (s.rationale, f"Pattern: {name}", f"Agents whose prompt changes: {', '.join(agents) or 'none'}", "Suggested by sopops.") if x)
-            url = github.open_pull_request(self.store, ws, {s.path: s.new_text}, f"{s.procedure_id}: {name}", body)
-            return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer, pr_opened_at=_now())
-        self.store.edit(ws, {s.path: s.new_text}, author=reviewer or "sopops", note=f"Suggestion for “{name}”")
-        return self._save(s, status="applied", reviewer=reviewer or s.reviewer, applied_at=_now())
+            body = "\n\n".join(x for x in (s.rationale, f"Pattern: {name}", f"Agents whose prompt changes: {', '.join(agents) or 'none'}",
+                                            "Merged with changes made to the file since it was written." if merged else None, "Suggested by sopops.") if x)
+            url = github.open_pull_request(self.store, ws, {s.path: text}, f"{s.procedure_id}: {name}", body)
+            return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer, pr_opened_at=_now(), merged_into_version=merged)
+        self.store.edit(ws, {s.path: text}, author=reviewer or "sopops", note=f"Suggestion for “{name}”" + (" (merged with changes made since)" if merged else ""))
+        return self._save(s, status="applied", reviewer=reviewer or s.reviewer, applied_at=_now(), merged_into_version=merged)
 
     def dismiss(self, ws: str, suggestion_id: str, note: str | None = None, reviewer: str | None = None) -> dict[str, Any]:
         with self._db() as db:
