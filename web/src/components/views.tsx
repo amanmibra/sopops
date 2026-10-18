@@ -105,6 +105,13 @@ export function ListView({ kind }: { kind: ListKind }) {
 
 // --- overview: which agent uses which block ------------------------------------------
 
+const TERMS: [string, string][] = [
+  ["Agents", "One per deployed agent: its platform id, its own context, and the blocks it uses, in prompt order. sopops compiles them into its prompt."],
+  ["Shared instructions", "Prompt text written once and used by many agents: role, tone, policies, facts. Not step by step."],
+  ["Procedures", "What to do in one situation: a goal, when it applies, steps, never rules and warning signs. QA checks sessions against them."],
+  ["Groups", "A named list of blocks that many agents share. An agent lists a group like one block, and it expands in place."],
+];
+
 export function OverviewView() {
   const { ws, cfg, model, href } = useWs();
   const qc = useQueryClient();
@@ -148,6 +155,14 @@ export function OverviewView() {
     <Page wide>
       <PageTitle>Overview</PageTitle>
       <Sub>Which agents use which blocks. Click a cell to add a block to an agent (it goes at the end of the agent's list) or take it out. Each click saves a draft.</Sub>
+      <dl className="mb-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+        {TERMS.map(([term, text]) => (
+          <div key={term} className="bg-card rounded-lg border px-3.5 py-2.5">
+            <dt className="text-[13px] font-semibold">{term}</dt>
+            <dd className="text-muted-foreground mt-0.5 text-[12.5px] leading-snug">{text}</dd>
+          </div>
+        ))}
+      </dl>
       {agents.length ? (
         <UsageGrid
           columns={agents.map((a) => ({ id: a.id, head: <HrefLink href={href("agent", a.id)}>{a.id}</HrefLink> }))}
