@@ -1,20 +1,22 @@
 // Sessions: the live list with filters, and one session's transcript.
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Radio } from "lucide-react";
+import { ChevronLeft, ChevronRight, Maximize2, Radio, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, q } from "@/lib/api";
-import { ruleName } from "@/lib/insights";
+import { STATUS_MARK, ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
-import { Banner, ErrorBanner, Note, PageTitle, Panel, Sub, Tag } from "./bits";
+import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Page } from "./item-shell";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "./ui/sheet";
+import { Hint } from "./insights/kit";
 
 type Status = SessionSummary["status"];
 
@@ -148,6 +150,11 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
   const set = (patch: Partial<SessionFilters>) => onFilters({ ...filters, ...patch });
   const filtered = Object.values(filters).some((v) => v != null && v !== "" && !(Array.isArray(v) && !v.length));
   const agents = [...new Set([...cfg.agents.map((a) => a.id), ...(filters.agent ? [filters.agent] : [])])];
+  const [openId, setOpenId] = useState<string | null>(null);
+  const focus = !!filters.procedure;
+  const outcomeKey = focus ? "procedure_result" : "result";
+  const outcome = (focus ? filters.procedure_result : filters.result) ?? "all";
+  const ids = rows.map((r) => r.id);
 
   return (
     <Page wide>
@@ -186,6 +193,16 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
       </div>
 
       <DrillChips filters={filters} onFilters={onFilters} />
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
+        <Segmented
+          small
+          label={focus ? "Procedure result" : "Result"}
+          value={outcome}
+          options={[["all", "All"], ["followed", "Followed"], ["partial", "Partial"], ["deviated", "Deviated"], ["not_measurable", "Not measurable"]]}
+          onChange={(v) => set({ [outcomeKey]: v === "all" ? undefined : v })}
+        />
+        <span className="text-muted-foreground text-xs">{focus ? "This procedure's result on each session." : "Each session's worst procedure result."} Select a row to preview it.</span>
+      </div>
       {list.isError && <ErrorBanner error={list.error} />}
       {list.isPending ? (
         <p className="text-muted-foreground">Loading…</p>
@@ -196,7 +213,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", "Status", "Result"].map((h) => (
+                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", "Status", "Result", ...(focus ? ["Rules"] : [])].map((h) => (
                   <th key={h} className="text-muted-foreground border-b px-2.5 py-2 text-left text-[13px] font-semibold whitespace-nowrap">
                     {h}
                   </th>
@@ -208,7 +225,8 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                 <tr
                   key={s.id}
                   className={cn("cursor-pointer transition-colors duration-1000 hover:bg-muted", fresh.has(s.id) && "bg-brand-soft")}
-                  onClick={() => go(wsHref(ws, "sessions", s.id))}
+                  onClick={() => setOpenId(s.id)}
+                  aria-selected={openId === s.id}
                 >
                   <td className="border-b px-2.5 py-2 whitespace-nowrap">
                     <HrefLink href={wsHref(ws, "sessions", s.id)} className="text-foreground" onClick={(e) => e.stopPropagation()}>
@@ -229,8 +247,13 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                     <StatusTag status={s.status} />
                   </td>
                   <td className="border-b px-2.5 py-2">
-                    <ResultTag result={s.result} />
+                    <ResultTag result={focus ? s.procedure_check?.result : s.result} />
                   </td>
+                  {focus && (
+                    <td className="border-b px-2.5 py-2">
+                      <RuleDots rules={s.procedure_check?.rules ?? []} />
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -244,7 +267,111 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
           </Button>
         </div>
       )}
+      <SessionDrawer id={openId} ids={ids} onOpen={setOpenId} onExpand={(id) => go(wsHref(ws, "sessions", id))} />
     </Page>
+  );
+}
+
+/** One dot per rule of the filtered procedure, colored by what happened on this session. */
+function RuleDots({ rules }: { rules: { rule_id: string; kind: string; index: number; status: string }[] }) {
+  if (!rules.length) return <span className="text-muted-foreground">—</span>;
+  return (
+    <Hint
+      focusable={false}
+      tip={
+        <span className="grid grid-cols-[auto_1fr] gap-x-2.5">
+          {rules.map((r) => (
+            <span key={r.rule_id} className="contents">
+              <b>{ruleName(r.kind, r.index)}</b>
+              <span className="opacity-80">{STATUS_MARK[r.status]?.label ?? r.status}</span>
+            </span>
+          ))}
+        </span>
+      }
+    >
+      <span role="img" aria-label={rules.map((r) => `${ruleName(r.kind, r.index)} ${STATUS_MARK[r.status]?.label ?? r.status}`).join(", ")} className="flex items-center gap-[3px]">
+        {rules.map((r) => {
+          const m = STATUS_MARK[r.status];
+          return <span key={r.rule_id} className={cn("inline-block size-2 rounded-full", m?.striped && "stripes border", r.kind === "warning" && "rounded-[2px]")} style={m?.striped ? undefined : { background: m?.color ?? "var(--o-none)" }} />;
+        })}
+      </span>
+    </Hint>
+  );
+}
+
+/** A session's checks and transcript in a side panel, with previous / next through the list and a way to the full page. */
+function SessionDrawer({ id, ids, onOpen, onExpand }: { id: string | null; ids: string[]; onOpen: (id: string | null) => void; onExpand: (id: string) => void }) {
+  const { ws } = useWs();
+  const res = useQuery({ ...q.session(ws, id ?? ""), enabled: !!id });
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const marks = useMemo(() => turnMarks(res.data?.checks ?? []), [res.data]);
+  const at = id ? ids.indexOf(id) : -1;
+  const s = res.data;
+  useEffect(() => setActiveKey(null), [id]);
+  const select = (key: string | null, turn?: number | null) => {
+    setActiveKey(key);
+    if (key && turn != null) document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  return (
+    <Sheet open={!!id} onOpenChange={(o) => !o && onOpen(null)}>
+      <SheetContent
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "j") at >= 0 && at < ids.length - 1 && onOpen(ids[at + 1]);
+          if (e.key === "ArrowUp" || e.key === "k") at > 0 && onOpen(ids[at - 1]);
+        }}
+      >
+        <div className="flex items-center gap-1 border-b px-3 py-2">
+          <Button size="icon-sm" variant="ghost" aria-label="Previous session" disabled={at <= 0} onClick={() => onOpen(ids[at - 1])}>
+            <ChevronLeft />
+          </Button>
+          <Button size="icon-sm" variant="ghost" aria-label="Next session" disabled={at < 0 || at >= ids.length - 1} onClick={() => onOpen(ids[at + 1])}>
+            <ChevronRight />
+          </Button>
+          <span className="text-muted-foreground text-xs tabular-nums">{at >= 0 ? `${at + 1} of ${ids.length}` : ""}</span>
+          <span className="flex-1" />
+          {id && (
+            <Button size="sm" variant="ghost" onClick={() => onExpand(id)}>
+              <Maximize2 /> Full page
+            </Button>
+          )}
+          <SheetClose asChild>
+            <Button size="icon-sm" variant="ghost" aria-label="Close">
+              <X />
+            </Button>
+          </SheetClose>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          {res.isPending ? (
+            <p className="text-muted-foreground">Loading…</p>
+          ) : res.isError ? (
+            <ErrorBanner error={res.error} />
+          ) : s ? (
+            <>
+              <SheetTitle className="text-[17px] font-semibold">
+                {agentName(s)}, {when(s.started_at)}
+              </SheetTitle>
+              <SheetDescription className="text-muted-foreground mt-0.5 mb-3 flex flex-wrap items-center gap-1.5 text-[13px]">
+                <StatusTag status={s.status} />
+                {s.result && <ResultTag result={s.result} />}
+                <span>
+                  {plural(s.turn_count, "turn", "turns")}
+                  {s.duration_s != null ? `, ${clock(s.duration_s)} long` : ""}
+                  {s.release_id != null ? `, release #${s.release_id}` : ""}
+                </span>
+              </SheetDescription>
+              <h3 className="mb-1.5 text-[13px] font-semibold">Procedures</h3>
+              <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
+              <h3 className="mt-4 mb-1 text-[13px] font-semibold">Transcript</h3>
+              <ol>
+                {s.turns.map((t, i) => (
+                  <Turn key={i} index={i} turn={t} marks={marks.get(i)} activeKey={activeKey} onSelect={(k) => select(k)} />
+                ))}
+              </ol>
+            </>
+          ) : null}
+        </div>
+      </SheetContent>
+    </Sheet>
   );
 }
 

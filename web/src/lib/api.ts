@@ -129,14 +129,24 @@ export const WINDOWS = ["24h", "7d", "30d", "90d", "365d"] as const;
 export type InsightWindow = (typeof WINDOWS)[number];
 export type InsightFilters = {
   window?: InsightWindow;
+  /** A custom window: local dates (YYYY-MM-DD), both days included. `start` wins over `window`. */
+  start?: string;
+  end?: string;
   agent?: string;
   procedure?: string;
   release?: number[];
   channel?: "voice" | "text";
 };
 
+/** Local midnight of a YYYY-MM-DD day, plus `days`, as an ISO instant. */
+const dayIso = (day: string, days = 0) => {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(y, m - 1, d + days).toISOString();
+};
+
 function insightQuery(f: InsightFilters) {
-  return { window: f.window ?? "7d", agent: f.agent, procedure: f.procedure, release: f.release?.length ? f.release : undefined, channel: f.channel };
+  const custom = f.start ? { start: dayIso(f.start), end: f.end ? new Date(Math.min(Date.parse(dayIso(f.end, 1)) - 1, Date.now())).toISOString() : undefined } : null;
+  return { window: custom ? undefined : (f.window ?? "7d"), ...custom, agent: f.agent, procedure: f.procedure, release: f.release?.length ? f.release : undefined, channel: f.channel };
 }
 
 /** After a write: refetch everything about the workspace (and the workspace list, which a first write adds to). */

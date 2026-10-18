@@ -1,16 +1,18 @@
 // The review report: headline numbers, then each procedure's themes and patterns, with the rule quoted, example
 // phrasings and the sessions behind each one. Modeled on a hand-made call review.
 import { useQuery } from "@tanstack/react-query";
+import { ChevronDown, CheckCircle2, Layers, ListChecks, LogOut, TriangleAlert } from "lucide-react";
 import type { InsightFilters, PatternOut, RulePatternOut, RuleRef } from "@/lib/api";
 import { q } from "@/lib/api";
-import { type Scope, WINDOW_LABEL, fmtPct, sessionsHref } from "@/lib/insights";
+import { type Scope, fmtPct, sessionsHref, windowPhrase } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { ErrorBanner, Note, PageTitle, Sub, Tag } from "./bits";
+import { Tag } from "./bits";
 import { HrefLink } from "./href-link";
-import { FilterBar, InsightsNav } from "./insights";
-import { Page } from "./item-shell";
+import { Kpi, KpiGrid, WidgetCard } from "./insights/kit";
+import { LIVE } from "./insights/overview";
+import { AsOf, InsightsShell } from "./insights/scope";
 
 /** The rule as the procedure says it. */
 export function ruleQuote(rule: RuleRef | null | undefined): string | null {
@@ -18,15 +20,6 @@ export function ruleQuote(rule: RuleRef | null | undefined): string | null {
   if (rule.kind === "never") return `Your procedure says never: ${rule.text.replace(/^never\s+/i, "")}`;
   if (rule.kind === "warning") return `Warning sign: ${rule.text}`;
   return `Step ${rule.index}: ${rule.text}`;
-}
-
-function Stat({ value, label, tone }: { value: React.ReactNode; label: string; tone?: "ok" | "err" }) {
-  return (
-    <div>
-      <b className={cn("block text-[30px] leading-tight font-semibold tabular-nums", tone === "ok" && "text-ok", tone === "err" && "text-err")}>{value}</b>
-      <span className="text-[13px]">{label}</span>
-    </div>
-  );
 }
 
 function Examples({ p }: { p: PatternOut }) {
@@ -104,58 +97,65 @@ function PatternCard({ p, scope }: { p: RulePatternOut; scope: Scope }) {
 
 export function ReportView({ filters, onFilters }: { filters: InsightFilters; onFilters: (f: InsightFilters) => void }) {
   const { ws } = useWs();
-  const res = useQuery(q.insightsReport(ws, filters));
+  const res = useQuery({ ...q.insightsReport(ws, filters), ...LIVE });
   const d = res.data;
   const scope: Scope | undefined = d ? { start: d.filters.start, end: d.filters.end, agent: d.filters.agent, releases: d.filters.releases, channel: d.filters.channel } : undefined;
   const h = d?.headline;
+  const link = (f: Parameters<typeof sessionsHref>[1]) => (scope ? sessionsHref(ws, f, scope) : undefined);
+  const shared = { loading: res.isPending, error: d ? undefined : res.error, onRetry: () => void res.refetch() };
   return (
-    <Page>
-      <InsightsNav here="report" filters={filters} />
-      <PageTitle>Session review</PageTitle>
-      <Sub>
-        What went wrong across the last {WINDOW_LABEL[filters.window ?? "7d"]} of sessions, grouped by where in the conversation it happens.
-        {d && (
-          <>
-            {" "}
-            Sessions from {when(d.filters.start)} to {when(d.filters.end)}.
-          </>
-        )}
-      </Sub>
-      <FilterBar filters={filters} onChange={onFilters} />
-      {res.error ? <ErrorBanner error={res.error} /> : null}
-      {res.isPending && <p className="text-muted-foreground">Loading…</p>}
-      {d && h && scope && (
+    <InsightsShell
+      view="report"
+      title="Session review"
+      subtitle={
         <>
-          <div className="my-4 grid grid-cols-2 gap-6 border-y py-5 sm:grid-cols-4">
-            <Stat value={h.sessions_checked} label="sessions checked" />
-            <Stat value={fmtPct(h.followed_pct)} label={`followed end to end (${h.followed})`} tone="ok" />
-            <Stat value={fmtPct(h.need_attention_pct)} label={`need attention (${h.need_attention})`} tone="err" />
-            <Stat value={h.excluded} label="excluded (ended before a procedure)" />
-          </div>
-          <p className="text-muted-foreground mb-6 text-[13px]">
-            {h.need_attention > 0 && (
-              <>
-                {plural(h.multi_problem_sessions, "session has", "sessions have")} more than one problem, so the patterns below overlap.{" "}
-              </>
-            )}
-            {h.partial > 0 && `${plural(h.partial, "session", "sessions")} partially followed (out of order or not reached). `}
-            {h.not_measurable > 0 && `${h.not_measurable} not measurable.`}
-          </p>
-          {d.procedures.every((p) => !p.themes.length) && <Note>No findings in this window.</Note>}
-          {d.procedures
+          What went wrong across {windowPhrase(filters)} of sessions, grouped by where in the conversation it happens, with what was said.
+          {d && (
+            <>
+              {" "}
+              Sessions from {when(d.filters.start)} to {when(d.filters.end)}.
+            </>
+          )}
+        </>
+      }
+      filters={filters}
+      onFilters={onFilters}
+      status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />}
+    >
+      <div className="grid max-w-[1040px] gap-4">
+        {h && scope ? (
+          <KpiGrid narrow>
+            <Kpi label="Sessions checked" icon={ListChecks} value={h.sessions_checked} sub={`${h.not_measurable} not measurable`} href={link({ eligible: true })} help="Sessions whose checks ran." />
+            <Kpi label="Followed end to end" icon={CheckCircle2} accent="ok" value={fmtPct(h.followed_pct)} sub={`${h.followed} of ${h.sessions_checked}`} href={link({ result: "followed" })} help="Every procedure check in scope followed." />
+            <Kpi label="Need attention" icon={TriangleAlert} accent="err" value={fmtPct(h.need_attention_pct)} sub={`${h.need_attention} of ${h.sessions_checked}`} href={link({ result: "deviated" })} help="Some procedure check deviated: a step skipped or a never rule broken." />
+            <Kpi label="Partial" icon={ListChecks} accent="warn" value={h.partial} sub="out of order or not reached" href={link({ result: "partial" })} help="Sessions whose worst result was partial." />
+            <Kpi label="More than one problem" icon={Layers} accent="procedure" value={h.multi_problem_sessions} sub="so the patterns below overlap" help="Sessions with findings on more than one rule." />
+            <Kpi label="Excluded" icon={LogOut} value={h.excluded} sub="ended before a procedure started or finished" href={link({ status: "excluded" })} help="Counted, never rated." />
+          </KpiGrid>
+        ) : (
+          <KpiGrid loading narrow />
+        )}
+        {(res.isPending || res.error) && !d && <WidgetCard title="Themes" {...shared} />}
+        {d && d.procedures.every((p) => !p.themes.length) && (
+          <WidgetCard title="Themes" empty emptyTitle="No findings in this window" emptyMessage="Nothing went wrong in the sessions checked, or none were checked. Widen the window to look further back." />
+        )}
+        {d &&
+          scope &&
+          d.procedures
             .filter((p) => p.themes.length)
             .map((proc) => (
-              <section key={proc.procedure_id} className="mb-8">
-                {d.procedures.length > 1 && <h2 className="mb-2 text-[19px] font-semibold">{proc.procedure_name}</h2>}
+              <section key={proc.procedure_id} className="grid gap-3">
+                {d.procedures.length > 1 && <h2 className="mt-2 text-[17px] font-semibold">{proc.procedure_name}</h2>}
                 {proc.themes.map((t) => (
-                  <details key={t.theme_id ?? "none"} open className="bg-card mb-3 rounded-xl border">
-                    <summary className="flex cursor-pointer flex-wrap items-baseline gap-x-3 px-4 py-3">
-                      <h3 className="text-[17px] font-semibold">{t.name}</h3>
+                  <details key={t.theme_id ?? "none"} open className="group bg-card rounded-lg border">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 border-b px-4 py-3 group-not-open:border-b-0">
+                      <ChevronDown className="text-muted-foreground size-4 self-center transition-transform group-not-open:-rotate-90" />
+                      <h3 className="text-[15px] font-semibold">{t.name}</h3>
                       <span className="text-muted-foreground text-[13px] tabular-nums">
                         {plural(t.sessions, "session", "sessions")}
                         {t.need_attention_pct != null ? ` · ${fmtPct(t.need_attention_pct)} of those needing attention` : ""}
                       </span>
-                      {t.description && <p className="text-muted-foreground basis-full text-[14px]">{t.description}</p>}
+                      {t.description && <p className="text-muted-foreground basis-full pl-7 text-[13px]">{t.description}</p>}
                     </summary>
                     <div className="px-4 pb-2">
                       {t.patterns.map((p) => (
@@ -166,8 +166,7 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
                 ))}
               </section>
             ))}
-        </>
-      )}
-    </Page>
+      </div>
+    </InsightsShell>
   );
 }
