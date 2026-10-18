@@ -9,7 +9,8 @@ be rate-limited by its model key (`SOPOPS_RATE_LIMIT_PER_MINUTE` calls per minut
 then rolls the session up. The `patterns` task then assigns the session's findings to patterns; pattern writes run one
 at a time per workspace (`sopops_patterns`), and so do reclustering and themes (`sopops_recluster`, queued when due),
 plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC). Suggested edits are generated
-by `sopops_suggest`, rate-limited by the reasoning model like a check.
+by `sopops_suggest`, rate-limited by the reasoning model like a check, and calibration runs in `sopops_calibrate`. Suggestions' pull
+requests are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from ..pipeline.process import (
     route_session,
 )
 from ..pipeline.types import (
+    CalibrateRef,
     CheckRef,
     CheckResult,
     ProcessResult,
@@ -73,6 +75,8 @@ _per_workspace = ConcurrencyExpression(expression="input.workspace_id", max_runs
 patterns_wf = hatchet.workflow(name="sopops_patterns", input_validator=SessionRef, concurrency=_per_workspace)
 recluster_wf = hatchet.workflow(name="sopops_recluster", input_validator=ReclusterRef, concurrency=_per_workspace)
 suggest_wf = hatchet.workflow(name="sopops_suggest", input_validator=SuggestRef)
+pr_status_wf = hatchet.workflow(name="sopops_pr_status", on_crons=[os.environ.get("SOPOPS_PR_STATUS_CRON", "*/15 * * * *")])
+calibrate_wf = hatchet.workflow(name="sopops_calibrate", input_validator=CalibrateRef, concurrency=_per_workspace)
 recluster_daily_wf = hatchet.workflow(name="sopops_recluster_daily", on_crons=[os.environ.get("SOPOPS_RECLUSTER_CRON", "0 6 * * *")])
 
 _store = None
@@ -184,6 +188,20 @@ def suggest_one(input: SuggestRef, ctx: Context) -> dict:
     return {"status": out["status"]}
 
 
+@calibrate_wf.task(execution_timeout=timedelta(minutes=60), retries=0)
+def calibrate_one(input: CalibrateRef, ctx: Context) -> dict:
+    return _get_store().calibrate.run(input.workspace_id, input.procedure_id, input.dry_run)
+
+
+@pr_status_wf.task(execution_timeout=timedelta(minutes=10), retries=1)
+def pr_status(input, ctx: Context) -> dict:
+    return _get_store().suggestions.sync_prs()
+
+
+def run_calibrate(ref: CalibrateRef) -> dict:
+    return calibrate_wf.run(ref)["calibrate_one"]
+
+
 def trigger_suggest(ref: SuggestRef) -> None:
     suggest_wf.run(SuggestRef(**{**ref.model_dump(), "model_key": _model_key("reasoning"), "rate_limit": RATE}), wait_for_result=False)
 
@@ -197,6 +215,6 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 def start_worker() -> None:
     worker = hatchet.worker(
-        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf]
+        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf, calibrate_wf, pr_status_wf]
     )
     worker.start()

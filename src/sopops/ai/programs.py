@@ -283,10 +283,11 @@ def fit(program: CheckDecisions | RouteDecisions, answered: list[_Answered], obj
 
 
 def calibrate(program: CheckDecisions | RouteDecisions, trainset: list[dspy.Example], objective: Objective, engine: Engine, workspace: str, name: str,
-              model: str | None, *, num_threads: int = 8, bounds: tuple[float, float] = BOUNDS, min_positives: int = MIN_POSITIVES) -> dict[str, Any]:
+              model: str | None, *, num_threads: int = 8, bounds: tuple[float, float] = BOUNDS, min_positives: int = MIN_POSITIVES, save: bool = True) -> dict[str, Any]:
     """Answer each training session once, fit the program's thresholds against `objective` (see the module docstring)
-    and store them for `workspace` as `name` (`route` or `check:<procedure id>`). Returns the report: the objective
-    before and after, and per question what was fitted or why not. Only thresholds that moved are stored."""
+    and store them for `workspace` as `name` (`route` or `check:<procedure id>`; not with `save=False`, a dry run).
+    Returns the report: the objective before and after, and per question what was fitted or why not. Only thresholds
+    that moved are stored."""
     if not trainset:
         raise ValueError("trainset must contain at least one example")
 
@@ -313,5 +314,6 @@ def calibrate(program: CheckDecisions | RouteDecisions, trainset: list[dspy.Exam
     params = {n: {"threshold": t} for n, t in fitted.items() if not math.isclose(t, defaults[n])}
     for n, t in fitted.items():
         program.decide.fields[n] = {**program.decide.fields[n], "threshold": t}
-    calibration.save(engine, workspace, name, params, decide.question_hashes(program.decide), model, report)
+    if save:
+        calibration.save(engine, workspace, name, params, decide.question_hashes(program.decide), model, report)
     return report

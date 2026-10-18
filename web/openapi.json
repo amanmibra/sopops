@@ -5131,7 +5131,7 @@
           "patterns"
         ],
         "summary": "List Patterns",
-        "description": "Rule patterns (every finding on a rule) with their named failure modes, counted in the window.",
+        "description": "Rule patterns (every finding on a rule) with their named failure modes, counted in the window, each with\nits verdict and review state; `clustered_at`: the workspace's last clustering.",
         "operationId": "list_patterns",
         "parameters": [
           {
@@ -5532,7 +5532,7 @@
           "review"
         ],
         "summary": "Review Queue",
-        "description": "Patterns that need a verdict: no verdict yet, or findings that aren't suppressed since it. Each active leaf\npattern (a rule pattern that isn't split, else its failure modes), most sessions first.",
+        "description": "Active leaf patterns (a rule pattern that isn't split, else its failure modes) by review state, most\nsessions first: by default what needs a reviewer (`needs_review`, `regressed`); `state=open` for verdicts\nwaiting for a fix, and so on. `counts` has every state.",
         "operationId": "review_queue",
         "parameters": [
           {
@@ -5555,6 +5555,35 @@
               "default": 50,
               "title": "Limit"
             }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "enum": [
+                      "needs_review",
+                      "open",
+                      "fixing",
+                      "fixed",
+                      "regressed",
+                      "closed"
+                    ],
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Review states to list (repeatable); default needs_review and regressed.",
+              "title": "State"
+            },
+            "description": "Review states to list (repeatable); default needs_review and regressed."
           }
         ],
         "responses": {
@@ -5753,6 +5782,66 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/calibrate": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Calibrate",
+        "description": "Fit each procedure's check thresholds to the workspace's labels (verdicts and overrides), as a job, and\nreturn per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled\nsessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save.",
+        "operationId": "calibrate",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/CalibrateIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CalibrateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/suggestions": {
       "get": {
         "tags": [
@@ -5784,6 +5873,7 @@
                     "applied",
                     "dismissed",
                     "pr_open",
+                    "merged",
                     "failed"
                   ],
                   "type": "string"
@@ -6990,7 +7080,7 @@
           "repo"
         ],
         "summary": "Get Repo",
-        "description": "The workspace's GitHub repository. Never the token.",
+        "description": "The workspace's GitHub repository, or null when none is connected. Never the token.",
         "operationId": "get_repo",
         "parameters": [
           {
@@ -7009,13 +7099,18 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/RepoOut"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RepoOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Repo"
                 }
               }
             }
-          },
-          "404": {
-            "description": "No repository connected."
           },
           "422": {
             "description": "Validation Error",
@@ -9437,6 +9532,187 @@
           "missing"
         ],
         "title": "BlockRow"
+      },
+      "CalibrateIn": {
+        "properties": {
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure",
+            "description": "Only this procedure (default: every procedure with labeled sessions)."
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run",
+            "description": "Fit and report, without saving.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CalibrateIn"
+      },
+      "CalibrateOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "dry_run": {
+            "type": "boolean",
+            "title": "Dry Run"
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/CalibratedProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "dry_run",
+          "procedures"
+        ],
+        "title": "CalibrateOut"
+      },
+      "CalibratedProcedure": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "program": {
+            "type": "string",
+            "title": "Program"
+          },
+          "labels": {
+            "type": "integer",
+            "title": "Labels",
+            "description": "Labeled sessions used."
+          },
+          "negative_labels": {
+            "type": "integer",
+            "title": "Negative Labels",
+            "description": "Findings judged wrong among them."
+          },
+          "saved": {
+            "type": "boolean",
+            "title": "Saved"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped",
+            "description": "Why the procedure was refused (below the minimums), if it was."
+          },
+          "score_before": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score Before"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/CalibratedRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "program",
+          "labels",
+          "negative_labels",
+          "saved",
+          "skipped",
+          "score_before",
+          "score",
+          "rules"
+        ],
+        "title": "CalibratedProcedure"
+      },
+      "CalibratedRule": {
+        "properties": {
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id",
+            "description": "Null for the goal question."
+          },
+          "field": {
+            "type": "string",
+            "title": "Field",
+            "description": "The decision question."
+          },
+          "before": {
+            "type": "number",
+            "title": "Before",
+            "description": "The threshold in use: calibrated before, else the default."
+          },
+          "after": {
+            "type": "number",
+            "title": "After"
+          },
+          "skipped": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skipped",
+            "description": "Why it wasn't fitted."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "field",
+          "before",
+          "after",
+          "skipped"
+        ],
+        "title": "CalibratedRule"
       },
       "Callout": {
         "properties": {
@@ -12787,15 +13063,18 @@
             "title": "Need Attention Pct",
             "description": "In the report: sessions in it that need attention / all that do."
           },
-          "rule": {
-            "$ref": "#/components/schemas/RuleRef"
-          },
-          "sub_patterns": {
-            "items": {
-              "$ref": "#/components/schemas/PatternOut"
-            },
-            "type": "array",
-            "title": "Sub Patterns"
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially."
           },
           "verdict": {
             "anyOf": [
@@ -12806,7 +13085,48 @@
                 "type": "null"
               }
             ],
-            "description": "Its current verdict (its rule pattern's, when it has none of its own)."
+            "description": "Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page."
+          },
+          "review_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "needs_review",
+                  "open",
+                  "fixing",
+                  "fixed",
+                  "regressed",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review State",
+            "description": "On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong."
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleRef"
+          },
+          "sub_patterns": {
+            "items": {
+              "$ref": "#/components/schemas/PatternOut"
+            },
+            "type": "array",
+            "title": "Sub Patterns"
           },
           "verdict_history": {
             "items": {
@@ -12829,6 +13149,18 @@
             "type": "array",
             "title": "Suggestions",
             "description": "Newest first."
+          },
+          "fix_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Release",
+            "description": "The release with the applied edit, once there is one."
           }
         },
         "type": "object",
@@ -12852,12 +13184,16 @@
           "examples",
           "session_ids",
           "need_attention_pct",
+          "clustered_at",
+          "verdict",
+          "review_state",
+          "review_note",
           "rule",
           "sub_patterns",
-          "verdict",
           "verdict_history",
           "suppressed_count",
-          "suggestions"
+          "suggestions",
+          "fix_release"
         ],
         "title": "PatternDetail"
       },
@@ -13012,6 +13348,61 @@
             ],
             "title": "Need Attention Pct",
             "description": "In the report: sessions in it that need attention / all that do."
+          },
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially."
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page."
+          },
+          "review_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "needs_review",
+                  "open",
+                  "fixing",
+                  "fixed",
+                  "regressed",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review State",
+            "description": "On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong."
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
           }
         },
         "type": "object",
@@ -13034,7 +13425,11 @@
           "theme_name",
           "examples",
           "session_ids",
-          "need_attention_pct"
+          "need_attention_pct",
+          "clustered_at",
+          "verdict",
+          "review_state",
+          "review_note"
         ],
         "title": "PatternOut"
       },
@@ -13046,11 +13441,25 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "The workspace's last clustering of any rule."
           }
         },
         "type": "object",
         "required": [
-          "items"
+          "items",
+          "clustered_at"
         ],
         "title": "PatternsResponse"
       },
@@ -15993,6 +16402,19 @@
             ],
             "title": "Last Seen"
           },
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially."
+          },
           "procedure_name": {
             "type": "string",
             "title": "Procedure Name"
@@ -16034,6 +16456,43 @@
             "title": "New Findings",
             "description": "Findings that aren't suppressed since the verdict (all of them without one)."
           },
+          "review_state": {
+            "type": "string",
+            "enum": [
+              "needs_review",
+              "open",
+              "fixing",
+              "fixed",
+              "regressed",
+              "closed"
+            ],
+            "title": "Review State",
+            "description": "`needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong."
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note",
+            "description": "Why it's in that state, e.g. \"Came back after release 7: 3 findings ...\"."
+          },
+          "fix_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Release",
+            "description": "The release with the applied edit, once there is one."
+          },
           "suppressed_count": {
             "type": "integer",
             "title": "Suppressed Count"
@@ -16066,12 +16525,16 @@
           "sessions",
           "first_seen",
           "last_seen",
+          "clustered_at",
           "procedure_name",
           "rule",
           "rule_text",
           "examples",
           "verdict",
           "new_findings",
+          "review_state",
+          "review_note",
+          "fix_release",
           "suppressed_count",
           "suggestion"
         ],
@@ -16141,13 +16604,46 @@
           "total": {
             "type": "integer",
             "title": "Total",
-            "description": "Patterns needing a verdict (items is at most `limit` of them)."
+            "description": "Patterns in the states asked for (items is at most `limit` of them)."
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "needs_review",
+                "open",
+                "fixing",
+                "fixed",
+                "regressed",
+                "closed"
+              ]
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Patterns in each review state."
+          },
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "The workspace's last clustering of any rule."
           }
         },
         "type": "object",
         "required": [
           "items",
-          "total"
+          "total",
+          "counts",
+          "clustered_at"
         ],
         "title": "ReviewResponse"
       },
@@ -16440,6 +16936,61 @@
             "title": "Need Attention Pct",
             "description": "In the report: sessions in it that need attention / all that do."
           },
+          "clustered_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Clustered At",
+            "description": "Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially."
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page."
+          },
+          "review_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "needs_review",
+                  "open",
+                  "fixing",
+                  "fixed",
+                  "regressed",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review State",
+            "description": "On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong."
+          },
+          "review_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
           "sub_patterns": {
             "items": {
               "$ref": "#/components/schemas/PatternOut"
@@ -16479,6 +17030,10 @@
           "examples",
           "session_ids",
           "need_attention_pct",
+          "clustered_at",
+          "verdict",
+          "review_state",
+          "review_note",
           "sub_patterns",
           "rule"
         ],
@@ -18393,10 +18948,11 @@
               "applied",
               "dismissed",
               "pr_open",
+              "merged",
               "failed"
             ],
             "title": "Status",
-            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`."
+            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
           },
           "rationale": {
             "anyOf": [
@@ -18708,10 +19264,11 @@
               "applied",
               "dismissed",
               "pr_open",
+              "merged",
               "failed"
             ],
             "title": "Status",
-            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`."
+            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
           },
           "rationale": {
             "anyOf": [

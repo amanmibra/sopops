@@ -10,6 +10,11 @@ from pydantic import Field
 from .base import BaseModel
 
 VerdictKind = Literal["real", "acceptable", "sop_wrong", "checker_wrong"]
+ReviewState = Literal["needs_review", "open", "fixing", "fixed", "regressed", "closed"]
+REVIEW_STATE_HELP = ("`needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. "
+                     "`open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its "
+                     "release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: "
+                     "findings came back on such sessions. `closed`: acceptable or checker_wrong.")
 
 
 class VerdictIn(BaseModel):

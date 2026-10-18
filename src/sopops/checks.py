@@ -1,7 +1,8 @@
 """Storing and reading SOP check results: procedure_checks, rule_results and findings.
 
 Every write checks the session's revision (its payload hash) first, inside the transaction: a run queued before the
-session was re-sent writes nothing. Re-running a revision replaces its rows, so the pipeline is idempotent.
+session was re-sent writes nothing. Re-running a revision replaces its rows, so the pipeline is idempotent; a finding
+on the same session and rule keeps its id and `created_at`, so a re-check never reads as a new finding.
 """
 
 from __future__ import annotations
@@ -38,11 +39,15 @@ class Checks:
         row = db.exec(q.with_for_update() if self.sessions.postgres else q).first()
         return row if row is not None and row.payload_hash == ref.revision else None
 
-    def _clear(self, db: Session, session_id: str, procedure_id: str | None = None) -> None:
+    def _clear(self, db: Session, session_id: str, procedure_id: str | None = None, keep: frozenset[str] = frozenset()) -> None:
+        """One procedure's results, or every procedure check with the results of all but `keep` (procedures about to
+        be checked again: `save` replaces their results, keeping their findings' ids)."""
         for table in (Finding, RuleResult) + (() if procedure_id else (ProcedureCheck,)):
             stmt = delete(table).where(table.session_id == session_id)
             if procedure_id:
                 stmt = stmt.where(table.procedure_id == procedure_id)
+            elif keep and table is not ProcedureCheck:
+                stmt = stmt.where(table.procedure_id.not_in(keep))
             db.execute(stmt)
 
     def _set(self, db: Session, row: SessionRecord, status: str, reason: str | None, result: str | None) -> None:
@@ -72,7 +77,7 @@ class Checks:
             row = self._current(db, ref)
             if row is None:
                 return False
-            self._clear(db, row.id)
+            self._clear(db, row.id, keep=frozenset(d.procedure_id for d in decisions if d.status == "applied"))
             for d in decisions:
                 p = by_id[d.procedure_id]
                 db.add(
@@ -93,6 +98,8 @@ class Checks:
             row = self._current(db, ref)
             if row is None:
                 return False
+            # a re-check keeps a finding that's still there as the same finding: its id and when it was first seen
+            before = {f.rule_id: (f.id, f.created_at) for f in db.exec(select(Finding).where(Finding.session_id == row.id, Finding.procedure_id == p.id))}
             self._clear(db, row.id, p.id)
             findings: list[Finding] = []
             for j in rules:
@@ -106,8 +113,9 @@ class Checks:
                 )
                 db.add(rr)
                 if j.status in FINDING_STATUSES:
-                    findings.append(Finding(id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
-                                            rule_result_id=rr.id, status=j.status, created_at=now))
+                    fid, first = before.get(j.rule_id, (str(uuid.uuid4()), now))
+                    findings.append(Finding(id=fid, workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
+                                            rule_result_id=rr.id, status=j.status, created_at=first))
             db.flush()  # rule results first: findings reference them (no ORM relationship orders the inserts)
             db.add_all(findings)
             pc = db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id == row.id, ProcedureCheck.procedure_id == p.id)).first()

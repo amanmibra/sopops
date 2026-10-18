@@ -655,6 +655,124 @@ export type BlockRow = {
 };
 
 /**
+ * CalibrateIn
+ */
+export type CalibrateIn = {
+    /**
+     * Procedure
+     *
+     * Only this procedure (default: every procedure with labeled sessions).
+     */
+    procedure?: string | null;
+    /**
+     * Dry Run
+     *
+     * Fit and report, without saving.
+     */
+    dry_run?: boolean;
+};
+
+/**
+ * CalibrateOut
+ */
+export type CalibrateOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Dry Run
+     */
+    dry_run: boolean;
+    /**
+     * Procedures
+     */
+    procedures: Array<CalibratedProcedure>;
+};
+
+/**
+ * CalibratedProcedure
+ */
+export type CalibratedProcedure = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Program
+     */
+    program: string;
+    /**
+     * Labels
+     *
+     * Labeled sessions used.
+     */
+    labels: number;
+    /**
+     * Negative Labels
+     *
+     * Findings judged wrong among them.
+     */
+    negative_labels: number;
+    /**
+     * Saved
+     */
+    saved: boolean;
+    /**
+     * Skipped
+     *
+     * Why the procedure was refused (below the minimums), if it was.
+     */
+    skipped: string | null;
+    /**
+     * Score Before
+     */
+    score_before: number | null;
+    /**
+     * Score
+     */
+    score: number | null;
+    /**
+     * Rules
+     */
+    rules: Array<CalibratedRule>;
+};
+
+/**
+ * CalibratedRule
+ */
+export type CalibratedRule = {
+    /**
+     * Rule Id
+     *
+     * Null for the goal question.
+     */
+    rule_id: string | null;
+    /**
+     * Field
+     *
+     * The decision question.
+     */
+    field: string;
+    /**
+     * Before
+     *
+     * The threshold in use: calibrated before, else the default.
+     */
+    before: number;
+    /**
+     * After
+     */
+    after: number;
+    /**
+     * Skipped
+     *
+     * Why it wasn't fitted.
+     */
+    skipped: string | null;
+};
+
+/**
  * Callout
  */
 export type Callout = {
@@ -2529,15 +2647,31 @@ export type PatternDetail = {
      * In the report: sessions in it that need attention / all that do.
      */
     need_attention_pct: number | null;
+    /**
+     * Clustered At
+     *
+     * Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.
+     */
+    clustered_at: string | null;
+    /**
+     * Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page.
+     */
+    verdict: VerdictOut | null;
+    /**
+     * Review State
+     *
+     * On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
+     */
+    review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
+    /**
+     * Review Note
+     */
+    review_note: string | null;
     rule: RuleRef;
     /**
      * Sub Patterns
      */
     sub_patterns: Array<PatternOut>;
-    /**
-     * Its current verdict (its rule pattern's, when it has none of its own).
-     */
-    verdict: VerdictOut | null;
     /**
      * Verdict History
      *
@@ -2556,6 +2690,12 @@ export type PatternDetail = {
      * Newest first.
      */
     suggestions: Array<SuggestionSummary>;
+    /**
+     * Fix Release
+     *
+     * The release with the applied edit, once there is one.
+     */
+    fix_release: number | null;
 };
 
 /**
@@ -2652,6 +2792,26 @@ export type PatternOut = {
      * In the report: sessions in it that need attention / all that do.
      */
     need_attention_pct: number | null;
+    /**
+     * Clustered At
+     *
+     * Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.
+     */
+    clustered_at: string | null;
+    /**
+     * Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page.
+     */
+    verdict: VerdictOut | null;
+    /**
+     * Review State
+     *
+     * On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
+     */
+    review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
+    /**
+     * Review Note
+     */
+    review_note: string | null;
 };
 
 /**
@@ -2662,6 +2822,12 @@ export type PatternsResponse = {
      * Items
      */
     items: Array<RulePatternOut>;
+    /**
+     * Clustered At
+     *
+     * The workspace's last clustering of any rule.
+     */
+    clustered_at: string | null;
 };
 
 /**
@@ -4437,6 +4603,12 @@ export type ReviewItem = {
      */
     last_seen: string | null;
     /**
+     * Clustered At
+     *
+     * Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.
+     */
+    clustered_at: string | null;
+    /**
      * Procedure Name
      */
     procedure_name: string;
@@ -4458,6 +4630,24 @@ export type ReviewItem = {
      * Findings that aren't suppressed since the verdict (all of them without one).
      */
     new_findings: number;
+    /**
+     * Review State
+     *
+     * `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
+     */
+    review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed';
+    /**
+     * Review Note
+     *
+     * Why it's in that state, e.g. "Came back after release 7: 3 findings ...".
+     */
+    review_note: string | null;
+    /**
+     * Fix Release
+     *
+     * The release with the applied edit, once there is one.
+     */
+    fix_release: number | null;
     /**
      * Suppressed Count
      */
@@ -4506,9 +4696,23 @@ export type ReviewResponse = {
     /**
      * Total
      *
-     * Patterns needing a verdict (items is at most `limit` of them).
+     * Patterns in the states asked for (items is at most `limit` of them).
      */
     total: number;
+    /**
+     * Counts
+     *
+     * Patterns in each review state.
+     */
+    counts: {
+        [key: string]: number;
+    };
+    /**
+     * Clustered At
+     *
+     * The workspace's last clustering of any rule.
+     */
+    clustered_at: string | null;
 };
 
 /**
@@ -4676,6 +4880,26 @@ export type RulePatternOut = {
      * In the report: sessions in it that need attention / all that do.
      */
     need_attention_pct: number | null;
+    /**
+     * Clustered At
+     *
+     * Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.
+     */
+    clustered_at: string | null;
+    /**
+     * Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page.
+     */
+    verdict: VerdictOut | null;
+    /**
+     * Review State
+     *
+     * On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
+     */
+    review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
+    /**
+     * Review Note
+     */
+    review_note: string | null;
     /**
      * Sub Patterns
      */
@@ -5742,9 +5966,9 @@ export type SuggestionDetail = {
     /**
      * Status
      *
-     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`.
+     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
      */
-    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed';
+    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'merged' | 'failed';
     /**
      * Rationale
      */
@@ -5894,9 +6118,9 @@ export type SuggestionSummary = {
     /**
      * Status
      *
-     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`.
+     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
      */
-    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed';
+    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'merged' | 'failed';
     /**
      * Rationale
      */
@@ -9965,6 +10189,12 @@ export type ReviewQueueData = {
          * Limit
          */
         limit?: number;
+        /**
+         * State
+         *
+         * Review states to list (repeatable); default needs_review and regressed.
+         */
+        state?: Array<'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed'> | null;
     };
     url: '/v1/workspaces/{workspace}/review';
 };
@@ -10087,6 +10317,39 @@ export type ExportRegressionResponses = {
     200: unknown;
 };
 
+export type CalibrateData = {
+    /**
+     * Req
+     */
+    body?: CalibrateIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/calibrate';
+};
+
+export type CalibrateErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CalibrateError = CalibrateErrors[keyof CalibrateErrors];
+
+export type CalibrateResponses = {
+    /**
+     * Successful Response
+     */
+    200: CalibrateOut;
+};
+
+export type CalibrateResponse = CalibrateResponses[keyof CalibrateResponses];
+
 export type ListSuggestionsData = {
     body?: never;
     path: {
@@ -10099,7 +10362,7 @@ export type ListSuggestionsData = {
         /**
          * Status
          */
-        status?: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed' | null;
+        status?: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'merged' | 'failed' | null;
     };
     url: '/v1/workspaces/{workspace}/suggestions';
 };
@@ -10671,10 +10934,6 @@ export type GetRepoData = {
 
 export type GetRepoErrors = {
     /**
-     * No repository connected.
-     */
-    404: unknown;
-    /**
      * Validation Error
      */
     422: HttpValidationError;
@@ -10684,9 +10943,11 @@ export type GetRepoError = GetRepoErrors[keyof GetRepoErrors];
 
 export type GetRepoResponses = {
     /**
+     * Response Get Repo
+     *
      * Successful Response
      */
-    200: RepoOut;
+    200: RepoOut | null;
 };
 
 export type GetRepoResponse = GetRepoResponses[keyof GetRepoResponses];

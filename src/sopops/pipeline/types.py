@@ -70,6 +70,12 @@ class SuggestRef(BaseModel):
     rate_limit: int = 60
 
 
+class CalibrateRef(BaseModel):
+    workspace_id: str
+    procedure_id: str | None = Field(None, description="Only this procedure; default: every procedure with labeled sessions.")
+    dry_run: bool = False
+
+
 EXCLUDED_REASON = {
     "ended_before_start": "The session ended before the procedure started.",
     "ended_before_finish": "The session ended before the procedure finished.",

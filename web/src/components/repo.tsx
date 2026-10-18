@@ -17,14 +17,7 @@ import { Label } from "./ui/label";
 /** The workspace's repository, or null when none is connected. */
 export const repoQuery = (ws: string) => ({
   queryKey: ["ws", ws, "repo"],
-  queryFn: async (): Promise<RepoOut | null> => {
-    try {
-      return await call(sdk.getRepo({ path: { workspace: ws } }));
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 404) return null;
-      throw e;
-    }
-  },
+  queryFn: async (): Promise<RepoOut | null> => (await call(sdk.getRepo({ path: { workspace: ws } }))) ?? null,
 });
 
 const LEAD: Record<number, string> = {

@@ -1,4 +1,5 @@
-"""Review: the queue of patterns that need a verdict, verdicts, overrides on findings, and the regression export."""
+"""Review: the queue of patterns that need a verdict, verdicts, overrides on findings, the regression export, and
+calibrating check thresholds from those labels."""
 
 from __future__ import annotations
 
@@ -8,8 +9,8 @@ from fastapi import APIRouter, BackgroundTasks, Query, Response
 
 from ..errors import workspace_id
 from ..jobs import Jobs
-from ..pipeline.types import SuggestRef
-from ..schemas import OverrideIn, OverrideOut, ReviewResponse, VerdictIn, VerdictSaved
+from ..pipeline.types import CalibrateRef, SuggestRef
+from ..schemas import CalibrateIn, CalibrateOut, OverrideIn, OverrideOut, ReviewResponse, ReviewState, VerdictIn, VerdictSaved
 from ..store import Store
 from ..verdicts import SUGGESTIBLE
 from .deps import OPEN
@@ -19,10 +20,12 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     r = APIRouter()
 
     @r.get("/v1/workspaces/{workspace}/review", response_model=ReviewResponse, dependencies=OPEN, tags=["review"])
-    def review_queue(workspace: str, limit: int = Query(50, ge=1, le=500)) -> dict:
-        """Patterns that need a verdict: no verdict yet, or findings that aren't suppressed since it. Each active leaf
-        pattern (a rule pattern that isn't split, else its failure modes), most sessions first."""
-        return store.verdicts.queue(workspace_id(workspace), limit)
+    def review_queue(workspace: str, limit: int = Query(50, ge=1, le=500),
+                     state: list[ReviewState] | None = Query(None, description="Review states to list (repeatable); default needs_review and regressed.")) -> dict:
+        """Active leaf patterns (a rule pattern that isn't split, else its failure modes) by review state, most
+        sessions first: by default what needs a reviewer (`needs_review`, `regressed`); `state=open` for verdicts
+        waiting for a fix, and so on. `counts` has every state."""
+        return store.verdicts.queue(workspace_id(workspace), limit, state)
 
     @r.post("/v1/workspaces/{workspace}/patterns/{pattern_id}/verdict", response_model=VerdictSaved, dependencies=OPEN, tags=["review"])
     def set_verdict(workspace: str, pattern_id: str, req: VerdictIn, background: BackgroundTasks) -> dict:
@@ -54,5 +57,13 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         rows = store.verdicts.regression(workspace_id(workspace), pattern_id)
         body = "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows)
         return Response(body, media_type="application/x-ndjson", headers={"Content-Disposition": f'attachment; filename="regression-{pattern_id}.jsonl"'})
+
+    @r.post("/v1/workspaces/{workspace}/calibrate", response_model=CalibrateOut, dependencies=OPEN, tags=["review"])
+    def calibrate(workspace: str, req: CalibrateIn | None = None) -> dict:
+        """Fit each procedure's check thresholds to the workspace's labels (verdicts and overrides), as a job, and
+        return per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled
+        sessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save."""
+        req = req or CalibrateIn()
+        return jobs.calibrate(CalibrateRef(workspace_id=workspace_id(workspace), procedure_id=req.procedure, dry_run=req.dry_run))
 
     return r

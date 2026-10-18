@@ -2,7 +2,8 @@
 
 - Made for a pattern whose verdict is `real`, `acceptable` or `sop_wrong` (`create`, then `generate` as a job, inline
   or on Hatchet). Status: `generating`, then `proposed` or `failed`; a proposal is then `applied`, `pr_open` or
-  `dismissed`.
+  `dismissed`. A pull request is followed on GitHub (`sync_prs`, every `PR_CHECK_EVERY` at most per suggestion, by a
+  periodic job and when it's read): merged makes it `merged`, closed without merging `dismissed` ("PR closed").
 - The reasoning model sees the procedure's file at head, the rule, the pattern, the verdict and its note, and up to 5
   of the pattern's findings (`sopops.ai.programs.SuggestEdits`). The edited file must compile with the rest of head;
   if it doesn't, it's sent back once with sopc's issues, else the suggestion fails with them. `plan` records which
@@ -17,7 +18,7 @@ from __future__ import annotations
 import difflib
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
@@ -30,13 +31,15 @@ from .errors import Conflict, NotFound
 from .orm import Pattern, Suggestion, Verdict
 from .patterns import KIND_LABEL
 from .sopc import Invalid
-from .verdicts import SUGGESTIBLE, suggestion_summary, verdict_out
+from .verdicts import SUGGESTIBLE, rule_position, suggestion_summary, verdict_out
 
 if TYPE_CHECKING:
     from .ai.lm import AI
     from .store import Store
 
 log = logging.getLogger("sopops.suggestions")
+
+PR_CHECK_EVERY = timedelta(minutes=1)  # a pull request's state is read from GitHub at most this often per suggestion
 
 
 def _now() -> datetime:
@@ -83,8 +86,43 @@ class Suggestions:
     # --- reads ---------------------------------------------------------------------------------------------------
 
     def get(self, ws: str, suggestion_id: str) -> dict[str, Any]:
+        """A `pr_open` suggestion's pull request is checked first (when it wasn't in the last `PR_CHECK_EVERY`)."""
+        with self._db() as db:
+            s = self._row(db, ws, suggestion_id)
+        if s.status == "pr_open":
+            self._sync_pr(s)
         with self._db() as db:
             return self._out(db, self._row(db, ws, suggestion_id))
+
+    def sync_prs(self, ws: str | None = None, force: bool = False) -> dict[str, int]:
+        """Check every open pull request (of one workspace, or all): {merged, closed, open, failed}."""
+        with self._db() as db:
+            q = select(Suggestion).where(Suggestion.status == "pr_open", Suggestion.pr_url.is_not(None))
+            rows = list(db.exec(q.where(Suggestion.workspace_id == ws) if ws else q))
+        out = {"merged": 0, "closed": 0, "open": 0, "failed": 0}
+        for s in rows:
+            out[self._sync_pr(s, force) or "failed"] += 1
+        return out
+
+    def _sync_pr(self, s: Suggestion, force: bool = False) -> str | None:
+        """The pull request's state, applied to the suggestion; None when GitHub couldn't say (logged)."""
+        now = _now()
+        checked = _utc(s.pr_checked_at)
+        if not force and checked is not None and now - checked < PR_CHECK_EVERY:
+            return "open"  # checked a moment ago
+        try:
+            state = github.pr_status(self.store, s.workspace_id, s.pr_url or "")
+        except github.GitHubError as e:
+            log.warning("checking %s for suggestion %s failed: %s", s.pr_url, s.id, e)
+            self._save(s, pr_checked_at=now)
+            return None
+        if state == "merged":
+            self._save(s, status="merged", pr_checked_at=now)
+        elif state == "closed":
+            self._save(s, status="dismissed", note="PR closed", pr_checked_at=now)
+        else:
+            self._save(s, pr_checked_at=now)
+        return state
 
     def list(self, ws: str, status: str | None = None) -> list[dict[str, Any]]:
         """Newest first."""
@@ -141,7 +179,12 @@ class Suggestions:
             return self._save(s, status="failed", error=f"The procedure '{s.procedure_id}' isn't in the workspace any more.")
         path = proc["file"]
         sop = next((x for x in self.store.sopc.export(files)["sops"] if x["id"] == s.procedure_id), {})
-        rule = next((r for r in sop.get("rules") or [] if r["id"] == s.rule_id), None)
+        rules = sop.get("rules") or []
+        rule = next((r for r in rules if r["id"] == s.rule_id), None)
+        if rule is None:  # edited since (its id changes with its text): the rule at the same position
+            with self._db() as db:
+                pos = rule_position(db, ws, s.procedure_id, s.rule_id)
+            rule = next((r for r in rules if pos and (r["kind"], r["index"]) == pos), None)
         if rule is None:
             return self._save(s, status="failed", error="The rule isn't in the procedure any more.")
         p, examples = self.store.verdicts.examples(ws, s.pattern_id)
@@ -189,10 +232,7 @@ class Suggestions:
             current = None
         if current != s.old_text:
             raise Conflict("the procedure changed since this suggestion was made; make a new one")
-        try:
-            repo = github.repo_connection(self.store, ws)
-        except NotImplementedError:  # no GitHub support in this build
-            repo = None
+        repo = github.repo_connection(self.store, ws)
         name = p.name if p else s.pattern_id
         if repo is not None:
             agents = [a["agent"] for a in (s.plan or {}).get("agents", [])]
@@ -205,9 +245,15 @@ class Suggestions:
     def dismiss(self, ws: str, suggestion_id: str, note: str | None = None, reviewer: str | None = None) -> dict[str, Any]:
         with self._db() as db:
             s = self._row(db, ws, suggestion_id)
-        if s.status in ("applied", "pr_open"):
+        if s.status in ("applied", "pr_open", "merged"):
             raise Conflict(f"this suggestion is already {s.status}")
         return self._save(s, status="dismissed", note=note or None, reviewer=reviewer or s.reviewer)
+
+
+def _utc(at: datetime | None) -> datetime | None:
+    if at is None:
+        return None
+    return at.astimezone(timezone.utc) if at.tzinfo else at.replace(tzinfo=timezone.utc)
 
 
 def _eol(text: str) -> str:

@@ -218,7 +218,7 @@ def test_connect_explains_what_is_wrong(client, gh):
     gh.fail[("GET", REPO)] = httpx.Response(403, json={"message": "Resource not accessible by personal access token"})
     res = connect(client)
     assert res.status_code == 400 and "Contents and Pull requests: read and write" in res.json()["detail"]
-    assert client.get(f"{WS}/repo").status_code == 404  # nothing saved
+    assert client.get(f"{WS}/repo").json() is None  # nothing saved
 
 
 def test_rate_limits_and_outages(client, gh):
@@ -238,7 +238,7 @@ def test_reconnect_keeps_the_token_and_disconnect_forgets_it(client, gh, files):
     res = client.post(f"{WS}/repo", json={"owner": "acme", "repo": "agents", "path": "/lib/"})
     assert res.status_code == 200 and res.json()["path"] == "lib" and res.json()["token_hint"] == "…cdef"
     assert client.delete(f"{WS}/repo").status_code == 204
-    assert client.get(f"{WS}/repo").status_code == 404
+    assert client.get(f"{WS}/repo").json() is None  # 200 with null: not connected
     assert client.delete(f"{WS}/repo").status_code == 404
     assert client.post(f"{WS}/repo/pull").status_code == 404
 

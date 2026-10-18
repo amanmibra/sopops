@@ -111,7 +111,7 @@ A workspace's repository: the sopc project at `path` on `base_branch`. Auth is a
 | Endpoint | What it does |
 |---|---|
 | `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sop"}`: check that the token reads the repository and that `path` on `base_branch` has a `sopc.yaml`, then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
-| `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `404` if none. |
+| `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `null` if none is connected. |
 | `DELETE …/repo` | Forget the repository and its token; the files stay. |
 | `POST …/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). `{sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op; `422` (sopc's issues) if it doesn't compile. |
 
@@ -282,7 +282,7 @@ A finding's `pattern_id` is its most specific pattern. The pipeline assigns find
 
 | Endpoint | What it does |
 |---|---|
-| `GET …/patterns` | `{items}`: rule patterns with their `sub_patterns`, counted in the window (default 365 days; same window filters as Insights). Filters: `procedure`, `rule`. |
+| `GET …/patterns` | `{items, clustered_at}`: rule patterns with their `sub_patterns`, counted in the window (default 365 days; same window filters as Insights), each with its `verdict`, `review_state` and `review_note` ([Review](#review-and-suggestions)) and `clustered_at`. `clustered_at` at the top: the workspace's last clustering. Filters: `procedure`, `rule`. |
 | `GET …/patterns/<id>` | One pattern: the rule it's about, its failure modes (for a rule pattern), example phrasings and its sessions in the window. |
 | `POST …/patterns/recluster` | `{procedure?, rule?, force?}`: assign unassigned findings, recluster what's due (every rule with 8+ findings with `force`), regroup themes. Calls the models, synchronously. `{assigned, reclustered, themed}`. |
 
@@ -303,16 +303,30 @@ Verdicts are appended, never edited: the latest is the pattern's verdict, the re
 
 **Suppressed** findings are kept, flagged (`suppressed` on a session's rule results) and left out of every Insights count and rate. A procedure check's `result` is rolled up again with its suppressed rules read as passed (`checked_result` keeps the checker's own), and the session's result is the worst of its checks, so a session whose only deviation is suppressed counts as followed. Insights shows the suppressed counts on their own (`suppressed` on tiles, scoreboard rows, ladder rows and patterns).
 
-**Calibration labels** come from the same calls, per workspace and only from the database: `Verdicts.calibration_examples(workspace, procedure)` gives the labeled sessions (every session with a reviewed finding on the procedure) that `sopops.ai.programs.calibrate` takes for `check:<procedure>`.
+**Calibration labels** come from the same calls, per workspace and only from the database: every session with a reviewed finding on a procedure is a labeled session for its `check:<procedure>` thresholds, a finding judged wrong a negative label. `POST …/calibrate` (or `sopops calibrate --workspace WS [--procedure P] [--dry-run]`) fits them (`sopops.ai.programs.calibrate`) and returns, per procedure, the labels used and each question's threshold before and after. A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failures, is refused with the reason. It runs as a job (`sopops_calibrate` on Hatchet, the API waiting for it; else in the API process).
 
-A **suggestion** is an edit to the pattern's procedure, made by the reasoning model (`SuggestEdit`) from the procedure's file at head, the rule, the pattern, the verdict and note, and up to 5 of its findings. It must compile with the rest of head; one that doesn't is sent back once with sopc's issues, then `failed`. `plan.agents` lists every agent whose prompt changes, with a diff. It's generated as a job (inline after the response, or the Hatchet `sopops_suggest` workflow). Status: `generating`, then `proposed` or `failed`; a proposal becomes `applied`, `pr_open` or `dismissed`. **Apply** opens a pull request when the workspace has a GitHub repo connection (`pr_open`, `pr_url`), else saves the file as a draft (`applied`), which shows in Unpublished changes and goes out with the next publish; either way only while the file is unchanged since (else `409`).
+**Review state.** Each pattern has a `review_state`, with a `review_note` saying why:
+
+| State | When |
+|---|---|
+| `needs_review` | No verdict; a verdict carried over by a recluster and not confirmed; or a verdict older than a recluster that changed the pattern's findings materially (it kept less than half of them). |
+| `open` | `real` or `sop_wrong`, with no suggestion applied for this verdict. |
+| `fixing` | A suggestion for it was applied: a draft, or a pull request (open or merged). Waiting for the release with the edit (the first release whose file is the suggested text; for a repo, the pull of the merge commit, then a publish) to be live, then for 10 sessions checked on the procedure on that release or later. `fix_release` is that release. |
+| `fixed` | 10 such sessions, none with a finding in the pattern. |
+| `regressed` | A finding in the pattern on a session that ran the fix's release or a later one (`review_note`: "Came back after release N"). A suggested edit changes the rule's sopc id, so findings on the rule at the same position count too. |
+| `closed` | `acceptable` or `checker_wrong`. |
+
+The review queue lists `needs_review` and `regressed`; `state=open` lists verdicts waiting for a fix, and so on. A new verdict starts over.
+
+A **suggestion** is an edit to the pattern's procedure, made by the reasoning model (`SuggestEdit`) from the procedure's file at head, the rule, the pattern, the verdict and note, and up to 5 of its findings. It must compile with the rest of head; one that doesn't is sent back once with sopc's issues, then `failed`. `plan.agents` lists every agent whose prompt changes, with a diff. It's generated as a job (inline after the response, or the Hatchet `sopops_suggest` workflow). Status: `generating`, then `proposed` or `failed`; a proposal becomes `applied`, `pr_open` or `dismissed`. A pull request is followed on GitHub: every 15 minutes (`sopops_pr_status` on Hatchet, `SOPOPS_PR_STATUS_CRON`; without Hatchet, `sopops pr-status` from cron) and when the suggestion is read (at most once a minute). Merged makes it `merged`; closed without merging, `dismissed` with the note "PR closed". **Apply** opens a pull request when the workspace has a GitHub repo connection (`pr_open`, `pr_url`), else saves the file as a draft (`applied`), which shows in Unpublished changes and goes out with the next publish; either way only while the file is unchanged since (else `409`).
 
 | Endpoint | What it does |
 |---|---|
-| `GET …/review` | `{items, total}`: patterns that need a verdict (no verdict, or findings that aren't suppressed since it), most sessions first. Each active leaf pattern (a rule pattern that isn't split, else its failure modes and `other`), with its theme, procedure name, rule text, 5 example findings (`finding_id`, `session_id`, `started_at`, `excerpt`, `evidence`), its `verdict` (or null), `new_findings`, `suppressed_count` and its latest `suggestion` (or null). `limit` (default 50). |
+| `GET …/review` | `{items, total, counts, clustered_at}`: active leaf patterns (a rule pattern that isn't split, else its failure modes and `other`) in the review states asked for (`state`, repeatable; default `needs_review` and `regressed`), most sessions first; `counts` per state. Each with its theme, procedure name, rule text, 5 example findings (`finding_id`, `session_id`, `started_at`, `excerpt`, `evidence`), its `verdict` (or null), `review_state`, `review_note`, `fix_release`, `new_findings`, `suppressed_count` and its latest `suggestion` (or null). `limit` (default 50). |
+| `POST …/calibrate` | `{procedure?, dry_run?}`: fit the check thresholds to the labels (above). `{workspace, dry_run, procedures: [{procedure_id, labels, negative_labels, saved, skipped, score_before, score, rules: [{rule_id, field, before, after, skipped}]}]}`. |
 | `POST …/patterns/<id>/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
 | `POST …/findings/<id>/override` | `{correct, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. |
-| `GET …/patterns/<id>` | Also has `verdict`, `verdict_history`, `suppressed_count` (all time) and `suggestions`. |
+| `GET …/patterns/<id>` | Also has `verdict`, `verdict_history`, `review_state`, `review_note`, `fix_release`, `suppressed_count` (all time) and `suggestions`. |
 | `GET …/patterns/<id>/regression` | JSON Lines, one per finding in the pattern: `session_id`, `external_id`, `transcript_ref` (the session's URL), `procedure_id`, `rule_id`, `rule_kind`, `rule_text`, `verdict`, `observed_status`, `expected_status`, `expect`. `expect: agent` (a real mistake): replay the conversation against the fixed prompt, and the rule should now pass. `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check the same transcript, and the rule should come out `expected_status` (`done`, `ok`, or `present` for a warning sign). `409` without a verdict. |
 | `POST …/patterns/<id>/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
 | `GET …/suggestions?status=` | Newest first. |

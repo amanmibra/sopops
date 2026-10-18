@@ -2,6 +2,8 @@
 sopops import FILE.jsonl --workspace WS [--database-url URL]
 sopops worker
 sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force] [--database-url URL]
+sopops calibrate --workspace WS [--procedure P] [--dry-run] [--database-url URL]
+sopops pr-status [--workspace WS] [--database-url URL]
 
 Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
@@ -26,13 +28,13 @@ from .schemas import SessionIn
 from .sopc import Sopc
 from .store import Store
 
-COMMANDS = ("serve", "import", "worker", "recluster")
+COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status")
 
 
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     command = argv.pop(0) if argv and argv[0] in COMMANDS else "serve"
-    {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster}[command](argv)
+    {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster, "calibrate": calibrate, "pr-status": pr_status}[command](argv)
 
 
 def serve(argv: list[str]) -> None:
@@ -126,6 +128,42 @@ def recluster(argv: list[str]) -> None:
         out.reclustered += more.reclustered
         out.themed += more.themed
     print(f"{out.assigned} findings assigned, {len(out.reclustered)} rules reclustered, {len(set(out.themed))} procedures regrouped into themes")
+
+
+def calibrate(argv: list[str]) -> None:
+    """Fit a workspace's check thresholds to its review labels (see `sopops.calibrate`)."""
+    parser = argparse.ArgumentParser(prog="sopops calibrate", description="Fit check thresholds to the workspace's verdicts and overrides. Calls the decision model once per labeled session.")
+    parser.add_argument("--workspace", "-w", required=True)
+    parser.add_argument("--procedure", help="Only this procedure (default: every procedure with labeled sessions).")
+    parser.add_argument("--dry-run", action="store_true", help="Print what would change without saving.")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    if not SAFE_ID.match(args.workspace):
+        parser.error(f"invalid workspace id '{args.workspace}'")
+    out = Store(args.database_url, Sopc()).calibrate.run(args.workspace, args.procedure, args.dry_run)
+    if not out["procedures"]:
+        print("no labeled sessions: give patterns verdicts or override findings first")
+    for p in out["procedures"]:
+        head = f"{p['procedure_id']}: {p['labels']} labeled sessions ({p['negative_labels']} findings judged wrong)"
+        if p["skipped"]:
+            print(f"{head}; refused: {p['skipped']}")
+            continue
+        print(f"{head}; objective {p['score_before']} -> {p['score']}{' (dry run, not saved)' if args.dry_run else ''}")
+        for r in p["rules"]:
+            if r["after"] != r["before"]:
+                print(f"  {r['field']} ({r['rule_id'] or 'goal'}): {r['before']} -> {r['after']}")
+        if all(r["after"] == r["before"] for r in p["rules"]):
+            print("  no threshold changed")
+
+
+def pr_status(argv: list[str]) -> None:
+    """Check suggestions' open pull requests on GitHub (what the Hatchet cron runs; without Hatchet, run it from cron)."""
+    parser = argparse.ArgumentParser(prog="sopops pr-status", description="Check suggestions' open pull requests: merged ones become merged, closed ones dismissed.")
+    parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    out = Store(args.database_url, Sopc()).suggestions.sync_prs(args.workspace, force=True)
+    print(", ".join(f"{v} {k}" for k, v in out.items()))
 
 
 def _short(e: Exception) -> str:

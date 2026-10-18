@@ -10,7 +10,7 @@ from pydantic import Field
 from .base import BaseModel
 from .verdicts import VerdictOut
 
-SuggestionStatus = Literal["generating", "proposed", "applied", "dismissed", "pr_open", "failed"]
+SuggestionStatus = Literal["generating", "proposed", "applied", "dismissed", "pr_open", "merged", "failed"]
 
 
 class SuggestionSummary(BaseModel):
@@ -21,7 +21,7 @@ class SuggestionSummary(BaseModel):
     rule_id: str
     block_id: str = Field(description="The block the edit is to: the procedure.")
     status: SuggestionStatus = Field(description="`generating` until the model and sopc are done; then `proposed` or `failed`. "
-                                     "A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`.")
+                                     "A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.")
     rationale: str | None
     error: str | None = Field(description="Why it failed: sopc's issues with the last proposal, or the model's error.")
     pr_url: str | None

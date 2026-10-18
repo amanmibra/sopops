@@ -10,7 +10,7 @@ from pydantic import Field
 from .base import BaseModel
 from .checks import RuleKind
 from .suggestions import SuggestionSummary
-from .verdicts import VerdictOut
+from .verdicts import REVIEW_STATE_HELP, ReviewState, VerdictOut
 
 PatternKind = Literal["rule", "sub", "other"]
 
@@ -54,6 +54,10 @@ class PatternOut(BaseModel):
     examples: list[ExampleOut] = Field(default_factory=list)
     session_ids: list[str] = Field(default_factory=list, description="In the report: the most recent sessions (up to 12).")
     need_attention_pct: int | None = Field(None, description="In the report: sessions in it that need attention / all that do.")
+    clustered_at: datetime | None = Field(None, description="Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.")
+    verdict: VerdictOut | None = Field(None, description="Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page.")
+    review_state: ReviewState | None = Field(None, description=f"On the patterns list and a pattern's page. {REVIEW_STATE_HELP}")
+    review_note: str | None = None
 
 
 class RuleRef(BaseModel):
@@ -69,15 +73,16 @@ class RulePatternOut(PatternOut):
 
 class PatternsResponse(BaseModel):
     items: list[RulePatternOut]
+    clustered_at: datetime | None = Field(None, description="The workspace's last clustering of any rule.")
 
 
 class PatternDetail(PatternOut):
     rule: RuleRef
     sub_patterns: list[PatternOut]
-    verdict: VerdictOut | None = Field(None, description="Its current verdict (its rule pattern's, when it has none of its own).")
     verdict_history: list[VerdictOut] = Field(default_factory=list, description="Its own verdicts, newest first.")
     suppressed_count: int = Field(0, description="Suppressed findings, all time.")
     suggestions: list[SuggestionSummary] = Field(default_factory=list, description="Newest first.")
+    fix_release: int | None = Field(None, description="The release with the applied edit, once there is one.")
 
 
 class ReclusterRequest(BaseModel):

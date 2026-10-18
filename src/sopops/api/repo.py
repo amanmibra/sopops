@@ -6,6 +6,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Response
 
 from .. import github
+from ..errors import NotFound
 from ..schemas.repo import PullOut, RepoIn, RepoOut
 from ..store import Store
 from .deps import INVALID, OPEN
@@ -22,10 +23,13 @@ def router(store: Store) -> APIRouter:
     r = APIRouter()
     path = "/v1/workspaces/{workspace}/repo"
 
-    @r.get(path, response_model=RepoOut, dependencies=OPEN, tags=["repo"], responses={404: {"description": "No repository connected."}})
-    def get_repo(workspace: str) -> dict:
-        """The workspace's GitHub repository. Never the token."""
-        return github.get(store, workspace)
+    @r.get(path, response_model=RepoOut | None, dependencies=OPEN, tags=["repo"])
+    def get_repo(workspace: str) -> dict | None:
+        """The workspace's GitHub repository, or null when none is connected. Never the token."""
+        try:
+            return github.get(store, workspace)
+        except NotFound:
+            return None
 
     @r.post(path, response_model=RepoOut, dependencies=OPEN, tags=["repo"], responses=GITHUB)
     def connect_repo(workspace: str, req: RepoIn) -> dict:

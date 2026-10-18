@@ -17,6 +17,19 @@ An **override** says the checker was right or wrong about one finding (`finding_
 procedure and rule, so it outlives a re-check. A wrong finding is suppressed and a negative label, like
 `checker_wrong`; a right one overrides a `checker_wrong` pattern for that finding. `acceptable` suppresses either way.
 
+A pattern's **review state** (`state`) follows its verdict and the fix:
+- `needs_review`: no verdict; a verdict carried over by a recluster, not confirmed; or a verdict older than a
+  recluster that changed the pattern's members materially (`Pattern.clustered_at`).
+- `closed`: acceptable or checker_wrong. Its findings are suppressed; nothing to fix.
+- `open`: real or sop_wrong, with no suggestion applied for this verdict.
+- `fixing`: a suggestion for it was applied (a draft, or a pull request, open or merged), and the release with the
+  edit (the first whose file is the suggested text: for a repo, the pull of the merge commit, then a publish) isn't
+  live yet, or is live with fewer than `FIXED_MIN_N` sessions since. A pull request closed without merging dismisses
+  the suggestion, so the pattern is `open` again.
+- `fixed`: the release is live and `FIXED_MIN_N` sessions checked on the procedure ran it or a later one, with no
+  finding in the pattern; `regressed`: a finding in the pattern came back on such a session.
+The review queue lists `needs_review` and `regressed` by default.
+
 **Suppressed** findings are kept and flagged; Insights leaves them out of every count and rate. Each procedure
 check's `result` is rolled up again with its suppressed rules read as passed (`checked_result` keeps the checker's
 own), and the session's result is the worst of its checks, so a session whose only deviation is suppressed counts
@@ -40,11 +53,14 @@ from .orm import (
     FindingOverride,
     Pattern,
     ProcedureCheck,
+    FileVersion,
+    Release,
     RuleResult,
     SessionRecord,
     Suggestion,
     Theme,
     Verdict,
+    Workspace,
 )
 from .pipeline.rollup import Judged, rollup, worst
 
@@ -57,6 +73,9 @@ SUGGESTIBLE = frozenset({"real", "acceptable", "sop_wrong"})
 PASS_STATUS = {"step": "done", "never": "ok", "warning": "present"}  # a suppressed rule result reads as this
 LENIENT_MARK = "(Lenient:"  # in the reason of a skipped step the leniency rule kept from deviating (see checks.save)
 EXAMPLES = 5
+REVIEW_STATES = ("needs_review", "open", "fixing", "fixed", "regressed", "closed")
+QUEUE_STATES = ("needs_review", "regressed")  # what the review queue lists by default
+FIXED_MIN_N = 10  # sessions checked on the procedure on the fix's release or later, with none in the pattern, before it's fixed
 
 
 def _now() -> datetime:
@@ -120,6 +139,15 @@ def carry_over(db: Session, ws: str, pairs: list[tuple[str, str]], now: datetime
             continue
         own[new] = Verdict(id=str(uuid.uuid4()), workspace_id=ws, pattern_id=new, verdict=v.verdict, note=v.note, reviewer=v.reviewer, carried_from=old, created_at=now)
         db.add(own[new])
+
+
+def rule_position(db: Session, ws: str, procedure_id: str, rule_id: str) -> tuple[str, int] | None:
+    """A rule's (kind, index), from its latest result. sopc's rule id changes when the rule's text does, so a rule
+    edited by a suggestion is found again at its position (a suggestion keeps rules where they are)."""
+    R, S = RuleResult, SessionRecord
+    row = db.exec(select(R.kind, R.index).join(S, S.id == R.session_id).where(R.workspace_id == ws, R.procedure_id == procedure_id, R.rule_id == rule_id)
+                  .order_by(S.started_at.desc()).limit(1)).first()
+    return (row[0], row[1]) if row else None
 
 
 def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str]) -> str | None:
@@ -273,33 +301,106 @@ class Verdicts:
             v = effective(db, ws, [p]).get(p.id)
             history = list(db.exec(select(Verdict).where(Verdict.workspace_id == ws, Verdict.pattern_id == p.id).order_by(Verdict.created_at.desc())))
             sugg = list(db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc())))
+            state = self.state(db, ws, p, v)
         return {"verdict": verdict_out(*v) if v else None, "verdict_history": [verdict_out(x) for x in history],
-                "suppressed_count": self.suppressed_count(ws, p), "suggestions": [suggestion_summary(s, p.name) for s in sugg]}
+                "suppressed_count": self.suppressed_count(ws, p), "suggestions": [suggestion_summary(s, p.name) for s in sugg], **state}
 
-    def queue(self, ws: str, limit: int = 50) -> dict[str, Any]:
-        """Patterns that need a verdict: every active leaf (a rule pattern that isn't split, else its sub-patterns and
-        `other`) with findings, that has no verdict or has findings that aren't suppressed since its verdict. Most
-        sessions first."""
+    def annotate(self, ws: str, items: list[dict[str, Any]]) -> None:
+        """Add `verdict`, `review_state` and `review_note` to pattern dicts (the patterns list)."""
+        with self._db() as db:
+            pats = list(db.exec(select(Pattern).where(Pattern.id.in_([x["pattern_id"] for x in items])))) if items else []
+            verdicts = effective(db, ws, pats)
+            by_id = {p.id: p for p in pats}
+            for x in items:
+                p = by_id.get(x["pattern_id"])
+                if p is None:
+                    continue
+                v = verdicts.get(p.id)
+                state = self.state(db, ws, p, v)
+                x.update(verdict=verdict_out(*v) if v else None, review_state=state["review_state"], review_note=state["review_note"])
+
+    def clustered_at(self, ws: str) -> datetime | None:
+        """The workspace's last clustering of any rule."""
+        with self._db() as db:
+            return _utc(db.exec(select(func.max(Pattern.clustered_at)).where(Pattern.workspace_id == ws, Pattern.kind == "rule")).one())
+
+    def state(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None) -> dict[str, Any]:
+        """{review_state, review_note, fix_release} (see the module docstring)."""
+        def out(state: str, note: str | None = None, release: int | None = None) -> dict[str, Any]:
+            return {"review_state": state, "review_note": note, "fix_release": release}
+
+        if v is None:
+            return out("needs_review", "No verdict yet.")
+        verdict = v[0]
+        if verdict.carried_from:
+            return out("needs_review", "Carried over from a failure mode a recluster retired; confirm it.")
+        if p.kind != "rule" and p.clustered_at is not None and _utc(verdict.created_at) < _utc(p.clustered_at):
+            return out("needs_review", "A recluster changed its findings since the verdict.")
+        if verdict.verdict in SUPPRESSING:
+            return out("closed")
+        fix = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id.in_([x for x in (p.id, p.parent_id) if x]),
+                                               Suggestion.verdict_id == verdict.id, Suggestion.status.in_(("applied", "pr_open", "merged")))
+                      .order_by(Suggestion.updated_at.desc())).first()
+        if fix is None:
+            return out("open")
+        release = self._release_with(db, ws, fix)
+        live = db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
+        if release is None:
+            wait = {"applied": "Waiting for a release with the edit.", "pr_open": "Waiting for the pull request to be merged.",
+                    "merged": "Merged; waiting for a release with the change (pull the repo, then publish)."}
+            return out("fixing", wait[fix.status])
+        if live is None or live < release:
+            return out("fixing", f"Release {release} has the edit; it isn't live yet.", release)
+        S, F, R, PC = SessionRecord, Finding, RuleResult, ProcedureCheck
+        members = self._members(p)
+        pos = rule_position(db, ws, p.procedure_id, p.rule_id)
+        if pos is not None:  # the edit changed the rule's id: its findings on the edited rule count too
+            members = or_(members, and_(F.procedure_id == p.procedure_id, F.rule_id != p.rule_id, R.kind == pos[0], R.index == pos[1]))
+        back = db.exec(select(func.count(F.id)).join(S, S.id == F.session_id).join(R, R.id == F.rule_result_id)
+                       .where(F.workspace_id == ws, members, F.suppressed.is_(False), S.release_id >= release)).one()
+        if back:
+            return out("regressed", f"Came back after release {release}: {back} finding{'s' if back != 1 else ''} on sessions that ran it or later.", release)
+        n = db.exec(select(func.count(func.distinct(PC.session_id))).join(S, S.id == PC.session_id)
+                    .where(PC.workspace_id == ws, PC.procedure_id == p.procedure_id, PC.result.is_not(None), S.release_id >= release)).one()
+        if n >= FIXED_MIN_N:
+            return out("fixed", f"No findings in {n} sessions on release {release} or later.", release)
+        return out("fixing", f"Release {release} is live: {n} of {FIXED_MIN_N} sessions so far.", release)
+
+    def _release_with(self, db: Session, ws: str, s: Suggestion) -> int | None:
+        """The first release since the suggestion whose file is its suggested text."""
+        if not s.path or s.new_text is None:
+            return None
+        for rel in db.exec(select(Release).where(Release.workspace == ws, Release.created_at >= s.created_at).order_by(Release.number)):
+            version = rel.files.get(s.path)
+            if version is None:
+                continue
+            content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == s.path, FileVersion.version == version)).first()
+            if content == s.new_text:
+                return rel.number
+        return None
+
+    def queue(self, ws: str, limit: int = 50, states: Iterable[str] | None = None) -> dict[str, Any]:
+        """Every active leaf pattern (a rule pattern that isn't split, else its sub-patterns and `other`) with findings,
+        in the review states asked for (default `QUEUE_STATES`), most sessions first; `counts` has every state."""
+        want = set(states or QUEUE_STATES)
         with self._db() as db:
             pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.status == "active")))
             split = {p.parent_id for p in pats if p.kind == "sub"}
             leaves = [p for p in pats if p.finding_count and ((p.kind == "rule" and p.id not in split) or (p.kind != "rule" and p.parent_id in split))]
             verdicts = effective(db, ws, leaves)
+            counts = dict.fromkeys(REVIEW_STATES, 0)
             items = []
             for p in leaves:
                 v = verdicts.get(p.id)
-                new = p.finding_count
-                if v is not None:
-                    new = db.exec(select(func.count(Finding.id)).where(self._members(p), Finding.suppressed.is_(False), Finding.created_at > v[0].created_at)).one()
-                    if not new:
-                        continue
-                items.append((p, v, new))
+                state = self.state(db, ws, p, v)
+                counts[state["review_state"]] += 1
+                if state["review_state"] in want:
+                    items.append((p, v, state))
             items.sort(key=lambda x: (-x[0].session_count, -x[0].finding_count, x[0].name, x[0].id))
-            total = len(items)
-            out = [self._item(db, ws, p, v, new) for p, v, new in items[:limit]]
-        return {"items": out, "total": total}
+            out = [self._item(db, ws, p, v, state) for p, v, state in items[:limit]]
+        return {"items": out, "total": len(items), "counts": counts, "clustered_at": self.clustered_at(ws)}
 
-    def _item(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None, new: int) -> dict[str, Any]:
+    def _item(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None, state: dict[str, Any]) -> dict[str, Any]:
         S, R, F = SessionRecord, RuleResult, Finding
         rows = db.exec(
             select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
@@ -311,13 +412,14 @@ class Verdicts:
         name = db.exec(select(ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws, ProcedureCheck.procedure_id == p.procedure_id).limit(1)).first()
         sugg = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc()).limit(1)).first()
         suppressed = db.exec(select(func.count(F.id)).where(self._members(p), F.suppressed.is_(True))).one()
+        new = db.exec(select(func.count(F.id)).where(self._members(p), F.suppressed.is_(False), *([F.created_at > v[0].created_at] if v else []))).one()
         return {
             "pattern_id": p.id, "procedure_id": p.procedure_id, "rule_id": p.rule_id, "parent_id": p.parent_id, "kind": p.kind, "name": p.name,
             "description": p.description, "theme_id": p.theme_id, "theme_name": theme.name if theme else None, "status": p.status,
             "findings": p.finding_count, "sessions": p.session_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen),
-            "procedure_name": name or p.procedure_id, "rule": {"kind": text[0], "index": text[1], "text": text[2]} if text else {"kind": None, "index": None, "text": None},
+            "clustered_at": _utc(p.clustered_at), "procedure_name": name or p.procedure_id, "rule": {"kind": text[0], "index": text[1], "text": text[2]} if text else {"kind": None, "index": None, "text": None},
             "rule_text": text[2] if text else None, "examples": [_example(f, r, at) for f, r, at in rows], "verdict": verdict_out(*v) if v else None,
-            "new_findings": new, "suppressed_count": suppressed, "suggestion": suggestion_summary(sugg, p.name) if sugg else None,
+            "new_findings": new, "suppressed_count": suppressed, "suggestion": suggestion_summary(sugg, p.name) if sugg else None, **state,
         }
 
     def examples(self, ws: str, pattern_id: str, k: int = EXAMPLES) -> tuple[Pattern, list[dict[str, Any]]]:
@@ -369,7 +471,7 @@ class Verdicts:
         """Labeled sessions for `sopops.ai.programs.calibrate` on `check:<procedure_id>`, from this workspace's
         verdicts and overrides only: every session with a reviewed finding on the procedure. A finding judged wrong
         (`checker_wrong`, or overridden as wrong) is a negative label: its rule isn't `failing`, and `deviated` is the
-        result without it; every other finding of the session stays a failure."""
+        result without it; every other finding of the session stays a failure. `wrong` holds the rules judged wrong."""
         with self._db() as db:
             findings = list(db.exec(select(Finding).where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id)))
             labels = self._labels(db, ws, findings)
@@ -392,7 +494,8 @@ class Verdicts:
             wrong = {f.rule_result_id for f in by_session[sid] if self.wrong(*labels[f.id])}
             failing = {f.rule_id for f in by_session[sid] if f.rule_result_id not in wrong}
             result = reviewed_result(pc, rules[sid], wrong)
-            out.append(dspy.Example(turns=sessions[sid].turns, deviated=result == "deviated", failing=failing, session_id=sid).with_inputs("turns"))
+            wrong_rules = {f.rule_id for f in by_session[sid] if f.rule_result_id in wrong}
+            out.append(dspy.Example(turns=sessions[sid].turns, deviated=result == "deviated", failing=failing, wrong=wrong_rules, session_id=sid).with_inputs("turns"))
         return out
 
 

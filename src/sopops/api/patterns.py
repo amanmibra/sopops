@@ -29,8 +29,11 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.get("/v1/workspaces/{workspace}/patterns", response_model=PatternsResponse, dependencies=OPEN, tags=["patterns"])
     def list_patterns(workspace: str, procedure: str | None = None, rule: str | None = None, f: Filters = Depends(pattern_filters)) -> dict:
-        """Rule patterns (every finding on a rule) with their named failure modes, counted in the window."""
-        return store.insights.patterns(f, procedure, rule)
+        """Rule patterns (every finding on a rule) with their named failure modes, counted in the window, each with
+        its verdict and review state; `clustered_at`: the workspace's last clustering."""
+        out = store.insights.patterns(f, procedure, rule)
+        store.verdicts.annotate(f.workspace, [x for p in out["items"] for x in (p, *p["sub_patterns"])])
+        return {**out, "clustered_at": store.verdicts.clustered_at(f.workspace)}
 
     @r.get("/v1/workspaces/{workspace}/patterns/{pattern_id}", response_model=PatternDetail, dependencies=OPEN, tags=["patterns"])
     def get_pattern(workspace: str, pattern_id: str, f: Filters = Depends(pattern_filters)) -> dict:

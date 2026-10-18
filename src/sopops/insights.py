@@ -964,7 +964,7 @@ def _rate_out(st: dict[str, Any]) -> dict[str, Any]:
 def _pattern_out(p: Pattern, findings: int, sessions: int) -> dict[str, Any]:
     return {"pattern_id": p.id, "procedure_id": p.procedure_id, "rule_id": p.rule_id, "parent_id": p.parent_id, "kind": p.kind, "name": p.name,
             "description": p.description, "theme_id": p.theme_id, "status": p.status, "findings": findings, "sessions": sessions,
-            "total_findings": p.finding_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen)}
+            "total_findings": p.finding_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen), "clustered_at": _utc(p.clustered_at)}
 
 
 def _examples(rows: list, k: int) -> list[dict[str, Any]]:

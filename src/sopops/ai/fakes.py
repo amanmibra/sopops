@@ -78,6 +78,12 @@ class FakeModels:
     def decision_native(self) -> bool:
         return getattr(self.decider, "supports_decision_requests", False) is True
 
+    def client(self, role: str) -> Any:
+        """The decision client (what `Models.client("decide")` gives), for programs that run decisions themselves."""
+        if role != DECIDE or self.decider is None:
+            raise NotConfigured(f"no client for role '{role}'")
+        return self.decider
+
     def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction:
         p = as_predict(predictor)
         if not self.model(role):

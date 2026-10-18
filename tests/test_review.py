@@ -1,7 +1,8 @@
 """Review with a fake model: verdicts and their history, suppressed findings left out of Insights (a session whose only
-deviation is suppressed counts as followed), overrides, calibration labels, verdicts carried over by a recluster, the
-review queue, suggestions (a retry on a proposal that doesn't compile, apply as a draft, dismiss) and the regression
-export."""
+deviation is suppressed counts as followed), overrides, calibration labels and calibrating from them, verdicts carried
+over by a recluster, review states (needs review, open, fixing, fixed, regressed, closed) and the queue, re-checks that
+keep findings, suggestions (a retry on a proposal that doesn't compile, apply as a draft or a pull request followed on
+GitHub, dismiss) and the regression export."""
 
 import json
 import re
@@ -16,7 +17,10 @@ from sqlmodel import Session, select
 
 from sopops import Sopc, Store, create_app
 from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops.ai.signatures import CheckRules, ClusterFindings, SuggestEdit, field_name
+from sopops import github
+from sopops.ai import calibration
+from sopops.ai.signatures import CheckRules, ClusterFindings, SplitRule, SuggestEdit, field_name
+from sopops.cli import main as cli
 from sopops.jobs import Jobs
 from sopops.orm import Finding, Pattern, Verdict
 from sopops.verdicts import carry_over
@@ -30,7 +34,7 @@ SAFE = 'Never say an item is "allergen-free" or "safe"'
 
 class Model:
     """Every session goes to the allergen check. The user's first turn says `MODE:X`: the check breaks never rule 1
-    (and skips step 2 with `ALSO`), with `mode X` in the reason. `SuggestEdit` answers with `edits` in turn (the last
+    (and skips step 2 with `ALSO`), with `mode X` in the reason; `MODE:CLEAN` follows every rule. `SuggestEdit` answers with `edits` in turn (the last
     one again once they run out)."""
 
     def __init__(self):
@@ -42,6 +46,9 @@ class Model:
             self.suggest_inputs.append(inputs)
             text = self.edits.pop(0) if len(self.edits) > 1 else self.edits[0]
             return {"block_id": inputs["procedure_id"], "new_text": text, "rationale": "Adds the exception."}
+        if signature is SplitRule:
+            return {"checks": {"condition": None, "actions": [] if inputs["kind"] == "never" else ["The agent does it."],
+                               "forbidden": ["The agent does it."] if inputs["kind"] == "never" else []}}
         if signature is not CheckRules:
             return pattern_reply(role, signature, inputs)
         mode = re.search(r"MODE:(\w+)", inputs["transcript"]).group(1)
@@ -49,7 +56,7 @@ class Model:
         for key in inputs["rules_to_check"]:
             status = {"step": "done", "never": "ok", "warning": "absent"}[key.split("_")[0]]
             ev = []
-            if key == "never_1":
+            if key == "never_1" and mode != "CLEAN":
                 status, ev = "violated", [{"turn": 2, "quote": "totally safe"}]
             if key == "step_2" and "ALSO" in inputs["transcript"]:
                 status = "skipped"
@@ -77,15 +84,19 @@ def env(tmp_path, files, monkeypatch):
     token = client.post(f"{WS}/tokens").json()["token"]
     n = {"i": 0}
 
-    def send(mode, also=False):
+    def send(mode, also=False, release=None, again=None):
+        """A new session, or `again` (an external id) re-sent with different turns."""
         n["i"] += 1
         i = n["i"]
         body = {
-            "platform": "livekit", "external_id": f"s{i}", "agent": "tonys-pizza", "started_at": (T0 + timedelta(minutes=i)).isoformat(),
+            "platform": "livekit", "external_id": again or f"s{i}", "agent": "tonys-pizza", "started_at": (T0 + timedelta(minutes=i)).isoformat(),
             "turns": [{"role": "agent", "text": "Hi"}, {"role": "user", "text": f"MODE:{mode} {'ALSO' if also else ''} peanut allergy"}, {"role": "agent", "text": "It is totally safe."}],
+            **({"release": release} if release else {}),
         }
+        if again:
+            body["turns"].append({"role": "user", "text": "Thanks."})
         r = client.post(f"{WS}/sessions", json=body, headers={"Authorization": f"Bearer {token}"})
-        assert r.status_code == 201, r.text
+        assert r.status_code in (200, 201), r.text
         return r.json()["id"]
 
     return SimpleNamespace(store=store, model=model, fake=fake, client=client, send=send, files=files)
@@ -182,28 +193,148 @@ def test_overrides_and_calibration_labels(env):
         assert {f.session_id: f.suppressed for f in db.exec(select(Finding))} == {ids[0]: True, ids[1]: False, ids[2]: True}
 
 
-def test_review_queue(env):
+def queue(env, *states):
+    r = env.client.get(f"{WS}/review", params={"state": list(states)} if states else None)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def state_of(env, pattern_id):
+    p = env.client.get(f"{WS}/patterns/{pattern_id}").json()
+    return p["review_state"], p["review_note"]
+
+
+def test_review_queue_and_states(env):
     for _ in range(3):
         env.send("A", also=True)
     env.send("A")
-    q = env.client.get(f"{WS}/review").json()
+    q = queue(env)
     assert q["total"] == 2 and [i["sessions"] for i in q["items"]] == [4, 3]  # most sessions first
-    top = q["items"][0]
-    assert top["name"] == "Never rule 1 broken" and top["procedure_name"] == "Allergen check" and SAFE in top["rule_text"]
+    assert q["counts"] == {"needs_review": 2, "open": 0, "fixing": 0, "fixed": 0, "regressed": 0, "closed": 0}
+    top, step = q["items"]
+    assert top["name"] == "Never rule 1 broken" and top["procedure_name"] == "Allergen check" and SAFE in top["rule_text"] and top["review_state"] == "needs_review"
     assert top["verdict"] is None and top["suggestion"] is None and top["new_findings"] == 4 and top["theme_name"] == "Never problems"
     assert len(top["examples"]) == 4 and top["examples"][0]["excerpt"] == "totally safe" and top["examples"][0]["finding_id"]
 
+    # the patterns list carries each pattern's verdict and review state
+    pats = env.client.get(f"{WS}/patterns", params={"procedure": ALLERGEN}).json()
+    assert {p["review_state"] for p in pats["items"]} == {"needs_review"} and all(p["verdict"] is None for p in pats["items"])
+
+    # real: open (waiting for a fix), not in the default queue, even as new findings come in
     verdict(env, top["pattern_id"], "real")
-    q = env.client.get(f"{WS}/review").json()
-    assert [i["name"] for i in q["items"]] == ["Step 2 missed"]
-    env.send("A")  # a new finding since the verdict: back in the queue, with its verdict
-    q = env.client.get(f"{WS}/review").json()
-    back = next(i for i in q["items"] if i["pattern_id"] == top["pattern_id"])
-    assert back["verdict"]["verdict"] == "real" and back["new_findings"] == 1
-    # an acceptable pattern's new findings are suppressed: it stays out
-    verdict(env, top["pattern_id"], "acceptable")
     env.send("A")
-    assert top["pattern_id"] not in {i["pattern_id"] for i in env.client.get(f"{WS}/review").json()["items"]}
+    assert [i["name"] for i in queue(env)["items"]] == ["Step 2 missed"]
+    assert [i["pattern_id"] for i in queue(env, "open")["items"]] == [top["pattern_id"]]
+    listed = next(p for p in env.client.get(f"{WS}/patterns", params={"procedure": ALLERGEN}).json()["items"] if p["pattern_id"] == top["pattern_id"])
+    assert (listed["verdict"]["verdict"], listed["review_state"]) == ("real", "open")
+    # acceptable and checker_wrong: closed
+    verdict(env, step["pattern_id"], "acceptable")
+    assert queue(env)["items"] == [] and [i["review_state"] for i in queue(env, "closed")["items"]] == ["closed"]
+
+
+def test_a_fix_goes_from_fixing_to_fixed_or_regressed(env):
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    old = env.files[PATH]
+    env.model.edits = [old.replace(f"  - {SAFE}\n", f"  - {SAFE}; say what you checked instead\n")]
+    sid = env.client.post(f"{WS}/patterns/{never['pattern_id']}/verdict", json={"verdict": "real"}).json()["suggestion"]["suggestion_id"]
+    assert state_of(env, never["pattern_id"])[0] == "open"
+    env.client.post(f"{WS}/suggestions/{sid}/apply")
+    assert state_of(env, never["pattern_id"]) == ("fixing", "Waiting for a release with the edit.")
+    release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
+    st = env.client.get(f"{WS}/patterns/{never['pattern_id']}").json()
+    assert (st["review_state"], st["fix_release"], st["review_note"]) == ("fixing", release, f"Release {release} is live: 0 of 10 sessions so far.")
+    for _ in range(10):
+        env.send("CLEAN", release=release)
+    assert state_of(env, never["pattern_id"]) == ("fixed", f"No findings in 10 sessions on release {release} or later.")
+    # a finding on a session that ran the fix: regressed, back in the queue
+    env.send("A", release=release)
+    item = next(i for i in queue(env)["items"] if i["pattern_id"] == never["pattern_id"])
+    assert item["review_state"] == "regressed" and item["review_note"].startswith(f"Came back after release {release}") and item["fix_release"] == release
+    # a new verdict starts over: no fix applied for it yet
+    verdict(env, never["pattern_id"], "real")
+    assert state_of(env, never["pattern_id"])[0] == "open"
+
+
+def test_pull_requests_are_followed_on_github(env, monkeypatch):
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    old = env.files[PATH]
+    fixed = old.replace(f"  - {SAFE}\n", f"  - {SAFE}; say what you checked instead\n")
+    env.model.edits = [fixed]
+    states = {"pr": "open"}
+    calls = []
+    monkeypatch.setattr(github, "repo_connection", lambda store, ws: object())
+    monkeypatch.setattr(github, "open_pull_request", lambda store, ws, files, title, body: f"https://github.com/acme/agents/pull/{len(calls) + 1}")
+    monkeypatch.setattr(github, "pr_status", lambda store, ws, url: calls.append(url) or states["pr"])
+
+    sid = env.client.post(f"{WS}/patterns/{never['pattern_id']}/verdict", json={"verdict": "real"}).json()["suggestion"]["suggestion_id"]
+    assert env.client.post(f"{WS}/suggestions/{sid}/apply").json()["status"] == "pr_open"
+    assert state_of(env, never["pattern_id"]) == ("fixing", "Waiting for the pull request to be merged.")
+    assert env.client.get(f"{WS}/suggestions/{sid}").json()["status"] == "pr_open" and len(calls) == 1
+    env.client.get(f"{WS}/suggestions/{sid}")
+    assert len(calls) == 1  # read from GitHub at most once a minute per suggestion
+
+    states["pr"] = "merged"
+    assert env.store.suggestions.sync_prs("demo", force=True) == {"merged": 1, "closed": 0, "open": 0, "failed": 0}
+    assert env.client.get(f"{WS}/suggestions/{sid}").json()["status"] == "merged"
+    assert state_of(env, never["pattern_id"])[0] == "fixing" and "Merged" in state_of(env, never["pattern_id"])[1]
+    env.store.edit("demo", {PATH: fixed})  # the repo pulled after the merge, then published
+    release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
+    assert state_of(env, never["pattern_id"])[1] == f"Release {release} is live: 0 of 10 sessions so far."
+
+    # a pull request closed without merging dismisses its suggestion; the pattern is open again
+    verdict(env, never["pattern_id"], "sop_wrong", suggest=True)
+    env.model.edits = [fixed.replace("instead", "instead, always")]
+    later = env.client.post(f"{WS}/patterns/{never['pattern_id']}/suggest").json()["suggestion_id"]
+    env.client.post(f"{WS}/suggestions/{later}/apply")
+    states["pr"] = "closed"
+    env.store.suggestions.sync_prs(force=True)
+    got = env.client.get(f"{WS}/suggestions/{later}").json()
+    assert (got["status"], got["note"]) == ("dismissed", "PR closed") and state_of(env, never["pattern_id"])[0] == "open"
+
+
+def test_a_recheck_keeps_its_findings(env):
+    sid = env.send("A")
+    never = rule_pattern(env)
+    verdict(env, never["pattern_id"], "real")
+    with Session(env.store.engine) as db:
+        before = {(f.id, f.created_at) for f in db.exec(select(Finding))}
+    assert env.send("A", again="s1") == sid  # re-sent with new turns: checked again
+    with Session(env.store.engine) as db:
+        after = {(f.id, f.created_at) for f in db.exec(select(Finding))}
+    assert after == before and queue(env, "open")["items"][0]["new_findings"] == 0
+
+
+def test_calibrate_from_labels(env, capsys):
+    ids = [env.send("A") for _ in range(4)]
+    never = rule_pattern(env)
+    verdict(env, never["pattern_id"], "real")
+    r = env.client.post(f"{WS}/calibrate", json={"dry_run": True})
+    assert r.status_code == 200, r.text
+    (p,) = r.json()["procedures"]
+    assert (p["procedure_id"], p["labels"], p["saved"]) == (ALLERGEN, 4, False) and p["skipped"].startswith("4 labeled sessions")
+
+    ids.append(env.send("A"))
+    finding = next(x for x in session(env, ids[0])["checks"][0]["rules"] if x["finding"])["finding_id"]
+    env.client.post(f"{WS}/findings/{finding}/override", json={"correct": False})
+    (p,) = env.client.post(f"{WS}/calibrate", json={"procedure": ALLERGEN, "dry_run": True}).json()["procedures"]
+    assert (p["labels"], p["negative_labels"], p["saved"], p["skipped"]) == (5, 1, False, None)
+    rule = next(x for x in p["rules"] if x["rule_id"] == never["rule_id"])
+    assert rule["before"] == rule["after"] and rule["skipped"]  # the fake answers every session alike: nothing to fit
+    assert calibration.load(env.store.engine, "demo", f"check:{ALLERGEN}") == {} and env.store.engine.dialect.name  # a dry run saves nothing
+    (p,) = env.client.post(f"{WS}/calibrate", json={}).json()["procedures"]
+    assert p["saved"] is True
+
+    url = env.store.engine.url.render_as_string(hide_password=False)
+    from sopops.ai.lm import set_ai
+
+    set_ai(env.fake)
+    cli(["calibrate", "--database-url", url, "--workspace", "demo", "--dry-run"])
+    out = capsys.readouterr().out
+    assert f"{ALLERGEN}: 5 labeled sessions (1 findings judged wrong)" in out and "dry run, not saved" in out
 
 
 def test_verdicts_follow_reclustering(env):
@@ -236,6 +367,24 @@ def test_verdicts_follow_reclustering(env):
     assert own[survivor.id].verdict == "acceptable"
     with Session(env.store.engine) as db:
         assert all(f.suppressed for f in db.exec(select(Finding).where(Finding.pattern_id == survivor.id)))
+
+    # a recluster that keeps less than half of a failure mode's findings: its verdict needs review again
+    with Session(env.store.engine) as db:
+        three = [f.id for f in db.exec(select(Finding).where(Finding.pattern_id == survivor.id))][:3]
+
+    def shrinking(role, signature, inputs):
+        if signature is ClusterFindings:
+            keys = [f.key for f in inputs["findings"]]
+            return {"modes": [{"name": "Some", "description": "Fewer.", "findings": keys[:3]}]}
+        return original(role, signature, inputs)
+
+    verdict(env, survivor.id, "acceptable")  # confirmed: closed
+    assert state_of(env, survivor.id)[0] == "closed"
+    env.fake.responder = shrinking
+    assert env.store.patterns.recluster("demo", ALLERGEN, a.rule_id, env.fake, force=True)
+    assert state_of(env, survivor.id) == ("needs_review", "A recluster changed its findings since the verdict.")
+    assert queue(env, "needs_review")["clustered_at"] and env.client.get(f"{WS}/patterns").json()["clustered_at"]
+    assert len(three) == 3
 
     # carry_over never replaces a successor's own verdict
     with Session(env.store.engine) as db, db.begin():

@@ -1,4 +1,4 @@
-"""Where pipeline runs and suggestion generation go: Hatchet when it's configured (HATCHET_CLIENT_TOKEN is set), else
+"""Where pipeline runs, suggestion generation and calibration go: Hatchet when it's configured (HATCHET_CLIENT_TOKEN is set), else
 inline.
 
 Inline means a FastAPI background task after the response (the API) or right away (the import CLI), in this process.
@@ -12,7 +12,7 @@ import os
 from typing import TYPE_CHECKING
 
 from ..pipeline.process import process_session, session_event
-from ..pipeline.types import SessionRef, SuggestRef
+from ..pipeline.types import CalibrateRef, SessionRef, SuggestRef
 
 if TYPE_CHECKING:
     from fastapi import BackgroundTasks
@@ -72,6 +72,18 @@ class Jobs:
 
     def suggest_inline(self, ref: SuggestRef) -> None:
         self.store.suggestions.generate(ref.workspace_id, ref.suggestion_id, self.ai)  # failures are stored on the suggestion
+
+    def calibrate(self, ref: CalibrateRef) -> dict:
+        """Fit the workspace's check thresholds to its labels (`Calibrate.run`) and wait for the report: on Hatchet when
+        it's configured, else here."""
+        if self.use_hatchet:
+            try:
+                from .hatchet import run_calibrate
+
+                return run_calibrate(ref)
+            except Exception:
+                log.exception("couldn't run calibration on Hatchet; running it here")
+        return self.store.calibrate.run(ref.workspace_id, ref.procedure_id, ref.dry_run, self.ai)
 
     def session_event(self, ref: SessionRef, events: list[dict]) -> None:
         """The pipeline's hook for events of an open session, here and now (it does nothing yet)."""

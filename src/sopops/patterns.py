@@ -10,7 +10,9 @@
 - Reclustering keeps ids and names stable: each new cluster is matched to the old sub-pattern it shares the most
   findings with (Jaccard over finding ids, at least `MATCH_JACCARD`), and keeps that pattern's id and name, so
   verdicts on it keep applying. Old sub-patterns that match nothing are retired, not deleted; a retired one's verdict
-  carries over to the cluster that took most of its findings (at least `MATCH_JACCARD`), unless that has its own.
+  carries over to the cluster that took most of its findings (at least `MATCH_JACCARD`), unless that has its own. A
+  sub-pattern's `clustered_at` is when a recluster last changed its members materially (made it, or matched it below
+  `MATERIAL_JACCARD`): a verdict older than that needs review again.
 - After every assignment and recluster, `sopops.verdicts` brings the rules' suppressed findings in line with the
   verdicts (findings moved between patterns can change).
 - **Themes** group a procedure's rule patterns by the phase of the session where they happen; a model names and
@@ -58,6 +60,7 @@ RECLUSTER_NEW = 25  # findings since the last clustering
 OTHER_SHARE = 0.25
 OTHER_MIN_NEW = 5  # the "other" trigger needs at least this many new findings since the last clustering
 MATCH_JACCARD = 0.3
+MATERIAL_JACCARD = 0.5  # a matched failure mode sharing less than this with its old members changed materially
 CLUSTER_SAMPLE = 150  # most recent findings shown to the model; older ones are assigned like new ones
 ASSIGN_BATCH = 25
 MAX_THEMES = 6
@@ -439,12 +442,13 @@ class Patterns:
                 key=lambda x: (-x[0], x[1], x[2]),
             )
             match: dict[int, Pattern] = {}
+            score_of: dict[int, float] = {}
             used: set[str] = set()
             by_id = {p.id: p for p in old_subs}
             for score, i, pid in pairs:
                 if score < MATCH_JACCARD or i in match or pid in used:
                     continue
-                match[i], _ = by_id[pid], used.add(pid)
+                match[i], score_of[i], _ = by_id[pid], score, used.add(pid)
             target: dict[str, str] = {}
             successor: dict[int, str] = {}
             for i, (name, desc, fids) in enumerate(clusters):
@@ -453,6 +457,8 @@ class Patterns:
                     p = Pattern(id=_id(), workspace_id=ws, procedure_id=rp.procedure_id, rule_id=rp.rule_id, parent_id=rp.id, kind="sub", name=name,
                                 description=desc, theme_id=rp.theme_id, created_at=now, updated_at=now)
                 p.status, p.model, p.prompt_version, p.updated_at = "active", model, version, now  # a matched pattern keeps its id and name
+                if score_of.get(i, 0.0) < MATERIAL_JACCARD:
+                    p.clustered_at = now
                 db.add(p)
                 successor[i] = p.id
                 for fid in fids:

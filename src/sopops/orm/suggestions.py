@@ -32,9 +32,10 @@ class Suggestion(SQLModel, table=True):
     new_text: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     rationale: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     plan: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONDoc, nullable=True))
-    status: str = Field(max_length=16)  # generating | proposed | applied | dismissed | pr_open | failed
+    status: str = Field(max_length=16)  # generating | proposed | applied | pr_open | merged | dismissed | failed
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     pr_url: str | None = Field(default=None, max_length=1024)
+    pr_checked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True), description="Why it was dismissed.")
     reviewer: str | None = Field(default=None, max_length=256)
     attempts: int = 0

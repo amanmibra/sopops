@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, func, select, update
 
 from . import forms
+from .calibrate import Calibrate
 from .checks import Checks
 from .db import engine_from_url, upgrade
 from .errors import Conflict, NotFound, workspace_id
@@ -45,6 +46,7 @@ class Store:
         self.patterns = Patterns(self)
         self.verdicts = Verdicts(self)
         self.suggestions = Suggestions(self)
+        self.calibrate = Calibrate(self)
         self.insights = Insights(self)
         if migrate:
             upgrade(self.engine)

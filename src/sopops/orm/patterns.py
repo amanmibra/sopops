@@ -34,6 +34,7 @@ class Pattern(SQLModel, table=True):
     first_seen: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     last_seen: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     clustered_count: int = Field(default=0, description="Rule patterns: findings on the rule at the last clustering.")
+    # rule patterns: the last clustering; sub-patterns: the last recluster that changed their members materially
     clustered_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     model: str | None = Field(default=None, max_length=256)
     prompt_version: str | None = Field(default=None, max_length=64)

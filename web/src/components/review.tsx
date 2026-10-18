@@ -946,6 +946,7 @@ export const SUGGESTION_STATUS: Record<SuggestionSummary["status"], { label: str
   generating: { label: "Being written", tone: "bg-muted text-muted-foreground" },
   proposed: { label: "Proposed", tone: "bg-warn-soft text-warn" },
   pr_open: { label: "PR open", tone: "bg-brand-soft text-primary" },
+  merged: { label: "PR merged", tone: "bg-brand-soft text-primary" },
   applied: { label: "Applied", tone: "bg-brand-soft text-primary" },
   dismissed: { label: "Dismissed", tone: "bg-muted text-muted-foreground" },
   failed: { label: "Failed", tone: "bg-err-soft text-err" },
