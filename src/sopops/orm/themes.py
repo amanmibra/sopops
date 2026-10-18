@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Index, Text
-from sqlmodel import Field, SQLModel
+from sqlmodel import Column, DateTime, Field, Index, SQLModel, Text
 
 
 class Theme(SQLModel, table=True):

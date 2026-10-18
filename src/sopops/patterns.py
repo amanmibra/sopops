@@ -27,8 +27,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
-from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from . import llm as llm_mod
 from .ai import classify

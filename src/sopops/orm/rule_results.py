@@ -4,8 +4,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Text, UniqueConstraint
-from sqlmodel import Field, SQLModel
+from sqlmodel import (
+    Column,
+    Field,
+    ForeignKeyConstraint,
+    Index,
+    SQLModel,
+    Text,
+    UniqueConstraint,
+)
 
 from .columns import JSONDoc
 

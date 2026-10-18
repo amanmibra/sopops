@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Text
-from sqlmodel import Field, SQLModel
+from sqlmodel import Column, DateTime, Field, SQLModel, Text
 
 
 class PlatformSecret(SQLModel, table=True):

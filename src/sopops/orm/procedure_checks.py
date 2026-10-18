@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import (
+from sqlmodel import (
     Column,
     DateTime,
+    Field,
     ForeignKeyConstraint,
     Index,
+    SQLModel,
     Text,
     UniqueConstraint,
 )
-from sqlmodel import Field, SQLModel
 
 
 class ProcedureCheck(SQLModel, table=True):

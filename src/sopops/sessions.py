@@ -14,11 +14,10 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import and_, or_, text
 from sqlalchemy import event as sa_event
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, and_, or_, select, text
 
 from .events import CHANNEL, Broker
 from .orm import (

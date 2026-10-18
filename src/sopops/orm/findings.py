@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKeyConstraint, Index
-from sqlmodel import Field, SQLModel
+from sqlmodel import Column, DateTime, Field, ForeignKeyConstraint, Index, SQLModel
 
 
 class Finding(SQLModel, table=True):

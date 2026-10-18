@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Index
-from sqlmodel import Field, SQLModel
+from sqlmodel import JSON, Column, DateTime, Field, Index, SQLModel
 
 
 class Token(SQLModel, table=True):

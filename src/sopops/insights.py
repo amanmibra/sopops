@@ -28,8 +28,7 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlalchemy import and_, func, or_
-from sqlmodel import Session, select
+from sqlmodel import Session, and_, func, or_, select
 
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
 from .pipeline.rollup import SEVERITY

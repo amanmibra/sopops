@@ -5,8 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Column, DateTime, Text
-from sqlmodel import Field, SQLModel
+from sqlmodel import JSON, Column, DateTime, Field, SQLModel, Text
 
 
 class Release(SQLModel, table=True):

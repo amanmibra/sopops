@@ -11,11 +11,10 @@ from datetime import datetime, timezone
 from pathlib import PurePosixPath
 from typing import Iterator
 
-from sqlalchemy import and_, func, update
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, and_, func, select, update
 
 from . import forms
 from .checks import Checks
@@ -505,7 +504,7 @@ class Store:
         q = select(Release.number, Release.created_at, Release.author, Release.note, Release.files)
         with self._session() as db:
             current = self._current_number(db, ws)
-            rows = db.execute(q.where(Release.workspace == ws).order_by(Release.number.desc())).mappings()
+            rows = db.exec(q.where(Release.workspace == ws).order_by(Release.number.desc())).mappings()
             return [_summary(r, r["number"] == current) for r in rows]
 
     def get_release(self, workspace: str, number: int | None = None) -> dict:
@@ -567,7 +566,7 @@ class Store:
                 dialect = postgresql if name == "postgresql" else sqlite
                 db.execute(dialect.insert(Workspace.__table__).values(workspace=ws).on_conflict_do_nothing())
                 if name == "postgresql":
-                    db.execute(select(Workspace.workspace).where(Workspace.workspace == ws).with_for_update())
+                    db.exec(select(Workspace.workspace).where(Workspace.workspace == ws).with_for_update())
                 yield db
         except IntegrityError as e:
             raise Conflict("a concurrent write conflicted; retry") from e

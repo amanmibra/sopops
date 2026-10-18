@@ -12,8 +12,8 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
+from sqlmodel import create_engine, inspect
 
 MIGRATIONS = Path(__file__).parent / "migrations"
 INITIAL = "0001"

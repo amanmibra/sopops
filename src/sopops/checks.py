@@ -10,8 +10,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import delete
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst

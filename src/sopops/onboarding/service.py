@@ -23,8 +23,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from sqlalchemy import inspect
-from sqlmodel import Session, select
+from sqlmodel import Session, inspect, select
 
 from .. import forms
 from ..errors import workspace_id
