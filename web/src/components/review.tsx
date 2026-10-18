@@ -587,6 +587,11 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
         Patterns
       </PageTitle>
       <Sub className="max-w-[90ch]">Findings grouped by rule and by failure mode. A verdict on a pattern decides what happens next: real mistakes and wrong SOPs get a suggested fix; acceptable and misjudged ones are hidden from the rates.</Sub>
+      <section className="bg-card mb-4 rounded-lg border px-4 py-3">
+        <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
+        <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
+        <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so Undo is free.</p>
+      </section>
       <nav className="mb-4 flex gap-0.5 border-b" aria-label="Pattern views">
         {(
           [
@@ -624,14 +629,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
         )}
       </div>
       {tab === "review" ? (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-          <ReviewQueue items={queue} loading={reviewRes.isPending} error={reviewRes.error} onRetry={() => void reviewRes.refetch()} />
-          <aside className="bg-card h-fit rounded-lg border px-4 py-3 xl:sticky xl:top-[69px]">
-            <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
-            <VerdictLegend className="sm:grid-cols-1" />
-            <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so Undo is free.</p>
-          </aside>
-        </div>
+        <ReviewQueue items={queue} loading={reviewRes.isPending} error={reviewRes.error} onRetry={() => void reviewRes.refetch()} />
       ) : (
         <AllPatterns items={all.data?.items} loading={all.isPending} error={all.error} onRetry={() => void all.refetch()} search={{ ...search, verdict: verdictFilter }} procName={procName} />
       )}
