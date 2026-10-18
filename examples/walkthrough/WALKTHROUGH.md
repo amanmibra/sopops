@@ -48,7 +48,7 @@ Fake mode checks every rule with the scripted reviewer (`SOPOPS_CHECK_MODE=revie
 
 ```sh
 export SOPOPS_MODEL_FAST=anthropic/claude-haiku-4-5         # decisions (routing, rule checks, assignment)
-export SOPOPS_MODEL_REASONING=anthropic/claude-sonnet-4-5   # the reviewer: flagged rules, clustering, themes, suggestions
+export SOPOPS_MODEL_REASONING=anthropic/claude-sonnet-5-5   # the reviewer: flagged rules, clustering, themes, suggestions
 export ANTHROPIC_API_KEY=...                                # or the provider your model strings name
 # optional: TypeSafe's Jev answers the decisions instead of the fast model
 export TYPESAFE_API_KEY=...                                 # SOPOPS_JEV=off to keep it off
