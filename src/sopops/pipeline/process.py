@@ -1,11 +1,11 @@
 """`process_session`: what runs after a session is ingested.
 
-1. normalize: canonical turns and tool calls; status received (or partial, or failed).
+1. normalize: canonical turns and tool calls; status received (or incomplete, or failed).
 2. route (decisions, see `sopops.ai.decide`): which procedures applied, and which are excluded because the session
    ended before the procedure started or finished. Status routed, or excluded when there's nothing to check.
 3. check (per applicable procedure): every rule's status from decisions, the reasoning model's review of what they
    flag, the goal, and the rollup.
-4. finish: status checked (a partial session stays partial), with the worst procedure result.
+4. finish: status checked (an incomplete session stays incomplete), with the worst procedure result.
 5. patterns: each new finding joins its rule's pattern (a decision picks a failure mode on split rules), then
    rules and themes that are due are reclustered and regrouped (see `sopops.patterns`). A failure here never fails the
    session; the findings stay unassigned until the next run or the daily recluster.
@@ -28,7 +28,7 @@ from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
 from .rollup import apply_tool_calls, mark_out_of_order, rollup
 from .types import (
-    PARTIAL_REASONS,
+    INCOMPLETE_REASONS,
     CheckRef,
     CheckResult,
     ProcessResult,
@@ -82,10 +82,10 @@ def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
     except Exception as e:  # a payload we can't make sense of: keep it, and say why
         store.sessions.finish(ref, session.turns, session.tool_calls, "failed", f"normalize: {e}")
         raise
-    if session.status_reason in PARTIAL_REASONS:  # set at ingest (the sender said so) or when an idle open session closed
-        status, reason = "partial", session.status_reason
+    if session.status_reason in INCOMPLETE_REASONS:  # set at ingest (the sender said so) or when an idle open session closed
+        status, reason = "incomplete", session.status_reason
     elif not turns:
-        status, reason = "partial", "No turns."
+        status, reason = "incomplete", "No turns."
     else:
         status, reason = "received", None
     applied = store.sessions.finish(ref, turns, tool_calls, status, reason)
@@ -100,9 +100,9 @@ def _load(store: Store, ref: SessionRef) -> SessionRecord | None:
     return s if s.payload_hash == ref.revision else None
 
 
-def _partial(s: SessionRecord) -> bool:
-    """The sender said the transcript is incomplete: the session is still checked, but its status stays partial."""
-    return s.status_reason in PARTIAL_REASONS
+def _incomplete(s: SessionRecord) -> bool:
+    """The sender said the transcript is incomplete: the session is still checked, but its status stays incomplete."""
+    return s.status_reason in INCOMPLETE_REASONS
 
 
 def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteResult:
@@ -112,16 +112,16 @@ def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteR
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
     if not s.turns:
         return RouteResult(session_id=ref.session_id, go=False, status=s.status, reason=s.status_reason)
-    partial = _partial(s)
-    base = "partial" if partial else "received"
+    incomplete = _incomplete(s)
+    base = "incomplete" if incomplete else "received"
     if not ai_lm.configured(ai):
-        store.checks.reset(ref, base, s.status_reason if partial else NO_MODEL)
+        store.checks.reset(ref, base, s.status_reason if incomplete else NO_MODEL)
         return RouteResult(session_id=ref.session_id, go=False, status=base, reason=NO_MODEL)
     cand = candidates(store, s)
     if cand.release is None or not cand.procedures:
         why = "No release to check against." if cand.release is None else f"Release {cand.release} has no procedures for this agent."
-        status = "partial" if partial else (base if cand.release is None else "excluded")
-        store.checks.reset(ref, status, s.status_reason if partial else why)
+        status = "incomplete" if incomplete else (base if cand.release is None else "excluded")
+        store.checks.reset(ref, status, s.status_reason if incomplete else why)
         return RouteResult(session_id=ref.session_id, go=False, status=status, release_id=cand.release, reason=why)
     cfg = decide.DecisionConfig.from_env()
     try:
@@ -136,8 +136,8 @@ def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteR
     else:
         excluded = [d for d in decisions if d.excluded_reason]
         status, reason = "excluded", (excluded[0].excluded_reason if excluded else "No procedure applied.")
-    if partial:
-        status, reason = "partial", s.status_reason
+    if incomplete:
+        status, reason = "incomplete", s.status_reason
     stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, routing.model, VERSIONS["route"])
     if not stored:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
@@ -173,7 +173,7 @@ def finish_session(store: Store, ref: SessionRef, turn_count: int | None = None)
     s = _load(store, ref)
     if s is None:
         return ProcessResult(session_id=ref.session_id, status="failed", turn_count=0, skipped=True)
-    done = store.checks.finish(ref, keep_partial=_partial(s))
+    done = store.checks.finish(ref, keep_incomplete=_incomplete(s))
     if done is None:
         return ProcessResult(session_id=ref.session_id, status=s.status, turn_count=len(s.turns), skipped=True)
     status, result = done

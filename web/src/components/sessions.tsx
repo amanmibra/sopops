@@ -26,7 +26,7 @@ const STATUS: Record<Status, { label: string; tone: string; help: string }> = {
   routed: { label: "routed", tone: "bg-brand-soft text-primary border-transparent", help: "Matched to the procedures that applied." },
   checked: { label: "checked", tone: "bg-brand-soft text-primary border-transparent", help: "Checked against its procedures." },
   excluded: { label: "excluded", tone: "", help: "Ended before a procedure started or finished." },
-  partial: { label: "partial", tone: "bg-warn-soft text-warn border-transparent", help: "The transcript may be incomplete." },
+  incomplete: { label: "incomplete", tone: "bg-warn-soft text-warn border-transparent", help: "Turns are missing: the sender said the transcript is incomplete, it had no turns, or it stopped streaming. Still checked on what came in." },
   failed: { label: "failed", tone: "bg-err-soft text-err border-transparent", help: "Processing failed." },
 };
 

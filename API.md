@@ -151,7 +151,7 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | Endpoint | What it does |
 |---|---|
 | `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <token>` (scope `ingest`). An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without a valid token for the workspace, `403` for one without the `ingest` scope. |
-| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` (any wording of it: its [lineage](#rule-lineage)) with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result), `suppressed` (false: the finding filters leave suppressed findings out, as Insights does; true: only them). |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` (any wording of it: its [lineage](#rule-lineage)) with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or incomplete, with a result), `suppressed` (false: the finding filters leave suppressed findings out, as Insights does; true: only them). |
 | `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
 
@@ -167,7 +167,7 @@ A sender can also stream a session as it happens, then close it. Nothing is chec
 | `POST …/sessions/<platform>/<external_id>/events` | `{events: [{seq, type: turn \| tool_call, turn? \| tool_call?}]}`, up to 500. `seq` counts from 0 per session; a resent `seq` is ignored and events can arrive in any order (they're kept in `seq` order). Returns `{accepted, duplicates}`. Events for a session that has closed are ignored. `404` if it was never opened. |
 | `POST …/sessions/<platform>/<external_id>/close` | `{ended_at?, partial?}`. Closes it with what streamed in and runs `process_session`. |
 
-The full post to `POST …/sessions` still works at any point and wins: it replaces whatever streamed in. An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `partial` and checked, the next time that workspace opens a session or by the daily job. All three take the `ingest` token.
+The full post to `POST …/sessions` still works at any point and wins: it replaces whatever streamed in. An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `incomplete` and checked, the next time that workspace opens a session or by the daily job. All three take the `ingest` token.
 
 ### The canonical format
 
@@ -203,7 +203,7 @@ The full post to `POST …/sessions` still works at any point and wins: it repla
 | `release` | The sopops release the agent ran on (`release` from `GET …/agents/<agent>` at session start). An unknown release is dropped with a warning; the session is still stored. |
 | `version_ref` | The platform's own version of the agent: ElevenLabs `version_id`, Vapi `assistantVersion`. |
 | `started_at`, `ended_at` | ISO 8601. `started_at` defaults to the first turn's time, else when it was received. |
-| `partial` | The sender knows the transcript is incomplete; the status is then `partial`. |
+| `partial` | The sender knows the transcript is incomplete; the status is then `incomplete`. |
 | `turns` | In order. `role`: `agent`, `user`, `tool` or `system` (`assistant`, `bot`, `human`, `customer`, `function` and similar are mapped). `text`. Time as `offset_s` (seconds since the start) or `at` (ISO 8601, or Unix seconds or milliseconds), which becomes `offset_s`. Other fields (`interrupted`, `name`, …) are kept. |
 | `tool_calls` | `{name, arguments, result, is_error, call_id, offset_s or at}`; other fields are kept. |
 | `metadata` | Anything else, as an object. |
@@ -216,7 +216,7 @@ Processing (`process_session`) normalizes turns: canonical roles, `offset_s` fro
 | `routed` | The procedures that applied are known; their checks are running. |
 | `checked` | Every procedure that applied was checked; `result` is set. |
 | `excluded` | Nothing to check: no procedure applied, or every one that did was cut short (the session ended before it started or finished). `status_reason` says which. |
-| `partial` | No turns, or the sender said the transcript is incomplete. A partial session with turns is still checked, and keeps this status. |
+| `incomplete` | No turns, or the sender said the transcript is incomplete (or it was streamed and went idle). An incomplete session with turns is still checked, and keeps this status. (Not the procedure result `partial`.) |
 | `failed` | Processing failed; `status_reason` says where (`normalize`, `route`, `check <procedure>`). |
 
 ### Importing a file
@@ -362,7 +362,7 @@ Every number comes from one module (`sopops.insights`) with one set of definitio
 | Term | Definition |
 |---|---|
 | Window | `[start, end]` on the session's start time, both ends inclusive, at most 366 days. `window=24h\|7d\|30d\|90d\|365d` (default 7d) or `start` and `end`. The prior window is the same length right before it. |
-| Eligible session | Status `checked` or `partial`, with a result. In-progress and failed sessions are counted, never rated; excluded sessions are counted separately. |
+| Eligible session | Status `checked` or `incomplete`, with a result. In-progress and failed sessions are counted, never rated; excluded sessions are counted separately. |
 | Session outcome | The worst result of its procedure checks in scope (only the `procedure` filter's, if set). **Followed end to end**: followed. **Needs attention**: deviated. |
 | Pass rate (procedure) | Checks followed / measurable checks (deviated, partial or followed); `not_measurable` checks are never rated. |
 | Pass rate (rule) | Steps: done / (done + skipped + out of order). Never rules: ok / (ok + violated). `n` is that denominator; `not_reached` and `not_applicable` are shown as a share, never counted. Warning signs are never in a pass rate: they are present (`present` or `unheeded`) or absent. |

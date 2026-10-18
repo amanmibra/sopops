@@ -20,7 +20,7 @@ Platform = Literal["livekit", "elevenlabs", "vapi", "otel", "import", "api"]
 
 
 # open: streaming in (sessions/open, then events), not checked until it closes.
-SessionStatus = Literal["open", "received", "routed", "checked", "excluded", "partial", "failed"]
+SessionStatus = Literal["open", "received", "routed", "checked", "excluded", "incomplete", "failed"]
 
 
 class TurnIn(_BaseModel):
@@ -57,7 +57,7 @@ class SessionIn(_BaseModel):
     version_ref: str | None = Field(None, max_length=256, description="The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`).")
     started_at: datetime | None = Field(None, description="Default: the first turn's `at`, else when sopops received it.")
     ended_at: datetime | None = None
-    partial: bool = Field(False, description="The sender knows the transcript is incomplete.")
+    partial: bool = Field(False, description="The sender knows the transcript is incomplete: the session's status is then `incomplete`.")
     turns: list[TurnIn] = Field(default_factory=list, description="In order.")
     tool_calls: list[ToolCallIn] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
@@ -98,7 +98,7 @@ class SessionEventsOut(BaseModel):
 
 class SessionClose(_BaseModel):
     ended_at: datetime | None = None
-    partial: bool = Field(False, description="The sender knows the transcript is incomplete.")
+    partial: bool = Field(False, description="The sender knows the transcript is incomplete: the session's status is then `incomplete`.")
 
 
 class SessionIngested(BaseModel):

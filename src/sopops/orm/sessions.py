@@ -44,7 +44,7 @@ class SessionRecord(SQLModel, table=True):
     version_ref: str | None = Field(default=None, max_length=256, description="The platform's own version id.")
     started_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
-    status: str = Field(max_length=16)  # received | routed | checked | excluded | partial | failed
+    status: str = Field(max_length=16)  # open | received | routed | checked | excluded | incomplete | failed
     status_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     # [{role: agent|user|tool|system, text, offset_s, ...}], in order
     turns: list[dict[str, Any]] = Field(sa_column=Column(JSONDoc, nullable=False))

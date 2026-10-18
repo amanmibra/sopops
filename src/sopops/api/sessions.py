@@ -73,7 +73,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
                      credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
         """Open a session to stream its turns and tool calls (optional; see `…/events`). Idempotent on (platform,
         external_id). It isn't checked until it closes: `…/close`, a full post to `…/sessions` (which wins), or no
-        events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as partial)."""
+        events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as incomplete)."""
         ingest_token(workspace, credentials)
         for ref in store.sessions.close_idle(workspace):
             jobs.process_session(ref, background)
@@ -125,7 +125,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         pattern: str | None = Query(None, description="With a finding in this pattern (a rule pattern includes its sub-patterns)."),
         theme: str | None = Query(None, description="With a finding in a pattern of this theme."),
         finding: bool | None = Query(None, description="With (true) or without (false) any finding."),
-        eligible: bool | None = Query(None, description="Only sessions Insights rates (checked or partial, with a result); false: the others."),
+        eligible: bool | None = Query(None, description="Only sessions Insights rates (checked or incomplete, with a result); false: the others."),
         suppressed: bool | None = Query(None, description="How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them "
                                         "out (what Insights counts), true matches only them; unset, both."),
     ) -> dict:

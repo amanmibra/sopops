@@ -126,7 +126,7 @@ const ins = await sopops.fetchInstructions("front-desk", { fallback: "You are a 
 
 ## Sessions and checks
 
-A session is one conversation: a voice call or a text chat. Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with an `ingest` token, or streamed while it runs (`…/sessions/open`, `…/events`, `…/close`; a session idle for `SOPOPS_SESSION_IDLE_MINUTES` closes as partial). Sending the same session again is safe: it's keyed by platform and session id. `sopops import sessions.jsonl --workspace prod` reads a backfill straight into the database ([examples/import-sessions](examples/import-sessions)).
+A session is one conversation: a voice call or a text chat. Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with an `ingest` token, or streamed while it runs (`…/sessions/open`, `…/events`, `…/close`; a session idle for `SOPOPS_SESSION_IDLE_MINUTES` closes as incomplete). Sending the same session again is safe: it's keyed by platform and session id. `sopops import sessions.jsonl --workspace prod` reads a backfill straight into the database ([examples/import-sessions](examples/import-sessions)).
 
 The **Sessions** page lists them live, each with its transcript, tool calls, and how it went against each procedure, with the quotes highlighted. Each new or changed session runs the pipeline:
 
@@ -185,7 +185,7 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform keys, webhook secrets and GitHub tokens; needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks are refused for a workspace with no webhook secret or runtime token, instead of answered openly. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
-| `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as partial. |
+| `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
 | `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@v0` | What the onboarding command's `uvx --from` installs. |
 | `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3`. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |

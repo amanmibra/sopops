@@ -29,7 +29,7 @@ class Thresholds(BaseModel):
 
 
 class TilesValues(BaseModel):
-    sessions_checked: int = Field(description="Eligible sessions: checked (or partial) with a result.")
+    sessions_checked: int = Field(description="Eligible sessions: checked (or incomplete) with a result.")
     followed: int = Field(description="Followed end to end: every procedure check in scope followed.")
     need_attention: int = Field(description="Some procedure check in scope deviated.")
     partial: int

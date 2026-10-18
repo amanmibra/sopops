@@ -16,7 +16,7 @@ export const Route = createFileRoute("/w/$ws/sessions/")({
     return {
       agent: str(s.agent),
       channel: oneOf(s.channel, ["voice", "text"] as const),
-      status: oneOf(s.status, ["open", "received", "routed", "checked", "excluded", "partial", "failed"] as const),
+      status: oneOf(s.status, ["open", "received", "routed", "checked", "excluded", "incomplete", "failed"] as const),
       result: oneOf(s.result, RESULTS),
       since: str(s.since),
       until: str(s.until),

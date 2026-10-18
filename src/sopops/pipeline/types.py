@@ -8,10 +8,10 @@ from pydantic import BaseModel, Field
 
 from .rollup import Judged
 
-# Why a session is partial: it stays partial through the pipeline (it's still checked).
-SENDER_PARTIAL = "The sender marked the transcript incomplete."
-IDLE_PARTIAL = "No events for a while; closed as incomplete."
-PARTIAL_REASONS = (SENDER_PARTIAL, IDLE_PARTIAL)
+# Why a session is incomplete: it stays incomplete through the pipeline (it's still checked).
+SENDER_INCOMPLETE = "The sender marked the transcript incomplete."
+IDLE_INCOMPLETE = "No events for a while; closed as incomplete."
+INCOMPLETE_REASONS = (SENDER_INCOMPLETE, IDLE_INCOMPLETE)
 
 
 class SessionRef(BaseModel):

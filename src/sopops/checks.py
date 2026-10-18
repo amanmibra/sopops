@@ -129,16 +129,16 @@ class Checks:
             db.add(pc)
             return True
 
-    def finish(self, ref: SessionRef, keep_partial: bool) -> tuple[str, str | None] | None:
-        """Every check is in: the session is checked (or stays partial), with the worst procedure result."""
+    def finish(self, ref: SessionRef, keep_incomplete: bool) -> tuple[str, str | None] | None:
+        """Every check is in: the session is checked (or stays incomplete), with the worst procedure result."""
         with self._db() as db, db.begin():
             row = self._current(db, ref)
             if row is None:
                 return None
             results = list(db.exec(select(ProcedureCheck.result).where(ProcedureCheck.session_id == row.id, ProcedureCheck.result.is_not(None))))
             result = worst(results)
-            status = "partial" if keep_partial else "checked"
-            self._set(db, row, status, row.status_reason if keep_partial else None, result)
+            status = "incomplete" if keep_incomplete else "checked"
+            self._set(db, row, status, row.status_reason if keep_incomplete else None, result)
             return status, result
 
     def fail(self, ref: SessionRef, reason: str) -> None:

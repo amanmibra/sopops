@@ -710,7 +710,7 @@ export const ingestSession = <ThrowOnError extends boolean = false>(options: Opt
  *
  * Open a session to stream its turns and tool calls (optional; see `…/events`). Idempotent on (platform,
  * external_id). It isn't checked until it closes: `…/close`, a full post to `…/sessions` (which wins), or no
- * events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as partial).
+ * events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as incomplete).
  */
 export const openSession = <ThrowOnError extends boolean = false>(options: Options<OpenSessionData, ThrowOnError>): RequestResult<OpenSessionResponses, OpenSessionErrors, ThrowOnError> => (options.client ?? client).post<OpenSessionResponses, OpenSessionErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],

@@ -32,7 +32,7 @@ from .orm import (
     Workspace,
 )
 from .pipeline.normalize import to_utc
-from .pipeline.types import IDLE_PARTIAL, SENDER_PARTIAL, SessionRef
+from .pipeline.types import IDLE_INCOMPLETE, SENDER_INCOMPLETE, SessionRef
 from .runtime.service import served_release
 from .schemas import SessionEventIn, SessionIn, SessionOpen
 
@@ -120,8 +120,8 @@ class Sessions:
                 version_ref=p.version_ref,
                 started_at=started,
                 ended_at=to_utc(p.ended_at),
-                status="partial" if p.partial else "received",
-                status_reason=SENDER_PARTIAL if p.partial else None,
+                status="incomplete" if p.partial else "received",
+                status_reason=SENDER_INCOMPLETE if p.partial else None,
                 turns=body["turns"],
                 tool_calls=body["tool_calls"],
                 meta=body["metadata"],
@@ -207,8 +207,8 @@ class Sessions:
                 raise NotFound(f"no session '{platform}/{external_id}'")
             if row.status != "open":
                 return Ingested(row.id, False, False, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
-            row.status = "partial" if partial else "received"
-            row.status_reason = (reason or SENDER_PARTIAL) if partial else None
+            row.status = "incomplete" if partial else "received"
+            row.status_reason = (reason or SENDER_INCOMPLETE) if partial else None
             row.ended_at = to_utc(ended_at) or row.ended_at or _now()
             row.payload_hash = _digest({"turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "closed": row.ended_at.isoformat()})
             row.updated_at = _now()
@@ -225,7 +225,7 @@ class Sessions:
             if workspace is not None:
                 q = q.where(SessionRecord.workspace_id == workspace_id(workspace))
             stale = list(db.exec(q))
-        return [self.close(ws, platform, ext, partial=True, reason=IDLE_PARTIAL).ref for ws, platform, ext in stale]
+        return [self.close(ws, platform, ext, partial=True, reason=IDLE_INCOMPLETE).ref for ws, platform, ext in stale]
 
     def _row(self, db: Session, ws: str, platform: str, external_id: str) -> SessionRecord | None:
         q = select(SessionRecord).where(SessionRecord.workspace_id == ws, SessionRecord.platform == platform, SessionRecord.external_id == external_id)
@@ -318,8 +318,8 @@ class Sessions:
             pats = select(Pattern.id).where(Pattern.workspace_id == workspace_id(workspace))
             pats = pats.where(or_(Pattern.id == pattern, Pattern.parent_id == pattern)) if pattern else pats.where(Pattern.theme_id == theme)
             q = q.where(S.id.in_(found.where(Finding.pattern_id.in_(pats))))
-        if eligible is not None:  # Insights' eligible sessions: checked (or partial) with a result
-            ok = and_(S.status.in_(("checked", "partial")), S.result.is_not(None))
+        if eligible is not None:  # Insights' eligible sessions: checked (or incomplete) with a result
+            ok = and_(S.status.in_(("checked", "incomplete")), S.result.is_not(None))
             q = q.where(ok if eligible else ~ok)
         if finding is not None:
             has = S.id.in_(found)

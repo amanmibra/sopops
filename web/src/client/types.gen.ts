@@ -4409,7 +4409,7 @@ export type ReportHeadline = {
     /**
      * Sessions Checked
      *
-     * Eligible sessions: checked (or partial) with a result.
+     * Eligible sessions: checked (or incomplete) with a result.
      */
     sessions_checked: number;
     /**
@@ -5376,7 +5376,7 @@ export type SessionClose = {
     /**
      * Partial
      *
-     * The sender knows the transcript is incomplete.
+     * The sender knows the transcript is incomplete: the session's status is then `incomplete`.
      */
     partial?: boolean;
 };
@@ -5440,7 +5440,7 @@ export type SessionDetail = {
     /**
      * Status
      */
-    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'incomplete' | 'failed';
     /**
      * Status Reason
      */
@@ -5597,7 +5597,7 @@ export type SessionIn = {
     /**
      * Partial
      *
-     * The sender knows the transcript is incomplete.
+     * The sender knows the transcript is incomplete: the session's status is then `incomplete`.
      */
     partial?: boolean;
     /**
@@ -5671,7 +5671,7 @@ export type SessionIngested = {
     /**
      * Status
      */
-    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'incomplete' | 'failed';
     /**
      * Warnings
      *
@@ -5824,7 +5824,7 @@ export type SessionSummary = {
     /**
      * Status
      */
-    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'incomplete' | 'failed';
     /**
      * Status Reason
      */
@@ -6440,7 +6440,7 @@ export type TilesValues = {
     /**
      * Sessions Checked
      *
-     * Eligible sessions: checked (or partial) with a result.
+     * Eligible sessions: checked (or incomplete) with a result.
      */
     sessions_checked: number;
     /**
@@ -9745,7 +9745,7 @@ export type ListSessionsData = {
         /**
          * Status
          */
-        status?: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed' | null;
+        status?: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'incomplete' | 'failed' | null;
         /**
          * Result
          *
@@ -9829,7 +9829,7 @@ export type ListSessionsData = {
         /**
          * Eligible
          *
-         * Only sessions Insights rates (checked or partial, with a result); false: the others.
+         * Only sessions Insights rates (checked or incomplete, with a result); false: the others.
          */
         eligible?: boolean | null;
         /**

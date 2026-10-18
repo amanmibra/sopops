@@ -80,7 +80,7 @@ def main() -> None:
         planned = {k: sum(1 for v in kinds.values() if v == k) for k in by_kind}
         for k, rows in by_kind.items():
             check(len(rows) == planned[k], f"{k}: {len(rows)} of {planned[k]} sessions ingested")
-        bad = [s for s in sessions if s["status"] not in ("checked", "excluded", "partial")]
+        bad = [s for s in sessions if s["status"] not in ("checked", "excluded", "incomplete")]
         check(not bad, f"every session checked ({len(bad)} not: {sorted({s['status'] for s in bad})})" if bad else "every session checked")
         releases = call(http, "GET", "/v1/workspaces/{ws}/releases")
         latest = max(r["number"] for r in releases)

@@ -4260,7 +4260,7 @@
                     "routed",
                     "checked",
                     "excluded",
-                    "partial",
+                    "incomplete",
                     "failed"
                   ],
                   "type": "string"
@@ -4566,10 +4566,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Only sessions Insights rates (checked or partial, with a result); false: the others.",
+              "description": "Only sessions Insights rates (checked or incomplete, with a result); false: the others.",
               "title": "Eligible"
             },
-            "description": "Only sessions Insights rates (checked or partial, with a result); false: the others."
+            "description": "Only sessions Insights rates (checked or incomplete, with a result); false: the others."
           },
           {
             "name": "suppressed",
@@ -4620,7 +4620,7 @@
           "sessions"
         ],
         "summary": "Open Session",
-        "description": "Open a session to stream its turns and tool calls (optional; see `\u2026/events`). Idempotent on (platform,\nexternal_id). It isn't checked until it closes: `\u2026/close`, a full post to `\u2026/sessions` (which wins), or no\nevents for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as partial).",
+        "description": "Open a session to stream its turns and tool calls (optional; see `\u2026/events`). Idempotent on (platform,\nexternal_id). It isn't checked until it closes: `\u2026/close`, a full post to `\u2026/sessions` (which wins), or no\nevents for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as incomplete).",
         "operationId": "open_session",
         "security": [
           {
@@ -16349,7 +16349,7 @@
           "sessions_checked": {
             "type": "integer",
             "title": "Sessions Checked",
-            "description": "Eligible sessions: checked (or partial) with a result."
+            "description": "Eligible sessions: checked (or incomplete) with a result."
           },
           "followed": {
             "type": "integer",
@@ -18068,7 +18068,7 @@
           "partial": {
             "type": "boolean",
             "title": "Partial",
-            "description": "The sender knows the transcript is incomplete.",
+            "description": "The sender knows the transcript is incomplete: the session's status is then `incomplete`.",
             "default": false
           }
         },
@@ -18191,7 +18191,7 @@
               "routed",
               "checked",
               "excluded",
-              "partial",
+              "incomplete",
               "failed"
             ],
             "title": "Status"
@@ -18502,7 +18502,7 @@
           "partial": {
             "type": "boolean",
             "title": "Partial",
-            "description": "The sender knows the transcript is incomplete.",
+            "description": "The sender knows the transcript is incomplete: the session's status is then `incomplete`.",
             "default": false
           },
           "turns": {
@@ -18614,7 +18614,7 @@
               "routed",
               "checked",
               "excluded",
-              "partial",
+              "incomplete",
               "failed"
             ],
             "title": "Status"
@@ -18926,7 +18926,7 @@
               "routed",
               "checked",
               "excluded",
-              "partial",
+              "incomplete",
               "failed"
             ],
             "title": "Status"
@@ -20038,7 +20038,7 @@
           "sessions_checked": {
             "type": "integer",
             "title": "Sessions Checked",
-            "description": "Eligible sessions: checked (or partial) with a result."
+            "description": "Eligible sessions: checked (or incomplete) with a result."
           },
           "followed": {
             "type": "integer",

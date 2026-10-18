@@ -5,9 +5,12 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from conftest import WS
+from conftest import WS, fresh_db_url
 from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlmodel import Session as DB
 
+from sopops import Sopc, Store
 from sopops.cli import main as cli
 from sopops.events import Broker
 from sopops.pipeline.normalize import normalize_turns
@@ -148,9 +151,9 @@ def test_inline_pipeline_normalizes_turns_and_sets_status(client, token):
     assert s["turns"][0]["offset_s"] == 0 and s["tool_calls"][0]["offset_s"] == 8 and "at" not in s["tool_calls"][0]
 
     empty = ingest(client, token, session("room-empty", turns=[])).json()["id"]
-    assert client.get(f"{WS}/sessions/{empty}").json()["status"] == "partial"
+    assert client.get(f"{WS}/sessions/{empty}").json()["status"] == "incomplete"
     flagged = ingest(client, token, session("room-cut", partial=True)).json()
-    assert flagged["status"] == "partial"
+    assert flagged["status"] == "incomplete"
     assert client.get(f"{WS}/sessions/{flagged['id']}").json()["status_reason"] == "The sender marked the transcript incomplete."
 
 
@@ -192,7 +195,7 @@ def test_list_filters_and_cursor(client, token):
     assert ids(channel="text") == ["t0"]
     assert ids(agent="sakura-sushi") == ["t0"]
     assert ids(platform="api") == ["t0"]
-    assert ids(status="partial") == ["e0"]
+    assert ids(status="incomplete") == ["e0"]
     assert ids(since=T0.isoformat(), until=(T0 + timedelta(minutes=3)).isoformat()) == ["v2", "v1", "v0"]
     assert client.get(f"{WS}/sessions", params={"status": "nope"}).status_code == 422
 
@@ -341,11 +344,23 @@ def test_events_need_an_open_session_and_the_ingest_scope(client, token):
     assert stream_post(client, token, "/livekit/nope/events", {"events": [turn(0, "user", "hi")]}).status_code == 404
 
 
-def test_idle_open_sessions_close_as_partial(client, token):
+def test_idle_open_sessions_close_as_incomplete(client, token):
     store = client.app.state.store
     opened = stream_post(client, token, "/open", {"platform": "livekit", "external_id": "idle-1"}).json()
     stream_post(client, token, "/livekit/idle-1/events", {"events": [turn(0, "user", "Hello?")]})
     assert store.sessions.close_idle("demo") == []  # not idle yet
     [ref] = store.sessions.close_idle("demo", idle=timedelta(0))
     s = client.get(f"{WS}/sessions/{opened['id']}").json()
-    assert ref.session_id == opened["id"] and s["status"] == "partial" and "No events" in s["status_reason"]
+    assert ref.session_id == opened["id"] and s["status"] == "incomplete" and "No events" in s["status_reason"]
+
+
+def test_the_migration_renames_partial_sessions_to_incomplete(tmp_path):
+    url = fresh_db_url(tmp_path)
+    store = Store(url)
+    sid = store.sessions.ingest("demo", SessionIn(**session("room-old", turns=[]))).id
+    with DB(store.engine) as db, db.begin():  # as a database from before 0014 has it
+        db.exec(text("UPDATE sessions SET status = 'partial'"))
+        db.exec(text("UPDATE alembic_version SET version_num = '0013'"))
+    again = Store(url, Sopc())
+    with DB(again.engine) as db:
+        assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "incomplete"

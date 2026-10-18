@@ -3,7 +3,7 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
 
 - **Window**: `[start, end]` on `session.started_at`, both ends inclusive, at most 366 days. The prior window is the
   same length right before it, always derived.
-- **Eligible session**: status `checked` or `partial` with a result (its checks ran). Sessions still in progress
+- **Eligible session**: status `checked` or `incomplete` with a result (its checks ran). Sessions still in progress
   (`received`, `routed`) or `failed` are counted, never rated; `excluded` sessions are counted separately.
 - **Session outcome**: the worst result of its procedure checks in scope (only the filtered procedure, if one is
   set): `deviated` = needs attention, `followed` = followed end to end; `partial` and `not_measurable` are neither.
@@ -62,7 +62,7 @@ RISING_MIN = 5  # a rising pattern: at least this many findings, and at least tw
 THRESHOLDS = {"min_n": MIN_N, "flag_points": FLAG_POINTS, "warning_drop_points": WARNING_DROP_POINTS, "hot_min_n": HOT_MIN_N,
               "fail_warn": FAIL_WARN, "fail_bad": FAIL_BAD, "agent_min_n": AGENT_MIN_N, "rising_min": RISING_MIN}
 
-ELIGIBLE_STATUSES = ("checked", "partial")
+ELIGIBLE_STATUSES = ("checked", "incomplete")
 MEASURABLE = ("deviated", "partial", "followed")
 STEP_PASS, STEP_FAIL = ("done",), ("skipped", "out_of_order")
 NEVER_PASS, NEVER_FAIL = ("ok",), ("violated",)

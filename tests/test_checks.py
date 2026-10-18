@@ -239,9 +239,9 @@ def test_rerunning_is_idempotent_and_a_resend_replaces_results(env):
     assert counts() == (3, 6, 0)
 
 
-def test_partial_sessions_are_checked_but_stay_partial(env):
+def test_incomplete_sessions_are_checked_but_stay_incomplete(env):
     s = env.send(session("cut-off", partial=True))
-    assert s["status"] == "partial" and s["result"] == "deviated" and len(s["checks"]) == 3
+    assert s["status"] == "incomplete" and s["result"] == "deviated" and len(s["checks"]) == 3
 
 
 def test_list_shows_and_filters_by_result(env):
