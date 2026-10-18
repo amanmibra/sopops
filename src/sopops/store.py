@@ -22,8 +22,9 @@ from .checks import Checks
 from .db import engine_from_url, upgrade
 from .errors import Conflict, NotFound, workspace_id
 from .insights import Insights
+from .lineage import Lineage, record
 from .orm import Fetch, FileVersion, Release, Workspace
-from .patterns import Patterns
+from .patterns import Patterns, rekey
 from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 from .suggestions import Suggestions
@@ -44,12 +45,13 @@ class Store:
         self.tokens = Tokens(self)
         self.checks = Checks(self)
         self.patterns = Patterns(self)
+        self.lineage = Lineage(self, follow=rekey)
         self.verdicts = Verdicts(self)
         self.suggestions = Suggestions(self)
         self.calibrate = Calibrate(self)
         self.insights = Insights(self)
         if migrate:
-            upgrade(self.engine)
+            upgrade(self.engine, self.sopc)
 
     def _session(self) -> Session:
         return Session(self.engine, expire_on_commit=False)
@@ -631,6 +633,9 @@ class Store:
         row = {"workspace": workspace, "number": number, "created_at": _now(), "author": author, "note": note, "files": versions, "build": build}
         db.add(Release(**row))
         db.execute(update(Workspace).where(Workspace.workspace == workspace).values(current_release=number))
+        db.flush()
+        # which rules the new release rewords, against the release that was live (patterns follow; sopops.lineage)
+        record(db, self.sopc, workspace, current["number"] if current else None, number, follow=rekey)
         return _summary(row, True), True
 
     def _head_rows(self, db: Session, workspace: str) -> list[dict]:

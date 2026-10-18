@@ -155,6 +155,8 @@ Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_
 
 A single finding can be marked wrong too. A pattern with a verdict exports its sessions as regression cases (JSON Lines).
 
+**Reworded rules.** sopc gives a rule a new id when its text changes, and every applied suggestion rewords one. sopops records which rule each reworded rule replaced when you publish (from the suggestion that made the edit, else by matching the wording at the same position, then anywhere in the procedure), so the rule keeps its pattern, verdicts, review state and Insights history across wordings, while each session keeps the exact wording it ran. When the matcher is wrong, link or unlink the two rules by hand ([API.md](API.md#rule-lineage)).
+
 Each pattern then moves through review states: **needs review** (no verdict, or a recluster changed its findings since), **open** (a real mistake or a wrong SOP, not fixed yet), **fixing** (a suggestion applied or its pull request open or merged, waiting for the release to go live and for 10 sessions on it), **fixed**, or **regressed** (it came back on sessions that ran the fix, so it's back in the queue), and **closed** for acceptable and checker-wrong. Pull requests are followed on GitHub: merged moves the pattern on, closed reopens it.
 
 **Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows each agent's prompt diff. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. Details: [API.md](API.md#review-and-suggestions).
@@ -233,6 +235,7 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `GET …/patterns`, `…/patterns/<id>`, `POST …/patterns/recluster` | Patterns with their failure modes; recluster now. |
 | `GET …/review`, `POST …/patterns/<id>/verdict`, `POST …/findings/<id>/override`, `GET …/patterns/<id>/regression` | The review queue by review state, verdicts, one finding marked right or wrong, regression cases. |
 | `POST …/calibrate` | Fit the check thresholds to the workspace's review labels (or a dry run). |
+| `GET/POST/DELETE …/rules/<rule_id>/lineage`, `POST …/rules/lineage/rebuild` | Which rule a reworded rule replaced; link or unlink two rules by hand; recompute from the releases. |
 | `GET …/suggestions[/<id>]`, `POST …/patterns/<id>/suggest`, `POST …/suggestions/<id>/apply`, `…/dismiss` | Suggested edits: list, (re)generate, apply as a draft or pull request, dismiss. |
 | `GET …/insights/overview`, `…/procedures/<id>[/rules/<id>]`, `…/releases/compare`, `…/report` | Insights and the report. |
 | `GET/POST …/tokens`, `DELETE …/tokens/<id>` | Workspace tokens with scopes (`ingest`, `runtime`), shown once; revoke. |
@@ -254,7 +257,7 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 | Import with a coding agent (sopops-mcp) or sopops's own model | Experiments: A/B tests as a feature (today: pin a release per call and compare releases) |
 | Pull and push delivery: LiveKit, ElevenLabs, Vapi; Python and TypeScript SDKs | Retell delivery; ElevenLabs and Vapi post-call webhooks; an OpenTelemetry receiver |
 | Sessions: ingest, streaming, backfill import; checks per rule with quotes | Runtime enforcement: checking rules while a session is still going, and guidance back to the agent (the SDKs' `on_guidance` is reserved for it) |
-| Patterns, themes, review verdicts and states, suppression, calibration from review labels, regression export | A Slack digest of new patterns and suggestions |
+| Patterns, themes, review verdicts and states, suppression, calibration from review labels, regression export; all of it following a rule across its wordings | A Slack digest of new patterns and suggestions |
 | Suggested edits as drafts or GitHub pull requests; pulling a repo's sopc project | A GitHub App instead of a personal token; pulling on push |
 | Insights, release compare, the report | Renaming agents and blocks; a webhook on publish; more framework adapters (Pipecat) |
 
@@ -270,8 +273,8 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `src/sopops/ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide` (decisions and review), `programs` and `calibration` (fitted thresholds), `fakes` (for tests) |
 | `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
 | `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering prompts to platforms; inline or Hatchet runs |
-| `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
-| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status) and `sopops-mcp` |
+| `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `lineage.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
+| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild) and `sopops-mcp` |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |
 | `sdks/python`, `sdks/node` | The client SDKs |
 | `skills/sopops-onboard` | The onboarding skill coding agents follow |

@@ -4,6 +4,7 @@ sopops worker
 sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force] [--database-url URL]
 sopops calibrate --workspace WS [--procedure P] [--dry-run] [--database-url URL]
 sopops pr-status [--workspace WS] [--database-url URL]
+sopops lineage rebuild [--workspace WS] [--database-url URL]
 
 Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
@@ -28,13 +29,14 @@ from .schemas import SessionIn
 from .sopc import Sopc
 from .store import Store
 
-COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status")
+COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage")
 
 
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     command = argv.pop(0) if argv and argv[0] in COMMANDS else "serve"
-    {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster, "calibrate": calibrate, "pr-status": pr_status}[command](argv)
+    {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster, "calibrate": calibrate, "pr-status": pr_status,
+     "lineage": lineage}[command](argv)
 
 
 def serve(argv: list[str]) -> None:
@@ -164,6 +166,19 @@ def pr_status(argv: list[str]) -> None:
     args = parser.parse_args(argv)
     out = Store(args.database_url, Sopc()).suggestions.sync_prs(args.workspace, force=True)
     print(", ".join(f"{v} {k}" for k, v in out.items()))
+
+
+def lineage(argv: list[str]) -> None:
+    """Recompute rule lineage from the releases (what the migration that added it ran; see `sopops.lineage`)."""
+    parser = argparse.ArgumentParser(prog="sopops lineage", description="Rule lineage: which rule a reworded rule replaced.")
+    parser.add_argument("action", choices=["rebuild"], help="rebuild: match every release's rules against the release before it (manual links stay), and move patterns to match.")
+    parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    store = Store(args.database_url, Sopc())
+    for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
+        out = store.lineage.rebuild(ws)
+        print(f"{ws}: {out['links']} rules linked to an earlier wording, {out['procedures']} procedures")
 
 
 def _short(e: Exception) -> str:

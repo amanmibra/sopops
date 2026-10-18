@@ -63,7 +63,7 @@ class Candidates:
     variables: dict[str, str] = field(default_factory=dict)
 
 
-_cache: dict[tuple[str, int], dict[str, Any]] = {}
+_cache: dict[tuple[str, int, str], dict[str, Any]] = {}
 _lock = threading.Lock()
 
 
@@ -125,14 +125,15 @@ def _procedure(sop: dict[str, Any], versions: dict[str, int], release: int) -> P
 
 
 def _release_export(store: Store, db: Session, ws: str, number: int) -> dict[str, Any] | None:
-    """`sopc export` of a release's files, cached for good (releases are immutable)."""
-    key = (ws, number)
-    with _lock:
-        if key in _cache:
-            return _cache[key]
+    """`sopc export` of a release's files, cached for good (releases are immutable; the key has its creation time, so
+    a database made again from scratch, as tests do, doesn't get another one's release)."""
     rel = db.get(Release, (ws, number))
     if rel is None:
         return None
+    key = (ws, number, rel.created_at.isoformat())
+    with _lock:
+        if key in _cache:
+            return _cache[key]
     files = {}
     for path, version in rel.files.items():
         content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == path, FileVersion.version == version)).first()

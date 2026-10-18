@@ -7074,6 +7074,243 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/rules/{rule_id}/lineage": {
+      "get": {
+        "tags": [
+          "lineage"
+        ],
+        "summary": "Get Rule Lineage",
+        "description": "The rule's lineage: the rule it replaced, how that was decided, and every wording, oldest first.\n`procedure` only when the rule id is in more than one procedure.",
+        "operationId": "get_rule_lineage",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleLineageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "lineage"
+        ],
+        "summary": "Link Rule",
+        "description": "Say the rule replaced `previous_rule_id` (a `manual` link, which publishing and rebuilding never change).\nIts findings join that rule's pattern, with its verdict and review state. 409 if it would make a cycle.",
+        "operationId": "link_rule",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleLineageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "lineage"
+        ],
+        "summary": "Unlink Rule",
+        "description": "Say the rule is a new rule, not a rewording (kept as a `manual` row). Its findings, and those of the\nwordings after it, move to a rule pattern of their own.",
+        "operationId": "unlink_rule",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleLineageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/rules/lineage/rebuild": {
+      "post": {
+        "tags": [
+          "lineage"
+        ],
+        "summary": "Rebuild Lineage",
+        "description": "Recompute the links of every release against the one before it (manual links stay), and move patterns to\nmatch. Idempotent; `sopops lineage rebuild` does the same.",
+        "operationId": "rebuild_lineage",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LineageRebuildOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/repo": {
       "get": {
         "tags": [
@@ -10129,7 +10366,12 @@
           },
           "rule_id": {
             "type": "string",
-            "title": "Rule Id"
+            "title": "Rule Id",
+            "description": "The rule as release B words it (A, if B doesn't have it)."
+          },
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id"
           },
           "kind": {
             "anyOf": [
@@ -10169,6 +10411,18 @@
             ],
             "title": "Text"
           },
+          "a_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "A Text",
+            "description": "Release A's wording, when B rewords the rule."
+          },
           "rule_change": {
             "anyOf": [
               {
@@ -10183,7 +10437,8 @@
                 "type": "null"
               }
             ],
-            "title": "Rule Change"
+            "title": "Rule Change",
+            "description": "`changed`: B runs another wording of the rule (its lineage)."
           },
           "a": {
             "$ref": "#/components/schemas/RateOut"
@@ -10229,9 +10484,11 @@
         "required": [
           "procedure_id",
           "rule_id",
+          "lineage_id",
           "kind",
           "index",
           "text",
+          "a_text",
           "rule_change",
           "a",
           "b",
@@ -12084,7 +12341,13 @@
         "properties": {
           "rule_id": {
             "type": "string",
-            "title": "Rule Id"
+            "title": "Rule Id",
+            "description": "The rule as sessions ran it most recently; its earlier wordings are counted with it."
+          },
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id",
+            "description": "The id of the rule's first wording (rule patterns are keyed by it)."
           },
           "kind": {
             "type": "string",
@@ -12107,6 +12370,26 @@
             "type": "integer",
             "title": "Wordings",
             "description": "How many wordings the rule has had; more than 1: it was reworded."
+          },
+          "wording_history": {
+            "items": {
+              "$ref": "#/components/schemas/WordingRef"
+            },
+            "type": "array",
+            "title": "Wording History",
+            "description": "Every wording, oldest first, with the release that published it."
+          },
+          "reworded_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reworded In",
+            "description": "The release that brought the current wording, when it was reworded."
           },
           "total": {
             "type": "integer",
@@ -12288,10 +12571,13 @@
         "type": "object",
         "required": [
           "rule_id",
+          "lineage_id",
           "kind",
           "index",
           "text",
           "wordings",
+          "wording_history",
+          "reworded_in",
           "total",
           "counts",
           "n",
@@ -12314,6 +12600,151 @@
           "most_failed"
         ],
         "title": "LadderRow"
+      },
+      "LineageRebuildOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "links": {
+            "type": "integer",
+            "title": "Links",
+            "description": "Links the matcher and applied suggestions made."
+          },
+          "procedures": {
+            "type": "integer",
+            "title": "Procedures"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "links",
+          "procedures"
+        ],
+        "title": "LineageRebuildOut"
+      },
+      "LineageRule": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "previous_rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Rule Id",
+            "description": "The rule it replaced; null for the first rule of the lineage."
+          },
+          "how": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "suggestion",
+                  "matched",
+                  "manual"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How",
+            "description": "How the link was made: an applied suggestion, the matcher, or a person. Null for the first rule."
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "Token Jaccard of the two wordings (0 to 1), for a link made at publish."
+          },
+          "release_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release Id",
+            "description": "The release that published the change (null for a manual link)."
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "Its wording, once a session ran it."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "previous_rule_id",
+          "how",
+          "similarity",
+          "release_id",
+          "text",
+          "from_release"
+        ],
+        "title": "LineageRule"
+      },
+      "LinkIn": {
+        "properties": {
+          "previous_rule_id": {
+            "type": "string",
+            "title": "Previous Rule Id",
+            "description": "The rule this one replaced."
+          },
+          "procedure_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure Id",
+            "description": "Needed only when the rule id is in more than one procedure."
+          }
+        },
+        "type": "object",
+        "required": [
+          "previous_rule_id"
+        ],
+        "title": "LinkIn"
       },
       "LintFinding": {
         "properties": {
@@ -16694,7 +17125,12 @@
           },
           "rule_id": {
             "type": "string",
-            "title": "Rule Id"
+            "title": "Rule Id",
+            "description": "The rule as sessions ran it most recently (the path takes any of its wordings)."
+          },
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id"
           },
           "kind": {
             "type": "string",
@@ -16732,7 +17168,20 @@
               "$ref": "#/components/schemas/Wording"
             },
             "type": "array",
-            "title": "Wordings"
+            "title": "Wordings",
+            "description": "Every wording of the rule (its lineage), most recently run first."
+          },
+          "reworded_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reworded In",
+            "description": "The release that brought the current wording, when it was reworded."
           },
           "overall": {
             "$ref": "#/components/schemas/RateOut"
@@ -16772,10 +17221,12 @@
           "thresholds",
           "procedure_id",
           "rule_id",
+          "lineage_id",
           "kind",
           "index",
           "text",
           "wordings",
+          "reworded_in",
           "overall",
           "releases",
           "agents",
@@ -16783,6 +17234,68 @@
           "recent_findings"
         ],
         "title": "RuleInsights"
+      },
+      "RuleLineageOut": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id",
+            "description": "The id of the lineage's first rule. Rule patterns are keyed by it."
+          },
+          "previous_rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Rule Id"
+          },
+          "how": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "suggestion",
+                  "matched",
+                  "manual"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "How"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/LineageRule"
+            },
+            "type": "array",
+            "title": "Rules",
+            "description": "Every rule of the lineage, oldest first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "rule_id",
+          "lineage_id",
+          "previous_rule_id",
+          "how",
+          "rules"
+        ],
+        "title": "RuleLineageOut"
       },
       "RulePatternOut": {
         "properties": {
@@ -20673,6 +21186,23 @@
       },
       "Wording": {
         "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id",
+            "description": "sopc's id for this wording."
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "The release that published it (its lineage link's), else the first release a session ran it on."
+          },
           "text": {
             "type": "string",
             "title": "Text"
@@ -20712,6 +21242,8 @@
         },
         "type": "object",
         "required": [
+          "rule_id",
+          "from_release",
           "text",
           "text_hash",
           "first_seen",
@@ -20740,6 +21272,38 @@
           "agents"
         ],
         "title": "WordingGroup"
+      },
+      "WordingRef": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "from_release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "From Release",
+            "description": "The release that published this wording (its lineage link's), else the first release a session ran it on."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "text",
+          "from_release"
+        ],
+        "title": "WordingRef",
+        "description": "One wording of a rule: its sopc id (which follows the text), the text, and the release that published it."
       },
       "WorkspaceOut": {
         "properties": {

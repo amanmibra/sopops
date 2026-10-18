@@ -23,15 +23,15 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
 
-from . import forms, github
+from . import forms, github, lineage
 from .ai import lm as ai_lm
 from .ai.programs import SuggestEdits
 from .ai.signatures import VERSIONS, ExampleIn
 from .errors import Conflict, NotFound
-from .orm import Pattern, Suggestion, Verdict
+from .orm import Pattern, Suggestion, Verdict, Workspace
 from .patterns import KIND_LABEL
 from .sopc import Invalid
-from .verdicts import SUGGESTIBLE, rule_position, suggestion_summary, verdict_out
+from .verdicts import SUGGESTIBLE, suggestion_summary, verdict_out
 
 if TYPE_CHECKING:
     from .ai.lm import AI
@@ -179,18 +179,13 @@ class Suggestions:
             return self._save(s, status="failed", error=f"The procedure '{s.procedure_id}' isn't in the workspace any more.")
         path = proc["file"]
         sop = next((x for x in self.store.sopc.export(files)["sops"] if x["id"] == s.procedure_id), {})
-        rules = sop.get("rules") or []
-        rule = next((r for r in rules if r["id"] == s.rule_id), None)
-        if rule is None:  # edited since (its id changes with its text): the rule at the same position
-            with self._db() as db:
-                pos = rule_position(db, ws, s.procedure_id, s.rule_id)
-            rule = next((r for r in rules if pos and (r["kind"], r["index"]) == pos), None)
+        rule = self._current_rule(ws, s, sop.get("rules") or [])
         if rule is None:
             return self._save(s, status="failed", error="The rule isn't in the procedure any more.")
         p, examples = self.store.verdicts.examples(ws, s.pattern_id)
         old = files[path]
-        s.path, s.base_version, s.old_text = path, head[path]["version"], old
-        self._save(s, path=path, base_version=s.base_version, old_text=old)
+        s.path, s.base_version, s.old_text, s.rule_id = path, head[path]["version"], old, rule["id"]
+        self._save(s, path=path, base_version=s.base_version, old_text=old, rule_id=rule["id"])
 
         def validate(block_id: str, text: str) -> str | None:
             if block_id != s.procedure_id:
@@ -217,6 +212,23 @@ class Suggestions:
             return self._save(s, status="failed", error=got.error, **common)
         plan = prompt_plan(self.store.sopc.compile(files).agents, self.store.sopc.compile({**files, path: common["new_text"]}).agents)
         return self._save(s, status="proposed", error=None, plan=plan, **common)
+
+    def _current_rule(self, ws: str, s: Suggestion, rules: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """The rule the suggestion is about, as it reads at head: the rule of the pattern's lineage (`sopops.lineage`).
+        A rewording that isn't published yet has no lineage row: the live release's rule of the lineage, matched to
+        head's rules the way publishing will match it."""
+        with self._db() as db:
+            lid = lineage.lineage_of(db, ws, s.procedure_id, s.rule_id)
+            ids = lineage.members(db, ws, s.procedure_id, lid)
+            found = next((r for r in rules if r["id"] in ids), None)
+            live = db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
+            snap = lineage.snapshot(db, self.store.sopc, ws, live) if found is None and live is not None else None
+        if found is not None or snap is None:
+            return found
+        released = snap.rules.get(s.procedure_id, [])
+        was = next((r for r in released if r["id"] in ids), None)
+        moved = {x.previous_rule_id: x.rule_id for x in lineage.match(released, rules)}
+        return next((r for r in rules if was and r["id"] == moved.get(was["id"])), None)
 
     def apply(self, ws: str, suggestion_id: str, reviewer: str | None = None) -> dict[str, Any]:
         """A pull request when the workspace has a repo connection, else a draft edit of the procedure's file."""

@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, func, select
 
+from . import lineage
 from .ai import decide
 from .ai import lm as ai_lm
 from .ai.signatures import (
@@ -45,8 +46,8 @@ from .ai.signatures import (
     ThemeGroup,
     ThemeIn,
 )
-from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
-from .verdicts import carry_over
+from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Suggestion, Theme, Verdict
+from .verdicts import carry_over, refresh_findings
 
 if TYPE_CHECKING:
     from .ai.lm import AI
@@ -212,7 +213,9 @@ class Patterns:
             return out
         ai = ai or ai_lm.get_ai()
         out.assigned = self._assign(ws, findings, ai)
-        rules = sorted({(f.procedure_id, f.rule_id) for f in findings})
+        with self._db() as db:
+            lins = lineage.lineages(db, ws)
+        rules = sorted({(f.procedure_id, lins.get((f.procedure_id, f.rule_id), f.rule_id)) for f in findings})
         for pid, rid in rules:
             if self.due(ws, pid, rid):
                 if recluster:
@@ -233,30 +236,31 @@ class Patterns:
             ids = [f.id for f in findings]
             findings = list(db.exec(select(Finding).where(Finding.id.in_(ids))))
             views = {v.id: v for v in _views(db, findings)}
+            lins = lineage.lineages(db, ws)
+            key = {f.id: (f.procedure_id, lins.get((f.procedure_id, f.rule_id), f.rule_id)) for f in findings}  # a rule's pattern is its lineage's
             rule_pats: dict[tuple[str, str], Pattern] = {}
             for f in findings:
-                key = (f.procedure_id, f.rule_id)
-                if key not in rule_pats:
-                    rule_pats[key] = self._rule_pattern(db, ws, f.procedure_id, f.rule_id, views.get(f.id), now)
+                if key[f.id] not in rule_pats:
+                    rule_pats[key[f.id]] = _rule_pattern(db, ws, *key[f.id], views.get(f.id), now)
             subs = self._subs_by_rule(db, ws, list(rule_pats.values()))
-            simple = [f for f in findings if not subs.get(rule_pats[(f.procedure_id, f.rule_id)].id)]
+            simple = [f for f in findings if not subs.get(rule_pats[key[f.id]].id)]
             for f in simple:
-                f.pattern_id = rule_pats[(f.procedure_id, f.rule_id)].id
+                f.pattern_id = rule_pats[key[f.id]].id
                 db.add(f)
-            split = [f for f in findings if subs.get(rule_pats[(f.procedure_id, f.rule_id)].id) and f.id in views]
+            split = [f for f in findings if subs.get(rule_pats[key[f.id]].id) and f.id in views]
             for i in range(0, len(split), ASSIGN_BATCH):
                 batch = split[i : i + ASSIGN_BATCH]
-                choice = self._choose(ai, [views[f.id] for f in batch], {f.id: subs[rule_pats[(f.procedure_id, f.rule_id)].id] for f in batch})
+                choice = self._choose(ai, [views[f.id] for f in batch], {f.id: subs[rule_pats[key[f.id]].id] for f in batch})
                 for f in batch:
                     f.pattern_id = choice[f.id]
                     db.add(f)
             for f in findings:  # no rule result to describe it (shouldn't happen): the rule pattern
                 if f.pattern_id is None:
-                    f.pattern_id = rule_pats[(f.procedure_id, f.rule_id)].id
+                    f.pattern_id = rule_pats[key[f.id]].id
                     db.add(f)
             db.flush()
             for p in rule_pats.values():
-                self._refresh_counts(db, p)
+                refresh_counts(db, p)
         self.store.verdicts.refresh(ws, rules=list(rule_pats))
         return len(findings)
 
@@ -294,16 +298,6 @@ class Patterns:
             out[v.id] = by_key.get(picked.get(keys[v.id], "other"), other)  # a mode of another rule counts as other
         return out
 
-    def _rule_pattern(self, db: Session, ws: str, procedure_id: str, rule_id: str, view: FindingView | None, now: datetime) -> Pattern:
-        p = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == rule_id, Pattern.kind == "rule")).first()
-        if p is None:
-            kind, index, text = (view.kind, view.index, view.rule_text) if view else ("step", 0, "")
-            p = Pattern(id=_id(), workspace_id=ws, procedure_id=procedure_id, rule_id=rule_id, kind="rule", name=rule_pattern_name(kind, index),
-                        description=text, created_at=now, updated_at=now)
-            db.add(p)
-            db.flush()
-        return p
-
     def _subs_by_rule(self, db: Session, ws: str, rule_pats: list[Pattern]) -> dict[str, list[Pattern]]:
         """Active sub-patterns (other last) per rule pattern id; only rules that have been split."""
         if not rule_pats:
@@ -314,32 +308,11 @@ class Patterns:
             out[p.parent_id].append(p)  # type: ignore[index]
         return {k: sorted(v, key=lambda p: (p.kind == "other", p.created_at, p.name)) for k, v in out.items() if any(p.kind == "sub" for p in v)}
 
-    def _refresh_counts(self, db: Session, rule_pat: Pattern) -> None:
-        """Counts and first/last seen for a rule pattern and its sub-patterns, from their findings."""
-        family = [rule_pat, *db.exec(select(Pattern).where(Pattern.parent_id == rule_pat.id))]
-        ids = [p.id for p in family]
-        rows = db.exec(
-            select(Finding.pattern_id, func.count(Finding.id), func.count(func.distinct(Finding.session_id)), func.min(SessionRecord.started_at), func.max(SessionRecord.started_at))
-            .join(SessionRecord, SessionRecord.id == Finding.session_id)
-            .where(Finding.pattern_id.in_(ids))
-            .group_by(Finding.pattern_id)
-        ).all()
-        stats = {r[0]: r[1:] for r in rows}
-        total = db.exec(
-            select(func.count(Finding.id), func.count(func.distinct(Finding.session_id)), func.min(SessionRecord.started_at), func.max(SessionRecord.started_at))
-            .join(SessionRecord, SessionRecord.id == Finding.session_id)
-            .where(Finding.workspace_id == rule_pat.workspace_id, Finding.procedure_id == rule_pat.procedure_id, Finding.rule_id == rule_pat.rule_id)
-        ).one()
-        now = _now()
-        for p in family:
-            n, s, first, last = total if p.kind == "rule" else stats.get(p.id, (0, 0, None, None))
-            p.finding_count, p.session_count, p.first_seen, p.last_seen, p.updated_at = n or 0, s or 0, first, last, now
-            db.add(p)
-
     # --- recluster -----------------------------------------------------------------------------------------------
 
     def due(self, ws: str, procedure_id: str, rule_id: str) -> bool:
         with self._db() as db:
+            rule_id = lineage.lineage_of(db, ws, procedure_id, rule_id)
             rp = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == rule_id, Pattern.kind == "rule")).first()
             if rp is None:
                 return False
@@ -385,10 +358,12 @@ class Patterns:
         return out
 
     def recluster(self, ws: str, procedure_id: str, rule_id: str, ai: AI | None = None, force: bool = False) -> bool:
-        """Split a rule's findings into failure modes and match them to the existing sub-patterns. Returns whether it
-        ran (not when nothing is due, unless `force`; never with fewer than SPLIT_AT findings)."""
+        """Split a rule's findings (every wording's: `rule_id` is any rule of the lineage) into failure modes and match
+        them to the existing sub-patterns. Returns whether it ran (not when nothing is due, unless `force`; never with
+        fewer than SPLIT_AT findings)."""
         ai = ai or ai_lm.get_ai()
         with self._db() as db:
+            rule_id = lineage.lineage_of(db, ws, procedure_id, rule_id)
             rp = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == rule_id, Pattern.kind == "rule")).first()
             if rp is None:
                 return False
@@ -398,7 +373,7 @@ class Patterns:
             findings = list(
                 db.exec(
                     select(Finding).join(SessionRecord, SessionRecord.id == Finding.session_id)
-                    .where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id, Finding.rule_id == rule_id)
+                    .where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id, lineage.in_lineage(Finding.rule_id, ws, procedure_id, rule_id))
                     .order_by(SessionRecord.started_at.desc(), Finding.id)
                 )
             )
@@ -483,7 +458,7 @@ class Patterns:
                 f.pattern_id = target.get(f.id, other.id)
                 db.add(f)
             db.flush()
-            self._refresh_counts(db, rp)
+            refresh_counts(db, rp)
             rp.clustered_count, rp.clustered_at, rp.model, rp.prompt_version = rp.finding_count, now, model, version
             db.add(rp)
 
@@ -509,20 +484,15 @@ class Patterns:
                 subs[p.parent_id].append(p)  # type: ignore[index]
             themes = list(db.exec(select(Theme).where(Theme.workspace_id == ws, Theme.procedure_id == procedure_id).order_by(Theme.position)))
             name = db.exec(select(ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws, ProcedureCheck.procedure_id == procedure_id).limit(1)).first()
-            kinds = {
-                rid: (kind, index)
-                for rid, kind, index in db.exec(
-                    select(RuleResult.rule_id, RuleResult.kind, RuleResult.index)
-                    .where(RuleResult.workspace_id == ws, RuleResult.procedure_id == procedure_id, RuleResult.rule_id.in_([p.rule_id for p in rule_pats]))
-                    .distinct()
-                )
-            }
+            now = {lin: lineage.current(w) for (_pid, lin), w in lineage.wordings(db, ws, procedure_id).items()}  # each lineage's current wording
+            kinds = {p.rule_id: (now[p.rule_id].kind, now[p.rule_id].index) for p in rule_pats if p.rule_id in now}
+            texts = {p.rule_id: now[p.rule_id].text for p in rule_pats if p.rule_id in now}
         order = {"step": 0, "never": 1, "warning": 2}
         rule_pats.sort(key=lambda p: (order.get(kinds.get(p.rule_id, ("", 0))[0], 3), kinds.get(p.rule_id, ("", 0))[1]))
         pkeys = {f"r{i + 1}": p for i, p in enumerate(rule_pats)}
         tkeys = {f"t{i + 1}": t for i, t in enumerate(themes)}
         patterns = [
-            PatternIn(key=k, rule=_rule_line(*kinds.get(p.rule_id, ("", 0)), p.description or ""), findings=p.finding_count, failure_modes=[x.name for x in subs.get(p.id, [])])
+            PatternIn(key=k, rule=_rule_line(*kinds.get(p.rule_id, ("", 0)), texts.get(p.rule_id) or p.description or ""), findings=p.finding_count, failure_modes=[x.name for x in subs.get(p.id, [])])
             for k, p in pkeys.items()
         ]
         existing = [ThemeIn(key=k, name=t.name, description=t.description or "", patterns=[pk for pk, p in pkeys.items() if p.theme_id == t.id]) for k, t in tkeys.items()]
@@ -566,6 +536,143 @@ class Patterns:
             for tid, t in old.items():
                 if tid not in used:
                     db.delete(t)
+
+
+def _rule_pattern(db: Session, ws: str, procedure_id: str, lineage_id: str, view: FindingView | None, now: datetime) -> Pattern:
+    """The rule pattern of a lineage (created, named from the finding's rule, if new)."""
+    p = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == lineage_id, Pattern.kind == "rule")).first()
+    if p is None:
+        kind, index, text = (view.kind, view.index, view.rule_text) if view else ("step", 0, "")
+        p = Pattern(id=_id(), workspace_id=ws, procedure_id=procedure_id, rule_id=lineage_id, kind="rule", name=rule_pattern_name(kind, index),
+                    description=text, created_at=now, updated_at=now)
+        db.add(p)
+        db.flush()
+    return p
+
+
+def refresh_counts(db: Session, rule_pat: Pattern) -> None:
+    """Counts and first/last seen for a rule pattern (every finding on its lineage) and its sub-patterns."""
+    family = [rule_pat, *db.exec(select(Pattern).where(Pattern.parent_id == rule_pat.id))]
+    ids = [p.id for p in family]
+    rows = db.exec(
+        select(Finding.pattern_id, func.count(Finding.id), func.count(func.distinct(Finding.session_id)), func.min(SessionRecord.started_at), func.max(SessionRecord.started_at))
+        .join(SessionRecord, SessionRecord.id == Finding.session_id)
+        .where(Finding.pattern_id.in_(ids))
+        .group_by(Finding.pattern_id)
+    ).all()
+    stats = {r[0]: r[1:] for r in rows}
+    total = db.exec(
+        select(func.count(Finding.id), func.count(func.distinct(Finding.session_id)), func.min(SessionRecord.started_at), func.max(SessionRecord.started_at))
+        .join(SessionRecord, SessionRecord.id == Finding.session_id)
+        .where(Finding.workspace_id == rule_pat.workspace_id, Finding.procedure_id == rule_pat.procedure_id,
+               lineage.in_lineage(Finding.rule_id, rule_pat.workspace_id, rule_pat.procedure_id, rule_pat.rule_id))
+    ).one()
+    now = _now()
+    for p in family:
+        n, s, first, last = total if p.kind == "rule" else stats.get(p.id, (0, 0, None, None))
+        p.finding_count, p.session_count, p.first_seen, p.last_seen, p.updated_at = n or 0, s or 0, first, last, now
+        db.add(p)
+
+
+# --- following rule lineage ------------------------------------------------------------------------------------------
+
+
+def rekey(db: Session, ws: str, procedure_id: str) -> None:
+    """Rule patterns follow rule lineage (`sopops.lineage`), in the caller's transaction (a publish, a link or unlink,
+    a rebuild). A rule pattern's `rule_id` is its lineage id, so a reworded rule's findings join the pattern its earlier
+    wordings made, with its failure modes, verdicts, suggestions and review state. Rule patterns that turn out to be
+    one lineage are merged into the one keyed by the lineage id (else the oldest): its failure modes, verdicts and
+    suggestions move over, and its findings go to the merged pattern (its `other` when it's split; the next recluster
+    sorts them). Findings on a rule that left a lineage (unlinked) move to their own lineage's pattern."""
+    lins = lineage.lineages(db, ws, procedure_id)
+
+    def lin(rule_id: str) -> str:
+        return lins.get((procedure_id, rule_id), rule_id)
+
+    now = _now()
+    groups: dict[str, list[Pattern]] = defaultdict(list)
+    for p in db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.kind == "rule")):
+        groups[lin(p.rule_id)].append(p)
+    keep: dict[str, Pattern] = {}
+    touched: set[str] = set()
+    for lid, rps in groups.items():
+        rps.sort(key=lambda p: (p.rule_id != lid, _utc(p.created_at), p.id))
+        keeper = keep[lid] = rps[0]
+        if keeper.rule_id != lid:
+            for p in (keeper, *db.exec(select(Pattern).where(Pattern.parent_id == keeper.id))):
+                p.rule_id = lid
+                db.add(p)
+            touched.add(lid)
+        for src in rps[1:]:
+            _merge(db, ws, src, keeper, now)
+            touched.add(lid)
+    db.flush()
+    family = {rp.id: lid for lid, rp in keep.items()}
+    family |= {c.id: family[c.parent_id] for c in db.exec(select(Pattern).where(Pattern.parent_id.in_(list(family))))}  # type: ignore[index]
+    stray = [f for f in db.exec(select(Finding).where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id, Finding.pattern_id.in_(list(family))))
+             if family[f.pattern_id] != lin(f.rule_id)]  # type: ignore[index]
+    views = {v.id: v for v in _views(db, stray)}
+    for f in stray:
+        lid = lin(f.rule_id)
+        if lid not in keep:
+            keep[lid] = _rule_pattern(db, ws, procedure_id, lid, views.get(f.id), now)
+        touched |= {lid, family[f.pattern_id]}  # type: ignore[index]
+        f.pattern_id = _landing(db, ws, keep[lid], now).id
+        db.add(f)
+    db.flush()
+    for lid in sorted(touched):
+        refresh_counts(db, keep[lid])
+    refresh_findings(db, ws, rules=[(procedure_id, lid) for lid in touched])
+
+
+def _landing(db: Session, ws: str, rule_pat: Pattern, now: datetime) -> Pattern:
+    """Where a finding goes without a model's choice: the rule pattern, or its `other` once it's split."""
+    kids = list(db.exec(select(Pattern).where(Pattern.parent_id == rule_pat.id)))
+    if not any(k.kind == "sub" and k.status == "active" for k in kids):
+        return rule_pat
+    others = sorted((k for k in kids if k.kind == "other"), key=lambda k: (k.status != "active", _utc(k.created_at), k.id))
+    other = others[0] if others else Pattern(id=_id(), workspace_id=ws, procedure_id=rule_pat.procedure_id, rule_id=rule_pat.rule_id, parent_id=rule_pat.id, kind="other",
+                                             name="Other", description="Findings on this rule that fit none of its failure modes.", theme_id=rule_pat.theme_id, created_at=now, updated_at=now)
+    other.status = "active"
+    db.add(other)
+    for extra in others[1:]:  # two split rule patterns merged: one `other`
+        for f in db.exec(select(Finding).where(Finding.pattern_id == extra.id)):
+            f.pattern_id = other.id
+            db.add(f)
+        extra.status, extra.updated_at = "retired", now
+        db.add(extra)
+    db.flush()
+    return other
+
+
+def _merge(db: Session, ws: str, src: Pattern, keeper: Pattern, now: datetime) -> None:
+    """Fold one rule pattern into another of the same lineage, then delete it (nothing refers to it any more)."""
+    for c in db.exec(select(Pattern).where(Pattern.parent_id == src.id)):
+        c.parent_id, c.rule_id, c.theme_id = keeper.id, keeper.rule_id, keeper.theme_id or c.theme_id
+        db.add(c)
+    db.flush()
+    landing = _landing(db, ws, keeper, now)
+    for f in db.exec(select(Finding).where(Finding.pattern_id.in_({src.id, keeper.id} - {landing.id}))):
+        f.pattern_id = landing.id
+        db.add(f)
+    for v in db.exec(select(Verdict).where(Verdict.pattern_id == src.id)):  # its verdict history joins the merged pattern's; the latest counts
+        v.pattern_id = keeper.id
+        db.add(v)
+    for s in db.exec(select(Suggestion).where(Suggestion.pattern_id == src.id)):
+        s.pattern_id = keeper.id
+        db.add(s)
+    keeper.theme_id = keeper.theme_id or src.theme_id
+    keeper.updated_at = now
+    db.add(keeper)
+    db.flush()
+    db.delete(src)
+    db.flush()
+
+
+def _utc(at: datetime | None) -> datetime:
+    if at is None:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    return at.astimezone(timezone.utc) if at.tzinfo else at.replace(tzinfo=timezone.utc)
 
 
 def reason_due(rule_pat: Pattern, subs: list[Pattern]) -> str | None:

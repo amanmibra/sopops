@@ -20,6 +20,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, or_, select, text
 
+from . import lineage
 from .events import CHANNEL, Broker
 from .orm import (
     Finding,
@@ -302,8 +303,9 @@ class Sessions:
             q = q.where(S.id.in_(pc))
         if rule or rule_status:  # rule_status alone: any rule with those statuses
             rr = select(RuleResult.session_id).where(RuleResult.workspace_id == workspace_id(workspace))
-            if rule:
-                rr = rr.where(RuleResult.rule_id == rule)
+            if rule:  # any wording of the rule (sopops.lineage)
+                with self._db() as db:
+                    rr = rr.where(RuleResult.rule_id.in_(lineage.expand(db, workspace_id(workspace), rule, procedure)[1]))
             if procedure:
                 rr = rr.where(RuleResult.procedure_id == procedure)
             if rule_status:

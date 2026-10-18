@@ -146,6 +146,31 @@ def main() -> None:
         if never:
             note(f"allergen-check never 1: {never['a'].get('pass_rate')}% -> {never['b'].get('pass_rate')}%")
 
+        print("\n== Reworded rules keep their history")
+        reworded = [r for r in cmp["rules"] if r["rule_change"] == "changed"]
+        check(bool(reworded), f"release {latest} rewords {len(reworded)} rule(s) the suggestions edited")
+        for r in reworded:
+            key = f"{r['procedure_id']}/{r['kind']}_{r['index']}"
+            lin = call(http, "GET", f"/v1/workspaces/{{ws}}/rules/{r['rule_id']}/lineage", params={"procedure": r["procedure_id"]})
+            check(lin["lineage_id"] == r["lineage_id"] != r["rule_id"] and lin["previous_rule_id"] == r["lineage_id"] and lin["how"] == "suggestion",
+                  f"{key}: the new wording continues rule {r['lineage_id']} (linked by the applied suggestion, not by guessing)")
+            check(r["a"]["n"] > 0 and r["b"]["n"] > 0 and r["a_text"] and r["a_text"] != r["text"],
+                  f"{key}: one row in release compare across both wordings (n={r['a']['n']} on “{r['a_text']}”, n={r['b']['n']} on “{r['text']}”)")
+            ladder = call(http, "GET", f"/v1/workspaces/{{ws}}/insights/procedures/{r['procedure_id']}", params={"window": "30d"})["rules"]
+            row = next((x for x in ladder if x["lineage_id"] == r["lineage_id"]), None)
+            check(row is not None and row["rule_id"] == r["rule_id"] and row["wordings"] == 2 and row["reworded_in"] == latest,
+                  f"{key}: the rule ladder shows it once, under the new wording, reworded in release {latest}")
+            pats = call(http, "GET", "/v1/workspaces/{ws}/patterns", params={"procedure": r["procedure_id"], "window": "365d"})["items"]
+            mine = [p for p in pats if p["rule_id"] == r["lineage_id"]]
+            planted = sum(v["count"] for v in truth["expected"]["backfill"].get(key, {}).values()) + sum(v["count"] for v in truth["expected"]["new"].get(key, {}).values())
+            got = mine[0]["total_findings"] if len(mine) == 1 else 0
+            check(len(mine) == 1 and (got >= planted * 0.7 if real else got == planted) and not any(p["rule_id"] == r["rule_id"] for p in pats),
+                  f"{key}: one rule pattern for both wordings, {got} findings ({planted} planted across releases 1 and {latest})")
+            family = {x["pattern_id"] for p in mine for x in (p, *p["sub_patterns"])}
+            judged = [m for m, v in review["verdicts"].items() if f"{truth['modes'][m]['procedure']}/{truth['modes'][m]['rule']}" == key]
+            check(all(review["verdicts"][m]["pattern_id"] in family for m in judged),
+                  f"{key}: its verdicts ({', '.join(judged) or 'none'}) are on that pattern, so they follow the new wording")
+
     failed = [w for ok, w in results if not ok]
     print(f"\n{len(results) - len(failed)} of {len(results)} checks passed" + (f"; failed: {len(failed)}" if failed else ""))
     sys.exit(1 if failed else 0)

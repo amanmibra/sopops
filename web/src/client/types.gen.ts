@@ -998,8 +998,14 @@ export type CompareRule = {
     procedure_id: string;
     /**
      * Rule Id
+     *
+     * The rule as release B words it (A, if B doesn't have it).
      */
     rule_id: string;
+    /**
+     * Lineage Id
+     */
+    lineage_id: string;
     /**
      * Kind
      */
@@ -1013,7 +1019,15 @@ export type CompareRule = {
      */
     text: string | null;
     /**
+     * A Text
+     *
+     * Release A's wording, when B rewords the rule.
+     */
+    a_text: string | null;
+    /**
      * Rule Change
+     *
+     * `changed`: B runs another wording of the rule (its lineage).
      */
     rule_change: 'new' | 'removed' | 'changed' | null;
     a: RateOut;
@@ -2071,8 +2085,16 @@ export type Kickoff = {
 export type LadderRow = {
     /**
      * Rule Id
+     *
+     * The rule as sessions ran it most recently; its earlier wordings are counted with it.
      */
     rule_id: string;
+    /**
+     * Lineage Id
+     *
+     * The id of the rule's first wording (rule patterns are keyed by it).
+     */
+    lineage_id: string;
     /**
      * Kind
      */
@@ -2091,6 +2113,18 @@ export type LadderRow = {
      * How many wordings the rule has had; more than 1: it was reworded.
      */
     wordings: number;
+    /**
+     * Wording History
+     *
+     * Every wording, oldest first, with the release that published it.
+     */
+    wording_history: Array<WordingRef>;
+    /**
+     * Reworded In
+     *
+     * The release that brought the current wording, when it was reworded.
+     */
+    reworded_in: number | null;
     /**
      * Total
      */
@@ -2181,6 +2215,88 @@ export type LadderRow = {
      * The highest fail rate among rules with n >= min_n.
      */
     most_failed: boolean;
+};
+
+/**
+ * LineageRebuildOut
+ */
+export type LineageRebuildOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Links
+     *
+     * Links the matcher and applied suggestions made.
+     */
+    links: number;
+    /**
+     * Procedures
+     */
+    procedures: number;
+};
+
+/**
+ * LineageRule
+ */
+export type LineageRule = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Previous Rule Id
+     *
+     * The rule it replaced; null for the first rule of the lineage.
+     */
+    previous_rule_id: string | null;
+    /**
+     * How
+     *
+     * How the link was made: an applied suggestion, the matcher, or a person. Null for the first rule.
+     */
+    how: 'suggestion' | 'matched' | 'manual' | null;
+    /**
+     * Similarity
+     *
+     * Token Jaccard of the two wordings (0 to 1), for a link made at publish.
+     */
+    similarity: number | null;
+    /**
+     * Release Id
+     *
+     * The release that published the change (null for a manual link).
+     */
+    release_id: number | null;
+    /**
+     * Text
+     *
+     * Its wording, once a session ran it.
+     */
+    text: string | null;
+    /**
+     * From Release
+     */
+    from_release: number | null;
+};
+
+/**
+ * LinkIn
+ */
+export type LinkIn = {
+    /**
+     * Previous Rule Id
+     *
+     * The rule this one replaced.
+     */
+    previous_rule_id: string;
+    /**
+     * Procedure Id
+     *
+     * Needed only when the rule id is in more than one procedure.
+     */
+    procedure_id?: string | null;
 };
 
 /**
@@ -4749,8 +4865,14 @@ export type RuleInsights = {
     procedure_id: string;
     /**
      * Rule Id
+     *
+     * The rule as sessions ran it most recently (the path takes any of its wordings).
      */
     rule_id: string;
+    /**
+     * Lineage Id
+     */
+    lineage_id: string;
     /**
      * Kind
      */
@@ -4765,8 +4887,16 @@ export type RuleInsights = {
     text: string | null;
     /**
      * Wordings
+     *
+     * Every wording of the rule (its lineage), most recently run first.
      */
     wordings: Array<Wording>;
+    /**
+     * Reworded In
+     *
+     * The release that brought the current wording, when it was reworded.
+     */
+    reworded_in: number | null;
     overall: RateOut;
     /**
      * Releases
@@ -4784,6 +4914,40 @@ export type RuleInsights = {
      * Recent Findings
      */
     recent_findings: Array<RecentFinding>;
+};
+
+/**
+ * RuleLineageOut
+ */
+export type RuleLineageOut = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Lineage Id
+     *
+     * The id of the lineage's first rule. Rule patterns are keyed by it.
+     */
+    lineage_id: string;
+    /**
+     * Previous Rule Id
+     */
+    previous_rule_id: string | null;
+    /**
+     * How
+     */
+    how: 'suggestion' | 'matched' | 'manual' | null;
+    /**
+     * Rules
+     *
+     * Every rule of the lineage, oldest first.
+     */
+    rules: Array<LineageRule>;
 };
 
 /**
@@ -6968,6 +7132,18 @@ export type WarningImpact = {
  */
 export type Wording = {
     /**
+     * Rule Id
+     *
+     * sopc's id for this wording.
+     */
+    rule_id: string;
+    /**
+     * From Release
+     *
+     * The release that published it (its lineage link's), else the first release a session ran it on.
+     */
+    from_release: number | null;
+    /**
      * Text
      */
     text: string;
@@ -7001,6 +7177,28 @@ export type WordingGroup = {
      * Agents
      */
     agents: Array<string>;
+};
+
+/**
+ * WordingRef
+ *
+ * One wording of a rule: its sopc id (which follows the text), the text, and the release that published it.
+ */
+export type WordingRef = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * From Release
+     *
+     * The release that published this wording (its lineage link's), else the first release a session ran it on.
+     */
+    from_release: number | null;
 };
 
 /**
@@ -10885,6 +11083,148 @@ export type InsightsReportResponses = {
 };
 
 export type InsightsReportResponse = InsightsReportResponses[keyof InsightsReportResponses];
+
+export type UnlinkRuleData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: {
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/rules/{rule_id}/lineage';
+};
+
+export type UnlinkRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnlinkRuleError = UnlinkRuleErrors[keyof UnlinkRuleErrors];
+
+export type UnlinkRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleLineageOut;
+};
+
+export type UnlinkRuleResponse = UnlinkRuleResponses[keyof UnlinkRuleResponses];
+
+export type GetRuleLineageData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: {
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/rules/{rule_id}/lineage';
+};
+
+export type GetRuleLineageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRuleLineageError = GetRuleLineageErrors[keyof GetRuleLineageErrors];
+
+export type GetRuleLineageResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleLineageOut;
+};
+
+export type GetRuleLineageResponse = GetRuleLineageResponses[keyof GetRuleLineageResponses];
+
+export type LinkRuleData = {
+    body: LinkIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/rules/{rule_id}/lineage';
+};
+
+export type LinkRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LinkRuleError = LinkRuleErrors[keyof LinkRuleErrors];
+
+export type LinkRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleLineageOut;
+};
+
+export type LinkRuleResponse = LinkRuleResponses[keyof LinkRuleResponses];
+
+export type RebuildLineageData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/rules/lineage/rebuild';
+};
+
+export type RebuildLineageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RebuildLineageError = RebuildLineageErrors[keyof RebuildLineageErrors];
+
+export type RebuildLineageResponses = {
+    /**
+     * Successful Response
+     */
+    200: LineageRebuildOut;
+};
+
+export type RebuildLineageResponse = RebuildLineageResponses[keyof RebuildLineageResponses];
 
 export type DisconnectRepoData = {
     body?: never;

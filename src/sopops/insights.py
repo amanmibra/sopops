@@ -17,6 +17,10 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
 - **Comparisons** (releases): a 95% Wilson interval per rate; a side with n < MIN_N is `thin` and never flagged;
   `regressed` / `improved` need |delta| >= FLAG_POINTS and intervals that don't overlap.
 - Release splits use the release each session ran (`session.release_id`), never dates.
+- **Rules** are counted by lineage (`sopops.lineage`): a reworded rule's results, findings and patterns add up with its
+  earlier wordings', under the wording sessions ran most recently (`rule_id`, `text`). `lineage_id` is the first
+  rule's id, `wording_history` every wording with the release that published it, `reworded_in` the release that
+  brought the current one.
 - **Thresholds** live here and are returned with every view (`thresholds`), so the UI never hardcodes one: rates
   get a tone, a "most failed" mark or a callout only at n >= MIN_N (HOT_MIN_N for a hot rule).
 - **Callouts** are templated from these numbers, no model: a hot rule, a release that moved a procedure, a warning
@@ -37,6 +41,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 
 from sqlmodel import Session, and_, func, or_, select
 
+from . import lineage
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
 from .pipeline.rollup import SEVERITY
 
@@ -302,7 +307,8 @@ class Insights:
         }
 
     def _rule_rows(self, db: Session, f: Filters, procedure_id: str | None = None, by: str | None = None) -> list[tuple]:
-        """(procedure_id, rule_id, kind, index, status, [group], count) for rule results of eligible sessions."""
+        """(procedure_id, lineage_id, kind, index, status, [group], count) for rule results of eligible sessions: a
+        reworded rule's rows come under its lineage id (one row per wording; sum them)."""
         S, R = SessionRecord, RuleResult
         group = {"release": S.release_id, "agent": func.coalesce(S.agent_id, S.agent_ref)}.get(by or "")
         cols = [R.procedure_id, R.rule_id, R.kind, R.index, R.status, *([group] if group is not None else []), func.count(R.id)]
@@ -310,7 +316,8 @@ class Insights:
         pid = procedure_id or f.procedure
         if pid:
             q = q.where(R.procedure_id == pid)
-        return list(db.exec(q.group_by(*cols[:-1])).all())
+        lins = lineage.lineages(db, f.workspace, pid)
+        return [(r[0], lins.get((r[0], r[1]), r[1]), *r[2:]) for r in db.exec(q.group_by(*cols[:-1])).all()]
 
     @staticmethod
     def _rule_stats(rows: Iterable[tuple]) -> dict[str, Any]:
@@ -334,19 +341,13 @@ class Insights:
                 "not_counted": nc, "not_counted_pct": pct(nc, total)}
 
     def _rule_texts(self, db: Session, ws: str, procedure_id: str | None) -> dict[tuple[str, str], dict[str, Any]]:
-        """Latest wording of each rule (and how many wordings it has had)."""
-        R, S = RuleResult, SessionRecord
-        q = select(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash, func.max(S.started_at)).join(S, S.id == R.session_id).where(R.workspace_id == ws)
-        if procedure_id:
-            q = q.where(R.procedure_id == procedure_id)
+        """{(procedure id, lineage id): the rule as sessions ran it most recently (`rule_id`, kind, index, text), how
+        many wordings it has had, each with the release that published it (`history`), and `reworded_in`}."""
         out: dict[tuple[str, str], dict[str, Any]] = {}
-        for pid, rid, kind, index, text, h, last in db.exec(q.group_by(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash)).all():
-            cur = out.get((pid, rid))
-            wordings = (cur["wordings"] if cur else 0) + 1
-            if cur is None or _utc(last) > cur["_last"]:
-                cur = {"kind": kind, "index": index, "text": text, "text_hash": h, "_last": _utc(last)}
-            cur["wordings"] = wordings
-            out[(pid, rid)] = cur
+        for key, group in lineage.wordings(db, ws, procedure_id).items():
+            cur = lineage.current(group)
+            out[key] = {"rule_id": cur.rule_id, "kind": cur.kind, "index": cur.index, "text": cur.text, "text_hash": cur.text_hash, "wordings": len(group),
+                        "history": [w.out() for w in group], "reworded_in": cur.from_release if len(group) > 1 else None}
         return out
 
     def _pattern_window_counts(self, db: Session, f: Filters, procedure_id: str | None = None, suppressed: bool = False) -> dict[str, tuple[int, int]]:
@@ -365,8 +366,8 @@ class Insights:
         q = select(P).where(P.workspace_id == f.workspace)
         if procedure_id:
             q = q.where(P.procedure_id == procedure_id)
-        if rule_id:
-            q = q.where(P.rule_id == rule_id)
+        if rule_id:  # any wording of the rule: its pattern is keyed by the lineage id
+            q = q.where(P.rule_id.in_(lineage.expand(db, f.workspace, rule_id, procedure_id)[0]))
         pats = list(db.exec(q))
         counts = self._pattern_window_counts(db, f, procedure_id)
         hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
@@ -474,7 +475,7 @@ class Insights:
                 st = self._rule_stats(rr)
                 if st["n"] >= AGENT_MIN_N and st["fails"] and (gap is None or (st["fail_rate"] or 0) > (gap["fail_rate"] or 0)):
                     t = texts.get((pid, rid), {})
-                    gap = {"procedure_id": pid, "rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
+                    gap = {"procedure_id": pid, "rule_id": t.get("rule_id", rid), "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
                            "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])}
             durations = [(_utc(e) - _utc(s)).total_seconds() for *_x, s, e in {r[1]: r for r in rows}.values() if e is not None]
             out.append({"agent": a, "sessions": len({r[1] for r in rows}), "checks": len(rows), "measurable": len(m), "followed": fol,
@@ -625,7 +626,7 @@ class Insights:
                 if t.get("kind") == "never":
                     nevers += st["fails"] or 0
                 if st["n"] >= MIN_N and st["fails"]:  # a rule judged a handful of times is never "most failed"
-                    worst.append({"rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
+                    worst.append({"rule_id": t.get("rule_id", rid), "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
                                   "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])})
             worst.sort(key=lambda r: (-(r["fail_rate"] or 0), -r["n"]))
             open_patterns = sum(1 for p in pats if p.procedure_id == pid and counts.get(p.id, (0, 0))[0] > 0)  # leaves with findings in the window
@@ -679,7 +680,8 @@ class Insights:
             suppressed = sum(hidden.get(p.id, (0, 0))[0] for p in mine)
             c = st["counts"]
             judged = st["total"] - c.get("not_applicable", 0)
-            rows.append({"rule_id": rid, "kind": t["kind"], "index": t["index"], "text": t["text"], "wordings": t["wordings"], **st,
+            rows.append({"rule_id": t["rule_id"], "lineage_id": rid, "kind": t["kind"], "index": t["index"], "text": t["text"], "wordings": t["wordings"],
+                         "wording_history": t["history"], "reworded_in": t["reworded_in"], **st,
                          "findings": findings, "suppressed": suppressed, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat,
                          "reached_pct": pct(judged - c.get("not_reached", 0), judged) if t["kind"] == "step" else None,
                          "tone": fail_tone(st["fail_rate"], st["n"]), "most_failed": False})
@@ -705,7 +707,7 @@ class Insights:
         for r in ladder:
             if r["kind"] == "warning":
                 continue
-            sa, sb = self._rule_stats(per.get((r["rule_id"], a), [])), self._rule_stats(per.get((r["rule_id"], b), []))
+            sa, sb = self._rule_stats(per.get((r["lineage_id"], a), [])), self._rule_stats(per.get((r["lineage_id"], b), []))
             ok = sa["n"] >= MIN_N and sb["n"] >= MIN_N
             rows.append({"rule_id": r["rule_id"], "a_n": sa["n"], "a_pass_rate": sa["pass_rate"], "b_n": sb["n"], "b_pass_rate": sb["pass_rate"],
                          "delta_points": delta_points(sb["pass_rate"], sa["pass_rate"]) if ok else None,
@@ -721,14 +723,16 @@ class Insights:
         q = f.sessions(select(R.rule_id, R.status, PC.result, func.count(R.id)).join(S, S.id == R.session_id).join(PC, and_(PC.session_id == R.session_id, PC.procedure_id == R.procedure_id)))
         q = q.where(ELIGIBLE, UNSUPPRESSED, R.procedure_id == procedure_id, R.kind == "warning", PC.result.in_(MEASURABLE)).group_by(R.rule_id, R.status, PC.result)
         c: dict[str, Counter] = defaultdict(Counter)
+        lins = lineage.lineages(db, f.workspace, procedure_id)
         for rid, status, result, n in db.exec(q).all():
             side = "present" if status in WARNING_PRESENT else "absent"
-            c[rid][(side, "n")] += n
+            lid = lins.get((procedure_id, rid), rid)
+            c[lid][(side, "n")] += n
             if result == "followed":
-                c[rid][(side, "followed")] += n
+                c[lid][(side, "followed")] += n
         out = []
         for w in warnings:
-            x = c.get(w["rule_id"], Counter())
+            x = c.get(w["lineage_id"], Counter())
             pn, an = x[("present", "n")], x[("absent", "n")]
             pr, ar = pct(x[("present", "followed")], pn), pct(x[("absent", "followed")], an)
             d = delta_points(pr, ar) if pn >= MIN_N and an >= MIN_N else None
@@ -765,20 +769,19 @@ class Insights:
         return groups
 
     def rule(self, f: Filters, procedure_id: str, rule_id: str) -> dict[str, Any]:
+        """One rule across its wordings (`rule_id` is any of them; see `sopops.lineage`)."""
         f = f.with_(procedure=procedure_id)
         S, R, F = SessionRecord, RuleResult, Finding
         with self._db() as db:
-            wordings = [
-                {"text": text, "text_hash": h, "first_seen": _utc(first), "last_seen": _utc(last), "results": n}
-                for text, h, first, last, n in db.exec(
-                    select(R.rule_text, R.rule_text_hash, func.min(S.started_at), func.max(S.started_at), func.count(R.id)).join(S, S.id == R.session_id)
-                    .where(R.workspace_id == f.workspace, R.procedure_id == procedure_id, R.rule_id == rule_id).group_by(R.rule_text, R.rule_text_hash)
-                ).all()
-            ]
+            lid = lineage.lineage_of(db, f.workspace, procedure_id, rule_id)
+            seen = lineage.wordings(db, f.workspace, procedure_id).get((procedure_id, lid), [])
+            cur = lineage.current(seen) if seen else None
+            wordings = [{**w.out(), "text_hash": w.text_hash, "first_seen": w.first_seen, "last_seen": w.last_seen, "results": w.results} for w in seen]
             wordings.sort(key=lambda w: w["last_seen"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+            rule_id = lid  # rows and patterns are keyed by the lineage
             rows = [r for r in self._rule_rows(db, f, procedure_id) if r[1] == rule_id]
-            kind = rows[0][2] if rows else (db.exec(select(R.kind).where(R.workspace_id == f.workspace, R.procedure_id == procedure_id, R.rule_id == rule_id).limit(1)).first() or "step")
-            index = rows[0][3] if rows else None
+            kind = cur.kind if cur else rows[0][2] if rows else "step"
+            index = cur.index if cur else rows[0][3] if rows else None
             overall = self._rule_stats([(k, s, n) for _p, _r, k, _i, s, n in rows])
             by_rel: dict[Any, list[tuple]] = defaultdict(list)
             for _p, rid, k, _i, s, rel, n in self._rule_rows(db, f, procedure_id, by="release"):
@@ -794,13 +797,15 @@ class Insights:
                     by_agent[agent].append((k, s, n))
             agents = [{"agent": a, **_rate_out(self._rule_stats(v))} for a, v in sorted(by_agent.items(), key=lambda kv: str(kv[0]))]
             patterns = self._patterns(db, f, procedure_id, rule_id)
-            q = f.sessions(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.procedure_id == procedure_id, F.rule_id == rule_id, F.suppressed.is_(False))
+            q = f.sessions(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id))
+            q = q.where(ELIGIBLE, F.procedure_id == procedure_id, lineage.in_lineage(F.rule_id, f.workspace, procedure_id, lid), F.suppressed.is_(False))
             recent = [
                 {"finding_id": fi.id, "session_id": fi.session_id, "started_at": _utc(at), "status": rr.status, "reason": rr.reason, "evidence": rr.evidence, "pattern_id": fi.pattern_id}
                 for fi, rr, at in db.exec(q.order_by(S.started_at.desc()).limit(5)).all()
             ]
-        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "procedure_id": procedure_id, "rule_id": rule_id, "kind": kind, "index": index,
-                "text": wordings[0]["text"] if wordings else None, "wordings": wordings, "overall": _rate_out(overall), "releases": releases,
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "procedure_id": procedure_id, "rule_id": cur.rule_id if cur else lid, "lineage_id": lid,
+                "kind": kind, "index": index, "text": cur.text if cur else None, "wordings": wordings,
+                "reworded_in": cur.from_release if cur and len(seen) > 1 else None, "overall": _rate_out(overall), "releases": releases,
                 "agents": agents, "patterns": patterns, "recent_findings": recent}
 
     def compare(self, f: Filters, a: int | None = None, b: int | None = None) -> dict[str, Any]:
@@ -817,13 +822,12 @@ class Insights:
                 a = before[-1] if before else None
             rows_a = self._rule_rows(db, f.with_(releases=(a,)), f.procedure) if a is not None else []
             rows_b = self._rule_rows(db, f.with_(releases=(b,)), f.procedure) if b is not None else []
-            hashes = {
-                (pid, rid, rel): h
-                for pid, rid, rel, h in db.exec(
-                    f.sessions(select(R.procedure_id, R.rule_id, S.release_id, func.max(R.rule_text_hash)).join(S, S.id == R.session_id))
-                    .where(S.release_id.in_([x for x in (a, b) if x is not None])).group_by(R.procedure_id, R.rule_id, S.release_id)
-                ).all()
-            }
+            # which wording (rule id) of each lineage each release ran; a different one on B: reworded
+            lins = lineage.lineages(db, f.workspace, f.procedure)
+            ran: dict[tuple[str, str, int], set[str]] = defaultdict(set)
+            for pid, rid, rel in db.exec(f.sessions(select(R.procedure_id, R.rule_id, S.release_id).join(S, S.id == R.session_id))
+                                         .where(S.release_id.in_([x for x in (a, b) if x is not None])).distinct()).all():
+                ran[(pid, lins.get((pid, rid), rid), rel)].add(rid)
             texts = self._rule_texts(db, f.workspace, f.procedure)
             ca = self._checks(db, f.with_(releases=(a,))) if a is not None else []
             cb = self._checks(db, f.with_(releases=(b,))) if b is not None else []
@@ -841,10 +845,14 @@ class Insights:
             if t.get("kind") == "warning":
                 continue
             sa, sb = self._rule_stats(ga.get(key, [])), self._rule_stats(gb.get(key, []))
-            change = "new" if key not in ga else "removed" if key not in gb else ("changed" if hashes.get((*key, a)) != hashes.get((*key, b)) else None)
+            on_a, on_b = ran.get((*key, a), set()) if a is not None else set(), ran.get((*key, b), set()) if b is not None else set()
+            change = "new" if key not in ga else "removed" if key not in gb else ("changed" if on_a != on_b else None)
+            said = {w["rule_id"]: w["text"] for w in t.get("history", [])}
+            rid = min(on_b or on_a or {t.get("rule_id", key[1])})
             ok = sa["n"] >= MIN_N and sb["n"] >= MIN_N
             out.append({
-                "procedure_id": key[0], "rule_id": key[1], "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "rule_change": change,
+                "procedure_id": key[0], "rule_id": rid, "lineage_id": key[1], "kind": t.get("kind"), "index": t.get("index"), "text": said.get(rid, t.get("text")),
+                "a_text": said.get(min(on_a)) if change == "changed" and on_a else None, "rule_change": change,
                 "a": _rate_out(sa), "b": _rate_out(sb), "delta_points": delta_points(sb["pass_rate"], sa["pass_rate"]) if ok else None,
                 "raw_delta_points": delta_points(sb["pass_rate"], sa["pass_rate"]), "flag": compare_flag(sa["passes"] or 0, sa["n"], sb["passes"] or 0, sb["n"]),
             })

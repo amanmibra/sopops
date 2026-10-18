@@ -20,7 +20,9 @@ procedure and rule, so it outlives a re-check. A wrong finding is suppressed and
 A pattern's **review state** (`state`) follows its verdict and the fix:
 - `needs_review`: no verdict; a verdict carried over by a recluster, not confirmed; or a verdict older than a
   recluster that changed the pattern's members materially (`Pattern.clustered_at`).
-- `closed`: acceptable or checker_wrong. Its findings are suppressed; nothing to fix.
+- `closed`: acceptable or checker_wrong. Its findings are suppressed; nothing to fix. A rule reworded after the verdict
+  (`sopops.lineage`) has findings the verdict didn't judge: those aren't suppressed (nor calibration labels), and the
+  pattern needs review again until a verdict confirms it for the new wording.
 - `open`: real or sop_wrong, with no suggestion applied for this verdict.
 - `fixing`: a suggestion for it was applied (a draft, or a pull request, open or merged), and the release with the
   edit (the first whose file is the suggested text: for a repo, the pull of the merge commit, then a publish) isn't
@@ -47,6 +49,7 @@ from typing import TYPE_CHECKING, Any
 import dspy
 from sqlmodel import Session, and_, func, or_, select
 
+from . import lineage
 from .errors import Conflict, NotFound
 from .orm import (
     Finding,
@@ -55,6 +58,7 @@ from .orm import (
     ProcedureCheck,
     FileVersion,
     Release,
+    RuleLineage,
     RuleResult,
     SessionRecord,
     Suggestion,
@@ -141,15 +145,6 @@ def carry_over(db: Session, ws: str, pairs: list[tuple[str, str]], now: datetime
         db.add(own[new])
 
 
-def rule_position(db: Session, ws: str, procedure_id: str, rule_id: str) -> tuple[str, int] | None:
-    """A rule's (kind, index), from its latest result. sopc's rule id changes when the rule's text does, so a rule
-    edited by a suggestion is found again at its position (a suggestion keeps rules where they are)."""
-    R, S = RuleResult, SessionRecord
-    row = db.exec(select(R.kind, R.index).join(S, S.id == R.session_id).where(R.workspace_id == ws, R.procedure_id == procedure_id, R.rule_id == rule_id)
-                  .order_by(S.started_at.desc()).limit(1)).first()
-    return (row[0], row[1]) if row else None
-
-
 def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str]) -> str | None:
     """A procedure check's result with the rule results in `passed` read as passed. `required` isn't stored on a rule
     result, but only matters for a skipped step when the goal was reached, and then the leniency mark says it."""
@@ -161,6 +156,92 @@ def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str
         for r in rules
     ]
     return rollup(judged, pc.goal_reached).result
+
+
+def _overrides(db: Session, session_ids: Iterable[str]) -> dict[tuple[str, str, str], FindingOverride]:
+    """The latest override per (session, procedure, rule)."""
+    ids = list(set(session_ids))
+    if not ids:
+        return {}
+    out = {}
+    for o in db.exec(select(FindingOverride).where(FindingOverride.session_id.in_(ids)).order_by(FindingOverride.created_at)):
+        out[(o.session_id, o.procedure_id, o.rule_id)] = o
+    return out
+
+
+def _labels(db: Session, ws: str, findings: list[Finding]) -> dict[str, tuple[str | None, FindingOverride | None]]:
+    """{finding id: (its pattern's verdict, its override)}. A suppressing verdict doesn't reach a finding on a wording
+    of the rule published after it: it judged the rule as it was worded then."""
+    pids = {f.pattern_id for f in findings if f.pattern_id}
+    pats = list(db.exec(select(Pattern).where(Pattern.id.in_(pids)))) if pids else []
+    verdicts = effective(db, ws, pats)
+    overrides = _overrides(db, [f.session_id for f in findings])
+    published = _published(db, ws, {f.rule_id for f in findings})
+    out = {}
+    for f in findings:
+        v = verdicts.get(f.pattern_id or "")
+        label = v[0].verdict if v else None
+        if v and label in SUPPRESSING and (at := published.get((f.procedure_id, f.rule_id))) and at > _utc(v[0].created_at):
+            label = None
+        out[f.id] = (label, overrides.get((f.session_id, f.procedure_id, f.rule_id)))
+    return out
+
+
+def _published(db: Session, ws: str, rule_ids: set[str]) -> dict[tuple[str, str], datetime]:
+    """{(procedure id, rule id): when the release that reworded the rule into it was made}, for reworded rules."""
+    if not rule_ids:
+        return {}
+    L = RuleLineage
+    q = select(L.procedure_id, L.rule_id, Release.created_at).join(Release, and_(Release.workspace == L.workspace_id, Release.number == L.release_id))
+    return {(pid, rid): _utc(at) for pid, rid, at in db.exec(q.where(L.workspace_id == ws, L.rule_id.in_(rule_ids))).all()}  # type: ignore[misc]
+
+
+def _recompute(db: Session, checks: set[tuple[str, str]]) -> None:
+    if not checks:
+        return
+    sids = {s for s, _ in checks}
+    passed = set(db.exec(select(Finding.rule_result_id).where(Finding.session_id.in_(sids), Finding.suppressed.is_(True))))
+    rules: dict[tuple[str, str], list[RuleResult]] = defaultdict(list)
+    for r in db.exec(select(RuleResult).where(RuleResult.session_id.in_(sids))):
+        rules[(r.session_id, r.procedure_id)].append(r)
+    for pc in db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id.in_(sids))):
+        if (pc.session_id, pc.procedure_id) in checks and pc.checked_result is not None:
+            mine = rules.get((pc.session_id, pc.procedure_id), [])
+            pc.result = reviewed_result(pc, mine, {r.id for r in mine if r.id in passed})
+            db.add(pc)
+    db.flush()
+    for s in db.exec(select(SessionRecord).where(SessionRecord.id.in_(sids), SessionRecord.result.is_not(None))):
+        s.result = worst(list(db.exec(select(ProcedureCheck.result).where(ProcedureCheck.session_id == s.id, ProcedureCheck.result.is_not(None)))))
+        db.add(s)
+
+
+def members(p: Pattern):
+    """The query condition for a pattern's findings: a rule pattern's are every finding on its rule, in any wording
+    (its `rule_id` is the lineage id; see `sopops.lineage`)."""
+    if p.kind == "rule":
+        return and_(Finding.workspace_id == p.workspace_id, Finding.procedure_id == p.procedure_id, lineage.in_lineage(Finding.rule_id, p.workspace_id, p.procedure_id, p.rule_id))
+    return Finding.pattern_id == p.id
+
+
+def refresh_findings(db: Session, ws: str, rules: Iterable[tuple[str, str]] = (), sessions: Iterable[str] = ()) -> int:
+    """`Verdicts.refresh` in the caller's transaction."""
+    rules, sessions = set(rules), set(sessions)
+    if not rules and not sessions:
+        return 0
+    conds = [Finding.session_id.in_(sessions)] if sessions else []
+    conds += [and_(Finding.procedure_id == pid, lineage.in_lineage(Finding.rule_id, ws, pid, lineage.lineage_of(db, ws, pid, rid))) for pid, rid in rules]
+    findings = list(db.exec(select(Finding).where(Finding.workspace_id == ws, or_(*conds))))
+    labels = _labels(db, ws, findings)
+    touched: set[tuple[str, str]] = set()
+    for f in findings:
+        want = Verdicts.suppressed_by(*labels[f.id])
+        if f.suppressed != want:
+            f.suppressed = want
+            db.add(f)
+            touched.add((f.session_id, f.procedure_id))
+    db.flush()
+    _recompute(db, touched)
+    return len(touched)
 
 
 class Verdicts:
@@ -204,28 +285,6 @@ class Verdicts:
 
     # --- suppression ---------------------------------------------------------------------------------------------
 
-    def _overrides(self, db: Session, session_ids: Iterable[str]) -> dict[tuple[str, str, str], FindingOverride]:
-        """The latest override per (session, procedure, rule)."""
-        ids = list(set(session_ids))
-        if not ids:
-            return {}
-        out = {}
-        for o in db.exec(select(FindingOverride).where(FindingOverride.session_id.in_(ids)).order_by(FindingOverride.created_at)):
-            out[(o.session_id, o.procedure_id, o.rule_id)] = o
-        return out
-
-    def _labels(self, db: Session, ws: str, findings: list[Finding]) -> dict[str, tuple[str | None, FindingOverride | None]]:
-        """{finding id: (its pattern's verdict, its override)}."""
-        pids = {f.pattern_id for f in findings if f.pattern_id}
-        pats = list(db.exec(select(Pattern).where(Pattern.id.in_(pids)))) if pids else []
-        verdicts = effective(db, ws, pats)
-        overrides = self._overrides(db, [f.session_id for f in findings])
-        out = {}
-        for f in findings:
-            v = verdicts.get(f.pattern_id or "")
-            out[f.id] = (v[0].verdict if v else None, overrides.get((f.session_id, f.procedure_id, f.rule_id)))
-        return out
-
     @staticmethod
     def suppressed_by(verdict: str | None, override: FindingOverride | None) -> bool:
         if verdict == "acceptable":
@@ -242,52 +301,19 @@ class Verdicts:
         return None if verdict is None else verdict == "checker_wrong"
 
     def refresh(self, ws: str, rules: Iterable[tuple[str, str]] = (), sessions: Iterable[str] = ()) -> int:
-        """Bring the findings of these rules ((procedure id, rule id)) and sessions in line with the verdicts and
-        overrides, and roll up again the checks whose suppressed findings changed. Returns how many checks changed."""
+        """Bring the findings of these rules ((procedure id, rule id); every rule of its lineage) and sessions in line
+        with the verdicts and overrides, and roll up again the checks whose suppressed findings changed. Returns how
+        many checks changed."""
         rules, sessions = set(rules), set(sessions)
         if not rules and not sessions:
             return 0
         with self._db() as db, db.begin():
-            conds = [Finding.session_id.in_(sessions)] if sessions else []
-            conds += [and_(Finding.procedure_id == pid, Finding.rule_id == rid) for pid, rid in rules]
-            findings = list(db.exec(select(Finding).where(Finding.workspace_id == ws, or_(*conds))))
-            labels = self._labels(db, ws, findings)
-            touched: set[tuple[str, str]] = set()
-            for f in findings:
-                want = self.suppressed_by(*labels[f.id])
-                if f.suppressed != want:
-                    f.suppressed = want
-                    db.add(f)
-                    touched.add((f.session_id, f.procedure_id))
-            db.flush()
-            self._recompute(db, touched)
-        return len(touched)
-
-    def _recompute(self, db: Session, checks: set[tuple[str, str]]) -> None:
-        if not checks:
-            return
-        sids = {s for s, _ in checks}
-        passed = set(db.exec(select(Finding.rule_result_id).where(Finding.session_id.in_(sids), Finding.suppressed.is_(True))))
-        rules: dict[tuple[str, str], list[RuleResult]] = defaultdict(list)
-        for r in db.exec(select(RuleResult).where(RuleResult.session_id.in_(sids))):
-            rules[(r.session_id, r.procedure_id)].append(r)
-        for pc in db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id.in_(sids))):
-            if (pc.session_id, pc.procedure_id) in checks and pc.checked_result is not None:
-                mine = rules.get((pc.session_id, pc.procedure_id), [])
-                pc.result = reviewed_result(pc, mine, {r.id for r in mine if r.id in passed})
-                db.add(pc)
-        db.flush()
-        for s in db.exec(select(SessionRecord).where(SessionRecord.id.in_(sids), SessionRecord.result.is_not(None))):
-            s.result = worst(list(db.exec(select(ProcedureCheck.result).where(ProcedureCheck.session_id == s.id, ProcedureCheck.result.is_not(None)))))
-            db.add(s)
+            return refresh_findings(db, ws, rules, sessions)
 
     # --- reads ---------------------------------------------------------------------------------------------------
 
     def _members(self, p: Pattern):
-        """The query condition for a pattern's findings: a rule pattern's are every finding on its rule."""
-        if p.kind == "rule":
-            return and_(Finding.workspace_id == p.workspace_id, Finding.procedure_id == p.procedure_id, Finding.rule_id == p.rule_id)
-        return Finding.pattern_id == p.id
+        return members(p)
 
     def suppressed_count(self, ws: str, p: Pattern) -> int:
         with self._db() as db:
@@ -337,6 +363,12 @@ class Verdicts:
         if p.kind != "rule" and p.clustered_at is not None and _utc(verdict.created_at) < _utc(p.clustered_at):
             return out("needs_review", "A recluster changed its findings since the verdict.")
         if verdict.verdict in SUPPRESSING:
+            L = RuleLineage
+            newer = db.exec(select(func.count(Finding.id)).join(L, and_(L.workspace_id == Finding.workspace_id, L.procedure_id == Finding.procedure_id, L.rule_id == Finding.rule_id))
+                            .join(Release, and_(Release.workspace == L.workspace_id, Release.number == L.release_id))
+                            .where(self._members(p), Release.created_at > verdict.created_at)).one()
+            if newer:
+                return out("needs_review", f"The rule was reworded after this verdict: {newer} finding{'s' if newer != 1 else ''} on the new wording, not suppressed. Confirm it, or give another.")
             return out("closed")
         fix = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id.in_([x for x in (p.id, p.parent_id) if x]),
                                                Suggestion.verdict_id == verdict.id, Suggestion.status.in_(("applied", "pr_open", "merged")))
@@ -351,13 +383,10 @@ class Verdicts:
             return out("fixing", wait[fix.status])
         if live is None or live < release:
             return out("fixing", f"Release {release} has the edit; it isn't live yet.", release)
-        S, F, R, PC = SessionRecord, Finding, RuleResult, ProcedureCheck
-        members = self._members(p)
-        pos = rule_position(db, ws, p.procedure_id, p.rule_id)
-        if pos is not None:  # the edit changed the rule's id: its findings on the edited rule count too
-            members = or_(members, and_(F.procedure_id == p.procedure_id, F.rule_id != p.rule_id, R.kind == pos[0], R.index == pos[1]))
-        back = db.exec(select(func.count(F.id)).join(S, S.id == F.session_id).join(R, R.id == F.rule_result_id)
-                       .where(F.workspace_id == ws, members, F.suppressed.is_(False), S.release_id >= release)).one()
+        S, F, PC = SessionRecord, Finding, ProcedureCheck
+        # the edit gave the rule a new id; its lineage keeps it in the pattern, so findings on the new wording count
+        back = db.exec(select(func.count(F.id)).join(S, S.id == F.session_id)
+                       .where(F.workspace_id == ws, self._members(p), F.suppressed.is_(False), S.release_id >= release)).one()
         if back:
             return out("regressed", f"Came back after release {release}: {back} finding{'s' if back != 1 else ''} on sessions that ran it or later.", release)
         n = db.exec(select(func.count(func.distinct(PC.session_id))).join(S, S.id == PC.session_id)
@@ -406,8 +435,9 @@ class Verdicts:
             select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
             .where(self._members(p)).order_by(F.suppressed, S.started_at.desc()).limit(EXAMPLES)
         ).all()
-        text = db.exec(select(R.kind, R.index, R.rule_text).join(S, S.id == R.session_id)
-                       .where(R.workspace_id == ws, R.procedure_id == p.procedure_id, R.rule_id == p.rule_id).order_by(S.started_at.desc()).limit(1)).first()
+        text = db.exec(select(R.kind, R.index, R.rule_text).join(S, S.id == R.session_id)  # the wording its rule has now
+                       .where(R.workspace_id == ws, R.procedure_id == p.procedure_id, lineage.in_lineage(R.rule_id, ws, p.procedure_id, p.rule_id))
+                       .order_by(S.started_at.desc()).limit(1)).first()
         theme = db.get(Theme, p.theme_id) if p.theme_id else None
         name = db.exec(select(ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws, ProcedureCheck.procedure_id == p.procedure_id).limit(1)).first()
         sugg = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc()).limit(1)).first()
@@ -451,7 +481,7 @@ class Verdicts:
             if v is None:
                 raise Conflict("give the pattern a verdict first")
             rows = db.exec(select(F, R, S).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id).where(self._members(p)).order_by(S.started_at, F.id)).all()
-            overrides = self._overrides(db, [f.session_id for f, _r, _s in rows])
+            overrides = _overrides(db, [f.session_id for f, _r, _s in rows])
         out = []
         for f, r, s in rows:
             o = overrides.get((f.session_id, f.procedure_id, f.rule_id))
@@ -474,7 +504,7 @@ class Verdicts:
         result without it; every other finding of the session stays a failure. `wrong` holds the rules judged wrong."""
         with self._db() as db:
             findings = list(db.exec(select(Finding).where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id)))
-            labels = self._labels(db, ws, findings)
+            labels = _labels(db, ws, findings)
             by_session: dict[str, list[Finding]] = defaultdict(list)
             for f in findings:
                 by_session[f.session_id].append(f)

@@ -4,15 +4,20 @@ Each procedure with labeled sessions (`Verdicts.calibration_examples`: verdicts 
 is fitted with `sopops.ai.programs.calibrate` on its `check:<procedure id>` program, against the procedure and
 variables of the most recent labeled session's release and agent. A procedure is refused below the fit's minimums:
 fewer labeled sessions than `programs.FOLDS` (the held-out check needs them), or no rule with `programs.MIN_POSITIVES`
-labeled failures. A dry run fits and reports without saving.
+labeled failures. A dry run fits and reports without saving. Labels follow rule lineage (`sopops.lineage`): a finding
+on an earlier wording of a rule counts for its lineage, and labels the rule as the fitted procedure words it.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
+
+import dspy
 
 from sqlmodel import Session, select
 
+from . import lineage
 from .ai import calibration, decide, programs
 from .ai import lm as ai_lm
 from .ai.lm import DECIDE
@@ -48,6 +53,9 @@ class Calibrate:
         name = f"check:{pid}"
         row: dict[str, Any] = {"procedure_id": pid, "program": name, "labels": len(examples), "negative_labels": sum(len(e.wrong) for e in examples),
                                "saved": False, "skipped": None, "score_before": None, "score": None, "rules": []}
+        with Session(self.store.engine) as db:
+            lins = lineage.lineages(db, ws, pid)
+        examples = _relabel(examples, lambda r: lins.get((pid, r), r))  # every label on its lineage
         support = programs.positives(examples)
         if len(examples) < programs.FOLDS:
             row["skipped"] = f"{len(examples)} labeled sessions (< {programs.FOLDS})"
@@ -61,6 +69,8 @@ class Calibrate:
         if p is None:
             row["skipped"] = f"the procedure isn't in release {cand.release}"
             return row
+        wording = {lins.get((pid, r.id), r.id): r.id for r in p.rules}
+        examples = _relabel(examples, lambda r: wording.get(r, r))  # then on the rule as this release words it
         cfg = decide.DecisionConfig.from_env()
         splits = decide.rule_checks(ai, self.store.engine, ws, p, cand.variables)
         program = programs.CheckDecisions(p, splits, cand.variables, cfg, ai.client(DECIDE))  # type: ignore[attr-defined]
@@ -73,3 +83,8 @@ class Calibrate:
             after = before if r.get("skipped") else float(r["value"])
             row["rules"].append({"rule_id": program.rule_of(r["field"]), "field": r["field"], "before": before, "after": after, "skipped": r.get("skipped")})
         return row
+
+
+def _relabel(examples: list[dspy.Example], to: Callable[[str], str]) -> list[dspy.Example]:
+    """The examples with their `failing` and `wrong` rule ids mapped."""
+    return [dspy.Example(**{**e.toDict(), "failing": {to(r) for r in e.failing}, "wrong": {to(r) for r in e.wrong}}).with_inputs("turns") for e in examples]

@@ -151,7 +151,7 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | Endpoint | What it does |
 |---|---|
 | `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <token>` (scope `ingest`). An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without a valid token for the workspace, `403` for one without the `ingest` scope. |
-| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result), `suppressed` (false: the finding filters leave suppressed findings out, as Insights does; true: only them). |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` (any wording of it: its [lineage](#rule-lineage)) with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result), `suppressed` (false: the finding filters leave suppressed findings out, as Insights does; true: only them). |
 | `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
 
@@ -273,7 +273,7 @@ Re-running a session replaces its results; a run for content that has since been
 
 Findings are grouped so the same mistake shows up once, with its count, instead of once per session.
 
-- **Rule pattern** (`kind: rule`): every finding on one rule. Created with the rule's first finding; named from the rule ("Step 6 missed", "Never rule 2 broken", "Warning sign 4 not acted on").
+- **Rule pattern** (`kind: rule`): every finding on one rule, in every wording it has had ([Rule lineage](#rule-lineage): its `rule_id` is the lineage id, the id of the rule's first wording). Created with the rule's first finding; named from the rule ("Step 6 missed", "Never rule 2 broken", "Warning sign 4 not acted on").
 - **Failure modes** (`kind: sub`): once a rule has 8 findings, the reasoning model splits its findings into at most 5 named ways the agent failed it, plus an `other` sub-pattern (`kind: other`) for findings that fit none. New findings on a split rule are assigned to one of its failure modes, or to `other`, by a decision (Jev, or the fast model).
 - **Reclustering**: a rule is split again when 25 findings arrived since its last clustering, or when `other` holds more than 25% of its findings (with at least 5 new since), plus a daily cron. New clusters are matched to the old ones by member overlap (Jaccard over finding ids, at least 0.3), so a matched failure mode keeps its id, name and verdicts. A failure mode that matches nothing is `retired`, not deleted; its verdict carries over to the new cluster that took most of its findings (Jaccard at least 0.3), unless that one has its own.
 - **Themes**: the reasoning model groups a procedure's rule patterns by the phase of the session where they happen (opening, taking the order, closing...), in session order. Existing theme names and ids are kept whenever they still fit.
@@ -303,17 +303,17 @@ Verdicts are appended, never edited: the latest is the pattern's verdict, the re
 
 **Suppressed** findings are kept, flagged (`suppressed` on a session's rule results) and left out of every Insights count and rate. A procedure check's `result` is rolled up again with its suppressed rules read as passed (`checked_result` keeps the checker's own), and the session's result is the worst of its checks, so a session whose only deviation is suppressed counts as followed. Insights shows the suppressed counts on their own (`suppressed` on tiles, scoreboard rows, ladder rows and patterns).
 
-**Calibration labels** come from the same calls, per workspace and only from the database: every session with a reviewed finding on a procedure is a labeled session for its `check:<procedure>` thresholds, a finding judged wrong a negative label. `POST …/calibrate` (or `sopops calibrate --workspace WS [--procedure P] [--dry-run]`) fits them (`sopops.ai.programs.calibrate`) and returns, per procedure, the labels used and each question's threshold before and after. A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failures, is refused with the reason. It runs as a job (`sopops_calibrate` on Hatchet, the API waiting for it; else in the API process).
+**Calibration labels** come from the same calls, per workspace and only from the database: every session with a reviewed finding on a procedure is a labeled session for its `check:<procedure>` thresholds, a finding judged wrong a negative label. A label on an earlier wording of a rule labels the rule as the fitted release words it (its lineage). `POST …/calibrate` (or `sopops calibrate --workspace WS [--procedure P] [--dry-run]`) fits them (`sopops.ai.programs.calibrate`) and returns, per procedure, the labels used and each question's threshold before and after. A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failures, is refused with the reason. It runs as a job (`sopops_calibrate` on Hatchet, the API waiting for it; else in the API process).
 
 **Review state.** Each pattern has a `review_state`, with a `review_note` saying why:
 
 | State | When |
 |---|---|
-| `needs_review` | No verdict; a verdict carried over by a recluster and not confirmed; or a verdict older than a recluster that changed the pattern's findings materially (it kept less than half of them). |
+| `needs_review` | No verdict; a verdict carried over by a recluster and not confirmed; a verdict older than a recluster that changed the pattern's findings materially (it kept less than half of them); or an `acceptable` or `checker_wrong` verdict older than the rule's current wording, with findings on that wording (it judged the old one, so they aren't suppressed until a verdict confirms it). |
 | `open` | `real` or `sop_wrong`, with no suggestion applied for this verdict. |
 | `fixing` | A suggestion for it was applied: a draft, or a pull request (open or merged). Waiting for the release with the edit (the first release whose file is the suggested text; for a repo, the pull of the merge commit, then a publish) to be live, then for 10 sessions checked on the procedure on that release or later. `fix_release` is that release. |
 | `fixed` | 10 such sessions, none with a finding in the pattern. |
-| `regressed` | A finding in the pattern on a session that ran the fix's release or a later one (`review_note`: "Came back after release N"). A suggested edit changes the rule's sopc id, so findings on the rule at the same position count too. |
+| `regressed` | A finding in the pattern on a session that ran the fix's release or a later one (`review_note`: "Came back after release N"). The edit gives the rule a new sopc id; its lineage keeps the new wording's findings in the same pattern, so they count. |
 | `closed` | `acceptable` or `checker_wrong`. |
 
 The review queue lists `needs_review` and `regressed`; `state=open` lists verdicts waiting for a fix, and so on. A new verdict starts over.
@@ -334,6 +334,27 @@ A **suggestion** is an edit to the pattern's procedure, made by the reasoning mo
 | `POST …/suggestions/<id>/apply` | `{reviewer?}`. A pull request or a draft edit (above). |
 | `POST …/suggestions/<id>/dismiss` | `{note?, reviewer?}`. |
 
+## Rule lineage
+
+sopc derives a rule's id from its text, so a reworded rule (by hand, or by an applied suggestion) has a new id. Sessions and findings keep the exact rule id and wording they ran. sopops records which rule each reworded rule replaced (`rule_lineage`), and everything about a rule follows the chain: its rule pattern (keyed by the lineage id, the first wording's id), so verdicts, review states and failure modes; suggestions (made for the rule as it reads at head); Insights rows, trends, the rule page and release compare; the sessions filter `rule`; calibration labels.
+
+**At publish** each procedure's rules in the release that was live are compared with the new release's. A rule whose id is in both continues. Changed rules are matched old to new, one to one, within one procedure and one kind (step, never rule, warning sign):
+
+1. `suggestion`: an applied suggestion (a draft, or a pull request open or merged) whose suggested file is the one published knows the rule it edited; its new wording is the new rule at that position (else the most similar new one).
+2. `matched`: the new rule at the same position, if the two wordings' similarity is at least 0.35.
+3. `matched`: the most similar remaining pair anywhere in the procedure, best first, if at least 0.5 (moved and reworded).
+
+Similarity is token Jaccard over lowercase words, without a few function words (`a`, `the`, `to`, `you`...). On the test fixture's and the walkthrough's procedures, rewordings score 0.38 to 1 and two different rules of one procedure at most 0.29. An unmatched new rule is new, an unmatched old one removed. A wording that comes back (a revert) stays in its own lineage. Links are never overwritten by later publishes.
+
+| Endpoint | What it does |
+|---|---|
+| `GET …/rules/<rule_id>/lineage?procedure=` | `{procedure_id, rule_id, lineage_id, previous_rule_id, how, rules: [{rule_id, previous_rule_id, how, similarity, release_id, text, from_release}]}`, oldest first. `procedure` only when the id is in more than one procedure. |
+| `POST …/rules/<rule_id>/lineage` | `{previous_rule_id, procedure_id?}`: the rule replaced `previous_rule_id` (a `manual` link). Its findings join that rule's pattern; when both had a pattern they merge into the older one (failure modes, verdicts, whose latest then counts, and suggestions move over; its findings wait in `other` for the next recluster if it's split). `409` for a cycle. |
+| `DELETE …/rules/<rule_id>/lineage?procedure=` | The rule is a new rule (kept as a `manual` row with no previous rule): its findings, and the later wordings', move to a rule pattern of their own, with no verdict. |
+| `POST …/rules/lineage/rebuild` | Recompute the `matched` and `suggestion` links of every release against the one before it by number (manual rows stay), and move patterns to match. Idempotent. `{workspace, links, procedures}`. |
+
+`sopops lineage rebuild [--workspace WS]` does the rebuild from the command line; migration 0013 ran it on every workspace when it added the table (it needs the sopc binary; without one it says to run the command).
+
 ## Insights
 
 Every number comes from one module (`sopops.insights`) with one set of definitions, computed on the fly:
@@ -347,6 +368,7 @@ Every number comes from one module (`sopops.insights`) with one set of definitio
 | Pass rate (rule) | Steps: done / (done + skipped + out of order). Never rules: ok / (ok + violated). `n` is that denominator; `not_reached` and `not_applicable` are shown as a share, never counted. Warning signs are never in a pass rate: they are present (`present` or `unheeded`) or absent. |
 | Percentages | Whole numbers, rounded half up, with their `n`; null (shown "—") when the denominator is 0. Rate deltas are in points; count deltas in %. |
 | Suppressed findings | A verdict or override says they aren't a problem ([Review](#review-and-suggestions)): left out of every count and rate, with procedure and session results rolled up without them; counted on their own as `suppressed`. |
+| Rules | Counted by lineage ([Rule lineage](#rule-lineage)): a reworded rule's results add up with its earlier wordings', under the wording sessions ran most recently (`rule_id`, `text`). Rows have `lineage_id`, `wording_history` (`[{rule_id, text, from_release}]`, oldest first; `from_release` is the release that published the wording, else the first a session ran it on) and `reworded_in` (the release that brought the current wording, null if never reworded). |
 | Comparisons | 95% Wilson interval per rate. A side with n < 10 is `thin` and never flagged; `regressed` / `improved` need a change of 5 points or more and intervals that don't overlap. Releases are compared by the release each session ran, never by date. |
 
 All take the window filters plus `agent`, `procedure`, `release` (repeatable) and `channel`.
@@ -355,8 +377,8 @@ All take the window filters plus `agent`, `procedure`, `release` (repeatable) an
 |---|---|
 | `GET …/insights/overview` | Tiles (current, prior, deltas): sessions checked, followed end to end, needs attention, excluded, procedure pass rate, goal rate. Trend per day (windows up to 31 days) or week, with release markers. Procedure scoreboard: checks, pass rate and delta, top failing rules, never violations, open patterns, excluded. |
 | `GET …/insights/procedures/<id>` | Tiles, trend, the rule ladder (per rule: n, pass, fail and skip rates, not-counted share, warning-sign presence, findings, patterns), the release split (previous vs latest release in the window, per rule), warning-sign impact (pass rate with the sign present vs absent), and patterns by theme. |
-| `GET …/insights/procedures/<id>/rules/<rule_id>` | The rule's wordings over time, its pass rate overall, per release and per agent (with intervals), its patterns, and the 5 most recent findings with their quotes. |
-| `GET …/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule, both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded. |
+| `GET …/insights/procedures/<id>/rules/<rule_id>` | The rule across its wordings (`rule_id` is any of them): `wordings` (each with `rule_id`, `from_release`, first and last seen, results), `reworded_in`, its pass rate overall, per release and per agent (with intervals), its patterns, and the 5 most recent findings with their quotes. |
+| `GET …/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule (by lineage), both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded (`rule_change: changed`, with A's wording in `a_text`). |
 | `GET …/insights/report` | The review report: headline numbers (plus sessions with problems on more than one rule), then per procedure its themes, each with its patterns: the rule they're about, failure modes, example phrasings and the sessions. |
 
 ## Onboarding

@@ -9,6 +9,7 @@ from pydantic import Field
 
 from .base import BaseModel
 from .checks import EvidenceOut, RuleKind
+from .lineage import WordingRef
 from .patterns import FiltersOut, Interval, RulePatternOut, ThemeOut
 
 Tone = Literal["bad", "warn"]
@@ -185,11 +186,14 @@ class OverviewResponse(BaseModel):
 
 
 class LadderRow(BaseModel):
-    rule_id: str
+    rule_id: str = Field(description="The rule as sessions ran it most recently; its earlier wordings are counted with it.")
+    lineage_id: str = Field(description="The id of the rule's first wording (rule patterns are keyed by it).")
     kind: RuleKind
     index: int
     text: str
     wordings: int = Field(description="How many wordings the rule has had; more than 1: it was reworded.")
+    wording_history: list[WordingRef] = Field(description="Every wording, oldest first, with the release that published it.")
+    reworded_in: int | None = Field(description="The release that brought the current wording, when it was reworded.")
     total: int
     counts: dict[str, int]
     n: int = Field(description="Passes + fails (not reached and not applicable left out). Warning signs: every judgment.")
@@ -270,6 +274,8 @@ class RateOut(BaseModel):
 
 
 class Wording(BaseModel):
+    rule_id: str = Field(description="sopc's id for this wording.")
+    from_release: int | None = Field(description="The release that published it (its lineage link's), else the first release a session ran it on.")
     text: str
     text_hash: str
     first_seen: datetime | None
@@ -299,11 +305,13 @@ class RuleInsights(BaseModel):
     filters: FiltersOut
     thresholds: Thresholds
     procedure_id: str
-    rule_id: str
+    rule_id: str = Field(description="The rule as sessions ran it most recently (the path takes any of its wordings).")
+    lineage_id: str
     kind: RuleKind
     index: int | None
     text: str | None
-    wordings: list[Wording]
+    wordings: list[Wording] = Field(description="Every wording of the rule (its lineage), most recently run first.")
+    reworded_in: int | None = Field(description="The release that brought the current wording, when it was reworded.")
     overall: RateOut
     releases: list[ReleaseRate]
     agents: list[AgentRate]
@@ -313,11 +321,13 @@ class RuleInsights(BaseModel):
 
 class CompareRule(BaseModel):
     procedure_id: str
-    rule_id: str
+    rule_id: str = Field(description="The rule as release B words it (A, if B doesn't have it).")
+    lineage_id: str
     kind: RuleKind | None
     index: int | None
     text: str | None
-    rule_change: Literal["new", "removed", "changed"] | None
+    a_text: str | None = Field(description="Release A's wording, when B rewords the rule.")
+    rule_change: Literal["new", "removed", "changed"] | None = Field(description="`changed`: B runs another wording of the rule (its lineage).")
     a: RateOut
     b: RateOut
     delta_points: int | None = Field(description="B minus A, in points; null unless both sides have at least min_n.")

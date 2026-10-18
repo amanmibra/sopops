@@ -23,6 +23,7 @@ from .push_results import PushResult
 from .releases import Release
 from .repo_connections import RepoConnection
 from .rule_checks import RuleChecks
+from .rule_lineage import RuleLineage
 from .rule_results import RuleResult
 from .runtime_serves import RuntimeServe
 from .sessions import SessionRecord
@@ -35,4 +36,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]

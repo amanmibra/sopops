@@ -15,6 +15,8 @@ from alembic.runtime.migration import MigrationContext
 from sqlalchemy.engine import Engine
 from sqlmodel import create_engine, inspect
 
+from .sopc import Sopc
+
 MIGRATIONS = Path(__file__).parent / "migrations"
 INITIAL = "0001"
 
@@ -38,12 +40,13 @@ def alembic_config() -> Config:
     return cfg
 
 
-def upgrade(engine: Engine) -> None:
-    """Run every migration up to head."""
+def upgrade(engine: Engine, sopc: Sopc | None = None) -> None:
+    """Run every migration up to head. `sopc`: for migrations that read releases (0013's lineage backfill)."""
     cfg = alembic_config()
     with engine.begin() as conn:
         tables = set(inspect(conn).get_table_names())
         cfg.attributes["connection"] = conn
+        cfg.attributes["sopc"] = sopc
         if "workspaces" in tables and "alembic_version" not in tables:
             command.stamp(cfg, INITIAL)  # created by create_all before Alembic: already the initial schema
         command.upgrade(cfg, "head")

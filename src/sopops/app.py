@@ -18,6 +18,7 @@ from .api import (
     errors,
     files,
     insights,
+    lineage,
     onboarding,
     patterns,
     releases,
@@ -92,6 +93,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         review.router(store, jobs),
         suggestions.router(store, jobs),
         insights.router(store),
+        lineage.router(store),
         repo.router(store),
     ):
         app.include_router(r)

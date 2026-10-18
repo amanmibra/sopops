@@ -108,6 +108,7 @@ from .insights import (
     WarningImpact,
     Wording,
 )
+from .lineage import LineageRebuildOut, LineageRule, LinkHow, LinkIn, RuleLineageOut, WordingRef
 from .onboarding import (
     AgentImportOut,
     AgentImportRequest,
@@ -323,6 +324,10 @@ __all__ = [
     "KeyTestOut",
     "Kickoff",
     "LadderRow",
+    "LineageRebuildOut",
+    "LineageRule",
+    "LinkHow",
+    "LinkIn",
     "LintFinding",
     "LintResponse",
     "LintSource",
@@ -380,6 +385,7 @@ __all__ = [
     "ReviewCounts",
     "ReviewOut",
     "RuleInsights",
+    "RuleLineageOut",
     "RuleKind",
     "RulePatternOut",
     "RuleRef",
@@ -436,6 +442,7 @@ __all__ = [
     "VerdictSaved",
     "WarningImpact",
     "Wording",
+    "WordingRef",
     "WordingGroup",
     "WorkspaceOut",
     "WriteResponse",
