@@ -6,8 +6,9 @@ export type Row =
   | { block: false; text: string; o: number; n: number }
   | { block: true; del: { text: string; o: number; segs: Seg[] | null }[]; add: { text: string; n: number; segs: Seg[] | null }[] };
 
+/** Lines of a text; an empty text has none (so a field filled in from nothing diffs as additions only). */
 export const splitLines = (t: string | string[] | null | undefined): string[] =>
-  t === null || t === undefined ? [] : Array.isArray(t) ? t : String(t).replace(/\n$/, "").split("\n");
+  t === null || t === undefined || t === "" ? [] : Array.isArray(t) ? t : String(t).replace(/\n$/, "").split("\n");
 
 /** Line ops, after trimming the common ends. */
 export function diffLines(a: string[], b: string[]): Op[] {

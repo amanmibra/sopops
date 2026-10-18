@@ -136,7 +136,8 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
       </h2>
       {d && (
         <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
-          {plural(d.sessions, "session", "sessions")} · {plural(d.findings, "finding", "findings")} in the last year
+          {plural(d.session_ids.length, "session", "sessions")} · {plural(d.findings + d.suppressed, "finding", "findings")} in the last year
+          {d.suppressed > 0 && ` (${d.suppressed} hidden from Insights by the verdict)`}
         </p>
       )}
       {(s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-[13px]">{s.pattern?.description ?? d?.description}</p>}

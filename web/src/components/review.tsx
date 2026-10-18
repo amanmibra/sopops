@@ -850,7 +850,8 @@ export function PatternView({ id }: { id: string }) {
             <header className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2.5">
               <h2 className="text-[13.5px] font-semibold">Examples</h2>
               <span className="text-muted-foreground text-xs tabular-nums">
-                {plural(d.sessions, "session", "sessions")} · {plural(d.findings, "finding", "findings")} in the last year ·{" "}
+                {plural(d.session_ids.length, "session", "sessions")} · {plural(d.findings + d.suppressed, "finding", "findings")} in the last year
+                {d.suppressed > 0 && ` (${d.suppressed} hidden from Insights by the verdict)`} ·{" "}
                 <HrefLink href={sessionsHref(ws, { pattern: id })}>All sessions</HrefLink>
               </span>
             </header>

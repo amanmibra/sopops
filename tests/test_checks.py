@@ -171,6 +171,7 @@ def test_required_tool_step_is_checked_against_tool_calls(env):
     a = checks_by_id(s)[ALLERGEN]
     step = rules_by_key(a)["step_3"]
     assert step["status"] == "skipped" and step["evidence"] == [] and "never called" in step["reason"]
+    assert step["reason"].startswith("fake step_3")  # the checker's reading is kept (clustering needs it), the tool fact added
     assert a["result"] == "deviated"  # a required step skipped, even with the goal reached
 
 

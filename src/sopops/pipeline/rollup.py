@@ -118,7 +118,7 @@ def apply_tool_calls(steps: list[Judged], tools: dict[str, str | None], tool_cal
         elif s.status not in ("not_reached", "not_applicable"):
             s.status = "skipped"
             s.evidence = []
-            s.reason = f"{name} was never called (required)."
+            s.reason = f"{s.reason} ({name} was never called; required.)".strip()  # the checker's reading stays: clustering needs it
 
 
 def rollup(rules: list[Judged], goal_reached: bool | None, agent_spoke: bool = True) -> Rollup:

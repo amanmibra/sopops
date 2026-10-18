@@ -155,6 +155,8 @@ Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_
 
 A single finding can be marked wrong too. A pattern with a verdict exports its sessions as regression cases (JSON Lines).
 
+Each pattern then moves through review states: **needs review** (no verdict, or a recluster changed its findings since), **open** (a real mistake or a wrong SOP, not fixed yet), **fixing** (a suggestion applied or its pull request open or merged, waiting for the release to go live and for 10 sessions on it), **fixed**, or **regressed** (it came back on sessions that ran the fix, so it's back in the queue), and **closed** for acceptable and checker-wrong. Pull requests are followed on GitHub: merged moves the pattern on, closed reopens it.
+
 **Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows each agent's prompt diff. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. Details: [API.md](API.md#review-and-suggestions).
 
 ## Models
@@ -164,7 +166,7 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 - **Two roles.** `SOPOPS_MODEL_FAST` answers the decisions (routing, rule checks, pattern assignment) and `SOPOPS_MODEL_REASONING` is the reviewer: it judges the rules the decisions flag or aren't sure about, splits rules into checks, clusters, names themes and writes suggestions. Model strings like `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`, with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...); either alone serves both. Any provider DSPy knows works, or an OpenAI-compatible endpoint for local models (`SOPOPS_LLM_API_BASE`). Unset, sessions are stored but not checked.
 - **Jev (optional).** With `pip install 'sopops[jev]'` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers the decisions instead of the fast model: calibrated probabilities, faster and much cheaper than an LLM call. The reviewer still reviews.
 - **Check modes.** `decide` (default): decisions first, the reviewer on what they flag. `review`: the reviewer judges every rule. `SOPOPS_CHECK_REVIEW=off` lets the decisions stand.
-- **Calibration.** Decision thresholds can be fitted to a workspace's own labeled sessions (checker-wrong verdicts and overrides are labels) and are stored per workspace; until then the defaults apply (`SOPOPS_DECISIONS` overrides them). Calibration widens the review band, never narrows it.
+- **Calibration.** Decision thresholds can be fitted to a workspace's own labeled sessions (verdicts and overrides are the labels; checker-wrong ones are negative) and are stored per workspace; until then the defaults apply (`SOPOPS_DECISIONS` overrides them). Run it with `sopops calibrate --workspace WS [--procedure P] [--dry-run]` or `POST …/calibrate`: it reports each threshold before and after, and refuses a procedure with fewer than 5 labeled sessions or no rule with 3 labeled failures. Calibration widens the review band, never narrows it.
 
 ## Configuration
 
@@ -185,7 +187,7 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@v0` | What the onboarding command's `uvx --from` installs. |
 | `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3`. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |
-| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON` | `60`, `4`, `20`, `0 6 * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster. |
+| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking suggestions' pull requests (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
 | `SOPOPS_WEB_DIR` | the built UI | Serve the UI from another folder. |
 
 ## Git or database
@@ -229,14 +231,15 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `POST …/sessions`; `…/sessions/open`, `…/sessions/<platform>/<id>/events`, `…/close` | **Session end**, with an `ingest` token; or streamed while it runs. |
 | `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript and checks, and live events (SSE). |
 | `GET …/patterns`, `…/patterns/<id>`, `POST …/patterns/recluster` | Patterns with their failure modes; recluster now. |
-| `GET …/review`, `POST …/patterns/<id>/verdict`, `POST …/findings/<id>/override`, `GET …/patterns/<id>/regression` | The review queue, verdicts, one finding marked right or wrong, regression cases. |
+| `GET …/review`, `POST …/patterns/<id>/verdict`, `POST …/findings/<id>/override`, `GET …/patterns/<id>/regression` | The review queue by review state, verdicts, one finding marked right or wrong, regression cases. |
+| `POST …/calibrate` | Fit the check thresholds to the workspace's review labels (or a dry run). |
 | `GET …/suggestions[/<id>]`, `POST …/patterns/<id>/suggest`, `POST …/suggestions/<id>/apply`, `…/dismiss` | Suggested edits: list, (re)generate, apply as a draft or pull request, dismiss. |
 | `GET …/insights/overview`, `…/procedures/<id>[/rules/<id>]`, `…/releases/compare`, `…/report` | Insights and the report. |
 | `GET/POST …/tokens`, `DELETE …/tokens/<id>` | Workspace tokens with scopes (`ingest`, `runtime`), shown once; revoke. |
 | `GET …/config`, `…/config/{agents,instructions,procedures,groups}[/<id>]` | Every item as the forms edit it; list, create, read, replace and delete each kind, with history. |
 | `GET …/draft`, `POST …/releases`, `POST …/releases/<n>/activate` | Unpublished changes; publish head; make an older release live. |
 | `POST …/publish`, `GET …/files?content=true` | Replace every file and release, for CI; export as sopc files. |
-| `GET/POST/DELETE …/repo`, `POST …/repo/pull` | The workspace's GitHub repository (token write-only); pull its sopc project into drafts. |
+| `GET/POST/DELETE …/repo`, `POST …/repo/pull` | The workspace's GitHub repository (token write-only; `null` when none); pull its sopc project into drafts. |
 | `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
@@ -251,7 +254,7 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 | Import with a coding agent (sopops-mcp) or sopops's own model | Experiments: A/B tests as a feature (today: pin a release per call and compare releases) |
 | Pull and push delivery: LiveKit, ElevenLabs, Vapi; Python and TypeScript SDKs | Retell delivery; ElevenLabs and Vapi post-call webhooks; an OpenTelemetry receiver |
 | Sessions: ingest, streaming, backfill import; checks per rule with quotes | Runtime enforcement: checking rules while a session is still going, and guidance back to the agent (the SDKs' `on_guidance` is reserved for it) |
-| Patterns, themes, review verdicts, suppression, calibration labels, regression export | A Slack digest of new patterns and suggestions |
+| Patterns, themes, review verdicts and states, suppression, calibration from review labels, regression export | A Slack digest of new patterns and suggestions |
 | Suggested edits as drafts or GitHub pull requests; pulling a repo's sopc project | A GitHub App instead of a personal token; pulling on push |
 | Insights, release compare, the report | Renaming agents and blocks; a webhook on publish; more framework adapters (Pipecat) |
 
@@ -267,8 +270,8 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `src/sopops/ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide` (decisions and review), `programs` and `calibration` (fitted thresholds), `fakes` (for tests) |
 | `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
 | `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering prompts to platforms; inline or Hatchet runs |
-| `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
-| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster) and `sopops-mcp` |
+| `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
+| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status) and `sopops-mcp` |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |
 | `sdks/python`, `sdks/node` | The client SDKs |
 | `skills/sopops-onboard` | The onboarding skill coding agents follow |
