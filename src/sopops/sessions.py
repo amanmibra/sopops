@@ -257,9 +257,9 @@ class Sessions:
 
     def get(self, workspace: str, id: str) -> dict:
         row = self.load(workspace, id)
-        turns, calls = row.turns, row.tool_calls
-        if row.processed_at is None:  # stored as sent, not normalized yet (it is a moment later): shown as it will be
-            turns, calls = normalize_turns(turns, row.started_at), normalize_tool_calls(calls, row.started_at)
+        # as normalizing stores them: a session is stored as sent and normalized a moment later (by a run that a re-send
+        # can overtake), and normalizing what's already normalized changes nothing
+        turns, calls = normalize_turns(row.turns, row.started_at), normalize_tool_calls(row.tool_calls, row.started_at)
         return {**_summary(row), "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id),
                 **self.store.usage.session(row.workspace_id, row.id)}
 
