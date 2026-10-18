@@ -337,6 +337,26 @@ def test_calibrate_from_labels(env, capsys):
     assert f"{ALLERGEN}: 5 labeled sessions (1 findings judged wrong)" in out and "dry run, not saved" in out
 
 
+def test_calibrate_end_to_end_with_a_fake_that_only_knows_the_checks(env, monkeypatch):
+    """Fake mode (the walkthrough's): the fake answers the checks, not `SplitRule`, so calibrating splits the rules with
+    the fakes' default answer instead of failing on an empty reply."""
+    model_call = env.model.__call__
+
+    def checks_only(role, signature, inputs):
+        return {"checks": None} if signature is SplitRule else model_call(role, signature, inputs)
+
+    monkeypatch.setattr(env.fake, "responder", checks_only)
+    for _ in range(5):
+        env.send("A")
+    verdict(env, rule_pattern(env)["pattern_id"], "real")
+    r = env.client.post(f"{WS}/calibrate", json={"procedure": ALLERGEN, "dry_run": True})
+    assert r.status_code == 200, r.text
+    (p,) = r.json()["procedures"]
+    assert (p["labels"], p["skipped"]) == (5, None) and p["rules"]
+    r = env.client.post(f"{WS}/calibrate", json={"procedure": ALLERGEN})
+    assert r.status_code == 200 and r.json()["procedures"][0]["saved"] is True
+
+
 def test_verdicts_follow_reclustering(env):
     for mode in "AAAABBBB":
         env.send(mode)  # the 8th finding splits the rule into Mode A and Mode B

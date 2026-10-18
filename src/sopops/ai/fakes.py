@@ -1,7 +1,9 @@
 """Stand-ins for the models, for tests and offline runs. Nothing here reaches a network.
 
 - `FakeModels`: an `AI` whose generative calls are answered by `responder(role, signature, inputs)` (the output
-  fields, as a dict), and whose decision calls run through DSPy's real decision decoding against `decider`.
+  fields, as a dict), and whose decision calls run through DSPy's real decision decoding against `decider`. A field
+  the responder leaves out (or None) is answered by `default_reply` where it knows the signature (`SplitRule`), so a
+  fake written for the checks still serves the programs that split rules first (calibration).
 - `FakeSystemOne`: a System One client like `dspy.experimental.TypeSafe`: `responder(state, questions)` returns, per
   question, a probability (a Noul), or a label or a label -> probability mapping (a Choice).
 - `FakeEngine`: a `dspy.LM` engine that answers in DSPy's chat format, for running decision signatures on a
@@ -21,9 +23,27 @@ from dspy.lm15 import Usage as LMUsage
 from pydantic import BaseModel, TypeAdapter
 
 from .lm import DECIDE, NotConfigured, Usage, as_predict
+from .signatures import SplitRule
 
 Responder = Callable[[str, type[dspy.Signature], dict[str, Any]], BaseModel | Mapping[str, Any]]
 DecisionResponder = Callable[[dict[str, Any], dict[str, dict[str, Any]]], Mapping[str, Any]]
+
+
+def split_rule(inputs: Mapping[str, Any]) -> dict[str, Any]:
+    """`SplitRule` without a model: the rule's own text is its one action (a warning sign's is its situation)."""
+    rule = str(inputs.get("rule") or "").strip()
+    if inputs.get("kind") == "warning":
+        return {"checks": {"condition": rule, "actions": [], "forbidden": []}}
+    return {"checks": {"condition": None, "actions": [rule], "forbidden": []}}
+
+
+DEFAULT_REPLIES: dict[type[dspy.Signature], Callable[[Mapping[str, Any]], dict[str, Any]]] = {SplitRule: split_rule}
+
+
+def default_reply(signature: type[dspy.Signature], inputs: Mapping[str, Any]) -> dict[str, Any] | None:
+    """A plain answer for a signature every fake needs the same way, or None."""
+    make = DEFAULT_REPLIES.get(signature)
+    return make(inputs) if make else None
 
 
 class FakeSystemOne:
@@ -93,10 +113,13 @@ class FakeModels:
         if role == DECIDE and self.decider is not None:
             with dspy.context(lm=self.decider):
                 return p(**inputs)
-        if self.responder is None:
+        out = self.responder(role, p.signature, inputs) if self.responder is not None else None
+        fields = out.model_dump() if isinstance(out, BaseModel) else dict(out or {})
+        default = default_reply(p.signature, inputs)
+        if default is not None:
+            fields |= {n: v for n, v in default.items() if fields.get(n) is None}
+        if self.responder is None and default is None:
             raise AssertionError(f"no responder for {p.signature.__name__}")
-        out = self.responder(role, p.signature, inputs)
-        fields = out.model_dump() if isinstance(out, BaseModel) else dict(out)
         return dspy.Prediction(**{n: TypeAdapter(f.annotation).validate_python(fields[n]) for n, f in p.signature.output_fields.items()})
 
 

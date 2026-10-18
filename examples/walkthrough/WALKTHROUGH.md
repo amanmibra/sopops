@@ -196,6 +196,7 @@ Expected in fake mode, all PASS:
 - Both suggestions applied and in release 2.
 - **Insights → Release compare** (`/w/walkthrough/insights/releases`, 30 days): allergen check's pass rate up from about 53% to about 85%, and its never rule 1 from about 73% to 94%. Delivery orders stays about level: release 1's delivery-time findings are already suppressed by the acceptable verdict, so the rewording shows in the per-rule findings, not in the pass rate.
 - Reworded rules keep their history: release 2's delivery never rule 1 continues release 1's (linked by the applied suggestion), with one row in release compare and in the rule ladder ("reworded in release 2"), and one rule pattern holding both releases' findings and the eta verdict.
+- Calibration answers (a preview, nothing saved): every procedure has enough verdicts to fit. Try it under **the gear icon → Calibration**: Preview shows the labels used and each threshold before and after. In fake mode the scripted decisions answer every question alike, so every threshold stays where it is; with real models some move.
 
 ## Running it in CI
 

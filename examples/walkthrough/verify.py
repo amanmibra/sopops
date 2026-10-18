@@ -16,7 +16,7 @@ import sys
 from collections import defaultdict
 from typing import Any
 
-from common import all_sessions, call, client, load, match_modes, wait_until_up
+from common import WS, all_sessions, call, client, load, match_modes, wait_until_up
 
 FAILING = {"skipped", "violated", "unheeded"}
 SPLIT_AT = 8  # sopops.patterns.SPLIT_AT
@@ -170,6 +170,13 @@ def main() -> None:
             judged = [m for m, v in review["verdicts"].items() if f"{truth['modes'][m]['procedure']}/{truth['modes'][m]['rule']}" == key]
             check(all(review["verdicts"][m]["pattern_id"] in family for m in judged),
                   f"{key}: its verdicts ({', '.join(judged) or 'none'}) are on that pattern, so they follow the new wording")
+
+        print("\n== Calibration (a preview: nothing is saved)")
+        res = http.post(f"/v1/workspaces/{WS}/calibrate", json={"dry_run": True})
+        check(res.status_code == 200, f"calibrate answers ({res.status_code}{': ' + res.text[:300] if res.status_code != 200 else ''})")
+        if res.status_code == 200:
+            fitted = [p for p in res.json()["procedures"] if not p["skipped"]]
+            check(bool(fitted), f"{len(fitted)} procedure(s) fitted to the verdicts: " + ", ".join(f"{p['procedure_id']} ({p['labels']} labeled sessions)" for p in fitted))
 
     failed = [w for ok, w in results if not ok]
     print(f"\n{len(results) - len(failed)} of {len(results)} checks passed" + (f"; failed: {len(failed)}" if failed else ""))
