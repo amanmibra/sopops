@@ -35,9 +35,8 @@ class CheckDecisions(dspy.Module):
 
     def forward(self, turns: list[dict[str, Any]]) -> dspy.Prediction:
         lines = decide.transcript_lines(turns)
-        names = list(self.decide.signature.output_fields)
         preds = [self.decide(procedure=self.brief, transcript=decide.utterances(seg)) for seg in decide.segments(self.brief.model_dump(), lines)]
-        got = decide.combine(preds, names)
+        got = decide.combine(preds, self.decide)
         decisions = {it.rule.id: decide.decide(it, got, self.cfg) for it in self.items}
         decide.mark_not_reached([decisions[it.rule.id] for it in self.items if it.rule.kind == "step"])
         rules = [Judged(it.rule.id, it.rule.kind, it.rule.index, decisions[it.rule.id].status, [], "", it.rule.required) for it in self.items]
@@ -61,8 +60,7 @@ class RouteDecisions(dspy.Module):
         lines = decide.transcript_lines(turns)
         if not any(x.speaker == "user" for x in lines):
             return dspy.Prediction(applied=set())
-        names = list(self.decide.signature.output_fields)
-        got = decide.combine([self.decide(procedures=briefs, transcript=decide.utterances(seg)) for seg in decide.segments(briefs, lines)], names)
+        got = decide.combine([self.decide(procedures=briefs, transcript=decide.utterances(seg)) for seg in decide.segments(briefs, lines)], self.decide)
         return dspy.Prediction(applied={p.id for p in self.procedures if got[f"{keys[p.id]}_situation"].yes and got[f"{keys[p.id]}_responded"].yes})
 
 

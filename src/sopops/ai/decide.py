@@ -98,8 +98,10 @@ class Band:
     yes: float
     decide: float = 0.5
 
-    def unsure(self, p: float) -> bool:
-        return self.no < p < self.yes
+    def unsure(self, a: Answer) -> bool:
+        """Unsure: inside the band, moved with the question's threshold when it was calibrated away from `decide`."""
+        shift = a.t - self.decide
+        return self.no + shift < a.p < self.yes + shift
 
 
 @dataclass(frozen=True)
@@ -246,17 +248,18 @@ class Answer:
     p: float
     yes: bool
     segment: int
+    t: float = 0.5  # the question's threshold
 
 
-def combine(per_segment: list[Any], names: list[str]) -> dict[str, Answer]:
+def combine(per_segment: list[Any], predictor: dspy.Predict) -> dict[str, Answer]:
     out: dict[str, Answer] = {}
     for i, pred in enumerate(per_segment):
-        for n in names:
+        for n, cfg in predictor.fields.items():
             d = pred[n]
             p = float(d.probability if d.probability is not None else (1.0 if d.value else 0.0))
             prev = out.get(n)
             if prev is None or p > prev.p:
-                out[n] = Answer(p, bool(d.value) or (prev.yes if prev else False), i)
+                out[n] = Answer(p, bool(d.value) or (prev.yes if prev else False), i, float(cfg.get("threshold", 0.5)))
             elif d.value:
                 prev.yes = True
     return out
@@ -290,17 +293,16 @@ def route(ai: AI, procedures: list[Procedure], variables: dict[str, str], turns:
     STATS.add(routes=1)
     if not any(x.speaker == "user" for x in lines):
         return Routing([Routed(p.id, "ended_before_start", "The user never spoke.") for p in procedures], False, str(ai.model(DECIDE)))
-    names = [f"{k}_{q}" for k in keys.values() for q in ("situation", "responded")]
     predictor = route_predictor(procedures, cfg, params)
 
     def run(role: str) -> tuple[list[Routed], bool]:
-        got = combine([ai.predict(role, predictor, procedures=briefs, transcript=utterances(seg)) for seg in segments(briefs, lines)], names)
+        got = combine([ai.predict(role, predictor, procedures=briefs, transcript=utterances(seg)) for seg in segments(briefs, lines)], predictor)
         out, unsure = [], False
         for p in procedures:
             k = keys[p.id]
             s, r = got[f"{k}_situation"], got[f"{k}_responded"]
             status = "not_applicable" if not s.yes else "ended_before_finish" if not r.yes else "applied"
-            unsure |= cfg.route.unsure(s.p) or (s.yes and cfg.responded.unsure(r.p))
+            unsure |= cfg.route.unsure(s) or (s.yes and cfg.responded.unsure(r))
             out.append(Routed(p.id, status, f"The situation came up ({s.p:.2f}); the agent acted on it ({r.p:.2f})."))
         return out, unsure
 
@@ -430,11 +432,12 @@ def decide(it: Item, got: dict[str, Answer], cfg: DecisionConfig) -> Decision:
     cond = got[it.cond] if it.cond else None
     acts = [got[n] for n in it.actions]
     forb = [got[n] for n in it.forbidden]
+    weakest = min(acts, key=lambda a: a.p - a.t, default=Answer(0.0, False, 0))  # every action must happen
+    p = weakest.p
     if kind == "step":
         applicable = cond is None or cond.yes
-        p = min((a.p for a in acts), default=0.0)
         done = all(a.yes for a in acts) and bool(acts)
-        unsure = (cond is not None and cfg.condition.unsure(cond.p)) or (applicable and cfg.step.unsure(p))
+        unsure = (cond is not None and cfg.condition.unsure(cond)) or (applicable and cfg.step.unsure(weakest))
         why = f"Decided: condition {cond.p:.2f}; " if cond else "Decided: "
         if not applicable:
             return Decision("not_applicable", unsure, [], f"{why}the step's situation didn't arise.")
@@ -442,17 +445,16 @@ def decide(it: Item, got: dict[str, Answer], cfg: DecisionConfig) -> Decision:
             return Decision("done", unsure, [], f"{why}done ({p:.2f}).", find=list(it.actions))
         return Decision("skipped", unsure, [], f"{why}not done ({p:.2f}).")
     if kind == "never":
-        p = min((a.p for a in acts), default=0.0)
         if all(a.yes for a in acts) and acts:
-            return Decision("violated", cfg.never.unsure(p), [], f"Decided: the agent did it ({p:.2f}).", find=list(it.actions))
-        return Decision("ok", cfg.never.unsure(p), [], f"Decided: the agent didn't do it ({p:.2f}).")
+            return Decision("violated", cfg.never.unsure(weakest), [], f"Decided: the agent did it ({p:.2f}).", find=list(it.actions))
+        return Decision("ok", cfg.never.unsure(weakest), [], f"Decided: the agent didn't do it ({p:.2f}).")
     if cond is None:  # a warning sign with no situation to ask about: the reasoning model decides
         return Decision("absent", True, [], "Decided: no situation to ask about.")
     if not cond.yes:
-        return Decision("absent", cfg.warning.unsure(cond.p), [], f"Decided: the situation didn't come up ({cond.p:.2f}).")
+        return Decision("absent", cfg.warning.unsure(cond), [], f"Decided: the situation didn't come up ({cond.p:.2f}).")
     missed = [a for a in acts if not a.yes]
     did = [n for n, f in zip(it.forbidden, forb) if f.yes]
-    unsure = cfg.warning.unsure(cond.p) or any(cfg.warning.unsure(x.p) for x in acts + forb)
+    unsure = cfg.warning.unsure(cond) or any(cfg.warning.unsure(x) for x in acts + forb)
     status = "unheeded" if missed or did else "present"
     tail = "and the agent didn't act on it" if status == "unheeded" else "and was handled"
     return Decision(status, unsure, [], f"Decided: the situation came up ({cond.p:.2f}) {tail}.", find=[it.cond, *did])
@@ -471,7 +473,7 @@ def mark_not_reached(steps: list[Decision]) -> None:
 def run_decisions(ai: AI, predictor: Any, brief: ProcedureBrief, lines: list[Line]) -> tuple[list[list[Line]], dict[str, Answer]]:
     segs = segments(brief.model_dump(), lines)
     preds = [ai.predict(DECIDE, predictor, procedure=brief, transcript=utterances(seg)) for seg in segs]
-    return segs, combine(preds, list(predictor.signature.output_fields))
+    return segs, combine(preds, predictor)
 
 
 def find_evidence(ai: AI, items: list[Item], decisions: dict[str, Decision], got: dict[str, Answer], segs: list[list[Line]],
