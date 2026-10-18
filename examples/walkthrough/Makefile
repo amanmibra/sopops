@@ -2,9 +2,9 @@
 # MODELS=fake (default) or real. `make serve` in one terminal, the steps in another; or `make all` for everything.
 
 MODELS ?= fake
-PY := uv run --project ../.. python
+PY := uv run --project ../.. --all-extras python
 
-.PHONY: all serve fresh onboard onboard-push onboard-publish generate backfill review replay verify clean
+.PHONY: all serve fresh onboard onboard-push onboard-publish generate backfill review review-verdicts review-apply review-publish replay verify clean
 
 all:              ## everything, from a fresh database; sopops stays up afterwards
 	$(PY) run_all.py --models $(MODELS)
@@ -32,6 +32,15 @@ backfill:         ## 5. send the backfill
 
 review:           ## 6. verdicts on the patterns, suggestions applied, release 2
 	$(PY) review.py
+
+review-verdicts:  ## 6a. just the verdicts (and wait for the suggestions)
+	$(PY) review.py verdicts
+
+review-apply:     ## 6b. apply the suggestions as drafts
+	$(PY) review.py apply
+
+review-publish:   ## 6c. publish release 2
+	$(PY) review.py publish
 
 replay:           ## 7. the new calls through the LiveKit adapter, as if live
 	$(PY) replay.py
