@@ -1,6 +1,6 @@
 // Review: verdicts on patterns, overrides on single findings, and the suggestions a verdict leads to.
 import { queryOptions } from "@tanstack/react-query";
-import type { AgentPromptChange, OverrideIn, ReviewExample, SuggestionSummary, VerdictIn } from "@/client/types.gen";
+import type { AgentPromptChange, CalibrateIn, OverrideIn, ReviewExample, ReviewItem, SuggestionSummary, VerdictIn } from "@/client/types.gen";
 import { call, sdk } from "./api";
 
 export type Verdict = VerdictIn["verdict"];
@@ -13,15 +13,38 @@ export const VERDICT: Record<Verdict, { label: string; key: string; help: string
   checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Hidden, and used to recalibrate.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
-export type { OverrideOut as FindingOverride, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
+export type { CalibrateOut, CalibratedProcedure, CalibratedRule, OverrideOut as FindingOverride, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
 export type SuggestionStatus = SuggestionSummary["status"];
-export const SUGGESTION_STATUSES: SuggestionStatus[] = ["proposed", "pr_open", "applied", "dismissed", "failed"];
+export const SUGGESTION_STATUSES: SuggestionStatus[] = ["proposed", "pr_open", "merged", "applied", "dismissed", "failed"];
+
+/** Where a pattern is on its way from a finding to a fix (`review_state`). */
+export type ReviewState = ReviewItem["review_state"];
+export const REVIEW_STATES: ReviewState[] = ["needs_review", "regressed", "open", "fixing", "fixed", "closed"];
+export const REVIEW_STATE: Record<ReviewState, { label: string; help: string; tone: string }> = {
+  needs_review: { label: "Needs review", help: "Nobody has judged it yet, or its findings changed since the last verdict.", tone: "bg-warn-soft text-warn" },
+  regressed: { label: "Came back", help: "It was fixed, but the findings came back after the fix went live.", tone: "bg-err-soft text-err ring-1 ring-inset ring-err/50" },
+  open: { label: "Open", help: "A real problem with no fix applied yet.", tone: "text-err ring-1 ring-inset ring-err/35" },
+  fixing: { label: "Fixing", help: "A fix is applied or in a pull request. Waiting for it to go live and for 10 sessions on it.", tone: "bg-brand-soft text-primary" },
+  fixed: { label: "Fixed", help: "The fix is live and 10 sessions since had no findings in it.", tone: "bg-ok/15 text-ok" },
+  closed: { label: "Closed", help: "Judged acceptable or a checker mistake. Nothing to fix.", tone: "bg-muted text-muted-foreground" },
+};
+
+/** The Patterns page's tabs, and the review states each lists. */
+export type PatternsTab = "review" | "open" | "fixing" | "fixed" | "all";
+export const TAB_STATES: Record<Exclude<PatternsTab, "all">, ReviewState[]> = {
+  review: ["needs_review", "regressed"],
+  open: ["open"],
+  fixing: ["fixing"],
+  fixed: ["fixed"],
+};
 export type PlanAgent = AgentPromptChange;
 
 const path = (workspace: string) => ({ workspace });
 
 export const rq = {
-  review: (ws: string) => queryOptions({ queryKey: ["ws", ws, "review"], queryFn: () => call(sdk.reviewQueue({ path: path(ws), query: { limit: 200 } })) }),
+  /** The review queue: patterns in `states` (default: needs review or came back). */
+  review: (ws: string, states?: ReviewState[]) =>
+    queryOptions({ queryKey: ["ws", ws, "review", states ?? null], queryFn: () => call(sdk.reviewQueue({ path: path(ws), query: { limit: 200, state: states } })) }),
   pattern: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "pattern", id], queryFn: () => call(sdk.getPattern({ path: { ...path(ws), pattern_id: id } })) }),
   suggestions: (ws: string, status?: SuggestionStatus) =>
     queryOptions({ queryKey: ["ws", ws, "suggestions", status ?? null], queryFn: () => call(sdk.listSuggestions({ path: path(ws), query: { status } })) }),
@@ -35,6 +58,7 @@ export const review = {
   override: (ws: string, findingId: string, body: OverrideIn) => call(sdk.overrideFinding({ path: { ...path(ws), finding_id: findingId }, body })),
   suggest: (ws: string, id: string) => call(sdk.suggestEdit({ path: { ...path(ws), pattern_id: id } })),
   apply: (ws: string, id: string, reviewer: string | null) => call(sdk.applySuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
+  calibrate: (ws: string, body: CalibrateIn) => call(sdk.calibrate({ path: path(ws), body })),
   dismiss: (ws: string, id: string, note: string | null, reviewer: string | null) => call(sdk.dismissSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { note, reviewer } })),
 };
 
@@ -52,6 +76,9 @@ export const turnOf = (e: Pick<ReviewExample, "evidence">): number | null => {
   const t = e.evidence.find((x) => typeof x.turn === "number")?.turn;
   return typeof t === "number" ? t : null;
 };
+
+/** A verdict's label mid-sentence ("Marked real mistake", "Marked SOP is wrong"). */
+export const verdictPhrase = (v: Verdict) => (v === "sop_wrong" ? VERDICT[v].label : VERDICT[v].label.toLowerCase());
 
 /** A verdict that leads to a suggested SOP change. */
 export const suggests = (v: Verdict) => VERDICT[v].suggests;

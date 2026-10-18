@@ -17,7 +17,8 @@ import { HrefLink, useGo } from "./href-link";
 import { repoQuery } from "./repo";
 import { Skel } from "./insights/kit";
 import { Page } from "./item-shell";
-import { SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago, sessionAt } from "./review";
+import { sessionAt } from "./review";
+import { ReviewStateChip, SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Collapsible } from "./views";
@@ -148,9 +149,11 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
       )}
       <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[13px]">
         <VerdictChip v={verdict} />
+        {d && <ReviewStateChip state={d.review_state} note={d.review_note} />}
         {verdict?.reviewer && <span className="text-muted-foreground text-xs">by {verdict.reviewer}</span>}
       </div>
       {verdict?.note && <p className="text-muted-foreground mt-1 text-[13px]">“{verdict.note}”</p>}
+      {d && d.review_state && ["fixing", "fixed", "regressed"].includes(d.review_state) && d.review_note && <p className="mt-1 text-[13px]">{d.review_note}</p>}
       {d && d.examples.length > 0 && (
         <>
           <h3 className="text-muted-foreground mt-3 mb-1 text-xs font-semibold">Examples</h3>

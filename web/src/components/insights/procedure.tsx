@@ -8,6 +8,7 @@ import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, 
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
+import { ReviewStateChip, VerdictChip, usePatternIndex } from "../review-bits";
 import { Button } from "../ui/button";
 import { ProblemsChart, TrendCharts } from "./charts";
 import { DeltaMark, HeaderHint, Hint, Legend, RateN, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
@@ -218,10 +219,10 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
   );
 }
 
-function PatternLine({ p, depth, scope }: { p: PatternOut; depth: number; scope?: Scope }) {
+function PatternLine({ p, depth, scope, known, split }: { p: PatternOut; depth: number; scope?: Scope; known?: PatternOut; split?: boolean }) {
   const { ws } = useWs();
   return (
-    <div className={cn("flex items-baseline gap-2 py-0.5", depth && "pl-5 text-[13px]")}>
+    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-0.5", depth && "pl-5 text-[13px]")}>
       <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn(depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, examples and suggestions">
         {p.name}
       </HrefLink>
@@ -229,12 +230,16 @@ function PatternLine({ p, depth, scope }: { p: PatternOut; depth: number; scope?
       <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-muted-foreground text-xs tabular-nums" title="Its sessions">
         {p.sessions} sessions · {p.findings} findings
       </HrefLink>
+      {known && <VerdictChip v={known.verdict} className="self-center" />}
+      {known && !split && <ReviewStateChip state={known.review_state} note={known.review_note} className="self-center" />}
       {depth > 0 && p.description && <span className="text-muted-foreground hidden truncate text-xs lg:inline">{p.description}</span>}
     </div>
   );
 }
 
 export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?: Scope }) {
+  const { ws } = useWs();
+  const { index } = usePatternIndex(ws);
   return (
     <div className="grid gap-4">
       {themes.map((t) => (
@@ -247,7 +252,7 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
           <div className="border-l-2 pl-3">
             {t.patterns.map((p: RulePatternOut) => (
               <div key={p.pattern_id} className="mb-1.5">
-                <PatternLine p={p} depth={0} scope={scope} />
+                <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} split={p.sub_patterns.some((s) => s.kind === "sub")} />
                 {p.rule?.text && (
                   <div className="text-muted-foreground mb-0.5 text-xs">
                     {ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}
@@ -256,7 +261,7 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
                 {p.sub_patterns
                   .filter((s) => s.findings > 0 || s.kind === "sub")
                   .map((s) => (
-                    <PatternLine key={s.pattern_id} p={s} depth={1} scope={scope} />
+                    <PatternLine key={s.pattern_id} p={s} depth={1} scope={scope} known={index.get(s.pattern_id)} />
                   ))}
               </div>
             ))}

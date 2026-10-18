@@ -6,11 +6,10 @@ import type { InsightFilters, PatternOut, RateOut } from "@/lib/api";
 import { q } from "@/lib/api";
 import { fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { when } from "@/lib/kinds";
-import { rq } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink } from "../href-link";
-import { VerdictChip, usePatternVerdicts } from "../review";
+import { ReviewStateChip, VerdictChip, usePatternIndex } from "../review-bits";
 import { RateByGroup, ReleaseTimeline } from "./charts";
 import { Kpi, KpiGrid, StatusBar, WidgetCard } from "./kit";
 import { LIVE, scopeOf } from "./overview";
@@ -25,10 +24,13 @@ const mergeCounts = (rs: RateOut[]) => rs.reduce<Record<string, number>>((acc, r
 export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { procedureId: string; ruleId: string; filters: InsightFilters; onFilters: (f: InsightFilters) => void }) {
   const { ws, cfg } = useWs();
   const res = useQuery({ ...q.insightsRule(ws, procedureId, ruleId, filters), ...LIVE });
-  const queue = useQuery({ ...rq.review(ws), retry: false });
   const d = res.data;
-  const verdicts = usePatternVerdicts(ws, d?.patterns.flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings)]) ?? []);
-  const reviewOf = (p: PatternOut) => ({ verdict: verdicts.get(p.pattern_id) ?? null, suppressed: p.suppressed, queued: !!queue.data?.items.some((i) => i.pattern_id === p.pattern_id) });
+  const { index } = usePatternIndex(ws);
+  const reviewOf = (p: PatternOut) => {
+    const x = index.get(p.pattern_id);
+    const split = p.kind === "rule" && "sub_patterns" in p && (p.sub_patterns as PatternOut[]).some((s) => s.kind === "sub");
+    return { verdict: x?.verdict ?? null, state: split ? null : x?.review_state, note: x?.review_note, suppressed: p.suppressed, queued: x?.review_state === "needs_review" || x?.review_state === "regressed" };
+  };
   const suppressed = d?.patterns.reduce((n, p) => n + p.suppressed, 0);
   const procName = cfg.procedures.find((p) => p.id === procedureId)?.name ?? procedureId;
   const scope = d ? scopeOf(d.filters) : undefined;
@@ -156,14 +158,17 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
                         <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn("min-w-0", p.kind === "rule" ? "font-semibold" : p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, history and suggestions">
                           {p.name}
                         </HrefLink>
-                        <VerdictChip v={r.verdict} />
+                        <span className="flex flex-wrap items-center gap-1.5">
+                          <VerdictChip v={r.verdict} />
+                          <ReviewStateChip state={r.state} note={r.note} />
+                        </span>
                       </div>
                       <div className="text-muted-foreground flex flex-wrap gap-x-2 text-xs tabular-nums">
                         <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-inherit">
                           {p.sessions} sessions · {p.findings} findings
                         </HrefLink>
                         {!!r.suppressed && <span>{r.suppressed} suppressed</span>}
-                        {!r.verdict && r.queued && (
+                        {r.queued && !!r.state && (
                           <HrefLink href={`${wsHref(ws, "patterns")}?procedure=${encodeURIComponent(procedureId)}`} className="font-medium">
                             Review
                           </HrefLink>

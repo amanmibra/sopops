@@ -313,7 +313,7 @@ export function Rail() {
         <div className="mb-[18px]">
           <RailLink href={wsHref(ws, "insights")}>Insights</RailLink>
           <RailLink href={wsHref(ws, "sessions")}>Sessions</RailLink>
-          <RailLink href={wsHref(ws, "patterns")} extra={<CountBadge n={needsReview} title="Patterns needing a verdict" />}>
+          <RailLink href={wsHref(ws, "patterns")} extra={<CountBadge n={needsReview} title="Patterns to review: no verdict yet, or back after a fix" />}>
             Patterns
           </RailLink>
           <RailLink href={wsHref(ws, "suggestions")} extra={<CountBadge n={proposed} title="Suggestions waiting for a decision" />}>

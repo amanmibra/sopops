@@ -1,17 +1,18 @@
-// Patterns: every cluster (themes, rule patterns, their failure modes), the review queue of those still needing a
-// verdict, one pattern's page, and the "wrong?" control on a single finding.
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Download, Keyboard, Loader2, RefreshCw, Sparkles, Undo2, X } from "lucide-react";
+// Patterns: every cluster (themes, rule patterns, their failure modes) in tabs by review state (needs review, open,
+// fixing, fixed, all), one pattern's page with where its fix stands, and the "wrong?" control on a single finding.
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, Keyboard, Loader2, RefreshCw, RotateCcw, Sparkles, Undo2, X, Check } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { type PatternOut, type RulePatternOut, call, q, refresh, sdk } from "@/lib/api";
 import { ruleName, sessionsHref } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import {
-
   type Ex,
+  type PatternsTab,
   type ReviewItem,
   type SuggestionSummary,
+  TAB_STATES,
   VERDICT,
   VERDICTS,
   type Verdict,
@@ -19,6 +20,7 @@ import {
   regressionHref,
   review,
   rq,
+  verdictPhrase,
   suggests,
   summaryOf,
   exOf,
@@ -31,45 +33,16 @@ import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { Page } from "./item-shell";
+import { ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
+import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
+import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 
+export { SUGGESTION_STATUS, ReviewStateChip, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
+
 // --- small pieces --------------------------------------------------------------------------------------------------
-
-export function ago(t: string | null | undefined): string {
-  if (!t) return "—";
-  const s = (Date.now() - Date.parse(t)) / 1000;
-  if (s < 60) return "just now";
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`;
-  return new Date(t).toLocaleDateString(undefined, { dateStyle: "medium" });
-}
-
-export function VerdictChip({ v, className }: { v: VerdictOut | null | undefined; className?: string }) {
-  if (!v) return <span className={cn("text-muted-foreground rounded-full border border-dashed px-2 py-px text-xs whitespace-nowrap", className)}>No verdict</span>;
-  const m = VERDICT[v.verdict];
-  return (
-    <Hint
-      focusable={false}
-      tip={
-        <TipBody head={m.label}>
-          {m.help}
-          {v.inherited ? " Given on the rule pattern; this failure mode has none of its own." : ""}
-          {v.carried_from ? " Carried over from a pattern a recluster retired." : ""}
-          {v.note ? ` “${v.note}”` : ""} {v.reviewer ? `${v.reviewer}, ` : ""}
-          {when(v.created_at)}
-        </TipBody>
-      }
-    >
-      <span className={cn("inline-block rounded-full px-2 py-px text-xs font-medium whitespace-nowrap", m.tone, className)}>
-        {m.label}
-        {v.inherited && <span className="font-normal opacity-75"> · from rule</span>}
-      </span>
-    </Hint>
-  );
-}
 
 export function VerdictLegend({ className }: { className?: string }) {
   return (
@@ -190,42 +163,6 @@ function Examples({ items, procedureId, ruleId }: { items: Ex[]; procedureId: st
   );
 }
 
-// --- suggestion status on a decided card ----------------------------------------------------------------------------
-
-/** After a verdict that leads to a suggestion: waits for it, then links to it. */
-function SuggestionState({ patternId, initial }: { patternId: string; initial: SuggestionSummary | null | undefined }) {
-  const { ws } = useWs();
-  const [waiting, setWaiting] = useState(true);
-  const res = useQuery({ ...rq.pattern(ws, patternId), refetchInterval: waiting ? 2500 : false });
-  const latest = res.data?.suggestions?.[0] ?? initial ?? null;
-  const done = !!latest && !writing(latest);
-  useEffect(() => {
-    if (done) setWaiting(false);
-  }, [done]);
-  useEffect(() => {
-    const t = window.setTimeout(() => setWaiting(false), 120_000);
-    return () => window.clearTimeout(t);
-  }, []);
-  if (latest?.status === "failed")
-    return (
-      <span className="text-err inline-flex items-center gap-1.5 text-[13px]">
-        The suggestion couldn't be written. <HrefLink href={wsHref(ws, "suggestions", latest.suggestion_id)}>Details</HrefLink>
-      </span>
-    );
-  if (done && latest)
-    return (
-      <HrefLink href={wsHref(ws, "suggestions", latest.suggestion_id)} className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
-        <Sparkles className="size-3.5" /> Suggestion ready: review it
-      </HrefLink>
-    );
-  if (!waiting) return <Note>The suggestion is taking a while. It will show on the Suggestions page when it's written.</Note>;
-  return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[13px]" role="status">
-      <Loader2 className="size-3.5 animate-spin" /> Suggestion being written…
-    </span>
-  );
-}
-
 // --- the review card -----------------------------------------------------------------------------------------------
 
 type Decision = { verdict: Verdict; note: string; phase: "waiting" | "sending" | "sent" | "error"; suggestion?: SuggestionSummary | null; error?: unknown };
@@ -321,13 +258,20 @@ function ReviewCard({
               <span>{item.kind === "other" ? "unnamed findings" : "failure mode"}</span>
             </>
           )}
-          {item.verdict && (
-            <span className="ml-auto flex items-center gap-1.5">
-              {!!item.new_findings && <span>{plural(item.new_findings, "new finding", "new findings")} since</span>}
-              <VerdictChip v={item.verdict} />
-            </span>
-          )}
+          <span className="ml-auto flex items-center gap-1.5">
+            {item.verdict && !!item.new_findings && <span>{plural(item.new_findings, "new finding", "new findings")} since</span>}
+            {item.verdict && <VerdictChip v={item.verdict} />}
+            <ReviewStateChip state={item.review_state} note={item.review_note} />
+          </span>
         </div>
+        {item.review_state === "regressed" && (
+          <div className="bg-err-soft text-err mb-2 flex items-start gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium" role="note">
+            <RotateCcw className="mt-0.5 size-3.5 shrink-0" />
+            <span>
+              {item.review_note ?? (item.fix_release ? `Came back after release ${item.fix_release}.` : "Came back after the fix.")} Look again: the fix didn't hold.
+            </span>
+          </div>
+        )}
         {head}
         {item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
         {item.rule?.text && (
@@ -337,6 +281,7 @@ function ReviewCard({
         )}
         <p className="text-muted-foreground mt-2 text-xs">
           First seen {ago(item.first_seen)} · last seen {ago(item.last_seen)}
+          {item.review_state === "needs_review" && item.review_note && item.verdict && <> · {item.review_note}</>}
         </p>
       </div>
       <div className="px-4 py-3">
@@ -470,7 +415,7 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
       <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-1.5 rounded-lg border px-4 py-10 text-center text-[13px]">
         <Check className="text-ok size-6" />
         <div className="text-foreground font-semibold">Nothing to review</div>
-        <p className="max-w-[56ch]">Every pattern matching these filters has a verdict. New ones show up here as sessions are checked and clustered.</p>
+        <p className="max-w-[56ch]">Every pattern here has a verdict. New ones show up as sessions are checked and grouped.</p>
       </div>
     );
   return (
@@ -494,39 +439,41 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
 
 // --- the Patterns page ---------------------------------------------------------------------------------------------
 
-export type PatternsSearch = { tab?: "all"; procedure?: string; theme?: string; verdict?: "none" | "has" | "any" | Verdict };
+export type PatternsSearch = { tab?: Exclude<PatternsTab, "review">; procedure?: string; theme?: string; verdict?: "none" | "has" | "any" | Verdict };
 
-/** Each pattern's current verdict: from the review queue when it's there, else from the pattern itself (the list
- * doesn't carry verdicts, so those are fetched one by one and cached). */
-export function usePatternVerdicts(ws: string, patterns: PatternOut[]): Map<string, VerdictOut | null> {
-  const queue = useQuery({ ...rq.review(ws), retry: false });
-  const queued = new Map((queue.data?.items ?? []).map((i) => [i.pattern_id, i.verdict]));
-  const rest = queue.isPending ? [] : patterns.filter((p) => !queued.has(p.pattern_id));
-  const details = useQueries({ queries: rest.map((p) => ({ ...rq.pattern(ws, p.pattern_id), staleTime: 30_000 })) });
-  const out = new Map<string, VerdictOut | null>(queued);
-  rest.forEach((p, i) => details[i].data && out.set(p.pattern_id, details[i].data.verdict ?? null));
-  return out;
-}
 const matchesVerdict = (v: VerdictOut | null, f: PatternsSearch["verdict"]) => !f || f === "any" || (f === "none" ? !v : f === "has" ? !!v : v?.verdict === f);
 
+/** Patterns needing a look: no verdict yet, or a fix that didn't hold. */
 export function useNeedsReview(ws: string) {
   const res = useQuery({ ...rq.review(ws), retry: false });
   return res.data ? (res.data.total ?? res.data.items.length) : null;
 }
 
+const TABS: { tab: PatternsTab; label: string; help: string; badge: string }[] = [
+  { tab: "review", label: "Needs review", help: "Patterns nobody has judged yet, and fixes that didn't hold.", badge: "Patterns waiting for a verdict, or that came back after a fix" },
+  { tab: "open", label: "Open", help: "Real problems with no fix applied yet. Write a fix, or review the one proposed.", badge: "Real problems with no fix applied yet" },
+  { tab: "fixing", label: "Fixing", help: "Fixes applied or in a pull request, waiting to go live and for 10 sessions on them.", badge: "Fixes waiting for a release and 10 sessions on it" },
+  { tab: "fixed", label: "Fixed", help: "Fixes that held: 10 sessions on the new release with no findings.", badge: "Fixes that held" },
+  { tab: "all", label: "All patterns", help: "Every pattern, by procedure and theme, with its verdict and state.", badge: "Every pattern" },
+];
+
 export function PatternsView({ search, onSearch }: { search: PatternsSearch; onSearch: (s: PatternsSearch) => void }) {
   const { ws, cfg } = useWs();
   const qc = useQueryClient();
+  const tab: PatternsTab = search.tab ?? "review";
   const reviewRes = useQuery(rq.review(ws));
+  const stateRes = useQuery({ ...rq.review(ws, tab === "all" || tab === "review" ? undefined : TAB_STATES[tab]), enabled: tab !== "all" && tab !== "review" });
   const all = useQuery(q.patterns(ws));
   const [reclustering, setReclustering] = useState(false);
   // Cards shown on this visit stay put (collapsed once decided), even after the queue drops them.
   const sticky = useRef(new Map<string, ReviewItem>());
-  const tab = search.tab ?? "review";
   const verdictFilter = search.verdict;
+  const withVerdictFilter = tab === "review" || tab === "all";
 
   const reviewItems = useMemo(() => reviewRes.data?.items ?? [], [reviewRes.data]);
-  const needs = reviewRes.data ? (reviewRes.data.total ?? reviewItems.length) : null;
+  const counts = reviewRes.data?.counts ?? stateRes.data?.counts;
+  const countOf = (t: PatternsTab): number | null =>
+    t === "all" ? (all.data ? all.data.items.reduce((n, p) => n + 1 + p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub").length, 0) : null) : counts ? TAB_STATES[t].reduce((n, st) => n + (counts[st] ?? 0), 0) : null;
   const procName = (id: string) => cfg.procedures.find((p) => p.id === id)?.name ?? id;
 
   const themes = useMemo(() => {
@@ -540,11 +487,13 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
     return [...ids].map((id) => [id, procName(id)] as [string, string]).sort((a, b) => a[1].localeCompare(b[1]));
   }, [reviewItems, all.data, cfg]);
 
-  const fresh = reviewItems
-    .filter((i) => (!search.procedure || i.procedure_id === search.procedure) && (!search.theme || i.theme_name === search.theme))
-    .filter((i) => sticky.current.has(i.pattern_id) || matchesVerdict(i.verdict, verdictFilter));
+  const inScope = (i: ReviewItem) => (!search.procedure || i.procedure_id === search.procedure) && (!search.theme || i.theme_name === search.theme);
+  const fresh = reviewItems.filter(inScope).filter((i) => sticky.current.has(i.pattern_id) || matchesVerdict(i.verdict, verdictFilter));
   const freshIds = new Set(fresh.map((i) => i.pattern_id));
-  const queue = [...fresh, ...[...sticky.current.values()].filter((i) => !freshIds.has(i.pattern_id))].sort((a, b) => b.sessions - a.sessions);
+  // Came-back patterns first, then the most sessions.
+  const queue = [...fresh, ...[...sticky.current.values()].filter((i) => !freshIds.has(i.pattern_id))].sort(
+    (a, b) => Number(b.review_state === "regressed") - Number(a.review_state === "regressed") || b.sessions - a.sessions,
+  );
   // Remember what's shown, so a verdict doesn't make its card vanish mid-review when the queue refetches.
   useEffect(() => {
     sticky.current.clear();
@@ -553,16 +502,13 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
     if (tab === "review") for (const i of queue) if (!sticky.current.has(i.pattern_id)) sticky.current.set(i.pattern_id, i);
   });
 
-  const lastClustered = useMemo(() => {
-    const ts = (all.data?.items ?? []).map((p) => (p as RulePatternOut & { clustered_at?: string | null }).clustered_at).filter((t): t is string => !!t);
-    return ts.length ? ts.reduce((a, b) => (a > b ? a : b)) : null;
-  }, [all.data]);
+  const lastClustered = reviewRes.data?.clustered_at ?? all.data?.clustered_at ?? null;
 
   const recluster = async () => {
     setReclustering(true);
     try {
       const r = await call(sdk.reclusterPatterns({ path: { workspace: ws }, body: { procedure: search.procedure ?? null, rule: null, force: false } }));
-      toast.success(r.reclustered.length || r.assigned ? `Clustered: ${plural(r.assigned, "finding assigned", "findings assigned")}, ${plural(r.reclustered.length, "rule reclustered", "rules reclustered")}.` : "Nothing was due for reclustering.");
+      toast.success(r.reclustered.length || r.assigned ? `Grouped: ${plural(r.assigned, "finding placed", "findings placed")}, ${plural(r.reclustered.length, "rule regrouped", "rules regrouped")}.` : "Nothing was due for regrouping.");
       await refresh(qc, ws);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -572,13 +518,16 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
   };
 
   const set = (patch: Partial<PatternsSearch>) => onSearch({ ...search, ...patch });
+  const meta = TABS.find((t) => t.tab === tab)!;
   return (
     <Page wide>
       <PageTitle
         aside={
           <span className="ml-auto flex flex-wrap items-center gap-2">
-            <Note>{lastClustered ? `Last clustered ${ago(lastClustered)}` : "Clustered daily"}</Note>
-            <Button size="sm" variant="outline" onClick={recluster} disabled={reclustering} title="Assign new findings and recluster rules that are due">
+            <Hint tip={<TipBody head="Last clustered">{lastClustered ? `Findings were last grouped into patterns ${when(lastClustered)}. It runs on its own every day; Recluster runs it now.` : "Findings haven't been grouped yet. It runs on its own every day."}</TipBody>}>
+              <Note>{lastClustered ? `Last clustered ${ago(lastClustered)}` : "Not clustered yet"}</Note>
+            </Hint>
+            <Button size="sm" variant="outline" onClick={recluster} disabled={reclustering} title="Group new findings, and regroup rules that are due">
               <RefreshCw className={cn(reclustering && "animate-spin")} /> {reclustering ? "Reclustering…" : "Recluster"}
             </Button>
           </span>
@@ -586,40 +535,45 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
       >
         Patterns
       </PageTitle>
-      <Sub className="max-w-[90ch]">Findings grouped by rule and by failure mode. A verdict on a pattern decides what happens next: real mistakes and wrong SOPs get a suggested fix; acceptable and misjudged ones are hidden from the rates.</Sub>
-      <section className="bg-card mb-4 rounded-lg border px-4 py-3">
-        <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
-        <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
-        <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so Undo is free.</p>
-      </section>
-      <nav className="mb-4 flex gap-0.5 border-b" aria-label="Pattern views">
-        {(
-          [
-            ["review", "Needs review", needs],
-            ["all", "All patterns", all.data ? all.data.items.length : null],
-          ] as const
-        ).map(([t, label, n]) => (
-          <button
-            key={t}
-            type="button"
-            aria-current={tab === t ? "page" : undefined}
-            onClick={() => onSearch({ procedure: search.procedure, theme: search.theme, tab: t === "all" ? "all" : undefined })}
-            className={cn("text-muted-foreground hover:text-foreground -mb-px flex cursor-pointer items-center gap-1.5 border-b-2 border-transparent px-3 py-2", tab === t && "border-primary text-foreground font-medium")}
-          >
-            {label}
-            {n != null && n > 0 && <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", t === "review" ? "bg-warn-soft text-warn" : "bg-muted")}>{n}</span>}
-          </button>
-        ))}
-      </nav>
+      <Sub className="max-w-[90ch]">Findings grouped by rule and by failure mode. Say what each one is. Real mistakes and wrong SOPs get a fix, and you can follow the fix until it holds.</Sub>
+      <Tabs value={tab} onValueChange={(t) => onSearch({ procedure: search.procedure, theme: search.theme, verdict: t === "review" || t === "all" ? search.verdict : undefined, tab: t === "review" ? undefined : (t as PatternsSearch["tab"]) })} className="mb-1 gap-0">
+        <div className="-mx-1 overflow-x-auto border-b px-1">
+          <TabsList variant="line" aria-label="Pattern views" className="h-10 gap-0">
+            {TABS.map((t) => {
+              const n = countOf(t.tab);
+              return (
+                <TabsTrigger key={t.tab} value={t.tab} className="flex-none px-3 text-[13.5px]">
+                  {t.label}
+                  {n != null && n > 0 && (
+                    <Hint focusable={false} tip={t.badge}>
+                      <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
+                    </Hint>
+                  )}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </div>
+      </Tabs>
+      <p className="text-muted-foreground mt-2 mb-3 text-[13px]">{meta.help}</p>
+      {tab === "review" && (
+        <section className="bg-card mb-4 rounded-lg border px-4 py-3">
+          <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
+          <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
+          <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
+        </section>
+      )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <FilterSelect label="Procedure" value={search.procedure} options={procedures} onChange={(v) => set({ procedure: v })} />
         <FilterSelect label="Theme" value={search.theme} options={themes.map((t) => [t, t] as [string, string])} onChange={(v) => set({ theme: v })} />
-        <FilterSelect<NonNullable<PatternsSearch["verdict"]>>
-          label="Verdict"
-          value={verdictFilter === "any" ? undefined : verdictFilter}
-          options={[["none", "No verdict yet"], ["has", tab === "review" ? "Has a verdict, new findings since" : "Has a verdict"], ...VERDICTS.map((v) => [v, VERDICT[v].label] as [Verdict, string])]}
-          onChange={(v) => set({ verdict: v })}
-        />
+        {withVerdictFilter && (
+          <FilterSelect<NonNullable<PatternsSearch["verdict"]>>
+            label="Verdict"
+            value={verdictFilter === "any" ? undefined : verdictFilter}
+            options={[["none", "No verdict yet"], ["has", tab === "review" ? "Has a verdict, new findings since" : "Has a verdict"], ...VERDICTS.map((v) => [v, VERDICT[v].label] as [Verdict, string])]}
+            onChange={(v) => set({ verdict: v })}
+          />
+        )}
         {tab === "review" && (
           <Hint tip={<TipBody head="Keyboard">j / k move between cards · 1–4 give a verdict · n adds a note · u undoes · Esc leaves the note</TipBody>}>
             <span className="text-muted-foreground ml-auto hidden items-center gap-1 text-xs sm:inline-flex">
@@ -630,8 +584,10 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
       </div>
       {tab === "review" ? (
         <ReviewQueue items={queue} loading={reviewRes.isPending} error={reviewRes.error} onRetry={() => void reviewRes.refetch()} />
-      ) : (
+      ) : tab === "all" ? (
         <AllPatterns items={all.data?.items} loading={all.isPending} error={all.error} onRetry={() => void all.refetch()} search={{ ...search, verdict: verdictFilter }} procName={procName} />
+      ) : (
+        <StateList tab={tab} items={(stateRes.data?.items ?? []).filter(inScope)} loading={stateRes.isPending} error={stateRes.error} onRetry={() => void stateRes.refetch()} />
       )}
     </Page>
   );
@@ -653,9 +609,6 @@ function AllPatterns({
   procName: (id: string) => string;
 }) {
   const { ws } = useWs();
-  const flat = useMemo(() => (items ?? []).flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub")]), [items]);
-  const verdicts = usePatternVerdicts(ws, flat);
-  const verdictOf = (p: PatternOut) => verdicts.get(p.pattern_id);
   if (loading)
     return (
       <div className="bg-card grid gap-2 rounded-lg border p-4" aria-busy>
@@ -673,7 +626,7 @@ function AllPatterns({
         </Button>
       </Banner>
     );
-  const keep = (p: PatternOut) => matchesVerdict(verdictOf(p) ?? null, search.verdict);
+  const keep = (p: PatternOut) => matchesVerdict(p.verdict ?? null, search.verdict);
   const rows = (items ?? [])
     .filter((p) => (!search.procedure || p.procedure_id === search.procedure) && (!search.theme || p.theme_name === search.theme))
     .map((p) => ({ p, subs: p.sub_patterns.filter((s) => (s.findings > 0 || s.kind === "sub") && keep(s)) }))
@@ -711,13 +664,13 @@ function AllPatterns({
                 <ul className="grid gap-1">
                   {list.map(({ p, subs }) => (
                     <li key={p.pattern_id}>
-                      <PatternRow p={p} v={verdictOf(p)} depth={0} />
-                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 pl-0 text-xs sm:pl-0">{ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}</div>}
+                      <PatternRow p={p} depth={0} split={p.sub_patterns.some((x) => x.kind === "sub")} />
+                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs">{ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}</div>}
                       {subs.length > 0 && (
                         <ul className="ml-1 border-l pl-3">
                           {subs.map((s) => (
                             <li key={s.pattern_id}>
-                              <PatternRow p={s} v={verdictOf(s)} depth={1} />
+                              <PatternRow p={s} depth={1} />
                             </li>
                           ))}
                         </ul>
@@ -733,7 +686,9 @@ function AllPatterns({
   );
 }
 
-function PatternRow({ p, v, depth }: { p: PatternOut; v: VerdictOut | null | undefined; depth: number }) {
+/** One pattern in a list: name, verdict, review state and counts. A rule pattern split into failure modes shows no
+ * state of its own: each failure mode has one. */
+function PatternRow({ p, depth, split }: { p: PatternOut; depth: number; split?: boolean }) {
   const { ws } = useWs();
   return (
     <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-0.5 py-1", depth && "text-[13px]")}>
@@ -741,11 +696,14 @@ function PatternRow({ p, v, depth }: { p: PatternOut; v: VerdictOut | null | und
         {p.name}
       </HrefLink>
       {p.status === "retired" && <Tag>retired</Tag>}
-      {v === undefined ? <Skel className="h-4 w-16 rounded-full" /> : <VerdictChip v={v} />}
+      <VerdictChip v={p.verdict} />
+      {!split && <ReviewStateChip state={p.review_state} note={p.review_note} />}
       <span className="flex-1" />
-      <span className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
-        {p.sessions} sessions · {p.findings} findings{p.suppressed ? ` · ${p.suppressed} suppressed` : ""} · {ago(p.last_seen)}
-      </span>
+      <Hint focusable={false} tip={<TipBody head="In the last year">Sessions with a finding in it, its findings, and when it last came up.{p.suppressed ? " Suppressed findings are hidden from Insights by a verdict." : ""}</TipBody>}>
+        <span className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+          {p.sessions} sessions · {p.findings} findings{p.suppressed ? ` · ${p.suppressed} suppressed` : ""} · {ago(p.last_seen)}
+        </span>
+      </Hint>
       {depth > 0 && p.description && <span className="text-muted-foreground basis-full truncate text-xs">{p.description}</span>}
     </div>
   );
@@ -761,7 +719,7 @@ export function PatternView({ id }: { id: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const d = res.data;
-  const subVerdicts = usePatternVerdicts(ws, d?.sub_patterns ?? []);
+  const { index } = usePatternIndex(ws);
   if (res.isPending)
     return (
       <Page wide>
@@ -789,7 +747,7 @@ export function PatternView({ id }: { id: string }) {
     setError(null);
     try {
       const r = await review.verdict(ws, id, { verdict: v, note: note || null, reviewer: author(), suggest: suggests(v) });
-      toast.success(`Marked ${VERDICT[v].label.toLowerCase()}.${suggests(v) ? " A suggested fix is being written." : ""}`);
+      toast.success(`Marked ${verdictPhrase(v)}.${suggests(v) ? " Writing a fix." : ""}`);
       if (r.suggestion) qc.setQueryData(rq.pattern(ws, id).queryKey, (old) => (old ? { ...old, suggestions: [r.suggestion!, ...old.suggestions] } : old));
       await Promise.all([qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", id] }), qc.invalidateQueries({ queryKey: ["ws", ws, "review"] }), qc.invalidateQueries({ queryKey: ["ws", ws, "suggestions"] })]);
     } catch (e) {
@@ -802,7 +760,7 @@ export function PatternView({ id }: { id: string }) {
     setBusy(true);
     try {
       await review.suggest(ws, id);
-      toast.success("A suggestion is being written.");
+      toast.success("Writing the fix.");
       await qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", id] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -832,7 +790,16 @@ export function PatternView({ id }: { id: string }) {
           </>
         )}
       </div>
-      <PageTitle aside={<VerdictChip v={verdict} className="text-[13px]" />}>{d.name}</PageTitle>
+      <PageTitle
+        aside={
+          <span className="flex flex-wrap items-center gap-1.5">
+            <VerdictChip v={verdict} className="text-[13px]" />
+            {!(d.kind === "rule" && subs.some((x) => x.kind === "sub")) && <ReviewStateChip state={d.review_state} note={d.review_note} className="text-[13px]" />}
+          </span>
+        }
+      >
+        {d.name}
+      </PageTitle>
       {d.description && <Sub>{d.description}</Sub>}
       {d.rule.text && (
         <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-[14px]">
@@ -865,7 +832,7 @@ export function PatternView({ id }: { id: string }) {
               <ul>
                 {subs.map((s) => (
                   <li key={s.pattern_id}>
-                    <PatternRow p={s} v={subVerdicts.get(s.pattern_id)} depth={1} />
+                    <PatternRow p={index.get(s.pattern_id) ?? s} depth={1} />
                   </li>
                 ))}
               </ul>
@@ -873,12 +840,20 @@ export function PatternView({ id }: { id: string }) {
           )}
         </div>
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
+          {!(d.kind === "rule" && subs.some((x) => x.kind === "sub")) ? (
+            <FixTimeline d={d} />
+          ) : (
+            <section className="bg-card rounded-lg border px-4 py-3">
+              <h2 className="mb-1 text-[13.5px] font-semibold">Where it stands</h2>
+              <Note>This rule is split into failure modes below. Each one has its own verdict and fix.</Note>
+            </section>
+          )}
           <section className="bg-card rounded-lg border px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 className="text-[13.5px] font-semibold">Suggestions</h2>
               {verdict && suggests(verdict.verdict) && (
                 <Button size="xs" variant="outline" disabled={busy} onClick={() => void regenerate()}>
-                  <Sparkles /> {suggestions.length ? "Regenerate" : "Suggest a fix"}
+                  <Sparkles /> {suggestions.length ? "Write again" : "Write a fix"}
                 </Button>
               )}
             </div>
@@ -939,21 +914,4 @@ export function PatternView({ id }: { id: string }) {
       </div>
     </Page>
   );
-}
-
-// --- suggestion status ---------------------------------------------------------------------------------------------
-
-export const SUGGESTION_STATUS: Record<SuggestionSummary["status"], { label: string; tone: string }> = {
-  generating: { label: "Being written", tone: "bg-muted text-muted-foreground" },
-  proposed: { label: "Proposed", tone: "bg-warn-soft text-warn" },
-  pr_open: { label: "PR open", tone: "bg-brand-soft text-primary" },
-  merged: { label: "PR merged", tone: "bg-brand-soft text-primary" },
-  applied: { label: "Applied", tone: "bg-brand-soft text-primary" },
-  dismissed: { label: "Dismissed", tone: "bg-muted text-muted-foreground" },
-  failed: { label: "Failed", tone: "bg-err-soft text-err" },
-};
-
-export function SuggestionStatusTag({ status, big }: { status: SuggestionSummary["status"]; big?: boolean }) {
-  const s = SUGGESTION_STATUS[status] ?? { label: status, tone: "" };
-  return <Tag big={big} className={cn("border-transparent", s.tone)}>{s.label}</Tag>;
 }
