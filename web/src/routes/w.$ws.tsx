@@ -5,6 +5,7 @@ import { ErrorBanner } from "@/components/bits";
 import { Rail } from "@/components/layout";
 import { ConvertView } from "@/components/views";
 import { q } from "@/lib/api";
+import { rememberPage } from "@/lib/mode";
 import { prefs } from "@/lib/prefs";
 import { WsContext, makeWs } from "@/lib/workspace";
 
@@ -13,11 +14,12 @@ export const Route = createFileRoute("/w/$ws")({ component: WorkspaceLayout });
 /** Loads the workspace (config, unpublished changes, releases) for every page under it. */
 function WorkspaceLayout() {
   const { ws } = Route.useParams();
-  const { pathname } = useLocation();
+  const { pathname, searchStr } = useLocation();
   const config = useQuery(q.config(ws));
   const draft = useQuery(q.draft(ws));
   const releases = useQuery(q.releases(ws));
   useEffect(() => prefs.set("ws", ws), [ws]);
+  useEffect(() => rememberPage(ws, pathname, searchStr), [ws, pathname, searchStr]);
   const value = useMemo(
     () => (config.data && draft.data && releases.data ? makeWs(ws, config.data.cfg, draft.data, releases.data, config.data.legacy) : null),
     [ws, config.data, draft.data, releases.data],

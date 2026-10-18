@@ -73,7 +73,7 @@ Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`
 
 `agent/before` is the team's repo as it is today. `prompts.py` builds four prompts from shared sections (a host role, a brand voice, allergen, delivery and reservation sections, a closing) plus each restaurant's details. Copper Wok's allergen section is an older hand-edited copy whose first "never" rule says something slightly different: drift for onboarding to find.
 
-**With Claude Code (the documented path).** In sopops, open **Import** (`/w/walkthrough/import`), choose **Use Claude Code**, and copy the one command it gives you. Run it inside the agent repo:
+**With Claude Code (the documented path).** In sopops, open **Instructions → Import** (`/w/walkthrough/import`), choose **Use Claude Code**, and copy the one command it gives you. Run it inside the agent repo:
 
 ```sh
 cd examples/walkthrough/agent/before
@@ -90,7 +90,7 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8585 --env SOPOPS_TOKEN=
 just examples/walkthrough/onboard-push     # uv run python examples/walkthrough/onboard.py push
 ```
 
-Look at the import page (the command prints its URL, `/w/walkthrough/import/<id>`): progress messages, 4 agents at 100% fidelity, one disagreement (the allergen never rule: Bayleaf and Juniper against both Copper Woks), duplicates and variables. Pick Bayleaf's wording and **Apply**, then publish in **Unpublished changes** (`/w/walkthrough/changes`). Or let the script do what the reviewer would:
+Look at the import page (the command prints its URL, `/w/walkthrough/import/<id>`): progress messages, 4 agents at 100% fidelity, one disagreement (the allergen never rule: Bayleaf and Juniper against both Copper Woks), duplicates and variables. Pick Bayleaf's wording and **Apply**, then publish in **Instructions → Changes** (`/w/walkthrough/changes`). Or let the script do what the reviewer would:
 
 ```sh
 just examples/walkthrough/onboard-publish  # resolve the drift, apply, publish release 1
@@ -125,7 +125,7 @@ Expected: release 1 at `/w/walkthrough/releases`, and each agent's prompt at `/w
 +    await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
-and `sopops-client[livekit]` in `pyproject.toml`. To run it against a real LiveKit project: make a token with the `runtime` and `ingest` scopes in **Settings → Tokens**, fill `agent/after/.env.local` from `.env.example`, then `AGENT_NAME=juniper-grill uv run agent.py dev`. The rest of the walkthrough doesn't need LiveKit: step 7 drives the same adapter with stand-ins for LiveKit's objects.
+and `sopops-client[livekit]` in `pyproject.toml`. To run it against a real LiveKit project: make a token with the `runtime` and `ingest` scopes under **the gear icon → Tokens**, fill `agent/after/.env.local` from `.env.example`, then `AGENT_NAME=juniper-grill uv run agent.py dev`. The rest of the walkthrough doesn't need LiveKit: step 7 drives the same adapter with stand-ins for LiveKit's objects.
 
 ### 4. Generate the calls
 
@@ -153,7 +153,7 @@ About half the calls have nothing planted. The new calls have far fewer "safe" c
 just examples/walkthrough/backfill
 ```
 
-Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline.
+Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline. These pages are in **QA** mode (the switch in the top bar):
 
 - **Sessions** (`/w/walkthrough/sessions`): 200 calls, each with its transcript, tool calls and the result per procedure. Open one with a finding: the rule, its status and the quote that shows it highlighted in the transcript.
 - **Insights** (`/w/walkthrough/insights`): sessions checked, followed end to end and needing attention; the procedure scoreboard (delivery orders looks worst, because of the broad rule); a procedure's rule ladder (`/w/walkthrough/insights/procedures/allergen-check`).
@@ -162,16 +162,16 @@ Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each conv
 
 ### 6. Review: verdicts, suggestions, release 2
 
-**Patterns → Needs review** (`/w/walkthrough/patterns`) is the queue: each pattern with example calls and four verdicts (keys `1` to `4`, `j`/`k` to move). Give them, or run `just examples/walkthrough/review-verdicts`, which gives exactly these:
+**QA → Patterns → Needs review** (`/w/walkthrough/patterns`) is the queue: each pattern with example calls and four verdicts (keys `1` to `4`, `j`/`k` to move). Give them, or run `just examples/walkthrough/review-verdicts`, which gives exactly these:
 
 - "Told the caller a dish is safe for their allergy": **Real mistake**, with a suggestion.
 - "Gave the caller a delivery time": **Acceptable**, with a suggestion. Its 61 findings are suppressed at once: they stop counting in Insights.
 - "Used the word safe while declining to promise it" (fake mode): **Checker is wrong**. Suppressed, and kept as negative calibration labels.
 - The other patterns: **Real mistake**, no suggestion asked for.
 
-**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, with the prompt diff of every agent it changes. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected in **Settings**, open each as a pull request instead.
+**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, with the prompt diff of every agent it changes. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected under **the gear icon** (Settings), open each as a pull request instead.
 
-**Unpublished changes** (`/w/walkthrough/changes`) shows the two procedure edits and every agent's prompt diff. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
+**Instructions → Changes** (`/w/walkthrough/changes`) shows the two procedure edits and every agent's prompt diff. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
 
 ### 7. Replay new calls, as if live
 

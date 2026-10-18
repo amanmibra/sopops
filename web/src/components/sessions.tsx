@@ -169,7 +169,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
       </PageTitle>
       <Sub>
         Every voice call and text chat your agents had, newest first. Send them from the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>, the API or{" "}
-        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={wsHref(ws, "settings")}>Settings</HrefLink>.
+        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={wsHref(ws, "settings")}>Settings</HrefLink> (the gear icon).
       </Sub>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">

@@ -44,7 +44,7 @@ uv sync && pnpm -C web install && pnpm -C web build
 SOPC_BIN=/path/to/sopc uv run sopops       # http://127.0.0.1:8484, SQLite in ./sopops.db
 ```
 
-Open http://127.0.0.1:8484, create a workspace, and import your agents or add a shared instruction, a procedure and an agent. The API docs are at `/docs`. To check sessions, set a model ([Models](#models)).
+Open http://127.0.0.1:8484, create a workspace, and import your agents or add a shared instruction, a procedure and an agent. The switch in the top bar has two modes: **QA** (Overview, Sessions, Insights, Patterns, Suggestions, Report) and **Instructions** (agents, shared instructions, procedures, groups, Changes, Releases, Import); the gear icon opens the workspace's settings. The API docs are at `/docs`. To check sessions, set a model ([Models](#models)).
 
 **See the whole loop first:** [the walkthrough](examples/walkthrough/WALKTHROUGH.md) onboards a sample LiveKit agent repo, sends 300 synthetic calls with planted failures, reviews the patterns, publishes the fix and checks the result against the ground truth. `just examples/walkthrough/all` runs it in about a minute with fake models (no keys, no cost), or with yours.
 
@@ -58,7 +58,7 @@ Open http://127.0.0.1:8484, create a workspace, and import your agents or add a 
 | Agent | One per voice agent: platform id, its own text, its blocks in order, variables. |
 | Release | What agents are served: every block plus the compiled prompts. Pin one per call for A/B tests. |
 
-Before you publish, **Unpublished changes** shows what was edited and exactly how each agent's prompt changes, plus any duplicated or conflicting instructions `sopc lint` finds. Roll back by making an older release live. The **Overview** shows every agent against every block:
+Before you publish, **Changes** (in Instructions) shows what was edited and exactly how each agent's prompt changes, plus any duplicated or conflicting instructions `sopc lint` finds. Roll back by making an older release live. The **Overview** shows every agent against every block:
 
 <p align="center"><img src="docs/images/overview.png" alt="Overview: a grid of agents against groups, shared instructions and procedures, with checkmarks, including blocks that come through a group" width="860"></p>
 
@@ -80,7 +80,7 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=
 
 ## Connect your agent
 
-Each agent gets its prompt one of two ways, set per agent in Settings → Delivery:
+Each agent gets its prompt one of two ways, set per agent under the gear icon → Delivery:
 
 - **Pull:** the agent, or its platform's call-start webhook, fetches the live release when a call starts.
 - **Push:** publishing, or making a release live, writes the prompt into the agent on its platform, with results and retry on the release.
@@ -122,7 +122,7 @@ const ins = await sopops.fetchInstructions("front-desk", { fallback: "You are a 
 
 **Webhooks.** ElevenLabs phone calls: the conversation-initiation webhook at `…/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-Sopops-Secret` (and the agent's system-prompt override allowed). Vapi: the phone number's Server URL at `…/runtime/vapi/assistant-request?agent=<id>`, with the secret as a Bearer Token credential.
 
-**Tokens.** Settings → Tokens, each with the scopes it needs: `runtime` (prompt fetches, call-start webhooks) and `ingest` (sessions). Shown once, stored hashed, can expire or be revoked. Once a workspace has a runtime token, prompt fetches need one; without one it serves prompts openly, for local use. Platform keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned.
+**Tokens.** The gear icon → Tokens, each with the scopes it needs: `runtime` (prompt fetches, call-start webhooks) and `ingest` (sessions). Shown once, stored hashed, can expire or be revoked. Once a workspace has a runtime token, prompt fetches need one; without one it serves prompts openly, for local use. Platform keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned.
 
 ## Sessions and checks
 
@@ -144,7 +144,7 @@ Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_
 
 **Patterns.** Every rule with findings is a pattern. Once a rule has 8, the reviewer model splits it into named failure modes ("Told the caller a dish is safe"), new findings are assigned to them, and themes group them by the phase of the call. Reclustering keeps names and ids stable ([how](API.md#patterns-and-themes)).
 
-**Review.** Patterns → Needs review is a queue (keys `1` to `4`) of patterns waiting for a verdict:
+**Review.** QA → Patterns → Needs review is a queue (keys `1` to `4`) of patterns waiting for a verdict:
 
 | Verdict | Means | Then |
 |---|---|---|
@@ -207,7 +207,7 @@ You can switch any time: `GET …/files?content=true` exports a workspace as sop
 
 ### Connect a GitHub repository
 
-Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it in Settings, or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sop`) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
+Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it under the gear icon (Settings), or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sop`) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
 
 | Permission | Access | For |
 |---|---|---|

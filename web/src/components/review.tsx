@@ -353,7 +353,7 @@ function ReviewCard({
 // --- the queue -----------------------------------------------------------------------------------------------------
 
 const UNDO_MS = 6000;
-const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.getAttribute("role") === "combobox");
+export const typing = (t: EventTarget | null) => t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName) || t.getAttribute("role") === "combobox");
 
 function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void }) {
   const { ws } = useWs();
