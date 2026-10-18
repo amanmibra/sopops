@@ -35,13 +35,11 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
-STEP_STATUSES = ("done", "out_of_order", "skipped", "not_reached", "not_applicable")
 NEVER_STATUSES = ("violated", "ok")
 WARNING_STATUSES = ("present", "unheeded", "absent")
 WARNING_PRESENT = frozenset({"present", "unheeded"})
 JUDGED_STEP_STATUSES = ("done", "skipped", "not_reached", "not_applicable")  # what the model picks from
 FINDING_STATUSES = frozenset({"skipped", "violated", "out_of_order", "unheeded"})
-RESULTS = ("deviated", "partial", "followed", "not_measurable")
 SEVERITY = {"deviated": 3, "partial": 2, "followed": 1, "not_measurable": 0}
 
 

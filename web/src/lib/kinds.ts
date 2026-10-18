@@ -22,7 +22,6 @@ export const PLATFORMS = [
   { value: "vapi", label: "Vapi", idLabel: "Assistant ID", legacy: false },
   { value: "retell", label: "Retell", idLabel: "Agent ID", legacy: true },
 ] as const;
-export type Platform = (typeof PLATFORMS)[number]["value"];
 export const platformName = (p: string) => PLATFORMS.find((x) => x.value === p)?.label ?? p;
 
 export const DELIVERY = [
@@ -34,7 +33,6 @@ export const DELIVERY = [
   },
   { value: "tool", label: "Only the name in the prompt, the rest on request", help: "The prompt names the procedure and when it applies. Everything else is fetched with the agent's get_sop tool." },
 ] as const;
-export type Delivery = (typeof DELIVERY)[number]["value"];
 export const deliveryName = (d: string) => DELIVERY.find((x) => x.value === d)?.label ?? d;
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;

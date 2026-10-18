@@ -56,20 +56,6 @@ def render_procedure(p: Procedure, variables: dict[str, str], with_rule_keys: bo
     return "\n".join(out)
 
 
-def render_route_procedure(p: Procedure, variables: dict[str, str]) -> str:
-    """Shorter, for routing: what it's for and its steps."""
-    out = [f'<procedure id="{p.id}">', f"# {p.name}"]
-    if p.goal:
-        out.append(f"Goal: {fill(p.goal, variables)}")
-    if p.when:
-        out.append(f"When it applies: {fill(p.when, variables)}")
-    steps = [r for r in p.rules if r.kind == "step"]
-    if steps:
-        out.append("Steps: " + " / ".join(fill(r.text, variables) for r in steps))
-    out.append("</procedure>")
-    return "\n".join(out)
-
-
 def _norm(s: str) -> str:
     return re.sub(r"[^\w]+", " ", s.lower()).strip()
 

@@ -49,7 +49,6 @@ MEASURABLE = ("deviated", "partial", "followed")
 STEP_PASS, STEP_FAIL = ("done",), ("skipped", "out_of_order")
 NEVER_PASS, NEVER_FAIL = ("ok",), ("violated",)
 WARNING_PRESENT = ("present", "unheeded")
-NOT_COUNTED = ("not_reached", "not_applicable")
 
 
 # --- small helpers -------------------------------------------------------------------------------------------------

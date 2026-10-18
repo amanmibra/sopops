@@ -21,9 +21,7 @@ from .sopc import Files, Invalid, Issue
 
 CONFIG = "sopc.yaml"
 PLATFORMS = ("livekit", "vapi", "elevenlabs", "retell")
-DELIVERIES = ("prompt", "auto", "tool")
 DEFAULT_HEADING = "## Procedures"
-KINDS = ("agent", "instruction", "procedure", "group", "settings")
 FOLDERS = {"agent": "agents", "instruction": "instructions", "procedure": "procedures"}
 PLURALS = {"agent": "agents", "instruction": "instructions", "procedure": "procedures", "group": "groups"}
 BLOCK_KINDS = ("instruction", "procedure", "group")  # what an agent's `blocks` can list; one namespace

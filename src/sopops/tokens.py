@@ -29,7 +29,6 @@ if TYPE_CHECKING:
 
 INGEST, RUNTIME, ONBOARDING = "ingest", "runtime", "onboarding:write"
 SCOPES = (INGEST, RUNTIME, ONBOARDING)
-USER_SCOPES = (INGEST, RUNTIME)  # what Settings makes; onboarding tokens come from the import flow
 PREFIX = "sopops_"
 
 

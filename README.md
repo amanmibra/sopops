@@ -215,11 +215,22 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 - Sign-in for the UI, and tokens for the rest of the API
 - Renaming agents and blocks
 - A webhook on publish
-- A LiveKit adapter in the TypeScript client; more framework adapters (Pipecat)
+- Streaming the LiveKit adapter in the TypeScript client; more framework adapters (Pipecat)
+- Runtime guidance: checking rules while a session is still going, over the streaming transport
 
 ## Development
 
 The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite, React, TanStack Router and Query, Tailwind and shadcn/ui (`web/`). In production sopops serves the built UI itself, one process.
+
+| `src/sopops/` | |
+|---|---|
+| `api/` | HTTP routers, one per area; `app.py` mounts them |
+| `schemas/` | API request and response shapes, one module per area |
+| `orm/` | Database tables, one module per table; migrations in `migrations/` |
+| `ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide` (decisions and review), `programs` and `calibration` (fitted thresholds) |
+| `pipeline/` | The session pipeline: normalize, route, check, rollup |
+| `onboarding/`, `runtime/` | Importing existing agents; delivering prompts to platforms |
+| `store.py`, `sessions.py`, `checks.py`, `patterns.py`, `insights.py`, `tokens.py` | The data layer, by area |
 
 ```sh
 uv sync --all-extras
@@ -236,7 +247,7 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 | `uv run sopops-mcp` | The onboarding MCP server (stdio), as Claude Code or Codex runs it. |
 | `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
 | `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
-| `uv run alembic revision --autogenerate -m "…"` | A new migration after changing `models.py`. |
+| `uv run alembic revision --autogenerate -m "…"` | A new migration after changing a table in `orm/`. |
 
 ## License
 

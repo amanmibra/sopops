@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 log = logging.getLogger("sopops.runtime")
 
 MODES = ("pull", "push", "both")
-KINDS = ("api_key", "webhook_secret")
 SERVE_TTL = timedelta(days=7)  # a session arrives within minutes of its call; older pending rows are dropped
 
 

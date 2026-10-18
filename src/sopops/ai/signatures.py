@@ -41,7 +41,6 @@ VERSIONS = {
 }
 ALL_STATUSES = tuple(dict.fromkeys(JUDGED_STEP_STATUSES + NEVER_STATUSES + WARNING_STATUSES))
 AGENT = 'the agent (the AI agent handling the conversation; its utterances have speaker "agent")'
-USER = 'the user (the person talking to the agent; their utterances have speaker "user")'
 
 
 def field_name(text: str) -> str:

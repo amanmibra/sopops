@@ -94,9 +94,6 @@ class FindingView:
     quotes: list[str]
     started_at: datetime | None = None
 
-    def render(self, key: str) -> str:
-        quotes = " / ".join(f'"{q}"' for q in self.quotes[:3]) or "(no quote)"
-        return f"- {key} [{self.status}] {self.reason}\n  quotes: {quotes}"
 
 
 def _views(db: Session, findings: list[Finding]) -> list[FindingView]:

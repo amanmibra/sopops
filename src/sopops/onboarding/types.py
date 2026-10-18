@@ -53,8 +53,6 @@ class ProcedureDraft(BaseModel):
     warning_signs: list[StepDraft] = Field(default_factory=list)
 
 
-class VariableNames(BaseModel):
-    names: list[str] = Field(description="One snake_case name per slot, in the order given.")
 
 
 # --- the proposal ---------------------------------------------------------------------------
