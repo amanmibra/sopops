@@ -270,3 +270,20 @@ def test_reanchor_fits_thresholds_against_a_metric_and_stores_them(env):
     assert report["train_score"] == 1.0 and report["train_score_before"] < 1.0
     stored = calibration.load(env.store.engine, "demo", f"check:{ALLERGEN}", decide.question_hashes(program.decide))
     assert 0.9 < stored["step1_a0"]["threshold"] < 0.95  # between the highest "no" and the lowest "yes"
+
+
+def test_decision_requests_on_a_generative_model_are_built_once_and_match_dspy():
+    from dspy.adapters.decision import resolve_adapter
+
+    from sopops.ai import dspy_fixes
+    from sopops.ai.signatures import ProcedureBrief, Utterance, action_question, check_signature, decision_predict
+
+    names = [f"step{i}_a0" for i in range(12)]
+    pred = decision_predict(check_signature(names), {n: action_question(f"The agent does {n}.") for n in names})
+    adapter = resolve_adapter(dspy.LM("fake/fast"), dspy.ChatAdapter(), pred.signature, pred.fields)
+    inputs = {"procedure": ProcedureBrief(name="x"), "transcript": [Utterance(id="U000", speaker="agent", text="hi")]}
+    ours = adapter._prepare(pred.signature, [], inputs, {})
+    theirs = dspy_fixes._original_prepare(adapter, pred.signature, [], inputs, {})
+    chat = dspy.ChatAdapter()
+    assert chat.format(ours["signature"], [], inputs) == chat.format(theirs["signature"], [], inputs)
+    assert adapter._prepare(pred.signature, [], inputs, {})["signature"] is ours["signature"]  # built once

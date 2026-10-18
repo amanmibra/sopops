@@ -28,6 +28,8 @@ from typing import Any, Protocol
 import dspy
 from dspy.experimental import TypeSafe
 
+from . import dspy_fixes  # noqa: F401  (installs the decision-adapter fix)
+
 ROLES = ("fast", "reasoning")
 ROLE_ENV = {"fast": "SOPOPS_MODEL_FAST", "reasoning": "SOPOPS_MODEL_REASONING"}
 RULES = "rules"  # not a model: onboarding's model-free mode
