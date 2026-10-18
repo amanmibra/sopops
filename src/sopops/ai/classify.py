@@ -86,8 +86,10 @@ class JevConfig:
     route: Band = Band(0.2, 0.8, 0.5)
     responded: Band = Band(0.2, 0.8, 0.5)
     condition: Band = Band(0.3, 0.7, 0.5)
-    step: Band = Band(0.3, 0.7, 0.5)
-    never: Band = Band(0.15, 0.7, 0.7)  # a violation only when Jev is confident; unsure ones are reviewed
+    # Tuned on a private benchmark's dev split with escalation on: a wide review band for steps and never rules (a
+    # done step under 0.9, a never rule over 0.05 goes to review). Jev alone did best with never at [0.15, 0.85, 0.85].
+    step: Band = Band(0.3, 0.9, 0.5)
+    never: Band = Band(0.05, 0.7, 0.7)  # a violation only when Jev is confident; unsure ones are reviewed
     warning: Band = Band(0.3, 0.7, 0.5)
     goal: float = 0.5
     escalate: bool = True
