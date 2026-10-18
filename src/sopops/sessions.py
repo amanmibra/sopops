@@ -31,7 +31,7 @@ from .orm import (
     SessionRecord,
     Workspace,
 )
-from .pipeline.normalize import to_utc
+from .pipeline.normalize import normalize_tool_calls, normalize_turns, to_utc
 from .pipeline.types import IDLE_INCOMPLETE, SENDER_INCOMPLETE, SessionRef
 from .runtime.service import served_release
 from .schemas import SessionEventIn, SessionIn, SessionOpen
@@ -257,7 +257,10 @@ class Sessions:
 
     def get(self, workspace: str, id: str) -> dict:
         row = self.load(workspace, id)
-        return {**_summary(row), "turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id),
+        turns, calls = row.turns, row.tool_calls
+        if row.processed_at is None:  # stored as sent, not normalized yet (it is a moment later): shown as it will be
+            turns, calls = normalize_turns(turns, row.started_at), normalize_tool_calls(calls, row.started_at)
+        return {**_summary(row), "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id),
                 **self.store.usage.session(row.workspace_id, row.id)}
 
     def list(

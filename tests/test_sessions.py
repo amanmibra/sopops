@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session as DB
 
-from sopops import Sopc, Store
+from sopops import Sopc, Store, create_app
 from sopops.cli import main as cli
 from sopops.events import Broker
 from sopops.pipeline.normalize import normalize_turns
@@ -364,3 +364,11 @@ def test_the_migration_renames_partial_sessions_to_incomplete(tmp_path):
     again = Store(url, Sopc())
     with DB(again.engine) as db:
         assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "incomplete"
+
+
+def test_a_session_read_before_it_is_normalized_shows_normalized_turns(tmp_path):
+    store = Store(fresh_db_url(tmp_path))
+    sid = store.sessions.ingest("demo", SessionIn(**session("room-raw"))).id  # stored as sent; the pipeline hasn't run
+    got = TestClient(create_app(store)).get(f"{WS}/sessions/{sid}")
+    assert got.status_code == 200, got.text
+    assert [t["role"] for t in got.json()["turns"]] == ["agent", "user", "tool"]
