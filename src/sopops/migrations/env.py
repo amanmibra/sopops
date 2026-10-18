@@ -1,5 +1,9 @@
 """Alembic environment. `sopops.db.upgrade` passes a connection in; the `alembic` CLI (alembic.ini at the repo root)
-builds one from DATABASE_URL."""
+builds one from DATABASE_URL.
+
+A migration whose data backfill uses sopops's ORM code (which always matches the head schema) doesn't run it itself:
+it appends `fn(connection, sopc)` to `config.attributes["after_upgrade"]`, and it runs once every migration has, in
+the same transaction. Run inline, a later migration's new column would be missing when the ORM selects it."""
 
 from alembic import context
 from sqlalchemy import pool
@@ -32,6 +36,8 @@ def _run(connection) -> None:
     context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=True, compare_type=True)
     with context.begin_transaction():
         context.run_migrations()
+        for backfill in config.attributes.pop("after_upgrade", []):
+            backfill(connection, config.attributes.get("sopc"))
 
 
 if context.is_offline_mode():

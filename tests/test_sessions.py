@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from conftest import WS, fresh_db_url
+from conftest import WS, downgrade, fresh_db_url
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session as DB
@@ -357,10 +357,10 @@ def test_idle_open_sessions_close_as_incomplete(client, token):
 def test_the_migration_renames_partial_sessions_to_incomplete(tmp_path):
     url = fresh_db_url(tmp_path)
     store = Store(url)
-    sid = store.sessions.ingest("demo", SessionIn(**session("room-old", turns=[]))).id
-    with DB(store.engine) as db, db.begin():  # as a database from before 0014 has it
-        db.exec(text("UPDATE sessions SET status = 'partial'"))
-        db.exec(text("UPDATE alembic_version SET version_num = '0013'"))
+    sid = store.sessions.ingest("demo", SessionIn(**session("room-old", partial=True))).id
+    downgrade(store.engine, "0013")  # as a database from before 0014 has it
+    with DB(store.engine) as db, db.begin():
+        assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "partial"
     again = Store(url, Sopc())
     with DB(again.engine) as db:
         assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "incomplete"

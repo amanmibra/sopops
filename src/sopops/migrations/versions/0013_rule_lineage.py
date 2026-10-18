@@ -1,8 +1,10 @@
 """Rule lineage: which rule a reworded rule replaced (`sopops.lineage`), backfilled for existing releases.
 
 The backfill is `sopops.lineage.rebuild` for every workspace (what `sopops lineage rebuild` runs), with rule patterns
-following it. It needs the sopc binary (the one the Store was given, else SOPC_BIN or `sopc` on PATH) to read old
-releases; it runs in a savepoint, so if it can't, the table is still created and a warning says to run the command.
+following it. It uses sopops's ORM, so it runs after the last migration (`after_upgrade`, see `migrations/env.py`),
+against the schema the code expects. It needs the sopc binary (the one the Store was given, else SOPC_BIN or `sopc` on
+PATH) to read old releases; it runs in a savepoint, so if it can't, the table is still created and a warning says to
+run the command.
 
 Revision ID: 0013
 Revises: 0012
@@ -44,12 +46,12 @@ def upgrade() -> None:
     )
     op.create_index("ix_rule_lineage_lineage", "rule_lineage", ["workspace_id", "procedure_id", "lineage_id"])
     op.create_index("ix_rule_lineage_previous", "rule_lineage", ["workspace_id", "procedure_id", "previous_rule_id"])
-    backfill()
+    op.get_context().config.attributes.setdefault("after_upgrade", []).append(backfill)
 
 
-def backfill() -> None:
-    sopc = op.get_context().config.attributes.get("sopc") or Sopc()
-    with Session(bind=op.get_bind(), join_transaction_mode="create_savepoint") as db:
+def backfill(connection: sa.Connection, sopc: Sopc | None) -> None:
+    sopc = sopc or Sopc()
+    with Session(bind=connection, join_transaction_mode="create_savepoint") as db:
         try:
             done = rebuild_all(db, sopc, follow=rekey)
             db.commit()

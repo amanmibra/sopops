@@ -7,7 +7,7 @@ backfill."""
 import itertools
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOPC_BIN, WS, downgrade, fresh_db_url
 from sqlalchemy import text
 from sqlmodel import Session, select
 from test_review import ALLERGEN, PATH, SAFE, Model, env, queue, state_of, verdict  # noqa: F401  (env is a fixture)
@@ -278,9 +278,7 @@ def test_the_migration_backfills_lineage(tmp_path, files, monkeypatch):
     store.release("demo")
     store.edit("demo", {PATH: files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, even if they insist\n")})
     store.release("demo")
-    with Session(store.engine) as db, db.begin():  # as if the database predates the table
-        db.exec(text("DROP TABLE rule_lineage"))
-        db.exec(text("UPDATE alembic_version SET version_num = '0012'"))
+    downgrade(store.engine, "0012")  # as if the database predates the table
     monkeypatch.setenv("SOPC_BIN", SOPC_BIN)
     again = Store(url, Sopc(SOPC_BIN))
     with Session(again.engine) as db:

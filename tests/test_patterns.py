@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOPC_BIN, WS, downgrade, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlalchemy import text
@@ -302,9 +302,9 @@ def test_a_rule_pattern_is_named_once_by_the_reasoning_model(env, monkeypatch):
 
 def test_index_names_are_renamed_by_the_migration_then_the_backfill(env, monkeypatch, capsys):
     env.send("A")
+    downgrade(env.store.engine, "0014")
     with Session(env.store.engine) as db, db.begin():  # as a database from before 0015 has it
         db.exec(text("UPDATE patterns SET name = 'Never rule 1 broken' WHERE kind = 'rule'"))
-        db.exec(text("UPDATE alembic_version SET version_num = '0014'"))
     url = env.store.engine.url.render_as_string(hide_password=False)
     again = Store(url, Sopc(SOPC_BIN))
     (rule,) = [p for p in patterns(again) if p.kind == "rule"]

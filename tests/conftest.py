@@ -8,7 +8,9 @@ from sqlalchemy import text
 
 from sopops import Sopc, Store, create_app
 from sopops.ai.lm import ROLE_ENV, set_ai
-from sopops.db import engine_from_url
+from alembic import command
+
+from sopops.db import alembic_config, engine_from_url
 from sopops.orm import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
@@ -60,6 +62,14 @@ def fresh_db_url(tmp_path: Path, name: str = "test.db") -> str:
         engine.dispose()
         return url
     return f"sqlite:///{tmp_path / name}"
+
+
+def downgrade(engine, revision: str) -> None:
+    """Take a database back to `revision` (Alembic's downgrades), as if it predates the migrations after it."""
+    cfg = alembic_config()
+    with engine.begin() as conn:
+        cfg.attributes["connection"] = conn
+        command.downgrade(cfg, revision)
 
 
 @pytest.fixture
