@@ -110,7 +110,7 @@ A workspace's repository: the sopc project at `path` on `base_branch`. Auth is a
 
 | Endpoint | What it does |
 |---|---|
-| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sop"}`: check that the token reads the repository and that `path` on `base_branch` has a `sopc.yaml`, then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
+| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sops"}`: check that the token reads the repository and that `path` on `base_branch` has a `sopc.yaml`, then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
 | `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `null` if none is connected. |
 | `DELETE …/repo` | Forget the repository and its token; the files stay. |
 | `POST …/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). `{sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op; `422` (sopc's issues) if it doesn't compile. |

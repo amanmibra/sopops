@@ -19,7 +19,7 @@ class RepoIn(BaseModel):
         "read and write, Metadata read. Write-only. Leave it out to keep the stored one (to change the branch or path).",
     )
     base_branch: str = Field("main", min_length=1, max_length=255, description="The branch to pull from and open pull requests against.")
-    path: str = Field("sop", max_length=512, description="The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.")
+    path: str = Field("sops", max_length=512, description="The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.")
 
 
 class RepoOut(BaseModel):

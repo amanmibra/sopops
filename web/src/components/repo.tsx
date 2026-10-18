@@ -70,7 +70,7 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
 function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () => void }) {
   const { ws } = useWs();
   const qc = useQueryClient();
-  const [v, setV] = useState({ owner: current?.owner ?? "", repo: current?.repo ?? "", token: "", base_branch: current?.base_branch ?? "main", path: current?.path ?? "sop" });
+  const [v, setV] = useState({ owner: current?.owner ?? "", repo: current?.repo ?? "", token: "", base_branch: current?.base_branch ?? "main", path: current?.path ?? "sops" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const fields = fieldErrors(error);

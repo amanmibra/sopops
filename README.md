@@ -207,7 +207,7 @@ You can switch any time: `GET …/files?content=true` exports a workspace as sop
 
 ### Connect a GitHub repository
 
-Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it under the gear icon (Settings), or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sop`) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
+Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it under the gear icon (Settings), or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sops`, where onboarding puts it) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
 
 | Permission | Access | For |
 |---|---|---|

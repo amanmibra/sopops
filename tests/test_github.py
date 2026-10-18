@@ -163,8 +163,8 @@ def secret_key(monkeypatch):
 
 @pytest.fixture
 def gh(files):
-    """The repo: the fixture's sopc project at `sop/`, a README at the root, and a committed build/ to ignore."""
-    fake = FakeGitHub({**{f"sop/{p}": c for p, c in files.items()}, "README.md": "# agents\n", "sop/build/lock.json": "{}"})
+    """The repo: the fixture's sopc project at `sops/`, a README at the root, and a committed build/ to ignore."""
+    fake = FakeGitHub({**{f"sops/{p}": c for p, c in files.items()}, "README.md": "# agents\n", "sops/build/lock.json": "{}"})
     with respx.mock(assert_all_called=False) as router:
         fake.install(router)
         yield fake
@@ -185,12 +185,12 @@ def test_connect_checks_the_repo_and_never_returns_the_token(client, gh):
     res = connect(client)
     assert res.status_code == 200, res.text
     out = res.json()
-    assert out["owner"] == "acme" and out["repo"] == "agents" and out["base_branch"] == "main" and out["path"] == "sop"
+    assert out["owner"] == "acme" and out["repo"] == "agents" and out["base_branch"] == "main" and out["path"] == "sops"
     assert out["auth"] == "token" and out["token_hint"] == "…cdef" and out["pulled_sha"] is None
-    assert out["url"] == "https://github.com/acme/agents/tree/main/sop"
+    assert out["url"] == "https://github.com/acme/agents/tree/main/sops"
     assert TOKEN not in res.text and TOKEN not in client.get(f"{WS}/repo").text
     assert client.get(f"{WS}/repo").json() == out
-    assert ("GET", f"{REPO}/contents/sop/sopc.yaml") in gh.calls
+    assert ("GET", f"{REPO}/contents/sops/sopc.yaml") in gh.calls
 
     with Session(store_of(client).engine) as db:
         row = db.get(RepoConnection, "demo")
@@ -285,7 +285,7 @@ def test_pull_reads_only_changed_blobs_and_restores_edited_drafts(client, gh, fi
     connect(client)
     client.post(f"{WS}/repo/pull")
     voice = files["instructions/brand-voice.md"] + "\nAlways smile.\n"
-    sha = gh.push("main", {"sop/instructions/brand-voice.md": voice, "README.md": "# changed\n"})
+    sha = gh.push("main", {"sops/instructions/brand-voice.md": voice, "README.md": "# changed\n"})
     gh.calls.clear()
     out = client.post(f"{WS}/repo/pull").json()
     assert out["sha"] == sha and [c["path"] for c in out["changed"]] == ["instructions/brand-voice.md"]
@@ -300,11 +300,11 @@ def test_pull_reads_only_changed_blobs_and_restores_edited_drafts(client, gh, fi
 
 def test_pull_refuses_what_does_not_compile(client, gh, files):
     connect(client)
-    gh.push("main", {"sop/agents/tonys-pizza.yaml": files["agents/tonys-pizza.yaml"] + "blocks: [no-such-block]\n"})
+    gh.push("main", {"sops/agents/tonys-pizza.yaml": files["agents/tonys-pizza.yaml"] + "blocks: [no-such-block]\n"})
     res = client.post(f"{WS}/repo/pull")
     assert res.status_code == 422 and res.json()["valid"] is False
     assert client.get(f"{WS}/repo").json()["pulled_sha"] is None
-    gh.push("main", {f"sop/{p}": None for p in files})
+    gh.push("main", {f"sops/{p}": None for p in files})
     res = client.post(f"{WS}/repo/pull")
     assert res.status_code == 400 and "sopc.yaml isn't there" in res.json()["detail"]
 
@@ -325,7 +325,7 @@ def test_open_pull_request_commits_on_a_new_branch(client, gh, files):
     assert re.fullmatch(r"sopops/[0-9a-f]{8}", pr["head"])
     assert gh.refs["main"] == base  # the base branch is untouched
     proposed = gh.files(pr["head"])
-    assert proposed["sop/instructions/brand-voice.md"] == voice and "sop/instructions/closing.md" not in proposed
+    assert proposed["sops/instructions/brand-voice.md"] == voice and "sops/instructions/closing.md" not in proposed
     assert proposed["README.md"] == "# agents\n"
     assert gh.commits[gh.refs[pr["head"]]]["parents"] == [base]
 
@@ -363,7 +363,7 @@ def test_applying_a_suggestion_opens_a_pull_request(env):
     never = rule_pattern(env)
     fixed = env.files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, unless you have just checked the item with lookup_allergens\n")
     env.model.edits = [fixed]
-    fake = FakeGitHub({f"sop/{p}": c for p, c in env.files.items()})
+    fake = FakeGitHub({f"sops/{p}": c for p, c in env.files.items()})
     with respx.mock(assert_all_called=False) as router:
         fake.install(router)
         assert connect(env.client).status_code == 200
@@ -373,5 +373,5 @@ def test_applying_a_suggestion_opens_a_pull_request(env):
     assert applied["status"] == "pr_open" and applied["pr_url"] == "https://github.com/acme/agents/pull/1"
     pr = fake.pulls[0]
     assert pr["title"].startswith("allergen-check: ") and "Suggested by sopops." in pr["body"]
-    assert fake.files(pr["head"])[f"sop/{PATH}"] == fixed
+    assert fake.files(pr["head"])[f"sops/{PATH}"] == fixed
     assert env.client.get(f"{WS}/files/{PATH}").json()["content"] == env.files[PATH]  # no draft edit

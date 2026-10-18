@@ -1,7 +1,7 @@
 """GitHub: a workspace's repository connection, pulling its sopc project into drafts, and pull requests.
 
 A workspace that keeps its instructions in git connects the repository, the branch and the folder of its sopc project
-(default `sop` on `main`). **Pull** reads that folder at the branch's head (the git trees and blobs API) and makes it
+(default `sops` on `main`, where onboarding writes it). **Pull** reads that folder at the branch's head (the git trees and blobs API) and makes it
 the workspace's head, as drafts, like `PUT …/files` does; the commit is recorded, so pulling it again is a no-op.
 **Pull requests** carry suggestions back: `open_pull_request` commits files to a new `sopops/<id>` branch off the
 branch's head (blobs, a tree, a commit, a ref) and opens a PR against it.
@@ -43,7 +43,7 @@ API_ENV = "SOPOPS_GITHUB_API_URL"
 TIMEOUT = httpx.Timeout(20.0, connect=5.0)
 TOKEN = "token"  # the only auth kind for now; a GitHub App would be "app"
 DEFAULT_BRANCH = "main"
-DEFAULT_PATH = "sop"
+DEFAULT_PATH = "sops"
 CONFIG = "sopc.yaml"
 BRANCH_PREFIX = "sopops/"
 API_VERSION = "2022-11-28"

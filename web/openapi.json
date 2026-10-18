@@ -15812,7 +15812,7 @@
             "maxLength": 512,
             "title": "Path",
             "description": "The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.",
-            "default": "sop"
+            "default": "sops"
           }
         },
         "type": "object",
