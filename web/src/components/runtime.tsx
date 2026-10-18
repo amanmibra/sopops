@@ -52,14 +52,14 @@ export function RuntimePanels() {
       <Panel
         title={
           <span className="flex items-center gap-2">
-            <Cable className="size-4" /> What your agents need
+            <Cable className="size-4" /> What each platform needs
           </span>
         }
         className="mt-8"
       >
         <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
-          Each agent gets its prompt from sopops and sends its sessions back so they can be checked. Some of this is set up here with no code, and some
-          needs a few lines in your agent.
+          Each agent gets its prompt from sopops and sends its sessions back to be checked. Most of this is set up on this page. Anything that needs
+          code in your agent is marked.
         </p>
         <ConnectGuide />
       </Panel>
