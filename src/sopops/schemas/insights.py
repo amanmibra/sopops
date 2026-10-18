@@ -328,6 +328,8 @@ class CompareRule(BaseModel):
     text: str | None
     a_text: str | None = Field(description="Release A's wording, when B rewords the rule.")
     rule_change: Literal["new", "removed", "changed"] | None = Field(description="`changed`: B runs another wording of the rule (its lineage).")
+    reworded_in: int | None = Field(None, description="When `changed`: the release that brought B's wording.")
+    wording_history: list[WordingRef] = Field(default_factory=list, description="Every wording of the rule, oldest first, with the release that published it.")
     a: RateOut
     b: RateOut
     delta_points: int | None = Field(description="B minus A, in points; null unless both sides have at least min_n.")

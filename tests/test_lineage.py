@@ -149,6 +149,7 @@ def test_the_loop_a_fix_follows_the_reworded_rule(env):
     cmp = env.client.get(f"{WS}/insights/releases/compare", params={**window, "a": 1, "b": release}).json()
     c = next(r for r in cmp["rules"] if r["lineage_id"] == old_id)
     assert (c["rule_id"], c["rule_change"], c["a"]["n"], c["b"]["n"], c["a_text"]) == (new_id, "changed", 3, 11, SAFE)
+    assert c["reworded_in"] == release and [(w["rule_id"], w["from_release"]) for w in c["wording_history"]] == [(old_id, 1), (new_id, release)]
     # the sessions behind a rule: every wording
     drill = env.client.get(f"{WS}/sessions", params={"procedure": ALLERGEN, "rule": old_id, "rule_status": ["violated"]}).json()["items"]
     assert len(drill) == 4
@@ -195,7 +196,10 @@ def test_a_suppressing_verdict_judged_the_old_wording(env):
     assert state_of(env, never.id)[0] == "closed"
     new = never_rows(env, env.send("A", release=release))
     assert new["finding"] and not new["suppressed"]
-    assert state_of(env, never.id) == ("needs_review", "The rule was reworded after this verdict: 1 finding on the new wording, not suppressed. Confirm it, or give another.")
+    assert state_of(env, never.id) == ("needs_review", "The rule was reworded after this verdict. Check it still applies: 1 finding on the new wording counts "
+                                                       "until you give the verdict again, or another.")
+    got = env.client.get(f"{WS}/patterns/{never.id}").json()
+    assert got["review_reason"] == "reworded"
     verdict(env, never.id, "acceptable")
     assert state_of(env, never.id)[0] == "closed" and never_rows(env, env.send("A", release=release))["suppressed"]
 

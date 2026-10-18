@@ -11,7 +11,8 @@ import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink } from "../href-link";
 import { ReviewStateChip, VerdictChip, usePatternIndex } from "../review-bits";
 import { RateByGroup, ReleaseTimeline } from "./charts";
-import { Kpi, KpiGrid, StatusBar, WidgetCard } from "./kit";
+import { Kpi, KpiGrid, RewordedTag, StatusBar, WidgetCard } from "./kit";
+import { LineageCard } from "./lineage";
 import { LIVE, scopeOf } from "./overview";
 import { BackBar, failFilter } from "./procedure";
 import { AsOf } from "./scope";
@@ -44,7 +45,16 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
           <div className="text-muted-foreground text-xs">
             <HrefLink href={insightsHref(ws, ["insights"], filters)}>Insights</HrefLink> / <HrefLink href={insightsHref(ws, ["insights", "procedures", procedureId], filters)}>{procName}</HrefLink>
           </div>
-          <h1 className="mt-1 text-[20px] leading-tight font-semibold tracking-tight">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-[20px] leading-tight font-semibold tracking-tight">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>
+            {d && d.wordings.length > 1 && (
+              <RewordedTag
+                releasedIn={d.reworded_in}
+                history={[...d.wordings].sort((a, b) => (a.from_release ?? 0) - (b.from_release ?? 0)).map((w) => ({ rule_id: w.rule_id, text: w.text, from_release: w.from_release }))}
+                current={d.text}
+              />
+            )}
+          </div>
           {d?.text && <p className="mt-1 max-w-[90ch] text-[14px]">“{d.text}”</p>}
           <p className="text-muted-foreground mt-1 text-xs">Over {windowPhrase(filters)}. A reworded rule keeps its earlier results.</p>
         </section>
@@ -179,20 +189,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
                 })}
               </ul>
             </WidgetCard>
-            {d && d.wordings.length > 1 && (
-              <WidgetCard title="Wordings" subtitle="Every wording this rule has had, newest first." flush>
-                <ul className="divide-y">
-                  {d.wordings.map((w) => (
-                    <li key={w.text_hash} className="px-4 py-2 text-[13px]">
-                      “{w.text}”
-                      <div className="text-muted-foreground text-xs">
-                        {w.results} results, last seen {when(w.last_seen)}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </WidgetCard>
-            )}
+            {d && <LineageCard procedureId={procedureId} ruleId={d.rule_id} kind={d.kind} filters={filters} />}
           </div>
         </div>
       </div>

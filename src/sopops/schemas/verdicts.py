@@ -11,6 +11,9 @@ from .base import BaseModel
 
 VerdictKind = Literal["real", "acceptable", "sop_wrong", "checker_wrong"]
 ReviewState = Literal["needs_review", "open", "fixing", "fixed", "regressed", "closed"]
+ReviewReason = Literal["no_verdict", "carried_over", "reclustered", "reworded", "came_back"]
+REVIEW_REASON_HELP = ("Why it needs review: `no_verdict`; `carried_over` (by a recluster); `reclustered` (its findings changed since the verdict); "
+                      "`reworded` (the rule was reworded after an acceptable or checker_wrong verdict); `came_back` (regressed). Null otherwise.")
 REVIEW_STATE_HELP = ("`needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. "
                      "`open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its "
                      "release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: "

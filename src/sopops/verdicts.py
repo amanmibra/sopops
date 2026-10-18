@@ -365,7 +365,7 @@ class Verdicts:
                     continue
                 v = verdicts.get(p.id)
                 state = self.state(db, ws, p, v)
-                x.update(verdict=verdict_out(*v) if v else None, review_state=state["review_state"], review_note=state["review_note"])
+                x.update(verdict=verdict_out(*v) if v else None, review_state=state["review_state"], review_reason=state["review_reason"], review_note=state["review_note"])
 
     def clustered_at(self, ws: str) -> datetime | None:
         """The workspace's last clustering of any rule."""
@@ -373,25 +373,27 @@ class Verdicts:
             return _utc(db.exec(select(func.max(Pattern.clustered_at)).where(Pattern.workspace_id == ws, Pattern.kind == "rule")).one())
 
     def state(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None) -> dict[str, Any]:
-        """{review_state, review_note, fix_release, fix_sessions, fix_sessions_needed} (see the module docstring)."""
-        def out(state: str, note: str | None = None, release: int | None = None, sessions: int | None = None) -> dict[str, Any]:
-            return {"review_state": state, "review_note": note, "fix_release": release, "fix_sessions": sessions,
+        """{review_state, review_reason, review_note, fix_release, fix_sessions, fix_sessions_needed} (see the module
+        docstring)."""
+        def out(state: str, note: str | None = None, release: int | None = None, sessions: int | None = None, reason: str | None = None) -> dict[str, Any]:
+            return {"review_state": state, "review_reason": reason, "review_note": note, "fix_release": release, "fix_sessions": sessions,
                     "fix_sessions_needed": FIXED_MIN_N if sessions is not None else None}
 
         if v is None:
-            return out("needs_review", "No verdict yet.")
+            return out("needs_review", "No verdict yet.", reason="no_verdict")
         verdict = v[0]
         if verdict.carried_from:
-            return out("needs_review", "Carried over from a failure mode a recluster retired; confirm it.")
+            return out("needs_review", "Carried over from a failure mode a recluster retired; confirm it.", reason="carried_over")
         if p.kind != "rule" and p.clustered_at is not None and _utc(verdict.created_at) < _utc(p.clustered_at):
-            return out("needs_review", "A recluster changed its findings since the verdict.")
+            return out("needs_review", "A recluster changed its findings since the verdict.", reason="reclustered")
         if verdict.verdict in SUPPRESSING:
             L = RuleLineage
             newer = db.exec(select(func.count(Finding.id)).join(L, and_(L.workspace_id == Finding.workspace_id, L.procedure_id == Finding.procedure_id, L.rule_id == Finding.rule_id))
                             .join(Release, and_(Release.workspace == L.workspace_id, Release.number == L.release_id))
                             .where(self._members(p), Release.created_at > verdict.created_at)).one()
             if newer:
-                return out("needs_review", f"The rule was reworded after this verdict: {newer} finding{'s' if newer != 1 else ''} on the new wording, not suppressed. Confirm it, or give another.")
+                return out("needs_review", f"The rule was reworded after this verdict. Check it still applies: {newer} finding{'s' if newer != 1 else ''} on the new "
+                                           f"wording {'count' if newer != 1 else 'counts'} until you give the verdict again, or another.", reason="reworded")
             return out("closed")
         fix = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id.in_([x for x in (p.id, p.parent_id) if x]),
                                                Suggestion.verdict_id == verdict.id, Suggestion.status.in_(lineage.FIX_STATUSES))
@@ -412,7 +414,7 @@ class Verdicts:
         back = db.exec(select(func.count(F.id)).join(S, S.id == F.session_id)
                        .where(F.workspace_id == ws, self._members(p), F.suppressed.is_(False), S.release_id >= release)).one()
         if back:
-            return out("regressed", f"Came back after release {release}: {back} finding{'s' if back != 1 else ''} on sessions that ran it or later.", release)
+            return out("regressed", f"Came back after release {release}: {back} finding{'s' if back != 1 else ''} on sessions that ran it or later.", release, reason="came_back")
         n = db.exec(select(func.count(func.distinct(PC.session_id))).join(S, S.id == PC.session_id)
                     .where(PC.workspace_id == ws, PC.procedure_id == p.procedure_id, PC.result.is_not(None), S.release_id >= release)).one()
         if n >= FIXED_MIN_N:

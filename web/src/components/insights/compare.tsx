@@ -13,7 +13,7 @@ import { useWs } from "@/lib/workspace";
 import { Segmented } from "../bits";
 import { HrefLink } from "../href-link";
 import { ReleaseTimeline } from "./charts";
-import { HeaderHint, Help, Hint, Legend, OutcomeBar, OutcomeLegend, RateN, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
+import { HeaderHint, Help, Hint, Legend, OutcomeBar, OutcomeLegend, RateN, RewordedTag, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
 import { LIVE, scopeOf } from "./overview";
 import { FlagTag } from "./procedure";
 import { AsOf, InsightsShell, Pick } from "./scope";
@@ -225,7 +225,14 @@ function RulesTable({ d, filters }: { d: CompareResponse; filters: InsightFilter
                         <HrefLink href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
                           {ruleName(r.kind, r.index)}
                         </HrefLink>
-                        {r.rule_change && (
+                        {r.rule_change === "changed" ? (
+                          <RewordedTag
+                            className="ml-1.5"
+                            releasedIn={r.reworded_in}
+                            history={r.wording_history.length ? r.wording_history : r.a_text ? [{ rule_id: "a", text: r.a_text, from_release: d.a ?? null }] : []}
+                            current={r.text}
+                          />
+                        ) : r.rule_change && (
                           <Hint focusable={false} tip={ruleChangeTip[r.rule_change as keyof typeof ruleChangeTip]}>
                             <span className={cn("ml-1.5 rounded-full px-1.5 text-[11px] font-medium", r.rule_change === "removed" ? "bg-err-soft text-err" : "bg-warn-soft text-warn")}>
                               {ruleChangeLabel[r.rule_change as keyof typeof ruleChangeLabel] ?? r.rule_change}

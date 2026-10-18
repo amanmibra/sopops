@@ -1046,6 +1046,18 @@ export type CompareRule = {
      * `changed`: B runs another wording of the rule (its lineage).
      */
     rule_change: 'new' | 'removed' | 'changed' | null;
+    /**
+     * Reworded In
+     *
+     * When `changed`: the release that brought B's wording.
+     */
+    reworded_in: number | null;
+    /**
+     * Wording History
+     *
+     * Every wording of the rule, oldest first, with the release that published it.
+     */
+    wording_history: Array<WordingRef>;
     a: RateOut;
     b: RateOut;
     /**
@@ -2796,6 +2808,12 @@ export type PatternDetail = {
      */
     review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
     /**
+     * Review Reason
+     *
+     * Why it needs review: `no_verdict`; `carried_over` (by a recluster); `reclustered` (its findings changed since the verdict); `reworded` (the rule was reworded after an acceptable or checker_wrong verdict); `came_back` (regressed). Null otherwise.
+     */
+    review_reason: 'no_verdict' | 'carried_over' | 'reclustered' | 'reworded' | 'came_back' | null;
+    /**
      * Review Note
      */
     review_note: string | null;
@@ -2952,6 +2970,12 @@ export type PatternOut = {
      * On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
      */
     review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
+    /**
+     * Review Reason
+     *
+     * Why it needs review: `no_verdict`; `carried_over` (by a recluster); `reclustered` (its findings changed since the verdict); `reworded` (the rule was reworded after an acceptable or checker_wrong verdict); `came_back` (regressed). Null otherwise.
+     */
+    review_reason: 'no_verdict' | 'carried_over' | 'reclustered' | 'reworded' | 'came_back' | null;
     /**
      * Review Note
      */
@@ -4811,6 +4835,12 @@ export type ReviewItem = {
      */
     review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed';
     /**
+     * Review Reason
+     *
+     * Why it needs review: `no_verdict`; `carried_over` (by a recluster); `reclustered` (its findings changed since the verdict); `reworded` (the rule was reworded after an acceptable or checker_wrong verdict); `came_back` (regressed). Null otherwise.
+     */
+    review_reason: 'no_verdict' | 'carried_over' | 'reclustered' | 'reworded' | 'came_back' | null;
+    /**
      * Review Note
      *
      * Why it's in that state, e.g. "Came back after release 7: 3 findings ...".
@@ -5130,6 +5160,12 @@ export type RulePatternOut = {
      * On the patterns list and a pattern's page. `needs_review`: no verdict, a verdict carried over by a recluster, or one older than a recluster that changed its findings. `open`: real or sop_wrong with no suggestion applied. `fixing`: a suggestion applied (draft or pull request), waiting for its release to be live and for enough sessions on it. `fixed`: no findings in 10 sessions on that release or later. `regressed`: findings came back on such sessions. `closed`: acceptable or checker_wrong.
      */
     review_state: 'needs_review' | 'open' | 'fixing' | 'fixed' | 'regressed' | 'closed' | null;
+    /**
+     * Review Reason
+     *
+     * Why it needs review: `no_verdict`; `carried_over` (by a recluster); `reclustered` (its findings changed since the verdict); `reworded` (the rule was reworded after an acceptable or checker_wrong verdict); `came_back` (regressed). Null otherwise.
+     */
+    review_reason: 'no_verdict' | 'carried_over' | 'reclustered' | 'reworded' | 'came_back' | null;
     /**
      * Review Note
      */

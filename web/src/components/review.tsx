@@ -33,7 +33,7 @@ import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { Page } from "./item-shell";
-import { ReviewStateChip, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
+import { ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
 import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
@@ -273,6 +273,7 @@ function ReviewCard({
             </span>
           </div>
         )}
+        <RewordedNote reason={item.review_reason} className="mb-2" />
         {head}
         {item.kind !== "rule" && item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
         {item.rule?.text && (
@@ -282,7 +283,7 @@ function ReviewCard({
         )}
         <p className="text-muted-foreground mt-2 text-xs">
           First seen {ago(item.first_seen)} · last seen {ago(item.last_seen)}
-          {item.review_state === "needs_review" && item.review_note && item.verdict && <> · {item.review_note}</>}
+          {item.review_state === "needs_review" && item.review_note && item.verdict && item.review_reason !== "reworded" && <> · {item.review_note}</>}
         </p>
       </div>
       <div className="px-4 py-3">
@@ -804,6 +805,7 @@ export function PatternView({ id }: { id: string }) {
         {d.name}
       </PageTitle>
       {d.kind !== "rule" && d.description && <Sub>{d.description}</Sub>}
+      <RewordedNote reason={d.review_reason} className="mb-3 max-w-[90ch]" />
       {d.rule.text && (
         <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-[14px]">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> {d.rule.text}

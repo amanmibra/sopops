@@ -11,7 +11,7 @@ import { HrefLink, useGo } from "../href-link";
 import { ReviewStateChip, RuleTag, VerdictChip, usePatternIndex } from "../review-bits";
 import { Button } from "../ui/button";
 import { ProblemsChart, TrendCharts } from "./charts";
-import { DeltaMark, HeaderHint, Hint, Legend, RateN, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
+import { DeltaMark, HeaderHint, Hint, Legend, RateN, RewordedTag, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
 import { AgentsTable, Callouts, LIVE, TilesRow, scopeOf } from "./overview";
 import { AsOf, ScopeBar } from "./scope";
 
@@ -82,11 +82,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
               <span className="line-clamp-2">{r.text}</span>
               <span className="mt-0.5 flex flex-wrap gap-1">
                 {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-[11px] font-medium">Most failed</span>}
-                {r.wordings > 1 && (
-                  <Hint tip={`This rule has had ${r.wordings} wordings. Its results carry over from one wording to the next.`} focusable={false}>
-                    <span className="bg-warn-soft text-warn rounded-full px-1.5 text-[11px] font-medium">reworded</span>
-                  </Hint>
-                )}
+                {r.wordings > 1 && <RewordedTag releasedIn={r.reworded_in} history={r.wording_history} current={r.text} />}
                 {r.patterns > 0 && <span className="text-muted-foreground text-[11px]">{r.patterns === 1 ? "1 pattern" : `${r.patterns} patterns`}</span>}
               </span>
             </span>

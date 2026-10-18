@@ -11,7 +11,7 @@ from .base import BaseModel
 from .checks import RuleStatus
 from .patterns import PatternKind, RuleRef
 from .suggestions import SuggestionSummary
-from .verdicts import REVIEW_STATE_HELP, ReviewState, VerdictOut
+from .verdicts import REVIEW_REASON_HELP, REVIEW_STATE_HELP, ReviewReason, ReviewState, VerdictOut
 
 
 class ReviewExample(BaseModel):
@@ -48,6 +48,7 @@ class ReviewItem(BaseModel):
     verdict: VerdictOut | None
     new_findings: int = Field(description="Findings that aren't suppressed since the verdict (all of them without one).")
     review_state: ReviewState = Field(description=REVIEW_STATE_HELP)
+    review_reason: ReviewReason | None = Field(None, description=REVIEW_REASON_HELP)
     review_note: str | None = Field(description="Why it's in that state, e.g. \"Came back after release 7: 3 findings ...\".")
     fix_release: int | None = Field(description="The release with the applied edit, once there is one.")
     fix_sessions: int | None = Field(None, description="Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.")

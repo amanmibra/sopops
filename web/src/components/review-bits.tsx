@@ -1,7 +1,7 @@
 // Small pieces every page that shows patterns shares: verdict and review-state chips, suggestion status tags, the
 // "suggestion being written" line, and one lookup of every pattern's verdict and state from GET …/patterns.
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, PencilLine, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { type PatternOut, type RuleRef, q } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
@@ -31,6 +31,20 @@ export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined;
     <Hint focusable={false} tip={<TipBody head={label}>{rule.text ?? "The rule's text isn't known yet."}</TipBody>}>
       <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-[11px] font-normal whitespace-nowrap", className)}>{label}</span>
     </Hint>
+  );
+}
+
+/** Why a closed pattern is back in review: its rule was reworded after an acceptable or checker-wrong verdict. */
+export function RewordedNote({ reason, className }: { reason: string | null | undefined; className?: string }) {
+  if (reason !== "reworded") return null;
+  return (
+    <div className={cn("bg-warn-soft text-warn flex items-start gap-2 rounded-md px-2.5 py-1.5 text-[13px]", className)} role="note">
+      <PencilLine className="mt-0.5 size-3.5 shrink-0" />
+      <span>
+        <span className="font-medium">The rule was reworded after this verdict. Check it still applies.</span>{" "}
+        The verdict judged the old wording, so findings on the new one count again until you give the verdict again, or another.
+      </span>
+    </div>
   );
 }
 

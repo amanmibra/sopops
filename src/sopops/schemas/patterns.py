@@ -10,7 +10,7 @@ from pydantic import Field
 from .base import BaseModel
 from .checks import RuleKind
 from .suggestions import SuggestionSummary
-from .verdicts import REVIEW_STATE_HELP, ReviewState, VerdictOut
+from .verdicts import REVIEW_REASON_HELP, REVIEW_STATE_HELP, ReviewReason, ReviewState, VerdictOut
 
 PatternKind = Literal["rule", "sub", "other"]
 
@@ -57,6 +57,7 @@ class PatternOut(BaseModel):
     clustered_at: datetime | None = Field(None, description="Rule patterns: the last clustering. Sub-patterns: the last recluster that changed their findings materially.")
     verdict: VerdictOut | None = Field(None, description="Its current verdict (its rule pattern's, when it has none of its own). On the patterns list and a pattern's page.")
     review_state: ReviewState | None = Field(None, description=f"On the patterns list and a pattern's page. {REVIEW_STATE_HELP}")
+    review_reason: ReviewReason | None = Field(None, description=REVIEW_REASON_HELP)
     review_note: str | None = None
 
 

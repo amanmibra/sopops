@@ -854,6 +854,8 @@ class Insights:
             out.append({
                 "procedure_id": key[0], "rule_id": rid, "lineage_id": key[1], "kind": t.get("kind"), "index": t.get("index"), "text": said.get(rid, t.get("text")),
                 "a_text": said.get(min(on_a)) if change == "changed" and on_a else None, "rule_change": change,
+                "reworded_in": next((w["from_release"] for w in t.get("history", []) if w["rule_id"] == rid), None) if change == "changed" else None,
+                "wording_history": t.get("history", []),
                 "a": _rate_out(sa), "b": _rate_out(sb), "delta_points": delta_points(sb["pass_rate"], sa["pass_rate"]) if ok else None,
                 "raw_delta_points": delta_points(sb["pass_rate"], sa["pass_rate"]), "flag": compare_flag(sa["passes"] or 0, sa["n"], sb["passes"] or 0, sb["n"]),
             })

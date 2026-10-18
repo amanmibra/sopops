@@ -3,7 +3,7 @@
 import { ArrowDownRight, ArrowUpRight, CircleHelp, type LucideIcon } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
-import { ApiError } from "@/lib/api";
+import { ApiError, type WordingRef } from "@/lib/api";
 import { OUTCOMES, STATUS_MARK, STATUS_ORDER, fmtDelta, fmtPct } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { HrefLink } from "../href-link";
@@ -463,5 +463,36 @@ export function RateN({ rate, n, thin, tone, suppressed, className }: { rate: nu
         </Hint>
       )}
     </span>
+  );
+}
+
+/** "Reworded in release N" on a rule, with its earlier wordings on hover. `history` is every wording, oldest first. */
+export function RewordedTag({ releasedIn, history, current, className }: { releasedIn?: number | null; history: WordingRef[]; current?: string | null; className?: string }) {
+  const earlier = history.filter((w) => w.text !== current).reverse();
+  return (
+    <Hint
+      focusable={false}
+      tip={
+        <TipBody head={releasedIn != null ? `Reworded in release ${releasedIn}` : "Reworded"}>
+          {earlier.length ? (
+            <>
+              <span className="block">{earlier.length === 1 ? "It used to say:" : "Earlier wordings, newest first:"}</span>
+              {earlier.map((w) => (
+                <span key={w.rule_id} className="mt-1 block">
+                  “{w.text}”{w.from_release != null && <span className="opacity-70"> (release {w.from_release})</span>}
+                </span>
+              ))}
+            </>
+          ) : (
+            "The wording changed."
+          )}
+          <span className="mt-1 block">Its results, patterns and verdicts carry over from one wording to the next.</span>
+        </TipBody>
+      }
+    >
+      <span className={cn("bg-warn-soft text-warn rounded-full px-1.5 text-[11px] font-medium whitespace-nowrap", className)}>
+        {releasedIn != null ? `reworded in release ${releasedIn}` : "reworded"}
+      </span>
+    </Hint>
   );
 }
