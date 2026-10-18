@@ -11,6 +11,7 @@ from .agent_delivery import AgentDelivery
 from .calibrations import Calibration
 from .capture_settings import CaptureSetting
 from .columns import JSONDoc
+from .email_links import EmailLink
 from .fetches import Fetch
 from .file_versions import FileVersion
 from .finding_overrides import FindingOverride
@@ -48,4 +49,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "CaptureSetting", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JSONDoc", "LoginSession", "Membership", "ModelCall", "Org", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JSONDoc", "LoginSession", "Membership", "ModelCall", "Org", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]

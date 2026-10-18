@@ -1,9 +1,11 @@
-"""Sign-in: GitHub and Google behind respx (no network), who joins which org, login sessions, CSRF, roles, authors,
-the route auth table in both modes, and token and webhook routes working without a session."""
+"""Sign-in: GitHub and Google behind respx (no network), email links (dev mode's log, and a fake SMTP server), who
+joins which org, adding people, login sessions, CSRF, roles, authors, the route auth table in both modes, and token and
+webhook routes working without a session."""
 
 import base64
 import json
 import re
+import smtplib
 import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, unquote, urlparse
@@ -17,11 +19,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, create_app
+from sopops import Sopc, Store, create_app, mail
 from sopops.auth import access, mode, providers
 from sopops.auth.service import csrf_token
 from sopops.db import upgrade
-from sopops.orm import FileVersion, Identity, LoginSession, Membership, Org, User, Workspace
+from sopops.orm import EmailLink, FileVersion, Identity, LoginSession, Membership, Org, User, Workspace
 
 GH_TOKEN = "https://github.com/login/oauth/access_token"
 GH_API = "https://api.github.com"
@@ -120,7 +122,8 @@ def test_the_mode_follows_the_providers_and_the_override(monkeypatch, providers_
 
 def test_github_sign_in_makes_a_user_and_a_session(app, files):
     c = TestClient(app)
-    assert c.get("/v1/auth/session").json() == {"required": True, "providers": [{"id": "github", "label": "GitHub"}, {"id": "google", "label": "Google"}],
+    assert c.get("/v1/auth/session").json() == {"required": True, "providers": [{"id": "github", "label": "GitHub", "redirects": True},
+                                                                              {"id": "google", "label": "Google", "redirects": True}],
                                                  "user": None, "org": None, "orgs": []}
     with respx.mock(assert_all_called=False) as router:
         gh = GitHub(router, "42", "Ana@Example.com", name="Ana")
@@ -396,14 +399,14 @@ def url(path: str) -> str:
 
 EXPECTED = {
     access.OPEN: {"spa", "healthz", "openapi", "swagger_ui_html", "swagger_ui_redirect", "redoc_html", "auth_session", "sign_in", "auth_callback",
-                  "lookup_invite"},
+                  "lookup_invite", "request_email_link", "confirm_email_link"},
     access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org"},
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check"},
     access.TOKEN_OR_SESSION: {"get_agent", "get_prompt", "get_sop"},
     access.WEBHOOK: {"github_webhook", "livekit_webhook", "elevenlabs_post_call", "elevenlabs_conversation_init", "vapi_assistant_request"},
-    access.ADMIN: {"update_org", "set_member_role", "remove_member", "list_invites", "create_invite", "revoke_invite", "github_app_manifest",
-                   "github_app_manifest_callback"},
+    access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
+                   "github_app_manifest", "github_app_manifest_callback"},
 }
 
 
@@ -460,7 +463,7 @@ def test_providers_register_and_plugins_can_add_one(app):
     providers.register(Saml())
     try:
         c = TestClient(app)
-        assert {"id": "saml", "label": "Your company"} in c.get("/v1/auth/session").json()["providers"]
+        assert {"id": "saml", "label": "Your company", "redirects": True} in c.get("/v1/auth/session").json()["providers"]
         st = parse_qs(urlparse(c.get("/v1/auth/login/saml", follow_redirects=False).headers["location"]).query)["state"][0]
         assert c.get("/v1/auth/callback/saml", params={"code": "x", "state": st}, follow_redirects=False).status_code == 303
         assert c.get("/v1/auth/session").json()["user"]["email"] == "sam@example.com"
@@ -542,3 +545,294 @@ def test_switching_orgs(owner, app):
     assert [w["workspace"] for w in owner.get("/v1/workspaces").json()] == ["two"]
     assert owner.get(f"{WS}/files").status_code == 200  # still a member of the first
     assert owner.put("/v1/auth/org", json={"org_id": str(uuid.uuid4())}).status_code == 404
+
+
+# --- email sign-in -------------------------------------------------------------------------
+
+LINK = re.compile(r"/sign-in/email#([A-Za-z0-9_-]+)")
+
+
+class FakeSMTP:
+    """Stands in for smtplib.SMTP (and SMTP_SSL): records what a send did."""
+
+    sent: list = []
+    calls: list = []
+    starttls_offered = True
+
+    def __init__(self, host, port, timeout=None, context=None):
+        FakeSMTP.calls.append(("connect", host, port, type(self).__name__))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def ehlo(self):
+        FakeSMTP.calls.append(("ehlo",))
+
+    def has_extn(self, name):
+        return name == "starttls" and FakeSMTP.starttls_offered
+
+    def starttls(self, context=None):
+        FakeSMTP.calls.append(("starttls",))
+
+    def login(self, user, password):
+        FakeSMTP.calls.append(("login", user, password))
+
+    def send_message(self, msg):
+        FakeSMTP.sent.append(msg)
+
+
+class FakeSMTPSSL(FakeSMTP):
+    pass
+
+
+@pytest.fixture
+def smtp(monkeypatch):
+    """SMTP set up, against FakeSMTP."""
+    FakeSMTP.sent, FakeSMTP.calls, FakeSMTP.starttls_offered = [], [], True
+    monkeypatch.setattr(smtplib, "SMTP", FakeSMTP)
+    monkeypatch.setattr(smtplib, "SMTP_SSL", FakeSMTPSSL)
+    for k, v in {"SOPOPS_SMTP_HOST": "smtp.example.com", "SOPOPS_SMTP_USER": "mailer", "SOPOPS_SMTP_PASSWORD": "pw",
+                 "SOPOPS_SMTP_FROM": "sopops <sopops@example.com>"}.items():
+        monkeypatch.setenv(k, v)
+    return FakeSMTP
+
+
+@pytest.fixture
+def dev_email(monkeypatch):
+    monkeypatch.setenv("SOPOPS_EMAIL_DEV", "1")
+
+
+def ask_link(c: TestClient, email: str, caplog, next: str = "/") -> str | None:
+    """Ask for a sign-in link (dev mode) and read it from the log; None if none was logged."""
+    caplog.clear()
+    with caplog.at_level("INFO", logger="sopops.auth"):
+        res = c.post("/v1/auth/email", json={"email": email, "next": next})
+    assert res.status_code == 202 and res.json() == {"message": "If that address can sign in, we sent a link. It works for 15 minutes."}
+    found = [m for m in caplog.messages if "[SOPOPS_EMAIL_DEV]" in m]
+    return LINK.search(found[-1]).group(1) if found else None
+
+
+def confirm(c: TestClient, token: str) -> httpx.Response:
+    res = c.post("/v1/auth/email/confirm", json={"token": token})
+    if c.cookies.get(access.CSRF_COOKIE):
+        c.headers[access.CSRF_HEADER] = c.cookies.get(access.CSRF_COOKIE)
+    return res
+
+
+def test_email_sign_in_turns_sign_in_on(monkeypatch, dev_email):
+    assert mode.required() and [p.id for p in providers.configured()] == ["email"]
+    monkeypatch.delenv("SOPOPS_EMAIL_DEV")
+    assert not mode.required()
+    monkeypatch.setenv("SOPOPS_SMTP_HOST", "smtp.example.com")
+    assert not mode.required()  # a host but no sender
+    monkeypatch.setenv("SOPOPS_SMTP_FROM", "sopops@example.com")
+    assert mode.required()
+
+
+def test_an_email_link_signs_in_once(tmp_path, files, dev_email, caplog):
+    app = create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    c = TestClient(app)
+    assert c.get("/v1/auth/session").json()["providers"] == [{"id": "email", "label": "Email", "redirects": False}]
+    assert c.get("/v1/auth/login/email", follow_redirects=False).status_code == 404  # it doesn't redirect
+    token = ask_link(c, "Ana@Example.com", caplog, next="/w/demo/sessions")
+    assert token and "ana@example.com" in caplog.text
+    with db(c) as d:
+        row = d.exec(select(EmailLink)).one()
+        assert row.token_hash != token and token not in json.dumps(row.model_dump(), default=str)  # stored hashed
+        assert row.expires_at.replace(tzinfo=timezone.utc) - row.created_at.replace(tzinfo=timezone.utc) == timedelta(minutes=15)
+
+    res = confirm(c, token)
+    assert res.status_code == 200 and res.json()["next"] == "/w/demo/sessions"
+    assert res.json()["user"]["email"] == "ana@example.com" and res.json()["org"]["role"] == "owner"  # the first user owns the org
+    assert any(h.startswith("sopops_session=") and "HttpOnly" in h for h in res.headers.get_list("set-cookie"))
+    assert c.get("/v1/workspaces").status_code == 200
+    with db(c) as d:
+        assert [(i.provider, i.provider_user_id) for i in d.exec(select(Identity))] == [("email", "ana@example.com")]
+
+    again = TestClient(app)
+    assert confirm(again, token).status_code == 404  # single use
+    assert again.get("/v1/auth/session").json()["user"] is None
+    assert confirm(again, "made-up").status_code == 404
+
+
+def test_using_a_link_uses_up_the_others_and_links_expire(app, dev_email, caplog):
+    c = TestClient(app)
+    first, second = ask_link(c, "bo@example.com", caplog), ask_link(c, "bo@example.com", caplog)
+    assert confirm(c, second).status_code == 200
+    assert confirm(TestClient(app), first).status_code == 404
+    late = ask_link(c, "cy@example.com", caplog)
+    with db(c) as d, d.begin():
+        row = d.exec(select(EmailLink).where(EmailLink.email == "cy@example.com")).one()
+        row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        d.add(row)
+    res = confirm(TestClient(app), late)
+    assert res.status_code == 404 and "expired" in res.json()["detail"]
+
+
+def test_email_links_are_rate_limited(app, dev_email, caplog):
+    c = TestClient(app)
+    assert all(ask_link(c, "dee@example.com", caplog) for _ in range(5))
+    assert ask_link(c, "dee@example.com", caplog) is None  # the 6th in 15 minutes: the same answer, no link
+    with db(c) as d, d.begin():
+        for row in d.exec(select(EmailLink)):
+            row.created_at -= timedelta(minutes=16)
+            d.add(row)
+    assert ask_link(c, "dee@example.com", caplog)  # the window moved on
+    for i in range(19):  # 20 per client in 15 minutes, whatever the address
+        assert ask_link(c, f"p{i}@example.com", caplog), i
+    assert ask_link(c, "new@example.com", caplog) is None
+
+
+def test_the_answer_is_the_same_for_any_address(owner, app, dev_email, caplog, monkeypatch):
+    c = TestClient(app)
+    known = c.post("/v1/auth/email", json={"email": "ana@example.com"})
+    unknown = c.post("/v1/auth/email", json={"email": "nobody@unknown.example"})
+    monkeypatch.setenv("SOPOPS_ALLOWED_EMAIL_DOMAINS", "example.com")
+    with caplog.at_level("INFO", logger="sopops.auth"):
+        caplog.clear()
+        refused = c.post("/v1/auth/email", json={"email": "eve@elsewhere.example"})
+    assert not any("[SOPOPS_EMAIL_DEV]" in m for m in caplog.messages)  # no link for a domain this sopops doesn't take
+    assert (known.status_code, known.json()) == (unknown.status_code, unknown.json()) == (refused.status_code, refused.json())
+    assert c.post("/v1/auth/email", json={"email": "not an address"}).status_code == 400
+
+
+def test_an_email_link_signs_in_the_github_or_google_user_with_that_email(owner, app, dev_email, caplog):
+    with db(owner) as d:
+        ana = d.exec(select(User)).one()
+    c = TestClient(app)
+    confirm(c, ask_link(c, "ANA@example.com", caplog))
+    me = c.get("/v1/auth/session").json()
+    assert me["user"]["id"] == ana.id and me["user"]["name"] == "Ana" and me["org"]["role"] == "owner"
+    with db(owner) as d:
+        assert sorted(i.provider for i in d.exec(select(Identity).where(Identity.user_id == ana.id))) == ["email", "github"]
+        assert len(d.exec(select(User)).all()) == 1
+    g = TestClient(app)  # and the other way: Google after email
+    confirm(g, ask_link(g, "gus@example.com", caplog))
+    gus = g.get("/v1/auth/session").json()["user"]["id"]
+    sign_in(g, "google", "g-gus", "gus@example.com")
+    assert g.get("/v1/auth/session").json()["user"]["id"] == gus
+
+
+def test_an_email_link_follows_the_join_rules(owner, app, dev_email, caplog):
+    stranger = TestClient(app)
+    confirm(stranger, ask_link(stranger, "zed@elsewhere.example", caplog))
+    assert stranger.get("/v1/auth/session").json()["org"] is None  # "Ask an owner to invite you"
+    owner.post("/v1/org/invites", json={"email": "ivy@example.com", "role": "admin"})
+    ivy = TestClient(app)
+    confirm(ivy, ask_link(ivy, "ivy@example.com", caplog))
+    assert ivy.get("/v1/auth/session").json()["org"]["role"] == "admin"
+    owner.patch("/v1/org", json={"allowed_domains": ["team.example"]})
+    tam = TestClient(app)
+    confirm(tam, ask_link(tam, "tam@team.example", caplog))
+    assert tam.get("/v1/auth/session").json()["org"]["role"] == "member"
+
+
+def test_links_are_emailed_and_never_logged_without_dev_mode(app, smtp, caplog):
+    c = TestClient(app)
+    with caplog.at_level("DEBUG"):
+        res = c.post("/v1/auth/email", json={"email": "ana@example.com"})
+    assert res.status_code == 202
+    (msg,) = smtp.sent
+    assert msg["Subject"] == "Your sopops sign-in link" and msg["To"] == "ana@example.com" and msg["From"] == "sopops <sopops@example.com>"
+    text_part = msg.get_body(("plain",)).get_content()
+    html_part = msg.get_body(("html",)).get_content()
+    token = LINK.search(text_part).group(1)
+    assert f"http://testserver/sign-in/email#{token}" in text_part and token in html_part
+    assert "15 minutes" in text_part and "ignore this email" in text_part and "—" not in text_part
+    assert token not in caplog.text and "SOPOPS_EMAIL_DEV" not in caplog.text
+    assert smtp.calls == [("connect", "smtp.example.com", 587, "FakeSMTP"), ("ehlo",), ("starttls",), ("ehlo",), ("login", "mailer", "pw")]
+    assert confirm(c, token).status_code == 200
+
+
+def test_smtp_ports_and_tls(app, smtp, monkeypatch):
+    msg = mail.Message(to="x@example.com", subject="s", text="t", html="<p>t</p>")
+    monkeypatch.setenv("SOPOPS_SMTP_PORT", "465")
+    mail.send(msg)
+    assert smtp.calls[0] == ("connect", "smtp.example.com", 465, "FakeSMTPSSL") and ("starttls",) not in smtp.calls
+    monkeypatch.setenv("SOPOPS_SMTP_PORT", "25")
+    smtp.calls.clear()
+    smtp.starttls_offered = False
+    with pytest.raises(mail.MailError, match="won't send the SMTP password unencrypted"):
+        mail.send(msg)
+    assert not any(c[0] == "login" for c in smtp.calls)
+
+
+def test_dev_mode_logs_instead_of_sending(app, smtp, dev_email, caplog):
+    c = TestClient(app)
+    assert ask_link(c, "ana@example.com", caplog)
+    assert smtp.sent == []  # dev mode wins: nothing is sent, even with SMTP set up
+    assert c.get("/v1/org").status_code == 401
+
+
+# --- adding people -------------------------------------------------------------------------
+
+
+def test_adding_people_with_and_without_accounts(owner, app, dev_email, caplog):
+    bob = TestClient(app)
+    sign_in(bob, "github", "2", "bob@example.com")  # has an account, in no org
+    added = owner.post("/v1/org/members", json={"emails": ["Bob@example.com", "new@example.com", "ana@example.com", "new@example.com"], "role": "admin"})
+    assert added.status_code == 200, added.text
+    by = {a["email"]: a for a in added.json()}
+    assert list(by) == ["bob@example.com", "new@example.com", "ana@example.com"]
+    assert by["bob@example.com"]["status"] == "added" and by["ana@example.com"]["status"] == "already"
+    inv = by["new@example.com"]["invite"]
+    assert by["new@example.com"]["status"] == "invited" and inv["link"].startswith("http://testserver/invite#") and inv["emailed"] is False
+    assert bob.get("/v1/auth/session").json()["org"]["role"] == "admin"  # joined at once
+    assert owner.get("/v1/org").json()["sends_email"] is False  # dev mode doesn't send invites
+
+    assert [i["email"] for i in owner.get("/v1/org/invites").json()] == ["new@example.com"]  # pending
+    new = TestClient(app)
+    confirm(new, ask_link(new, "new@example.com", caplog))  # signing in any way joins
+    assert new.get("/v1/auth/session").json()["org"]["role"] == "admin"
+    assert owner.get("/v1/org/invites").json() == []
+    assert owner.post("/v1/org/members", json={"emails": ["nope"]}).status_code == 400
+
+
+def test_invites_are_emailed_with_smtp(owner, app, smtp):
+    assert owner.get("/v1/org").json()["sends_email"] is True
+    made = owner.post("/v1/org/invites", json={"email": "kai@example.com"}).json()
+    assert made["emailed"] is True and made["link"]
+    (msg,) = smtp.sent
+    assert msg["Subject"] == "Ana invited you to Default on sopops" and msg["To"] == "kai@example.com"
+    assert made["link"] in msg.get_body(("plain",)).get_content()
+    added = owner.post("/v1/org/members", json={"emails": ["lu@example.com"]}).json()
+    assert added[0]["invite"]["emailed"] is True and len(smtp.sent) == 2
+
+
+def test_resend_and_cancel_pending_invites(owner, app, smtp):
+    first = owner.post("/v1/org/invites", json={"email": "max@example.com"}).json()
+    again = owner.post(f"/v1/org/invites/{first['id']}/resend")
+    assert again.status_code == 200 and again.json()["emailed"] and again.json()["link"] != first["link"]
+    anon = TestClient(app)
+    assert anon.post("/v1/auth/invites/lookup", json={"token": first["link"].split("#")[1]}).status_code == 404  # the old link stops working
+    assert anon.post("/v1/auth/invites/lookup", json={"token": again.json()["link"].split("#")[1]}).status_code == 200
+    replaced = owner.post("/v1/org/invites", json={"email": "max@example.com", "role": "admin"}).json()  # a new invite replaces the open one
+    assert [(i["email"], i["role"]) for i in owner.get("/v1/org/invites").json()] == [("max@example.com", "admin")]
+    assert owner.delete(f"/v1/org/invites/{replaced['id']}").status_code == 204
+    assert owner.get("/v1/org/invites").json() == []
+    assert owner.post(f"/v1/org/invites/{replaced['id']}/resend").status_code == 404
+
+
+def test_who_can_add_people_and_change_roles(owner, app):
+    admin = join(owner, app, "adam@example.com", "admin", "10")
+    member = join(owner, app, "mia@example.com", "member", "11")
+    ids = {m["email"]: m["user_id"] for m in owner.get("/v1/org/members").json()}
+
+    assert member.post("/v1/org/members", json={"emails": ["x@example.com"]}).status_code == 403
+    assert member.post(f"/v1/org/invites/{uuid.uuid4()}/resend").status_code == 403
+    assert admin.post("/v1/org/members", json={"emails": ["x@example.com"], "role": "owner"}).status_code == 403  # only an owner makes owners
+    assert admin.post("/v1/org/members", json={"emails": ["x@example.com"], "role": "admin"}).json()[0]["status"] == "invited"
+    assert admin.patch(f"/v1/org/members/{ids['mia@example.com']}", json={"role": "owner"}).status_code == 403
+    assert admin.patch(f"/v1/org/members/{ids['ana@example.com']}", json={"role": "admin"}).status_code == 403  # an admin can't change an owner
+    assert admin.delete(f"/v1/org/members/{ids['ana@example.com']}").status_code == 403
+    assert owner.post("/v1/org/members", json={"emails": ["oz@example.com"], "role": "owner"}).json()[0]["status"] == "invited"
+
+    # the last owner can't be demoted or removed, by anyone
+    assert owner.patch(f"/v1/org/members/{ids['ana@example.com']}", json={"role": "member"}).status_code == 409
+    assert owner.delete(f"/v1/org/members/{ids['ana@example.com']}").status_code == 409
+    assert owner.patch(f"/v1/org/members/{ids['mia@example.com']}", json={"role": "owner"}).json()["role"] == "owner"
+    assert member.patch(f"/v1/org/members/{ids['ana@example.com']}", json={"role": "member"}).json()["role"] == "member"  # mia, an owner now
+    assert member.delete(f"/v1/org/members/{ids['mia@example.com']}").status_code == 409  # she's the last one now

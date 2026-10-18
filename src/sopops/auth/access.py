@@ -2,7 +2,7 @@
 
 | Kind | With sign-in on | With sign-in off |
 |---|---|---|
-| `open` | anyone (the sign-in flow, the UI's files, health, API docs) | anyone |
+| `open` | anyone (the sign-in flow, email sign-in links, the UI's files, health, API docs) | anyone |
 | `token` | the route checks its own token (ingest, runtime or onboarding); no login session | same |
 | `webhook` | the route checks the sender's signature or secret; no login session | same |
 | `token_or_session` | a login session, or the route's runtime token (prompt fetches) | as before |
@@ -30,6 +30,7 @@ from starlette.responses import Response
 from ..errors import NotFound
 from ..tokens import Forbidden, Unauthorized
 from . import actor, github, google, mode  # noqa: F401  (github and google register their providers)
+from . import email  # noqa: F401, I001  (registers its provider after them, so it's listed last)
 from .service import MANAGERS, Accounts, Current, csrf_token
 
 OPEN, TOKEN, WEBHOOK, TOKEN_OR_SESSION, SIGNED_IN, SESSION, ADMIN = "open", "token", "webhook", "token_or_session", "signed_in", "session", "admin"
@@ -45,7 +46,7 @@ NO_MEMBERSHIP = "you're not a member of an org on this sopops yet. Ask an owner 
 ROUTES: dict[str, str] = {
     # open: the sign-in flow, the UI's files, health and the API docs
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
-    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN,
+    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
     # signed in, with or without a membership
     "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN,
     # tokens: ingest (sessions), runtime (served calls), onboarding (a coding agent through sopops-mcp)
@@ -60,7 +61,8 @@ ROUTES: dict[str, str] = {
     "vapi_assistant_request": WEBHOOK,
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
-    "update_org": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN, "revoke_invite": ADMIN,
+    "update_org": ADMIN, "add_members": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN,
+    "resend_invite": ADMIN, "revoke_invite": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
     # everything else in the app: any member

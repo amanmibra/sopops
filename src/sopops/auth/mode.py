@@ -1,6 +1,7 @@
 """The auth mode: whether this sopops needs people to sign in.
 
-With no login provider configured, sopops runs with no sign-in (local use, demos). With at least one, sign-in is on.
+With no login provider configured, sopops runs with no sign-in (local use, demos). With at least one (GitHub, Google,
+or email, which is on with SMTP set up or SOPOPS_EMAIL_DEV), sign-in is on.
 SOPOPS_AUTH_REQUIRED (true or false) forces it either way. Read on every request, so it follows the environment.
 """
 

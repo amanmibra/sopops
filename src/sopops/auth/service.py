@@ -1,4 +1,4 @@
-"""Users, identities, orgs, memberships, invites and login sessions.
+"""Users, identities, orgs, memberships, invites, email sign-in links and login sessions.
 
 **Signing in** (`sign_in`) takes a provider's profile. Its email must be verified, and in SOPOPS_ALLOWED_EMAIL_DOMAINS
 when that's set. The identity (provider, provider's user id) finds the user; failing that, a user with the same
@@ -10,11 +10,20 @@ verified email gets this identity linked; failing that, a new user is made. Then
 
 Someone with no membership can sign in but sees only "Ask an owner to invite you".
 
+**Email sign-in links** (`request_link`, `use_link`) are a random token, stored as a sha256 hash, that works once, for
+15 minutes. Using one signs in as the `email` provider, whose identity is the address: the same rules as above, so it
+links to a GitHub or Google user with that verified email. Each address gets at most 5 links per 15 minutes, and each
+client IP 20; past that, and for addresses this sopops doesn't take, no link is made, and the caller says the same thing
+either way. Using a link also uses up the address's other open links.
+
 **Login sessions** are a random token in an HttpOnly cookie, stored as a sha256 hash. They last 30 days from the last
 use (sliding; `last_seen_at` and `expires_at` move at most every few minutes) and end early when revoked (sign out).
 
 **Roles.** `owner` and `admin` manage members, invites and the org's settings; `member` does everything else. Only an
-owner makes or removes owners, and an org always keeps one owner.
+owner makes, changes or removes an owner, and an org always keeps one owner.
+
+**Adding people** (`add_people`) by email: someone who has an account joins at once; anyone else gets an invite, and
+joins the moment they sign in with that email, any way. A new invite for an address replaces its open one.
 """
 
 from __future__ import annotations
@@ -28,11 +37,11 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlmodel import Session, select
 
 from ..errors import Conflict, NotFound
-from ..orm import Identity, Invite, LoginSession, Membership, Org, User, Workspace
+from ..orm import EmailLink, Identity, Invite, LoginSession, Membership, Org, User, Workspace
 from ..tokens import Forbidden
 from . import actor
 from .providers import Profile
@@ -46,7 +55,15 @@ MANAGERS = (OWNER, ADMIN)
 SESSION_DAYS = 30
 SLIDE_EVERY = timedelta(minutes=5)
 INVITE_DAYS = 7
+LINK_TTL = timedelta(minutes=15)
+LINK_WINDOW = timedelta(minutes=15)
+LINKS_PER_EMAIL = 5
+LINKS_PER_IP = 20
 ALLOWED_DOMAINS_ENV = "SOPOPS_ALLOWED_EMAIL_DOMAINS"
+
+
+class LinkInvalid(Exception):
+    """An email sign-in link that's unknown, used or expired."""
 
 
 class Refused(Exception):
@@ -132,6 +149,42 @@ class Accounts:
         db.add(LoginSession(id=str(uuid.uuid4()), token_hash=_hash(token), user_id=user_id, created_at=now,
                             expires_at=now + timedelta(days=SESSION_DAYS), last_seen_at=now))
         return token
+
+    # --- email sign-in links ------------------------------------------------------
+
+    def request_link(self, email: str, ip: str | None, next: str = "/") -> str | None:
+        """A new sign-in link's token for this address, or None when it gets none: an address this sopops doesn't take,
+        or over the rate limit. Raises ValueError for something that isn't an email address."""
+        email = clean_email(email)
+        if not server_allows(email):
+            return None
+        now = _now()
+        since = now - LINK_WINDOW
+        with self._db() as db, db.begin():
+            by_email = db.exec(select(func.count()).select_from(EmailLink).where(EmailLink.email == email, EmailLink.created_at > since)).one()
+            by_ip = db.exec(select(func.count()).select_from(EmailLink).where(EmailLink.ip == ip, EmailLink.created_at > since)).one() if ip else 0
+            if by_email >= LINKS_PER_EMAIL or by_ip >= LINKS_PER_IP:
+                return None
+            token = secrets.token_urlsafe(32)
+            db.add(EmailLink(id=str(uuid.uuid4()), token_hash=_hash(token), email=email, ip=ip[:64] if ip else None, next=next[:512], created_at=now,
+                             expires_at=now + LINK_TTL))
+        return token
+
+    def use_link(self, token: str) -> tuple[User, str, str]:
+        """Sign in with an email link: the user, a new login session's token, and the page to open. The link is used up
+        here, even if signing in is then refused. Raises LinkInvalid or Refused."""
+        now = _now()
+        with self._db() as db, db.begin():
+            link = db.exec(select(EmailLink).where(EmailLink.token_hash == _hash(token or ""))).first()
+            if link is None or link.used_at is not None or _utc(link.expires_at) <= now:
+                raise LinkInvalid("this sign-in link has expired or was used already")
+            used = db.execute(update(EmailLink).where(EmailLink.id == link.id, EmailLink.used_at.is_(None)).values(used_at=now))  # type: ignore[union-attr, arg-type]
+            if used.rowcount != 1:  # opened twice at once: only one wins
+                raise LinkInvalid("this sign-in link has expired or was used already")
+            db.execute(update(EmailLink).where(EmailLink.email == link.email, EmailLink.used_at.is_(None)).values(used_at=now))  # type: ignore[union-attr, arg-type]
+            email, next = link.email, link.next
+        user, session = self.sign_in(Profile(provider="email", provider_user_id=email, email=email))
+        return user, session, next
 
     # --- login sessions ------------------------------------------------------------
 
@@ -259,22 +312,65 @@ class Accounts:
             return [invite_out(i) for i in rows if _utc(i.expires_at) > now]
 
     def invite(self, org_id: str, by: str, by_role: str, email: str, role: str = MEMBER) -> tuple[dict, str]:
-        """A new invite and its token (returned here only)."""
-        email = (email or "").strip().lower()
-        if "@" not in email or email.startswith("@") or email.endswith("@"):
-            raise ValueError("that isn't an email address")
-        if role not in ROLES:
-            raise ValueError(f"role must be one of {', '.join(ROLES)}")
-        if role == OWNER and by_role != OWNER:
-            raise Forbidden("only an owner can invite an owner")
-        token = secrets.token_urlsafe(32)
-        now = _now()
+        """A new invite and its token (returned here only). It replaces the address's open invite, if there's one."""
+        email = clean_email(email)
+        _check_role(by_role, role)
         with self._db() as db, db.begin():
-            member = db.exec(select(Membership).join(User, Membership.user_id == User.id).where(Membership.org_id == org_id, User.email == email)).first()  # type: ignore[arg-type]
-            if member is not None:
+            if self._member_by_email(db, org_id, email) is not None:
                 raise Conflict(f"{email} is already a member")
-            inv = Invite(id=str(uuid.uuid4()), org_id=org_id, email=email, role=role, token_hash=_hash(token), invited_by=by, created_at=now,
-                         expires_at=now + timedelta(days=INVITE_DAYS))
+            inv, token = self._new_invite(db, org_id, by, email, role)
+        return invite_out(inv), token
+
+    def _member_by_email(self, db: Session, org_id: str, email: str) -> Membership | None:
+        return db.exec(select(Membership).join(User, Membership.user_id == User.id).where(Membership.org_id == org_id, User.email == email)).first()  # type: ignore[arg-type]
+
+    def _new_invite(self, db: Session, org_id: str, by: str, email: str, role: str) -> tuple[Invite, str]:
+        now = _now()
+        for old in db.exec(select(Invite).where(Invite.org_id == org_id, Invite.email == email, Invite.accepted_at.is_(None), Invite.revoked_at.is_(None))):  # type: ignore[union-attr]
+            old.revoked_at = now
+            db.add(old)
+        token = secrets.token_urlsafe(32)
+        inv = Invite(id=str(uuid.uuid4()), org_id=org_id, email=email, role=role, token_hash=_hash(token), invited_by=by, created_at=now,
+                     expires_at=now + timedelta(days=INVITE_DAYS))
+        db.add(inv)
+        return inv, token
+
+    def add_people(self, org_id: str, by: str, by_role: str, emails: list[str], role: str = MEMBER) -> list[dict]:
+        """Add people by email: `added` (they have an account, and joined now), `invited` (with the invite's `token`;
+        they join when they sign in with that email), or `already` (a member)."""
+        _check_role(by_role, role)
+        wanted: list[str] = []
+        for e in emails:
+            e = clean_email(e)
+            if e not in wanted:
+                wanted.append(e)
+        if not wanted:
+            raise ValueError("add at least one email address")
+        now = _now()
+        out: list[dict] = []
+        with self._db() as db, db.begin():
+            for email in wanted:
+                if self._member_by_email(db, org_id, email) is not None:
+                    out.append({"email": email, "status": "already"})
+                    continue
+                user = db.exec(select(User).where(User.email == email)).first()
+                if user is not None:
+                    db.add(Membership(org_id=org_id, user_id=user.id, role=role, created_at=now))
+                    out.append({"email": email, "status": "added", "user_id": user.id, "name": user.name})
+                    continue
+                inv, token = self._new_invite(db, org_id, by, email, role)
+                out.append({"email": email, "status": "invited", "invite": invite_out(inv), "token": token})
+        return out
+
+    def resend_invite(self, org_id: str, id: str) -> tuple[dict, str]:
+        """A fresh token and 7 more days for an open invite (the old link stops working)."""
+        now = _now()
+        token = secrets.token_urlsafe(32)
+        with self._db() as db, db.begin():
+            inv = db.get(Invite, id)
+            if inv is None or inv.org_id != org_id or inv.revoked_at is not None or inv.accepted_at is not None:
+                raise NotFound(f"no open invite '{id}'")
+            inv.token_hash, inv.created_at, inv.expires_at = _hash(token), now, now + timedelta(days=INVITE_DAYS)
             db.add(inv)
         return invite_out(inv), token
 
@@ -318,6 +414,22 @@ class Accounts:
                 s.org_id = inv.org_id
                 db.add(s)
         return info["org_id"]
+
+
+def _check_role(by_role: str, role: str) -> None:
+    if role not in ROLES:
+        raise ValueError(f"role must be one of {', '.join(ROLES)}")
+    if role == OWNER and by_role != OWNER:
+        raise Forbidden("only an owner can make someone an owner")
+
+
+def clean_email(email: str) -> str:
+    """The address, trimmed and lowercased. Raises ValueError for something that isn't one."""
+    email = (email or "").strip().lower()
+    local, _, d = email.rpartition("@")
+    if not local or "." not in d or len(email) > 320 or any(c.isspace() or c in "<>,;\"" for c in email):
+        raise ValueError(f"'{email[:64]}' isn't an email address")
+    return email
 
 
 def invite_out(i: Invite) -> dict:

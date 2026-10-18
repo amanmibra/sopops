@@ -1,8 +1,9 @@
-"""Login providers: a registry that `github` and `google` register into, and that a plugin can add to.
+"""Login providers: a registry that `github`, `google` and `email` register into, and that a plugin can add to.
 
-A provider sends the browser to its sign-in page (`authorize_url`, with `state` and a PKCE code challenge) and, when
+A redirect provider (GitHub, Google, most plugins) sends the browser to its sign-in page (`authorize_url`, with `state` and a PKCE code challenge) and, when
 the browser comes back with a code, trades it for the person's profile (`profile`). Only a verified email counts: a
-provider returns `email=None` when it has none, and sign-in is refused.
+provider returns `email=None` when it has none, and sign-in is refused. `email` doesn't redirect (`redirects = False`):
+it mails a link instead (`sopops.auth.email`), so the login and callback routes don't take it.
 
 **Plugins.** A package adds providers by registering them, either from code (`register(MyProvider())`) or through the
 `sopops.login_providers` entry point group, whose entries are loaded when the app starts (`load_plugins`). That's the
@@ -40,10 +41,12 @@ class ProviderError(Exception):
 
 
 class LoginProvider:
-    """One way to sign in. Subclasses set `id` and `label` and implement the three methods."""
+    """One way to sign in. Subclasses set `id` and `label` and implement the three methods (a provider that doesn't
+    redirect, like `email`, sets `redirects = False` and implements only `configured`)."""
 
     id: str = ""
     label: str = ""
+    redirects: bool = True
 
     def configured(self) -> bool:
         """Whether this sopops has what it needs (a client id and secret, say) to offer it."""
