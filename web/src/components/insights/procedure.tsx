@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Pencil, TriangleAlert } from "lucide-react";
 import type { InsightFilters, LadderRow, PatternOut, ProcedureInsights, RulePatternOut, RuleRef, SessionFilters, SplitRow, ThemeOut, WarningImpact } from "@/lib/api";
 import { q } from "@/lib/api";
-import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
+import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, insightsHref, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
@@ -251,9 +251,7 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
               <div key={p.pattern_id} className="mb-1.5">
                 <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} rule={p.rule} split={p.sub_patterns.some((s) => s.kind === "sub")} />
                 {p.rule?.text && (
-                  <div className="text-muted-foreground mb-0.5 text-xs">
-                    {ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}
-                  </div>
+                  <div className="text-muted-foreground mb-0.5 text-xs">{p.rule.text}</div>
                 )}
                 {p.sub_patterns
                   .filter((s) => s.findings > 0 || s.kind === "sub")

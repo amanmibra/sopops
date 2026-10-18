@@ -667,7 +667,7 @@ function AllPatterns({
                   {list.map(({ p, subs }) => (
                     <li key={p.pattern_id}>
                       <PatternRow p={p} depth={0} rule={p.rule} split={p.sub_patterns.some((x) => x.kind === "sub")} />
-                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs">{ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}</div>}
+                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs">{p.rule.text}</div>}
                       {subs.length > 0 && (
                         <ul className="ml-1 border-l pl-3">
                           {subs.map((s) => (

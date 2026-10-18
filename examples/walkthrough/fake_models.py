@@ -162,10 +162,15 @@ def check_rules(inputs: dict[str, Any]) -> dict[str, Any]:
     return {"rules": [judge(k, rules.get(k, ""), lines) for k in inputs["rules_to_check"]], "goal_reason": "Scripted check.", "goal_reached": "yes"}
 
 
+def headline(reason: str) -> str:
+    """A finding's reason up to its first sentence end or the note in parentheses sopops adds (a required tool step's)."""
+    return reason.split(".")[0].split(" (")[0].strip()
+
+
 def cluster(inputs: dict[str, Any]) -> dict[str, Any]:
     by_reason: dict[str, list[str]] = defaultdict(list)
     for f in inputs["findings"]:
-        by_reason[f.reason.split(".")[0].strip()].append(f.key)
+        by_reason[headline(f.reason)].append(f.key)
     modes = [{"name": r, "description": f"{r}.", "findings": keys} for r, keys in sorted(by_reason.items(), key=lambda kv: -len(kv[1])) if len(keys) >= 2]
     return {"modes": modes[:5]}
 
@@ -274,7 +279,7 @@ class WalkthroughModels(FakeModels):
         if "findings" in inputs:  # assignment: the mode named by the finding's reason
             out = {}
             for key, q in questions.items():
-                reason = str(inputs["findings"][key].get("reason", "")).split(".")[0].strip()
+                reason = headline(str(inputs["findings"][key].get("reason", "")))
                 out[key] = next((label for label, desc in q["criteria"].items() if desc and reason and desc.startswith(reason)), "other")
             return out
         if "procedures" in inputs:  # routing
