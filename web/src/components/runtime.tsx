@@ -1,6 +1,6 @@
 // Runtime delivery: each agent's delivery mode and the platform credentials (Settings), and push results (a release).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, PlugZap, RefreshCw, Send } from "lucide-react";
+import { Cable, Copy, PlugZap, RefreshCw, Send } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AgentDeliveryOut, type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
@@ -8,6 +8,7 @@ import { platformName, when } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { PlatformIcon, PlatformLabel } from "./brand-icon";
+import { ConnectGuide } from "./connect-guide";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -48,6 +49,20 @@ const keyOf = (ws: string, what: string) => ["ws", ws, "runtime", what];
 export function RuntimePanels() {
   return (
     <>
+      <Panel
+        title={
+          <span className="flex items-center gap-2">
+            <Cable className="size-4" /> What your agents need
+          </span>
+        }
+        className="mt-8"
+      >
+        <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+          Each agent gets its prompt from sopops and sends its sessions back so they can be checked. Some of this is set up here with no code, and some
+          needs a few lines in your agent.
+        </p>
+        <ConnectGuide />
+      </Panel>
       <DeliveryPanel />
       <PlatformsPanel />
     </>

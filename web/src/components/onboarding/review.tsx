@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { PlatformLabel } from "../brand-icon";
+import { ConnectGuide } from "../connect-guide";
 import { DiffView } from "../diff-view";
 import { SopcIntro, SopcReview } from "./sopc";
 import { ReviewSummary } from "./summary";
@@ -65,6 +66,15 @@ export function ImportView({ id }: { id: string }) {
         <Banner tone="ok">
           Applied as drafts. <HrefLink href={wsHref(ws, "changes")}>Review the unpublished changes</HrefLink>, then publish.
         </Banner>
+      )}
+      {(d.status === "applied" || d.pr_state === "merged") && (
+        <Panel title="Connect your agents">
+          <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+            After you publish, each agent gets its prompt from sopops and sends its sessions back to be checked. Here's what takes code in your agent and
+            what doesn't.
+          </p>
+          <ConnectGuide />
+        </Panel>
       )}
       {d.status === "discarded" && <Banner>This import was discarded. Nothing in {ws} changed.</Banner>}
       {d.proposal && d.status === "ready" && (d.source === "sopc" ? <SopcReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} />)}
