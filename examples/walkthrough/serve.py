@@ -14,6 +14,8 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -24,6 +26,15 @@ from fake_models import WalkthroughModels
 from sopops import Sopc, Store, create_app
 from sopops.ai.lm import configured, set_ai
 from sopops.jobs import Jobs
+
+
+SOPC_MIN = (0, 0, 17)
+
+
+def sopc_version(binary: str) -> tuple[int, ...]:
+    out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
+    m = re.search(r"(\d+)\.(\d+)\.(\d+)", out)
+    return tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
 
 
 def main() -> None:
@@ -44,7 +55,13 @@ def main() -> None:
 
     sopc = Sopc()
     if not sopc.binary:
-        sys.exit("sopc not found: install it (v0.0.17 or later) or set SOPC_BIN")
+        sys.exit(f"sopc not found: install v{'.'.join(map(str, SOPC_MIN))} or later, or set SOPC_BIN")
+    found = sopc_version(sopc.binary)
+    if found < SOPC_MIN:
+        sys.exit(
+            f"{sopc.binary} is sopc v{'.'.join(map(str, found))}; the walkthrough needs v{'.'.join(map(str, SOPC_MIN))} or later.\n"
+            "Update it (curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | sh) or point SOPC_BIN at a newer one."
+        )
     store = Store(args.database_url, sopc)
     if args.models == "fake":
         os.environ["SOPOPS_CHECK_MODE"] = "review"  # the scripted reviewer judges every rule
