@@ -200,7 +200,7 @@ Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issu
 
 ## Status
 
-v0, renamed from sopserve. **There is no authentication yet** except workspace tokens, which guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
+v0. **There is no authentication yet** except workspace tokens, which guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
 
 ## Roadmap
 

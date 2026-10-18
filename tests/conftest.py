@@ -57,7 +57,7 @@ def files():
 
 def fresh_db_url(tmp_path: Path, name: str = "test.db") -> str:
     """SQLite by default; with SOPOPS_TEST_DATABASE_URL, that Postgres database with its tables dropped first."""
-    url = os.environ.get("SOPOPS_TEST_DATABASE_URL") or os.environ.get("SOPSERVE_TEST_DATABASE_URL")  # old name still read
+    url = os.environ.get("SOPOPS_TEST_DATABASE_URL")
     if url:
         engine = engine_from_url(url)
         metadata.drop_all(engine)

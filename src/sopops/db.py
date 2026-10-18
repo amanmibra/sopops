@@ -20,12 +20,8 @@ INITIAL = "0001"
 
 
 def database_url() -> str:
-    """DATABASE_URL, else ./sopops.db (or ./sopserve.db, the pre-rename default, if only that exists)."""
-    if url := os.environ.get("DATABASE_URL"):
-        return url
-    if not Path("sopops.db").exists() and Path("sopserve.db").exists():
-        return "sqlite:///sopserve.db"
-    return "sqlite:///sopops.db"
+    """DATABASE_URL, else ./sopops.db."""
+    return os.environ.get("DATABASE_URL") or "sqlite:///sopops.db"
 
 
 def engine_from_url(url: str, **kw) -> Engine:

@@ -1,8 +1,8 @@
-// Per-browser preferences in localStorage. Keys from before the rename (sopserve.*) are still read.
+// Per-browser preferences in localStorage.
 export const prefs = {
   get(key: string): string | null {
     try {
-      return localStorage.getItem(`sopops.${key}`) ?? localStorage.getItem(`sopserve.${key}`);
+      return localStorage.getItem(`sopops.${key}`);
     } catch {
       return null;
     }
