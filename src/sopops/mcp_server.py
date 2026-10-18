@@ -16,7 +16,9 @@ Environment (set by the MCP host, e.g. `claude mcp add sopops --env SOPOPS_URL=.
 
 from __future__ import annotations
 
+import argparse
 import functools
+import sys
 import os
 import shutil
 from pathlib import Path
@@ -29,7 +31,7 @@ from pydantic import ValidationError
 
 from .ai.lm import AI, RULES, Models, model_for
 from .ai.signatures import SegmentPrompt, StructureProcedure
-from .onboarding import fidelity, platforms
+from .onboarding import fidelity, kickoff, platforms
 from .onboarding import text as tx
 from .onboarding.fidelity import files_of
 from .onboarding.pipeline import extract, guide_text
@@ -37,7 +39,7 @@ from .onboarding.rules import RulesModels
 from .onboarding.types import Finding, Proposal, ProposalContent, SourcePrompt
 from .sopc import Invalid, Sopc, SopcUnavailable
 
-INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_extraction_guide. Only read from the user's systems and platforms;
+INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_kickoff and follow it. Only read from the user's systems and platforms;
 never change, deploy or delete anything there. Report progress with report_progress as you go."""
 
 
@@ -103,6 +105,16 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     env = dict(os.environ) if env is None else env
     sopops = SopopsClient(env.get("SOPOPS_URL"), env.get("SOPOPS_TOKEN"), transport)
     server = MCPServer("sopops", instructions=INSTRUCTIONS)
+
+    @server.tool()
+    @_explained
+    def get_kickoff() -> str:
+        """Start here: how to onboard this project's agents into sopops (the sopops-onboard skill), and this session's
+        workspace, server and mode."""
+        session = None
+        if sopops.connected:
+            session = {**sopops.call("GET", "/v1/onboarding/session"), "server_url": sopops.url}
+        return kickoff.instructions(session)
 
     @server.tool()
     @_explained
@@ -229,7 +241,19 @@ def _ai_for(env: dict[str, str]) -> AI | None:
     return Models({"reasoning": model, "fast": model_for("fast", env) or model}) if model else None
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
+    """`sopops-mcp`: the MCP server on stdio. `sopops-mcp install-skill [--claude] [--codex]`: copy the onboarding skill
+    into this repo (.claude/skills, .agents/skills; both by default)."""
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ["install-skill"]:
+        parser = argparse.ArgumentParser(prog="sopops-mcp install-skill", description="Copy the sopops-onboard skill into this repo.")
+        parser.add_argument("--claude", action="store_true", help="Claude Code: .claude/skills/sopops-onboard/SKILL.md")
+        parser.add_argument("--codex", action="store_true", help="Codex (and OpenCode): .agents/skills/sopops-onboard/SKILL.md")
+        args = parser.parse_args(argv[1:])
+        agents = [a for a in ("claude", "codex") if getattr(args, a)] or ["claude", "codex"]
+        for path in kickoff.install_skill(Path.cwd(), agents):
+            print(f"wrote {path}")
+        return
     make_server().run("stdio")
 
 

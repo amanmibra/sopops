@@ -9,7 +9,7 @@ The `sopops-mcp` server does the compiling and checking; you do the finding and 
 
 ## Setup (once)
 
-The sopops **Import agents** page (Use Claude Code / Codex) gives you the exact commands, with the server URL and a 2-hour onboarding token filled in. By hand:
+The sopops **Import agents** page (Use Claude Code / Codex) gives you one command that adds the MCP server, with the server URL and a 2-hour onboarding token filled in, and starts the agent on this skill. By hand:
 
 ```sh
 # Claude Code
@@ -33,6 +33,7 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 
 | Tool | What it does |
 |---|---|
+| `get_kickoff()` | This skill, plus the session: workspace, server and mode (and the repo step in repo mode). |
 | `get_extraction_guide()` | The extraction rules, the proposal's JSON schema, and the session (workspace, hosted or repo mode). |
 | `list_platform_agents(platform)` | ElevenLabs or Vapi agents, with the key from the environment. |
 | `get_agent_prompt(platform, id)` | One agent's prompt and tool names. |
@@ -44,11 +45,15 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 
 ## Flow
 
-1. `get_extraction_guide`, then `report_progress` at each step.
-2. Find every agent's prompt, read-only. Resolve templating so each original is the exact text the model gets. Note platform, platform id and tool names.
-3. Build the proposal (or start from `propose_extraction`). Preserve wording; never drop text (unplaceable text goes in the agent's context).
-4. `check_fidelity` until every agent passes, or explain what's left.
-5. `push_to_sopops` with the originals and your drift findings. The user applies it as drafts and publishes from sopops.
-6. Repo mode only (the session says `"mode": "repo"`): `write_sopc_project`, then open a PR (`gh pr create`) with the agents, blocks, drift and fidelity scores. Don't merge it.
+Onboard this project's voice agents into the sopops workspace this session is for (see "This session" in `get_kickoff`). The sopops MCP server does the compiling and checking.
+
+1. Call `get_extraction_guide` and follow it. Call `report_progress` with a short message at each step below, so the person watching the sopops page can follow along.
+2. Find every agent's instructions, wherever they live: agent code, prompt files, env or config, or a database (query it read-only with this project's existing tooling). For ElevenLabs or Vapi agents, `list_platform_agents` and `get_agent_prompt` read them if the key is set. Resolve templating so each original is the exact text the model gets. Note platform, platform id and tool names.
+3. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
+4. Call `check_fidelity` with the proposal and the original prompts. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
+5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
+6. Repo mode only (the session says so): `write_sopc_project`, then open a PR (`gh pr create`) with the agents, blocks, drift and fidelity scores. Don't merge it.
+
+Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score.
 
 Never change, deploy or delete anything on a platform or in a database, and never print or copy keys or the token.

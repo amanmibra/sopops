@@ -85,14 +85,17 @@ Every model call is a typed [DSPy](https://dspy.ai) signature (`src/sopops/ai/si
 
 Already running agents? **Import** (in the sidebar, on an empty workspace, or in Settings) turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule ("2 agents differ on the upsell rule"), you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish from Unpublished changes as usual.
 
-**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else), one command and a prompt to paste:
+**With Claude Code or Codex (recommended).** sopops gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else) and one command to run in your agents' repo. It adds the sopops MCP server and starts your coding agent:
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
+  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp \
+  && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
-Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. See [skills/sopops-onboard](skills/sopops-onboard/SKILL.md) for the tools and Cursor setup.
+(Codex: the same with `codex mcp add` and `codex "…"`.) `get_kickoff` returns the instructions, [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md) as bundled with the installed sopops-mcp, plus your session (workspace, mode). To install the skill in the repo instead, run `uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp install-skill` (`--claude` for `.claude/skills`, `--codex` for `.agents/skills`; both by default), then start the agent with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`.
+
+Your agent finds the instructions wherever they live (code, prompt files, config, a database), extracts them with the `sopops-mcp` tools, checks fidelity, and pushes the result, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. The skill lists the tools and the Cursor setup.
 
 **Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`). ElevenLabs and Vapi keys are used to read the agents during that request and are never stored or logged.
 

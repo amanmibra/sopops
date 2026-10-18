@@ -179,7 +179,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
         <details open={!imp.proposal}>
           <summary className="text-muted-foreground mb-2 cursor-pointer text-[13px]">{imp.proposal ? "Commands and prompt" : "How to start"}</summary>
           <p className="mb-3 max-w-[80ch] text-[13px]">
-            In a terminal at the root of your agents' repo, add the sopops tools to your coding agent, then start it and paste the prompt. The token below is shown only now.
+            In a terminal at the root of your agents' repo, run this. It adds the sopops tools to your coding agent and starts it on the onboarding instructions. The token in it is shown only now.
           </p>
           <div className="mb-3">
             <Segmented
@@ -192,16 +192,14 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
               ]}
             />
           </div>
-          {tool === "claude" ? (
-            <CopyBlock label="1. Add the sopops MCP server" text={kickoff.claude_code} />
-          ) : (
-            <>
-              <CopyBlock label="1. Add the sopops MCP server" text={kickoff.codex} />
-              <CopyBlock label="Or add it to ~/.codex/config.toml" text={kickoff.codex_toml} />
-            </>
+          <CopyBlock label="Run in your agents' repo" text={tool === "claude" ? kickoff.claude_code : kickoff.codex} />
+          {tool === "codex" && (
+            <details className="mb-3">
+              <summary className="text-muted-foreground cursor-pointer text-[13px]">Or add the server to ~/.codex/config.toml</summary>
+              <CopyBlock label="config.toml" text={kickoff.codex_toml} />
+            </details>
           )}
-          <EditableCopy label="2. Recommended settings" initial={kickoff.settings} help="Suggestions; edit them for your setup." />
-          <EditableCopy label="3. Paste this prompt" initial={kickoff.prompt} />
+          <EditableCopy label="Recommended settings" initial={kickoff.settings} help="Suggestions; edit them for your setup." />
         </details>
       ) : (
         <Note>

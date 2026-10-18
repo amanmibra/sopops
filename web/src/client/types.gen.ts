@@ -1561,25 +1561,25 @@ export type Kickoff = {
     /**
      * Claude Code
      *
-     * Adds the sopops MCP server to Claude Code.
+     * One command: adds the sopops MCP server to Claude Code and starts it on `prompt`.
      */
     claude_code: string;
     /**
      * Codex
      *
-     * Adds it to Codex.
+     * The same for Codex.
      */
     codex: string;
     /**
      * Codex Toml
      *
-     * The same, as ~/.codex/config.toml lines.
+     * The MCP server as ~/.codex/config.toml lines.
      */
     codex_toml: string;
     /**
      * Prompt
      *
-     * What to paste into the coding agent.
+     * The prompt the commands start the agent with: call get_kickoff and follow it.
      */
     prompt: string;
     /**

@@ -12,7 +12,7 @@ from test_onboarding import FIXTURES, sources
 
 from sopops.mcp_server import make_server
 
-TOOLS = {"get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "write_sopc_project"}
+TOOLS = {"get_kickoff", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "write_sopc_project"}
 
 
 def call(server, name, **args):
@@ -74,6 +74,8 @@ def test_push_and_progress_through_sopops(client):
     started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
     server = make_server({"SOPOPS_URL": "http://sopops.test", "SOPOPS_TOKEN": started["token"], "SOPOPS_MODEL_REASONING": "rules", "SOPC_BIN": SOPC_BIN}, transport=to_app(client))
     assert call(server, "get_extraction_guide")["session"]["workspace"] == "demo"
+    kick = call(server, "get_kickoff")
+    assert "# Onboard voice agents into sopops" in kick and "Workspace: `demo`" in kick and "http://sopops.test" in kick
     assert call(server, "report_progress", step="find", message="Found 4 prompts in prompts/")["ok"]
     proposal = call(server, "propose_extraction", prompts=prompts())["proposal"]
     remote = call(server, "check_fidelity", proposal=proposal, originals=proposal["originals"])

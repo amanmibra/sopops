@@ -1,22 +1,30 @@
-"""What the user pastes to start a coding agent (Claude Code or Codex) on onboarding: the MCP setup command with the
-server URL and onboarding token filled in, the prompt (`kickoff.md`), and recommended settings (editable text)."""
+"""Starting a coding agent (Claude Code or Codex) on onboarding.
+
+The UI gives one command per agent that adds the sopops MCP server (server URL and onboarding token filled in) and
+starts the agent with a short prompt: call `get_kickoff` and follow it. `get_kickoff` returns the onboarding skill
+(`skills/sopops-onboard/SKILL.md`, the single source of the instructions, bundled with the package so it matches the
+installed version) plus this session's details: workspace, server, mode, and the repo step in repo mode.
+"""
 
 from __future__ import annotations
 
 import os
+import re
 import shlex
 from pathlib import Path
-from string import Template
 
-TEMPLATE = Path(__file__).parent / "kickoff.md"
 # Until sopops is on PyPI, uvx installs the MCP server from the repo. SOPOPS_MCP_SOURCE overrides it.
 DEFAULT_SOURCE = "git+https://github.com/amanmibra/sopops@v0"
+SKILL_NAME = "sopops-onboard"
+PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
+# Installed as a skill (`sopops-mcp install-skill`), the prompt can be the skill itself.
+SKILL_PROMPT = {"claude": f"/{SKILL_NAME}", "codex": f"${SKILL_NAME}"}
+SKILL_DIRS = {"claude": Path(".claude/skills"), "codex": Path(".agents/skills")}  # Codex (and OpenCode) read .agents/skills
 
-REPO_STEP = """6. Repo setup (the user opted in; target: $repo): write the same proposal as a sopc project at `sops/` with
-   `write_sopc_project`, run `sopc validate` there if the sopc CLI is installed, and open a pull request (with `gh pr create`
-   if it's available, otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where
-   each prompt was found, the blocks extracted, drift found, and each agent's fidelity score. Don't merge it.
-"""
+REPO_STEP = """Repo mode (the user opted in; target: {repo}): after pushing, write the same proposal as a sopc project at `sops/`
+with `write_sopc_project`, run `sopc validate` there if the sopc CLI is installed, and open a pull request (with
+`gh pr create` if it's available, otherwise say how) titled "Add sopc project for sopops". In its description: the agents
+and where each prompt was found, the blocks extracted, drift found, and each agent's fidelity score. Don't merge it."""
 
 SETTINGS = (
     "Claude Code: use the strongest model you have (for example /model opus) and accept edits automatically (Shift+Tab).\n"
@@ -28,12 +36,47 @@ def mcp_source() -> str:
     return os.environ.get("SOPOPS_MCP_SOURCE") or DEFAULT_SOURCE
 
 
-def prompt(workspace: str, server_url: str, mode: str = "hosted", repo: str | None = None) -> str:
-    repo_step = Template(REPO_STEP).safe_substitute(repo=repo or "this repository") if mode == "repo" else ""
-    return Template(TEMPLATE.read_text()).safe_substitute(workspace=workspace, server_url=server_url, repo_step=repo_step).replace("\n\n\n", "\n\n").strip() + "\n"
+def skill_path() -> Path:
+    """SKILL.md: bundled in the package (wheels, uvx), else the repo's `skills/` (a clone or an editable install)."""
+    bundled = Path(__file__).parent / "SKILL.md"
+    return bundled if bundled.is_file() else Path(__file__).resolve().parents[3] / "skills" / SKILL_NAME / "SKILL.md"
+
+
+def skill_text() -> str:
+    return skill_path().read_text()
+
+
+def skill_body() -> str:
+    """SKILL.md without its frontmatter."""
+    return re.sub(r"\A---\n.*?\n---\n", "", skill_text(), count=1, flags=re.S).strip() + "\n"
+
+
+def instructions(session: dict | None) -> str:
+    """What `get_kickoff` returns: the skill, then this session's details (when the MCP server is connected)."""
+    if not session or "workspace" not in session:
+        return skill_body() + "\n## This session\n\nNot connected to sopops (no SOPOPS_URL / SOPOPS_TOKEN): you can extract and check locally, but not push.\n"
+    lines = ["", "## This session", "", f"- Workspace: `{session['workspace']}`.", f"- Mode: {session.get('mode', 'hosted')}."]
+    if session.get("server_url"):
+        lines.append(f"- sopops: {session['server_url']}")
+    if session.get("mode") == "repo":
+        lines += ["", REPO_STEP.format(repo=session.get("repo") or "this repository")]
+    return skill_body() + "\n".join(lines) + "\n"
+
+
+def install_skill(root: Path, agents: list[str]) -> list[Path]:
+    """Copy SKILL.md into the repo for each agent (`claude`, `codex`). Returns the files written."""
+    out = []
+    for agent in agents:
+        target = root / SKILL_DIRS[agent] / SKILL_NAME / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(skill_text())
+        out.append(target)
+    return out
 
 
 def kickoff(workspace: str, server_url: str, token: str, mode: str = "hosted", repo: str | None = None) -> dict:
+    """The one-line commands (add the MCP server, then start the agent on the prompt), the Codex config as TOML, and
+    recommended settings. `workspace`, `mode` and `repo` reach the agent through `get_kickoff`."""
     url = server_url.rstrip("/")
     source = mcp_source()
     env = ["--env", f"SOPOPS_URL={url}", "--env", f"SOPOPS_TOKEN={token}"]
@@ -45,10 +88,10 @@ def kickoff(workspace: str, server_url: str, token: str, mode: str = "hosted", r
         f'env = {{ SOPOPS_URL = "{url}", SOPOPS_TOKEN = "{token}" }}\n'
     )
     return {
-        "claude_code": shlex.join(["claude", "mcp", "add", "sopops", *env, *run]),
-        "codex": shlex.join(["codex", "mcp", "add", "sopops", *env, *run]),
+        "claude_code": shlex.join(["claude", "mcp", "add", "sopops", *env, *run]) + " && " + shlex.join(["claude", PROMPT]),
+        "codex": shlex.join(["codex", "mcp", "add", "sopops", *env, *run]) + " && " + shlex.join(["codex", PROMPT]),
         "codex_toml": toml,
-        "prompt": prompt(workspace, url, mode, repo),
+        "prompt": PROMPT,
         "settings": SETTINGS,
         "mcp_source": source,
     }

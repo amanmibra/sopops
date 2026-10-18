@@ -66,10 +66,10 @@ class ImportOut(BaseModel):
 
 
 class Kickoff(BaseModel):
-    claude_code: str = Field(description="Adds the sopops MCP server to Claude Code.")
-    codex: str = Field(description="Adds it to Codex.")
-    codex_toml: str = Field(description="The same, as ~/.codex/config.toml lines.")
-    prompt: str = Field(description="What to paste into the coding agent.")
+    claude_code: str = Field(description="One command: adds the sopops MCP server to Claude Code and starts it on `prompt`.")
+    codex: str = Field(description="The same for Codex.")
+    codex_toml: str = Field(description="The MCP server as ~/.codex/config.toml lines.")
+    prompt: str = Field(description="The prompt the commands start the agent with: call get_kickoff and follow it.")
     settings: str = Field(description="Recommended settings, as editable text.")
     mcp_source: str
 

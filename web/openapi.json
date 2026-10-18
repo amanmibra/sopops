@@ -10167,22 +10167,22 @@
           "claude_code": {
             "type": "string",
             "title": "Claude Code",
-            "description": "Adds the sopops MCP server to Claude Code."
+            "description": "One command: adds the sopops MCP server to Claude Code and starts it on `prompt`."
           },
           "codex": {
             "type": "string",
             "title": "Codex",
-            "description": "Adds it to Codex."
+            "description": "The same for Codex."
           },
           "codex_toml": {
             "type": "string",
             "title": "Codex Toml",
-            "description": "The same, as ~/.codex/config.toml lines."
+            "description": "The MCP server as ~/.codex/config.toml lines."
           },
           "prompt": {
             "type": "string",
             "title": "Prompt",
-            "description": "What to paste into the coding agent."
+            "description": "The prompt the commands start the agent with: call get_kickoff and follow it."
           },
           "settings": {
             "type": "string",
