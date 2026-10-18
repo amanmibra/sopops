@@ -426,7 +426,7 @@ export function ActionBar({
         </Banner>
       )}
       <div className="bg-background/90 sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-2.5 border-t py-3 backdrop-blur-sm">
-        <Button type="button" onClick={() => save()}>
+        <Button type="button" disabled={!isNew && !dirty.dirty} onClick={() => save()}>
           {isNew ? `Create ${KIND[kind].one.toLowerCase()}` : "Save draft"}
         </Button>
         <Input
@@ -435,7 +435,7 @@ export function ActionBar({
           aria-label="Note for this change"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && save()}
+          onKeyDown={(e) => e.key === "Enter" && (isNew || dirty.dirty) && save()}
         />
         <span className={cn("text-[13px]", dirty.dirty ? "text-warn" : "text-muted-foreground")}>
           {dirty.dirty ? "Unsaved edits: not a draft yet" : inDraft ? "Saved as a draft, not published yet" : isNew ? "" : "Saved edits are drafts until you publish."}

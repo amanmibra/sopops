@@ -21,9 +21,9 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string 
     ],
   },
   {
-    heading: "Prompts",
+    heading: "Instructions",
     items: [
-      { section: "defaults", label: "Prompt defaults" },
+      { section: "defaults", label: "Instruction defaults" },
       { section: "history", label: "History" },
     ],
   },

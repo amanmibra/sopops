@@ -10,7 +10,7 @@ function SettingsHistory() {
       kind="settings"
       id="settings"
       head={
-        <SectionHead title="Earlier versions of the prompt defaults">
+        <SectionHead title="Earlier versions of the instruction defaults">
           Pick a version to see what changed since. You can restore it into the form.
         </SectionHead>
       }
