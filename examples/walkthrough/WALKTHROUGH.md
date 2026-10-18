@@ -79,11 +79,13 @@ Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`
 ```sh
 cd examples/walkthrough/agent/before
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8585 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp \
+  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
-(To run the MCP server from this clone instead of the published tag, start sopops with `SOPOPS_MCP_SOURCE=$PWD` from the repo root; the command then says `--from <your clone>`.) The agent reads `prompts.py`, builds a proposal with the `sopops-mcp` tools, checks fidelity and pushes it; you watch its progress on the import page. Expect roughly what `onboarding/proposal.json` holds: 4 agents, 3 shared instructions, 3 procedures (4 until the drift is resolved), variables for the restaurant name, allergen link and who to transfer to.
+(To run the MCP server from this clone instead of GitHub's `main`, start sopops with `SOPOPS_MCP_SOURCE=$PWD` from the repo root; the command then says `--from <your clone>`.) The agent reads `prompts.py`, builds a proposal with the `sopops-mcp` tools, checks fidelity and pushes it; you watch its progress on the import page. Expect roughly what `onboarding/proposal.json` holds: 4 agents, 3 shared instructions, 3 procedures (4 until the drift is resolved), variables for the restaurant name, allergen link and who to transfer to.
+
+This is **In sopops** (hosted) mode, which leaves the repo alone. **In my repo too** keeps the instructions in a GitHub repository as well: connect it on the same page (the form from Settings → GitHub; the folder defaults to `sops`), and sopops looks there first. A sopc project sopc builds is offered with **Import it**; with none, the kickoff also tells the agent to open the onboarding pull request adding `sops/` and report it, and the import page follows that PR: when you merge it, sopops pulls `sops/` into drafts and says **Publish your first release**. A folder sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it. The walkthrough's sample repo isn't on GitHub, so the steps below stay hosted.
 
 **Without a coding agent.** Push the prepared proposal over the same API, with the originals built by `prompts.py` itself:
 

@@ -6,6 +6,7 @@ import hashlib
 import json
 import logging
 import re
+from datetime import timedelta
 
 import httpx
 import pytest
@@ -17,7 +18,11 @@ from sqlmodel import Session
 from sopops import github
 from sopops.errors import NotFound
 from sopops.github import GitHubError
+from sopops.mcp_server import make_server
+from sopops.onboarding import kickoff, pulls
 from sopops.orm import RepoConnection
+from test_mcp import call as mcp_call
+from test_mcp import to_app
 from test_review import PATH, SAFE, env, rule_pattern  # noqa: F401 (env is a fixture)
 
 API = "https://api.github.com"
@@ -375,3 +380,141 @@ def test_applying_a_suggestion_opens_a_pull_request(env):
     assert pr["title"].startswith("allergen-check: ") and "Suggested by sopops." in pr["body"]
     assert fake.files(pr["head"])[f"sops/{PATH}"] == fixed
     assert env.client.get(f"{WS}/files/{PATH}").json()["content"] == env.files[PATH]  # no draft edit
+
+
+# --- onboarding: connect, look for the project, follow the onboarding pull request --------------------------------
+
+
+@pytest.fixture
+def bare():
+    """A repo without a sopc project: only a README."""
+    fake = FakeGitHub({"README.md": "# agents\n", "agent.py": "PROMPT = 'Be kind.'\n"})
+    with respx.mock(assert_all_called=False) as router:
+        fake.install(router)
+        yield fake
+
+
+def start_repo_onboarding(client):
+    res = client.post(f"{WS}/imports/agent", json={"mode": "repo", "server_url": "http://sopops.test"})
+    assert res.status_code == 201, res.text
+    return res.json()
+
+
+def test_onboarding_connects_before_there_is_a_project(client, bare):
+    assert connect(client).status_code == 400  # Settings still asks for one
+    res = connect(client, require_project=False)
+    assert res.status_code == 200, res.text
+    found = client.get(f"{WS}/repo/project").json()
+    assert found["state"] == "missing" and found["repo"] == "acme/agents" and found["path"] == "sops" and found["files"] == 0 and found["agents"] == []
+    assert found["sha"] == bare.refs["main"]
+    # Repo mode is told to open the onboarding PR, with the repository, branch and folder.
+    started = start_repo_onboarding(client)
+    imp = started["import"]
+    assert (imp["repo"], imp["repo_branch"], imp["repo_path"], imp["repo_project"], imp["pr_url"]) == ("acme/agents", "main", "sops", "missing", None)
+    assert "uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp" in started["kickoff"]["claude_code"]
+    events = client.get(f"{WS}/imports/{imp['id']}/events").json()
+    assert "propose a pull request adding a sopc project at sops/ on main. Nothing merges without you." in events[-1]["message"]
+    session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()
+    assert (session["repo"], session["repo_branch"], session["repo_path"], session["repo_project"]) == ("acme/agents", "main", "sops", "missing")
+
+
+def test_repo_mode_needs_a_working_connection(client, bare):
+    res = client.post(f"{WS}/imports/agent", json={"mode": "repo", "server_url": "http://sopops.test"})
+    assert res.status_code == 400 and "connect one first" in res.json()["detail"]
+    connect(client, require_project=False)
+    bare.fail[("GET", f"{REPO}/branches/main")] = httpx.Response(401, json={"message": "Bad credentials"})
+    res = client.post(f"{WS}/imports/agent", json={"mode": "repo", "server_url": "http://sopops.test"})
+    assert res.status_code == 400 and "refused the token" in res.json()["detail"]
+    assert client.get(f"{WS}/imports").json() == []  # no import, no token
+
+
+def test_a_valid_project_is_found_and_imported(client, gh, files):
+    connect(client, require_project=False)
+    found = client.get(f"{WS}/repo/project").json()
+    assert found["state"] == "valid" and found["files"] == len(files) and "tonys-pizza" in found["agents"]
+    assert not [i for i in found["issues"] if i["severity"] == "error"]
+    imp = client.post(f"{WS}/imports/sopc", json={"from_repo": True}).json()
+    assert imp["source"] == "sopc" and imp["status"] == "ready" and imp["repo"].startswith("acme/agents@")
+    # A coding agent anyway: it's told the repo already has a project, and not to open a PR.
+    started = start_repo_onboarding(client)
+    assert started["import"]["repo_project"] == "valid"
+    session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()
+    assert "don't open a pull request" in kickoff.instructions(session)
+
+
+def test_an_invalid_project_shows_sopcs_errors(client, gh, files):
+    gh.push("main", {"sops/agents/tonys-pizza.yaml": files["agents/tonys-pizza.yaml"].replace("  - closing\n", "  - no-such-block\n")})
+    connect(client, require_project=False)
+    found = client.get(f"{WS}/repo/project").json()
+    assert found["state"] == "invalid" and found["agents"] == []
+    errors = [i for i in found["issues"] if i["severity"] == "error"]
+    assert errors and any("no-such-block" in i["message"] for i in errors) and all(i["text"] for i in errors)
+    started = start_repo_onboarding(client)
+    assert started["import"]["repo_project"] == "invalid"
+    session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()
+    assert "can't build; replace its files" in kickoff.instructions(session)
+
+
+def test_the_onboarding_pull_request_is_followed_and_pulled_when_merged(client, bare, files, monkeypatch):
+    connect(client, require_project=False)
+    started = start_repo_onboarding(client)
+    id, auth = started["import"]["id"], {"Authorization": f"Bearer {started['token']}"}
+    # What the coding agent does: a branch with sops/, a pull request, then report it.
+    bare.refs["sopops-onboarding"] = bare.refs["main"]
+    bare.push("sopops-onboarding", {f"sops/{p}": c for p, c in files.items()})
+    bare.pulls.append({"number": 1, "head": "sopops-onboarding", "base": "main", "state": "open", "merged": False})
+    url = "https://github.com/acme/agents/pull/1"
+
+    bad = client.post("/v1/onboarding/pull-request", headers=auth, json={"url": "https://github.com/someone/else/pull/1"})
+    assert bad.status_code == 400 and "connected to acme/agents" in bad.json()["detail"]
+    assert client.post("/v1/onboarding/pull-request", headers=auth, json={"url": "not a url"}).status_code == 400
+    got = client.post("/v1/onboarding/pull-request", headers=auth, json={"url": url})
+    assert got.status_code == 200 and got.json()["pr_url"] == url and got.json()["pr_state"] == "open"
+    assert client.get("/v1/onboarding/session", headers=auth).json()["pr_url"] == url
+
+    store = store_of(client)
+    assert pulls.sync(store, force=True) == {"merged": 0, "closed": 0, "open": 1, "failed": 0}
+    assert store.head("demo") == []
+
+    # Merged: reading the import (or the cron) pulls the folder into drafts and finishes the import.
+    assert client.get(f"{WS}/imports/{id}").json()["pr_state"] == "open"
+    monkeypatch.setattr(pulls, "PR_CHECK_EVERY", timedelta(0))  # a minute later
+    bare.push("main", {f"sops/{p}": c for p, c in files.items()})
+    bare.pulls[0].update(state="closed", merged=True)
+    imp = client.get(f"{WS}/imports/{id}").json()
+    assert imp["pr_state"] == "merged" and imp["pr_merged_at"] and imp["status"] == "applied" and imp["error"] is None
+    assert {f["path"] for f in store.head("demo")} == set(files)
+    assert client.get(f"{WS}/repo").json()["pulled_sha"] == bare.refs["main"]
+    assert "Your onboarding PR merged. Pulled acme/agents@" in client.get(f"{WS}/imports/{id}/events").json()[-1]["message"]
+    assert client.get("/v1/onboarding/session", headers=auth).status_code == 401  # the token ended
+    assert pulls.sync(store, force=True) == {"merged": 0, "closed": 0, "open": 0, "failed": 0}
+
+
+def test_a_closed_onboarding_pull_request_is_only_noted(client, bare):
+    connect(client, require_project=False)
+    started = start_repo_onboarding(client)
+    id, auth = started["import"]["id"], {"Authorization": f"Bearer {started['token']}"}
+    bare.pulls.append({"number": 1, "state": "open", "merged": False})
+    client.post("/v1/onboarding/pull-request", headers=auth, json={"url": "https://github.com/acme/agents/pull/1"})
+    bare.pulls[0]["state"] = "closed"
+    assert pulls.sync(store_of(client), "demo", force=True)["closed"] == 1
+    imp = client.get(f"{WS}/imports/{id}").json()
+    assert imp["pr_state"] == "closed" and imp["status"] == "waiting" and store_of(client).head("demo") == []
+
+
+def test_hosted_mode_has_no_onboarding_pull_request(client):
+    started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
+    res = client.post("/v1/onboarding/pull-request", headers={"Authorization": f"Bearer {started['token']}"}, json={"url": "https://github.com/acme/agents/pull/1"})
+    assert res.status_code == 400 and "isn't in repo mode" in res.json()["detail"]
+
+
+def test_the_coding_agent_reports_the_pull_request_through_mcp(client, bare):
+    connect(client, require_project=False)
+    started = start_repo_onboarding(client)
+    server = make_server({"SOPOPS_URL": "http://sopops.test", "SOPOPS_TOKEN": started["token"]}, transport=to_app(client))
+    kick = mcp_call(server, "get_kickoff")
+    assert "`acme/agents`, branch `main`, folder `sops/`" in kick and "report_pull_request" in kick
+    bare.pulls.append({"number": 1, "state": "open", "merged": False})
+    out = mcp_call(server, "report_pull_request", url="https://github.com/acme/agents/pull/1")
+    assert out["pr_url"] == "https://github.com/acme/agents/pull/1" and out["pr_state"] == "open"
+    assert client.get(f"{WS}/imports/{started['import']['id']}").json()["pr_url"] == out["pr_url"]

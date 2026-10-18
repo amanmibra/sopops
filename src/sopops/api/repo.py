@@ -7,7 +7,7 @@ from fastapi import APIRouter, Response
 
 from .. import github
 from ..errors import NotFound
-from ..schemas.repo import PullOut, RepoIn, RepoOut
+from ..schemas.repo import PullOut, RepoIn, RepoOut, RepoProjectOut
 from ..store import Store
 from .deps import INVALID, OPEN
 
@@ -33,9 +33,17 @@ def router(store: Store) -> APIRouter:
 
     @r.post(path, response_model=RepoOut, dependencies=OPEN, tags=["repo"], responses=GITHUB)
     def connect_repo(workspace: str, req: RepoIn) -> dict:
-        """Connect a GitHub repository, or change the connection. Checks that the token can read the repository and that
-        `path` on `base_branch` holds a sopc project (sopc.yaml); the token is stored encrypted with SOPOPS_SECRET_KEY."""
-        return github.connect(store, workspace, req.owner, req.repo, req.token, req.base_branch, req.path)
+        """Connect a GitHub repository, or change the connection. Checks that the token can read the repository and the
+        branch and (unless `require_project` is false) that `path` on `base_branch` holds a sopc project (sopc.yaml);
+        the token is stored encrypted with SOPOPS_SECRET_KEY."""
+        return github.connect(store, workspace, req.owner, req.repo, req.token, req.base_branch, req.path, req.require_project)
+
+    @r.get(f"{path}/project", response_model=RepoProjectOut, dependencies=OPEN, tags=["repo"], responses={**GITHUB, 404: {"description": "No repository connected."}})
+    def inspect_repo_project(workspace: str) -> dict:
+        """What the connected folder holds at the base branch's head, compiled with sopc: `missing`, `invalid` (with
+        sopc's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and
+        having a coding agent propose one."""
+        return github.inspect_project(store, workspace)
 
     @r.delete(path, status_code=204, dependencies=OPEN, tags=["repo"], responses={404: {"description": "No repository connected."}})
     def disconnect_repo(workspace: str) -> Response:

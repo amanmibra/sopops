@@ -312,7 +312,7 @@ def test_platform_clients_read_prompts_and_tools():
 
 
 def start_agent(client, **kw):
-    res = client.post(f"{IMPORTS}/agent", json={"mode": "repo", "repo": "github.com/example/agents", "server_url": "http://sopops.test", **kw})
+    res = client.post(f"{IMPORTS}/agent", json={"mode": "hosted", "server_url": "http://sopops.test", **kw})
     assert res.status_code == 201, res.text
     return res.json()
 
@@ -332,7 +332,7 @@ def test_onboarding_token_flow(client, proposal):
         assert token not in json.dumps(db.get(ImportRecord, id).model_dump(), default=str)
     auth = {"Authorization": f"Bearer {token}"}
     session = client.get("/v1/onboarding/session", headers=auth).json()
-    assert session["workspace"] == "demo" and session["mode"] == "repo" and session["repo"] == "github.com/example/agents"
+    assert session["workspace"] == "demo" and session["mode"] == "hosted" and session["repo"] is None and session["pr_url"] is None
 
     assert client.post("/v1/onboarding/progress", headers=auth, json={"step": "find", "message": "Found 4 agents in agents/*.py"}).status_code == 200
     assert client.get(f"{IMPORTS}/{id}").json()["status"] == "running"
@@ -404,10 +404,10 @@ def test_stream_sends_progress_then_ends(client):
 
 def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monkeypatch, tmp_path):
     monkeypatch.delenv("SOPOPS_MCP_SOURCE", raising=False)
-    k = kickoff.kickoff("prod", "https://sopops.example/", "sopops_onb_abc", mode="repo", repo="github.com/example/agents")
+    k = kickoff.kickoff("prod", "https://sopops.example/", "sopops_onb_abc")
     assert k["claude_code"] == (
         "claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_abc "
-        "-- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp "
+        "-- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp "
         "&& claude 'Onboard this project'\"'\"'s agents into sopops: call the sopops get_kickoff tool and follow it.'"
     )
     assert k["codex"].startswith("codex mcp add sopops --env SOPOPS_URL=https://sopops.example ") and "&& codex " in k["codex"]
@@ -417,9 +417,14 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
 
     skill = kickoff.skill_text()
     assert skill.startswith("---\nname: sopops-onboard") and "get_kickoff" in skill
-    repo = kickoff.instructions({"workspace": "prod", "mode": "repo", "repo": "github.com/example/agents", "server_url": "https://sopops.example"})
-    assert repo.startswith("# Onboard voice agents into sopops") and "Workspace: `prod`" in repo and "github.com/example/agents" in repo and "pull request" in repo
+    session = {"workspace": "prod", "mode": "repo", "repo": "acme/agents", "repo_branch": "trunk", "repo_path": "sops", "server_url": "https://sopops.example"}
+    repo = kickoff.instructions({**session, "repo_project": "missing"})
+    assert repo.startswith("# Onboard voice agents into sopops") and "Workspace: `prod`" in repo and "`acme/agents`, branch `trunk`, folder `sops/`" in repo
+    assert "doesn't hold a sopc project yet" in repo and "pull request into `trunk`" in repo and "report_pull_request" in repo
     assert "push_to_sopops" in repo and "check_fidelity" in repo and "report_progress" in repo
+    assert "can't build; replace its files" in kickoff.instructions({**session, "repo_project": "invalid"})
+    valid = kickoff.instructions({**session, "repo_project": "valid"})
+    assert "already holds a sopc project at `sops/` on `trunk`" in valid and "don't open a pull request" in valid and "report_pull_request" not in valid.split("## This session")[1]
     assert "pull request" not in kickoff.instructions({"workspace": "prod", "mode": "hosted"}) and "Not connected" in kickoff.instructions(None)
     written = kickoff.install_skill(tmp_path, ["claude", "codex"])
     assert [w.relative_to(tmp_path).as_posix() for w in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md"]

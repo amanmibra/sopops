@@ -29,6 +29,7 @@ from urllib.parse import quote
 import httpx
 from sqlmodel import Session
 
+from . import forms
 from .errors import NotFound, workspace_id
 from .orm import RepoConnection
 from .runtime import crypto
@@ -50,7 +51,7 @@ API_VERSION = "2022-11-28"
 
 _OWNER = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$")
 _REPO = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
-_PR_URL = re.compile(r"^https?://[^/]+/([^/]+)/([^/]+)/pull/(\d+)/?$")
+PR_URL = re.compile(r"^https?://[^/]+/([^/]+)/([^/]+)/pull/(\d+)/?$")
 
 
 class GitHubError(Exception):
@@ -102,9 +103,10 @@ def connection_out(conn: RepoConnection) -> dict:
 
 
 def connect(store: Store, workspace: str, owner: str, repo: str, token: str | None = None,
-            base_branch: str = DEFAULT_BRANCH, path: str = DEFAULT_PATH) -> dict:
-    """Save the workspace's connection, after checking that the token can read the repository and that `path` on
-    `base_branch` holds a sopc project. Without a token, the stored one is kept (to change the branch or path)."""
+            base_branch: str = DEFAULT_BRANCH, path: str = DEFAULT_PATH, require_project: bool = True) -> dict:
+    """Save the workspace's connection, after checking that the token can read the repository and the branch and,
+    with `require_project`, that `path` on `base_branch` holds a sopc project (onboarding connects before there is
+    one, and proposes it). Without a token, the stored one is kept (to change the branch or path)."""
     ws = _ws(workspace)
     owner, repo, base_branch, path = owner.strip(), repo.strip(), base_branch.strip(), normalize_path(path)
     if not _OWNER.match(owner):
@@ -124,11 +126,8 @@ def connect(store: Store, workspace: str, owner: str, repo: str, token: str | No
     with _Client(token) as gh:
         gh.get(_repo_path(owner, repo), what=f"repository {owner}/{repo}")
         head = _branch_head(gh, owner, repo, base_branch)
-        config = _join(path, CONFIG)
-        found = gh.get(f"{_repo_path(owner, repo)}/contents/{quote(config)}", params={"ref": head}, missing=True, what=f"{config} at {base_branch}")
-        if found is None or (isinstance(found, dict) and found.get("type") != "file"):
-            where = f"'{path}'" if path else "the repository root"
-            raise GitHubError(f"no sopc project at {where} on {base_branch}: {config} isn't there", 400)
+        if require_project:
+            _require_config(gh, owner, repo, head, base_branch, path)
     now = _now()
     with Session(store.engine, expire_on_commit=False) as db, db.begin():
         store.sessions._ensure_workspace(db, ws)
@@ -144,6 +143,14 @@ def connect(store: Store, workspace: str, owner: str, repo: str, token: str | No
             row.pulled_sha = row.pulled_digest = row.pulled_at = None
     log.info("connected workspace %s to github %s/%s@%s:%s", ws, owner, repo, base_branch, path or ".")
     return connection_out(row)
+
+
+def _require_config(gh: _Client, owner: str, repo: str, head: str, base_branch: str, path: str) -> None:
+    config = _join(path, CONFIG)
+    found = gh.get(f"{_repo_path(owner, repo)}/contents/{quote(config)}", params={"ref": head}, missing=True, what=f"{config} at {base_branch}")
+    if found is None or (isinstance(found, dict) and found.get("type") != "file"):
+        where = f"'{path}'" if path else "the repository root"
+        raise GitHubError(f"no sopc project at {where} on {base_branch}: {config} isn't there", 400)
 
 
 def disconnect(store: Store, workspace: str) -> None:
@@ -187,6 +194,25 @@ def read_project(store: Store, workspace: str) -> tuple[dict[str, str], str]:
         where = f"'{conn.path}'" if conn.path else "the repository root"
         raise GitHubError(f"no sopc project at {where} on {conn.base_branch} ({sha[:7]}): {CONFIG} isn't there", 400)
     return files, f"{conn.owner}/{conn.repo}@{sha[:7]}"
+
+
+def inspect_project(store: Store, workspace: str) -> dict:
+    """What the connected folder holds at the base branch's head, compiled with sopc, without changing the workspace:
+    `missing` (no folder, or no sopc.yaml in it), `invalid` (sopc can't build it; `issues` says why) or `valid`."""
+    ws = _ws(workspace)
+    conn = _require(store, ws)
+    with _Client(credentials(conn)) as gh:
+        sha = _branch_head(gh, conn.owner, conn.repo, conn.base_branch)
+        files = _read_folder(gh, conn, sha, {})
+    out = {"workspace": ws, "repo": f"{conn.owner}/{conn.repo}", "base_branch": conn.base_branch, "path": conn.path, "sha": sha,
+           "files": len(files), "agents": [], "issues": []}
+    if CONFIG not in files:
+        return {**out, "state": "missing"}
+    compiled = store.sopc.compile(files)
+    issues = [forms.locate(i).to_dict() for i in compiled.issues]
+    if not compiled.valid:
+        return {**out, "state": "invalid", "issues": issues}
+    return {**out, "state": "valid", "agents": sorted(compiled.agents), "issues": issues}
 
 
 def pull(store: Store, workspace: str, author: str | None = None) -> dict:
@@ -287,7 +313,7 @@ def open_pull_request(store: Store, workspace_id: str, files: Mapping[str, str |
 
 def pr_status(store: Store, workspace_id: str, url: str) -> str:
     """A pull request's state: `open`, `merged` or `closed` (without merging), read with the workspace's token."""
-    m = _PR_URL.match(url.strip())
+    m = PR_URL.match(url.strip())
     if not m:
         raise GitHubError(f"'{url}' isn't a pull request URL", 400)
     owner, repo, number = m.groups()

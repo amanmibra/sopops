@@ -272,15 +272,9 @@ export type AgentImportRequest = {
     /**
      * Mode
      *
-     * hosted: instructions live in sopops. repo: the agent also opens a PR adding sops/.
+     * hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.
      */
     mode?: 'hosted' | 'repo';
-    /**
-     * Repo
-     *
-     * Repo mode: the repository URL or path (recorded; syncing from it comes later).
-     */
-    repo?: string | null;
     /**
      * Server Url
      *
@@ -1882,8 +1876,42 @@ export type ImportOut = {
     mode: string;
     /**
      * Repo
+     *
+     * Repo mode: the connected repository (owner/name).
      */
     repo: string | null;
+    /**
+     * Repo Branch
+     */
+    repo_branch: string | null;
+    /**
+     * Repo Path
+     *
+     * Repo mode: the sopc project's folder; empty for the root.
+     */
+    repo_path: string | null;
+    /**
+     * Repo Project
+     *
+     * Repo mode: what the folder held when the import started.
+     */
+    repo_project: 'missing' | 'invalid' | 'valid' | null;
+    /**
+     * Pr Url
+     *
+     * The onboarding pull request the coding agent opened.
+     */
+    pr_url: string | null;
+    /**
+     * Pr State
+     *
+     * Followed on GitHub. Merged: the folder was pulled into drafts.
+     */
+    pr_state: 'open' | 'merged' | 'closed' | null;
+    /**
+     * Pr Merged At
+     */
+    pr_merged_at: string | null;
     /**
      * Agents
      */
@@ -4022,6 +4050,18 @@ export type PullOut = {
 };
 
 /**
+ * PullRequestIn
+ */
+export type PullRequestIn = {
+    /**
+     * Url
+     *
+     * The onboarding pull request, e.g. https://github.com/acme/agents/pull/12.
+     */
+    url: string;
+};
+
+/**
  * PurposeSpend
  */
 export type PurposeSpend = {
@@ -4676,6 +4716,12 @@ export type RepoIn = {
      * The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.
      */
     path?: string;
+    /**
+     * Require Project
+     *
+     * Check that `path` holds a sopc project (sopc.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.
+     */
+    require_project?: boolean;
 };
 
 /**
@@ -4740,6 +4786,62 @@ export type RepoOut = {
      * Updated At
      */
     updated_at: string;
+};
+
+/**
+ * RepoProjectOut
+ */
+export type RepoProjectOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Repo
+     *
+     * owner/name.
+     */
+    repo: string;
+    /**
+     * Base Branch
+     */
+    base_branch: string;
+    /**
+     * Path
+     *
+     * The sopc project's folder; empty for the root.
+     */
+    path: string;
+    /**
+     * Sha
+     *
+     * The base branch's head commit that was read.
+     */
+    sha: string;
+    /**
+     * State
+     *
+     * missing: no folder, or no sopc.yaml in it. invalid: sopc can't build it (`issues`). valid: a sopc project sopc builds.
+     */
+    state: 'missing' | 'invalid' | 'valid';
+    /**
+     * Files
+     *
+     * Files in the folder (build/ skipped).
+     */
+    files: number;
+    /**
+     * Agents
+     *
+     * The project's agents, when it's valid.
+     */
+    agents: Array<string>;
+    /**
+     * Issues
+     *
+     * sopc's issues: errors when invalid, warnings otherwise.
+     */
+    issues: Array<IssueOut>;
 };
 
 /**
@@ -6050,6 +6152,22 @@ export type SessionInfo = {
      * Repo
      */
     repo: string | null;
+    /**
+     * Repo Branch
+     */
+    repo_branch: string | null;
+    /**
+     * Repo Path
+     */
+    repo_path: string | null;
+    /**
+     * Repo Project
+     */
+    repo_project: 'missing' | 'invalid' | 'valid' | null;
+    /**
+     * Pr Url
+     */
+    pr_url: string | null;
     /**
      * Scopes
      */
@@ -12055,6 +12173,56 @@ export type ConnectRepoResponses = {
 
 export type ConnectRepoResponse = ConnectRepoResponses[keyof ConnectRepoResponses];
 
+export type InspectRepoProjectData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo/project';
+};
+
+export type InspectRepoProjectErrors = {
+    /**
+     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     */
+    400: unknown;
+    /**
+     * No repository connected.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
+};
+
+export type InspectRepoProjectError = InspectRepoProjectErrors[keyof InspectRepoProjectErrors];
+
+export type InspectRepoProjectResponses = {
+    /**
+     * Successful Response
+     */
+    200: RepoProjectOut;
+};
+
+export type InspectRepoProjectResponse = InspectRepoProjectResponses[keyof InspectRepoProjectResponses];
+
 export type PullRepoData = {
     body?: never;
     path: {
@@ -12307,9 +12475,25 @@ export type StartAgentImportData = {
 
 export type StartAgentImportErrors = {
     /**
+     * Repo mode without a GitHub repository connected, or GitHub refused the token.
+     */
+    400: unknown;
+    /**
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
 };
 
 export type StartAgentImportError = StartAgentImportErrors[keyof StartAgentImportErrors];
@@ -12834,6 +13018,41 @@ export type OnboardingPushResponses = {
 };
 
 export type OnboardingPushResponse = OnboardingPushResponses[keyof OnboardingPushResponses];
+
+export type OnboardingPullRequestData = {
+    body: PullRequestIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/pull-request';
+};
+
+export type OnboardingPullRequestErrors = {
+    /**
+     * Not a pull request in the connected repository, or not repo mode.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingPullRequestError = OnboardingPullRequestErrors[keyof OnboardingPullRequestErrors];
+
+export type OnboardingPullRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type OnboardingPullRequestResponse = OnboardingPullRequestResponses[keyof OnboardingPullRequestResponses];
 
 export type OnboardingCheckData = {
     body: FidelityIn;

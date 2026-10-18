@@ -9,8 +9,8 @@ be rate-limited by its model key (`SOPOPS_RATE_LIMIT_PER_MINUTE` calls per minut
 then rolls the session up. The `patterns` task then assigns the session's findings to patterns; pattern writes run one
 at a time per workspace (`sopops_patterns`), and so do reclustering and themes (`sopops_recluster`, queued when due),
 plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC). Suggested edits are generated
-by `sopops_suggest`, rate-limited by the reasoning model like a check, and calibration runs in `sopops_calibrate`. Suggestions' pull
-requests are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
+by `sopops_suggest`, rate-limited by the reasoning model like a check, and calibration runs in `sopops_calibrate`. Pull
+requests (suggestions' and onboarding's) are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
 """
 
 from __future__ import annotations
@@ -31,6 +31,7 @@ from sqlmodel import Session, select
 
 from ..ai import lm as ai_lm
 from ..db import database_url
+from ..onboarding import pulls
 from ..orm import Finding
 from ..pipeline.process import (
     check_procedure,
@@ -195,7 +196,8 @@ def calibrate_one(input: CalibrateRef, ctx: Context) -> dict:
 
 @pr_status_wf.task(execution_timeout=timedelta(minutes=10), retries=1)
 def pr_status(input, ctx: Context) -> dict:
-    return _get_store().suggestions.sync_prs()
+    store = _get_store()
+    return {"suggestions": store.suggestions.sync_prs(), "onboarding": pulls.sync(store)}
 
 
 def run_calibrate(ref: CalibrateRef) -> dict:

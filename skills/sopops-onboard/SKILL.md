@@ -14,16 +14,16 @@ The sopops **Import agents** page (Use Claude Code / Codex) gives you one comman
 ```sh
 # Claude Code
 claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
+  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp
 # Codex
 codex mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp
+  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp
 ```
 
 Cursor (`.cursor/mcp.json`):
 
 ```json
-{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "git+https://github.com/amanmibra/sopops@v0", "sopops-mcp"],
+{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "git+https://github.com/amanmibra/sopops@main", "sopops-mcp"],
   "env": {"SOPOPS_URL": "https://sopops.example", "SOPOPS_TOKEN": "sopops_onb_..."}}}}
 ```
 
@@ -33,7 +33,7 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 
 | Tool | What it does |
 |---|---|
-| `get_kickoff()` | This skill, plus the session: workspace, server and mode (and the repo step in repo mode). |
+| `get_kickoff()` | This skill, plus the session: workspace, server and mode (and in repo mode the connected repository, branch and folder, and whether to open the onboarding PR). |
 | `get_extraction_guide()` | The extraction rules, the proposal's JSON schema, and the session (workspace, hosted or repo mode). |
 | `list_platform_agents(platform)` | ElevenLabs or Vapi agents, with the key from the environment. |
 | `get_agent_prompt(platform, id)` | One agent's prompt and tool names. |
@@ -42,6 +42,7 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 | `push_to_sopops(proposal, originals, findings?, notes?)` | Sends the proposal for review. Each push replaces the last. Nothing is published. |
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
 | `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`). |
+| `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
 
 ## Flow
 
@@ -52,7 +53,7 @@ Onboard this project's voice agents into the sopops workspace this session is fo
 3. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
 4. Call `check_fidelity` with the proposal and the original prompts. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
 5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
-6. Repo mode only (the session says so): `write_sopc_project`, then open a PR (`gh pr create`) with the agents, blocks, drift and fidelity scores. Don't merge it.
+6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. Don't merge it.
 
 Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score.
 

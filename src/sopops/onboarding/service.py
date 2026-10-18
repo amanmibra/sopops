@@ -5,7 +5,9 @@ Two ways in, one way out:
 - **LLM import** (`source: llm`): prompts pasted, uploaded or read from ElevenLabs/Vapi are extracted here, in a
   background thread, with the configured models (`sopops.ai`).
 - **Agent import** (`source: agent`): the user starts Claude Code or Codex in their repo with the `sopops-mcp` server
-  and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one.
+  and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one. In repo
+  mode the workspace's GitHub connection is checked first and its folder read: without a sopc project sopc can build,
+  the agent also opens the onboarding pull request adding one, which sopops follows (`pulls`) and pulls when merged.
 - **sopc project** (`source: sopc`): a team that already keeps one (or exports one from wherever its prompts live)
   uploads its files or reads them from the workspace's GitHub repository, optionally with each agent's original prompt.
   It's checked like any proposal; applying writes exactly its files. Its content isn't edited here: change the
@@ -31,7 +33,7 @@ from typing import Callable
 
 from sqlmodel import Session, inspect, select
 
-from .. import forms
+from .. import forms, github
 from ..ai import spend
 from ..ai.lm import AI, RULES, AIError, configured, get_ai, model_for
 from ..errors import workspace_id
@@ -40,7 +42,7 @@ from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
-from . import fidelity, kickoff, project, summary
+from . import fidelity, kickoff, project, pulls, summary
 from .pipeline import extract
 from .review import refresh_used_by, resolve
 from .rules import RulesModels
@@ -102,6 +104,11 @@ class Onboarding:
             return [out(r, self.tokens.for_import(r.id, db), proposal=False) for r in rows]
 
     def get(self, workspace: str, id: str) -> dict:
+        """An open onboarding pull request is checked first (when it wasn't in the last `pulls.PR_CHECK_EVERY`)."""
+        with self._db() as db:
+            r = self._load(db, workspace, id)
+        if r.pr_state == "open":
+            pulls.sync_one(self.store, r.id)
         with self._db() as db:
             r = self._load(db, workspace, id)
             return out(r, self.tokens.for_import(r.id, db))
@@ -201,19 +208,40 @@ class Onboarding:
 
     # --- agent imports: onboarding tokens --------------------------------------------
 
-    def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", repo: str | None = None, author: str | None = None,
-                    ttl: timedelta = TOKEN_TTL) -> dict:
-        rec = ImportRecord(
-            id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="agent", status="waiting", mode=mode, repo=(repo or "").strip() or None,
-            created_at=_now(), updated_at=_now(), created_by=author,
-        )
+    def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", author: str | None = None, ttl: timedelta = TOKEN_TTL) -> dict:
+        """An onboarding token and the commands to start a coding agent. Repo mode needs the workspace's GitHub
+        connection: its folder is read first (which checks the token still works), and the agent is told to open the
+        onboarding pull request unless the folder already holds a project sopc builds. ValueError without a connection."""
+        rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="agent", status="waiting", mode=mode,
+                           created_at=_now(), updated_at=_now(), created_by=author)
+        if mode == "repo":
+            if github.repo_connection(self.store, rec.workspace) is None:
+                raise ValueError("repo mode needs a GitHub repository: connect one first")
+            found = github.inspect_project(self.store, rec.workspace)
+            rec.repo, rec.repo_branch, rec.repo_path, rec.repo_project = found["repo"], found["base_branch"], found["path"], found["state"]
         with self._db() as db:
             db.add(rec)
             db.commit()
         token = self.tokens.create(rec.workspace, [SCOPE], name="Import agents", expires_at=_now() + ttl, import_id=rec.id,
                                    created_by=author, prefix=TOKEN_PREFIX)["token"]
         self.event(rec.id, "start", "Waiting for Claude Code or Codex to connect", by="sopops")
-        return {"import": self.get(workspace, rec.id), "token": token, "kickoff": kickoff.kickoff(workspace, server_url, token, mode, rec.repo)}
+        if rec.repo_project in ("missing", "invalid"):
+            folder = f"{rec.repo_path}/" if rec.repo_path else "the repository root"
+            self.event(rec.id, "repo", f"{rec.repo}: your agent will propose a pull request adding a sopc project at {folder} on "
+                       f"{rec.repo_branch}. Nothing merges without you.", by="sopops")
+        return {"import": self.get(workspace, rec.id), "token": token, "kickoff": kickoff.kickoff(workspace, server_url, token)}
+
+    def session(self, rec: ImportRecord) -> dict:
+        """What an onboarding token's agent is told about its session (`get_kickoff`)."""
+        token = self.token_of(rec) or {}
+        return {"workspace": rec.workspace, "import_id": rec.id, "mode": rec.mode, "repo": rec.repo, "repo_branch": rec.repo_branch,
+                "repo_path": rec.repo_path, "repo_project": rec.repo_project, "pr_url": rec.pr_url, "scopes": token.get("scopes", []),
+                "expires_at": token.get("expires_at")}
+
+    def report_pull_request(self, rec: ImportRecord, url: str) -> dict:
+        """The coding agent opened the onboarding pull request; sopops follows it. ValueError for a bad URL."""
+        pulls.record(self.store, rec, url)
+        return self.get(rec.workspace, rec.id)
 
     def authenticate(self, authorization: str | None, scope: str = SCOPE) -> ImportRecord:
         """The import an onboarding token belongs to. 401 for a missing, unknown, expired or revoked token (or one for a
@@ -438,7 +466,8 @@ def out(r: ImportRecord, token: Token | None = None, proposal: bool = True) -> d
     token = token_out(token, r) if token is not None else None
     d = {
         "id": r.id, "workspace": r.workspace, "source": r.source, "status": r.status, "mode": r.mode, "repo": r.repo,
-        "agents": r.agents, "error": r.error, "pushes": r.pushes, "token": token,
+        "repo_branch": r.repo_branch, "repo_path": r.repo_path, "repo_project": r.repo_project,
+        "pr_url": r.pr_url, "pr_state": r.pr_state, "pr_merged_at": _utc(r.pr_merged_at) if r.pr_merged_at else None, "agents": r.agents, "error": r.error, "pushes": r.pushes, "token": token,
         "created_at": _utc(r.created_at), "updated_at": _utc(r.updated_at), "created_by": r.created_by,
     }
     if proposal:

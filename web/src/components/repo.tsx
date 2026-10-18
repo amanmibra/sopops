@@ -1,10 +1,10 @@
 // Settings: the workspace's GitHub repository. Connect it (the token is write-only), pull its sopc project into drafts,
-// disconnect. Suggestions open pull requests on it.
+// disconnect. Suggestions open pull requests on it. Onboarding reuses the connect form and the connection line.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ExternalLink, GitBranch, Loader2 } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { ApiError, type PullOut, type RepoOut, call, refresh, sdk } from "@/lib/api";
+import { ApiError, type PullOut, type RepoOut, type RepoProjectOut, call, refresh, sdk } from "@/lib/api";
 import { when } from "@/lib/kinds";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Note, Panel } from "./bits";
@@ -20,6 +20,16 @@ export const repoQuery = (ws: string) => ({
   queryFn: async (): Promise<RepoOut | null> => (await call(sdk.getRepo({ path: { workspace: ws } }))) ?? null,
 });
 
+/** What the connected folder holds at the branch's head: missing, invalid (sopc's issues) or valid. */
+export const repoProjectQuery = (ws: string) => ({
+  queryKey: ["ws", ws, "repo", "project"],
+  queryFn: (): Promise<RepoProjectOut> => call(sdk.inspectRepoProject({ path: { workspace: ws } })),
+  staleTime: 30_000,
+});
+
+/** The project's folder as people read it. */
+export const folderOf = (path: string | null | undefined) => (path ? `${path}/` : "the repository root");
+
 const LEAD: Record<number, string> = {
   400: "GitHub didn't accept this. Fix it and try again:",
   409: "Conflict:",
@@ -28,7 +38,7 @@ const LEAD: Record<number, string> = {
   503: "The server isn't set up for this:",
 };
 
-function RepoError({ error }: { error: unknown }) {
+export function RepoError({ error }: { error: unknown }) {
   const status = error instanceof ApiError ? error.status : 0;
   const msg = error instanceof Error ? error.message : String(error);
   return (
@@ -67,7 +77,19 @@ function Field({ id, label, hint, error, children }: { id: string; label: string
   );
 }
 
-function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () => void }) {
+/** Connect the repository, or change the connection. `requireProject: false` (onboarding) connects before the folder
+ * holds a sopc project. */
+export function ConnectForm({
+  current,
+  onDone,
+  onCancel,
+  requireProject = true,
+}: {
+  current: RepoOut | null;
+  onDone: (r: RepoOut) => void;
+  onCancel?: () => void;
+  requireProject?: boolean;
+}) {
   const { ws } = useWs();
   const qc = useQueryClient();
   const [v, setV] = useState({ owner: current?.owner ?? "", repo: current?.repo ?? "", token: "", base_branch: current?.base_branch ?? "main", path: current?.path ?? "sops" });
@@ -80,10 +102,15 @@ function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () 
     setBusy(true);
     setError(null);
     try {
-      await call(sdk.connectRepo({ path: { workspace: ws }, body: { ...v, owner: v.owner.trim(), repo: v.repo.trim(), token: v.token.trim() || null, path: v.path.trim() } }));
-      toast.success(`Connected ${v.owner}/${v.repo}.`);
+      const r = await call(
+        sdk.connectRepo({
+          path: { workspace: ws },
+          body: { ...v, owner: v.owner.trim(), repo: v.repo.trim(), token: v.token.trim() || null, path: v.path.trim(), require_project: requireProject },
+        }),
+      );
+      toast.success(`Connected ${r.owner}/${r.repo}.`);
       await qc.invalidateQueries({ queryKey: ["ws", ws, "repo"] });
-      onDone();
+      onDone(r);
     } catch (err) {
       setError(err);
     } finally {
@@ -106,7 +133,12 @@ function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () 
         <Field id="repo-base_branch" label="Base branch" hint="Pulled from, and pull requests target it" error={fields.base_branch}>
           {input("base_branch", { required: true })}
         </Field>
-        <Field id="repo-path" label="Folder" hint="The sopc project (with sopc.yaml); empty for the root" error={fields.path}>
+        <Field
+          id="repo-path"
+          label="Folder"
+          hint={requireProject ? "The sopc project (with sopc.yaml); empty for the root" : "Where the sopc project is, or will go; empty for the root"}
+          error={fields.path}
+        >
           {input("path")}
         </Field>
       </div>
@@ -116,7 +148,7 @@ function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () 
         error={fields.token}
         hint={current ? `Stored, ending in ${current.token_hint}. Leave empty to keep it.` : "Stored encrypted and never shown again."}
       >
-        {input("token", { type: "password", autoComplete: "new-password", placeholder: current ? `••••${current.token_hint}` : "github_pat_…", required: !current })}
+        {input("token", { type: "password", autoComplete: "new-password", placeholder: current ? `••••${current.token_hint.replace(/^…/, "")}` : "github_pat_…", required: !current })}
       </Field>
       <div className="bg-muted rounded-md px-3 py-2 text-[13px]">
         Use a <b>fine-grained personal access token</b> limited to this repository, with:
@@ -130,13 +162,30 @@ function ConnectForm({ current, onDone }: { current: RepoOut | null; onDone: () 
         <Button type="submit" disabled={busy}>
           {busy && <Loader2 className="animate-spin" />} {current ? "Save" : "Connect"}
         </Button>
-        {current && (
-          <Button type="button" variant="ghost" onClick={onDone}>
+        {current && onCancel && (
+          <Button type="button" variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
         )}
       </div>
     </form>
+  );
+}
+
+/** The connection on one line: the folder on GitHub, the branch, the token's last characters, and an optional action. */
+export function RepoLine({ r, children }: { r: RepoOut; children?: ReactNode }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+      <GitBranch className="text-muted-foreground size-4" />
+      <a href={r.url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 font-semibold break-all hover:underline">
+        {r.owner}/{r.repo}
+        {r.path ? `/${r.path}` : ""} <ExternalLink className="size-3.5 shrink-0" />
+      </a>
+      <span className="text-muted-foreground text-[13px]">
+        on <code className="text-[12.5px]">{r.base_branch}</code> · token ••••{r.token_hint.replace(/^…/, "")}
+      </span>
+      {children}
+    </div>
   );
 }
 
@@ -188,19 +237,10 @@ export function RepoCard() {
       ) : res.isError ? (
         <RepoError error={res.error} />
       ) : !r || editing ? (
-        <ConnectForm current={r ?? null} onDone={() => setEditing(false)} />
+        <ConnectForm current={r ?? null} onDone={() => setEditing(false)} onCancel={() => setEditing(false)} />
       ) : (
         <div className="grid gap-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <GitBranch className="text-muted-foreground size-4" />
-            <a href={r.url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 font-semibold hover:underline">
-              {r.owner}/{r.repo}
-              {r.path ? `/${r.path}` : ""} <ExternalLink className="size-3.5" />
-            </a>
-            <span className="text-muted-foreground text-[13px]">
-              on <code className="text-[12.5px]">{r.base_branch}</code> · token ••••{r.token_hint}
-            </span>
-          </div>
+          <RepoLine r={r} />
           <Note>{r.pulled_sha ? `Last pulled ${r.pulled_sha.slice(0, 7)}, ${when(r.pulled_at)}.` : "Not pulled yet."}</Note>
           {error != null && <RepoError error={error} />}
           {pulled && (

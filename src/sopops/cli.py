@@ -26,6 +26,7 @@ from .app import create_app
 from .db import database_url
 from .errors import SAFE_ID
 from .jobs import Jobs
+from .onboarding import pulls
 from .schemas import SessionIn
 from .sopc import Sopc
 from .store import Store
@@ -160,13 +161,17 @@ def calibrate(argv: list[str]) -> None:
 
 
 def pr_status(argv: list[str]) -> None:
-    """Check suggestions' open pull requests on GitHub (what the Hatchet cron runs; without Hatchet, run it from cron)."""
-    parser = argparse.ArgumentParser(prog="sopops pr-status", description="Check suggestions' open pull requests: merged ones become merged, closed ones dismissed.")
+    """Check open pull requests on GitHub, suggestions' and onboarding's (what the Hatchet cron runs; without Hatchet, run it from cron)."""
+    parser = argparse.ArgumentParser(prog="sopops pr-status", description="Check open pull requests: suggestions' (merged ones become merged, closed ones "
+                                     "dismissed) and onboarding's (merged ones are pulled into drafts).")
     parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    out = Store(args.database_url, Sopc()).suggestions.sync_prs(args.workspace, force=True)
-    print(", ".join(f"{v} {k}" for k, v in out.items()))
+    store = Store(args.database_url, Sopc())
+    out = store.suggestions.sync_prs(args.workspace, force=True)
+    print("suggestions: " + ", ".join(f"{v} {k}" for k, v in out.items()))
+    out = pulls.sync(store, args.workspace, force=True)
+    print("onboarding: " + ", ".join(f"{v} {k}" for k, v in out.items()))
 
 
 def lineage(argv: list[str]) -> None:

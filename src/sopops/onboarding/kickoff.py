@@ -3,7 +3,8 @@
 The UI gives one command per agent that adds the sopops MCP server (server URL and onboarding token filled in) and
 starts the agent with a short prompt: call `get_kickoff` and follow it. `get_kickoff` returns the onboarding skill
 (`skills/sopops-onboard/SKILL.md`, the single source of the instructions, bundled with the package so it matches the
-installed version) plus this session's details: workspace, server, mode, and the repo step in repo mode.
+installed version) plus this session's details: workspace, server, mode, and in repo mode the connected repository and
+what to do there: open the onboarding pull request adding the sopc project when the folder has none sopc can build.
 """
 
 from __future__ import annotations
@@ -14,17 +15,26 @@ import shlex
 from pathlib import Path
 
 # Until sopops is on PyPI, uvx installs the MCP server from the repo. SOPOPS_MCP_SOURCE overrides it.
-DEFAULT_SOURCE = "git+https://github.com/amanmibra/sopops@v0"
+DEFAULT_SOURCE = "git+https://github.com/amanmibra/sopops@main"
 SKILL_NAME = "sopops-onboard"
 PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 # Installed as a skill (`sopops-mcp install-skill`), the prompt can be the skill itself.
 SKILL_PROMPT = {"claude": f"/{SKILL_NAME}", "codex": f"${SKILL_NAME}"}
 SKILL_DIRS = {"claude": Path(".claude/skills"), "codex": Path(".agents/skills")}  # Codex (and OpenCode) read .agents/skills
 
-REPO_STEP = """Repo mode (the user opted in; target: {repo}): after pushing, write the same proposal as a sopc project at `sops/`
-with `write_sopc_project`, run `sopc validate` there if the sopc CLI is installed, and open a pull request (with
-`gh pr create` if it's available, otherwise say how) titled "Add sopc project for sopops". In its description: the agents
-and where each prompt was found, the blocks extracted, drift found, and each agent's fidelity score. Don't merge it."""
+REPO_STEP = """Repo mode (the user opted in). sopops is connected to GitHub: `{repo}`, branch `{branch}`, folder `{folder}`, which {finding}.
+After pushing, write the same proposal as a sopc project at `{folder}` with `write_sopc_project`, run `sopc validate` there if the
+sopc CLI is installed, and open a pull request into `{branch}` from a new branch (with `gh pr create` if it's available,
+otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where each prompt was found,
+the blocks extracted, drift found, and each agent's fidelity score. Don't merge it. Then call `report_pull_request` with its
+URL: sopops follows it, and when the user merges it, pulls `{folder}` into drafts."""
+
+REPO_FINDING = {
+    "missing": "doesn't hold a sopc project yet",
+    "invalid": "holds a sopc project sopc can't build; replace its files with yours",
+}
+REPO_VALID = """Repo mode: `{repo}` already holds a sopc project at `{folder}` on `{branch}`, and sopops reads it from there. Push
+your proposal for review as usual, but don't open a pull request."""
 
 SETTINGS = (
     "Claude Code: use the strongest model you have (for example /model opus) and accept edits automatically (Shift+Tab).\n"
@@ -59,8 +69,18 @@ def instructions(session: dict | None) -> str:
     if session.get("server_url"):
         lines.append(f"- sopops: {session['server_url']}")
     if session.get("mode") == "repo":
-        lines += ["", REPO_STEP.format(repo=session.get("repo") or "this repository")]
+        lines += ["", repo_step(session)]
     return skill_body() + "\n".join(lines) + "\n"
+
+
+def repo_step(session: dict) -> str:
+    """What to do in the repository: the onboarding pull request, unless the folder already holds a project sopc builds."""
+    path = session.get("repo_path")
+    where = {"repo": session.get("repo") or "this repository", "branch": session.get("repo_branch") or "main",
+             "folder": f"{path}/" if path else ("the repository root" if path == "" else "sops/")}
+    if session.get("repo_project") == "valid":
+        return REPO_VALID.format(**where)
+    return REPO_STEP.format(**where, finding=REPO_FINDING.get(session.get("repo_project") or "missing", REPO_FINDING["missing"]))
 
 
 def install_skill(root: Path, agents: list[str]) -> list[Path]:
@@ -74,9 +94,9 @@ def install_skill(root: Path, agents: list[str]) -> list[Path]:
     return out
 
 
-def kickoff(workspace: str, server_url: str, token: str, mode: str = "hosted", repo: str | None = None) -> dict:
+def kickoff(workspace: str, server_url: str, token: str) -> dict:
     """The one-line commands (add the MCP server, then start the agent on the prompt), the Codex config as TOML, and
-    recommended settings. `workspace`, `mode` and `repo` reach the agent through `get_kickoff`."""
+    recommended settings. The workspace, mode and repository reach the agent through `get_kickoff`."""
     url = server_url.rstrip("/")
     source = mcp_source()
     env = ["--env", f"SOPOPS_URL={url}", "--env", f"SOPOPS_TOKEN={token}"]

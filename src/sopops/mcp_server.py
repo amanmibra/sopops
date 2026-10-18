@@ -211,6 +211,14 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
+    def report_pull_request(url: str) -> dict:
+        """Repo mode: tell sopops the URL of the onboarding pull request you opened (adding the sopc project). sopops
+        follows it, and pulls the folder into drafts when the user merges it."""
+        got = sopops.call("POST", "/v1/onboarding/pull-request", {"url": url})
+        return {"pr_url": got["pr_url"], "pr_state": got["pr_state"], "next": "Tell the user the pull request is open for their review; don't merge it."}
+
+    @server.tool()
+    @_explained
     def write_sopc_project(proposal: dict, path: str = "sops") -> dict:
         """Write the proposal as a sopc project (sopc.yaml, instructions/, procedures/, agents/) at `path`, relative to the
         current directory. Existing files with the same names are overwritten; other files are left alone."""

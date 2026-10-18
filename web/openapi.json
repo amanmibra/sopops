@@ -7552,7 +7552,7 @@
           "repo"
         ],
         "summary": "Connect Repo",
-        "description": "Connect a GitHub repository, or change the connection. Checks that the token can read the repository and that\n`path` on `base_branch` holds a sopc project (sopc.yaml); the token is stored encrypted with SOPOPS_SECRET_KEY.",
+        "description": "Connect a GitHub repository, or change the connection. Checks that the token can read the repository and the\nbranch and (unless `require_project` is false) that `path` on `base_branch` holds a sopc project (sopc.yaml);\nthe token is stored encrypted with SOPOPS_SECRET_KEY.",
         "operationId": "connect_repo",
         "parameters": [
           {
@@ -7631,6 +7631,64 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "404": {
+            "description": "No repository connected."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/repo/project": {
+      "get": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Inspect Repo Project",
+        "description": "What the connected folder holds at the base branch's head, compiled with sopc: `missing`, `invalid` (with\nsopc's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and\nhaving a coding agent propose one.",
+        "operationId": "inspect_repo_project",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoProjectOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
           },
           "404": {
             "description": "No repository connected."
@@ -8013,7 +8071,7 @@
           "onboarding"
         ],
         "summary": "Start Agent Import",
-        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and prompt to start one. The token is shown only in this response.",
+        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and prompt to start one. The token is shown only in this response. Repo mode reads the connected\nrepository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull\nrequest adding one, and to report it.",
         "operationId": "start_agent_import",
         "parameters": [
           {
@@ -8046,6 +8104,18 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Repo mode without a GitHub repository connected, or GitHub refused the token."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
           },
           "422": {
             "description": "Validation Error",
@@ -8757,7 +8827,7 @@
           "onboarding"
         ],
         "summary": "Onboarding Session",
-        "description": "The workspace and mode an onboarding token is for.",
+        "description": "The workspace and mode an onboarding token is for, and in repo mode the connected repository, branch and\nfolder, what the folder held, and the onboarding pull request once reported.",
         "operationId": "onboarding_session",
         "parameters": [
           {
@@ -8907,6 +8977,69 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/pull-request": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Pull Request",
+        "description": "Repo mode: the onboarding pull request the agent opened. sopops follows it on GitHub and, when it merges,\npulls the folder into drafts.",
+        "operationId": "onboarding_pull_request",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PullRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a pull request in the connected repository, or not repo mode."
           },
           "422": {
             "description": "Validation Error",
@@ -9424,20 +9557,8 @@
               "repo"
             ],
             "title": "Mode",
-            "description": "hosted: instructions live in sopops. repo: the agent also opens a PR adding sops/.",
+            "description": "hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.",
             "default": "hosted"
-          },
-          "repo": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Repo",
-            "description": "Repo mode: the repository URL or path (recorded; syncing from it comes later)."
           },
           "server_url": {
             "anyOf": [
@@ -12263,7 +12384,89 @@
                 "type": "null"
               }
             ],
-            "title": "Repo"
+            "title": "Repo",
+            "description": "Repo mode: the connected repository (owner/name)."
+          },
+          "repo_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Branch"
+          },
+          "repo_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Path",
+            "description": "Repo mode: the sopc project's folder; empty for the root."
+          },
+          "repo_project": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "missing",
+                  "invalid",
+                  "valid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Project",
+            "description": "Repo mode: what the folder held when the import started."
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url",
+            "description": "The onboarding pull request the coding agent opened."
+          },
+          "pr_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "merged",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr State",
+            "description": "Followed on GitHub. Merged: the folder was pulled into drafts."
+          },
+          "pr_merged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Merged At"
           },
           "agents": {
             "items": {
@@ -12337,6 +12540,12 @@
           "status",
           "mode",
           "repo",
+          "repo_branch",
+          "repo_path",
+          "repo_project",
+          "pr_url",
+          "pr_state",
+          "pr_merged_at",
           "agents",
           "error",
           "pushes",
@@ -15998,6 +16207,21 @@
         ],
         "title": "PullOut"
       },
+      "PullRequestIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Url",
+            "description": "The onboarding pull request, e.g. https://github.com/acme/agents/pull/12."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "PullRequestIn"
+      },
       "PurposeSpend": {
         "properties": {
           "calls": {
@@ -17063,6 +17287,12 @@
             "title": "Path",
             "description": "The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.",
             "default": "sops"
+          },
+          "require_project": {
+            "type": "boolean",
+            "title": "Require Project",
+            "description": "Check that `path` holds a sopc project (sopc.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.",
+            "default": true
           }
         },
         "type": "object",
@@ -17162,6 +17392,77 @@
           "updated_at"
         ],
         "title": "RepoOut"
+      },
+      "RepoProjectOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "repo": {
+            "type": "string",
+            "title": "Repo",
+            "description": "owner/name."
+          },
+          "base_branch": {
+            "type": "string",
+            "title": "Base Branch"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "The sopc project's folder; empty for the root."
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha",
+            "description": "The base branch's head commit that was read."
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "invalid",
+              "valid"
+            ],
+            "title": "State",
+            "description": "missing: no folder, or no sopc.yaml in it. invalid: sopc can't build it (`issues`). valid: a sopc project sopc builds."
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files",
+            "description": "Files in the folder (build/ skipped)."
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "The project's agents, when it's valid."
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IssueOut"
+            },
+            "type": "array",
+            "title": "Issues",
+            "description": "sopc's issues: errors when invalid, warnings otherwise."
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "repo",
+          "base_branch",
+          "path",
+          "sha",
+          "state",
+          "files",
+          "agents",
+          "issues"
+        ],
+        "title": "RepoProjectOut"
       },
       "ReportHeadline": {
         "properties": {
@@ -19537,6 +19838,55 @@
             ],
             "title": "Repo"
           },
+          "repo_branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Branch"
+          },
+          "repo_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Path"
+          },
+          "repo_project": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "missing",
+                  "invalid",
+                  "valid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Project"
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
           "scopes": {
             "items": {
               "type": "string"
@@ -19563,6 +19913,10 @@
           "import_id",
           "mode",
           "repo",
+          "repo_branch",
+          "repo_path",
+          "repo_project",
+          "pr_url",
           "scopes",
           "expires_at"
         ],

@@ -110,7 +110,8 @@ A workspace's repository: the sopc project at `path` on `base_branch`. Auth is a
 
 | Endpoint | What it does |
 |---|---|
-| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sops"}`: check that the token reads the repository and that `path` on `base_branch` has a `sopc.yaml`, then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
+| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sops", require_project?: true}`: check that the token reads the repository and the branch and that `path` on `base_branch` has a `sopc.yaml` (`require_project: false`, as onboarding sends, skips that last check), then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
+| `GET …/repo/project` | What the folder holds at the branch's head, compiled with sopc, changing nothing: `{state: missing\|invalid\|valid, sha, files, agents, issues}`. `missing`: no folder, or no `sopc.yaml` in it; `invalid`: sopc can't build it (`issues` has its errors). |
 | `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `null` if none is connected. |
 | `DELETE …/repo` | Forget the repository and its token; the files stay. |
 | `POST …/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). `{sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op; `422` (sopc's issues) if it doesn't compile. |
@@ -414,10 +415,10 @@ Importing existing agent prompts, or an existing sopc project. Every way ends in
 | `GET /v1/onboarding/capabilities` | `{llm, model, platforms}`: whether sopops can extract with its own model. |
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
 | `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
-| `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff`: one command per agent (add the MCP server and start the agent on "call get_kickoff"), the Codex config as TOML, and recommended settings. |
+| `POST …/imports/agent` | `{mode: hosted\|repo, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff`: one command per agent (add the MCP server and start the agent on "call get_kickoff"), the Codex config as TOML, and recommended settings. Repo mode needs the workspace's GitHub repository (`400` without one, or when GitHub refuses the token): its folder is read first and recorded on the import (`repo`, `repo_branch`, `repo_path`, `repo_project`: `missing`, `invalid` or `valid`). Unless it's `valid`, the agent's kickoff tells it to open the onboarding pull request adding the project there, and to report it. |
 | `POST …/imports/sopc` | `{files?, from_repo?, originals?}`: an existing sopc project (its files by path relative to the folder with `sopc.yaml`, `build/` ignored; or `from_repo: true` reads the workspace's GitHub repository), with each agent's original prompt optionally. `source: sopc`, ready at once: the proposal shows what the project holds and carries its `files`; fidelity is checked for every agent with an original, as for any proposal. `400` without files or `sopc.yaml`, `422` when sopc can't read it. Its content isn't edited here (`409`): change the project and import it again. |
 | `PUT …/imports/<id>/originals` | `{originals: {agent: prompt}}`: add or replace agents' original prompts (an empty one removes it) and check fidelity again. |
-| `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, and the proposal. |
+| `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, the proposal, and in repo mode the onboarding pull request (`pr_url`, `pr_state`: `open`, `merged`, `closed`; `pr_merged_at`). An open one is checked on GitHub first (at most once a minute), and by the `sopops_pr_status` cron (`sopops pr-status`): merged pulls the folder into drafts (`POST …/repo/pull`) and makes the import `applied`; if that pull fails, `error` says why. |
 | `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
 | `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
 | `POST …/imports/<id>/findings/<finding>` | `{choice}`: `keep`, or the agent whose version every agent gets. |
@@ -431,7 +432,8 @@ With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one w
 
 | Endpoint | What it does |
 |---|---|
-| `GET /v1/onboarding/session` | The workspace, import, mode and repo the token is for. |
+| `GET /v1/onboarding/session` | The workspace, import and mode the token is for; in repo mode the repository, branch, folder, what the folder held, and `pr_url`. |
 | `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
 | `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
 | `POST /v1/onboarding/fidelity` | `{proposal, originals}`: fidelity only, nothing stored. |
+| `POST /v1/onboarding/pull-request` | `{url}`: repo mode, the onboarding pull request the agent opened (`400` unless it's a pull request in the connected repository). sopops follows it from then on. |

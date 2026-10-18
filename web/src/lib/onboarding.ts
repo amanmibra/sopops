@@ -19,6 +19,7 @@ export const iq = {
       // Poll while something can still change: an extraction running here, or a coding agent pushing.
       refetchInterval: (q) => {
         const d = q.state.data;
+        if (d?.pr_state === "open") return 30_000; // the server checks the onboarding pull request at most once a minute
         if (!d || TERMINAL.includes(d.status) || d.status === "failed") return false;
         return d.status === "running" || d.status === "waiting" ? 1000 : d.token?.active ? 3000 : false;
       },

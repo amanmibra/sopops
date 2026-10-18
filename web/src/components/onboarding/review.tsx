@@ -1,6 +1,6 @@
 // Import agents, step 2: progress (and the kickoff for Claude Code or Codex), then review the proposal and apply it as drafts.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type {
@@ -50,8 +50,9 @@ export function ImportView({ id }: { id: string }) {
       <Sub>
         {d.source === "sopc" ? <SopcIntro imp={d} /> : d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
         {d.agents.length ? `${plural(d.agents.length, "agent", "agents")}: ${d.agents.length > 8 ? `${d.agents.slice(0, 8).join(", ")} and ${d.agents.length - 8} more` : d.agents.join(", ")}.` : ""}
-        {d.mode === "repo" && d.repo ? ` Repo mode: ${d.repo}.` : ""}
+        {d.mode === "repo" && d.repo ? ` Repo mode: ${d.repo}${d.repo_branch ? ` on ${d.repo_branch}` : ""}.` : ""}
       </Sub>
+      <OnboardingPullRequest imp={d} />
       {d.source === "agent" && !TERMINAL.includes(d.status) && <TokenPanel imp={d} kickoff={kickoff?.kickoff} token={kickoff?.token} />}
       <ProgressLog id={id} live={live} />
       {d.status === "failed" && (
@@ -59,7 +60,7 @@ export function ImportView({ id }: { id: string }) {
           {d.error || "The import failed."} <HrefLink href={wsHref(ws, "import")}>Start again</HrefLink>
         </Banner>
       )}
-      {d.status === "applied" && (
+      {d.status === "applied" && d.pr_state !== "merged" && (
         <Banner tone="ok">
           Applied as drafts. <HrefLink href={wsHref(ws, "changes")}>Review the unpublished changes</HrefLink>, then publish.
         </Banner>
@@ -67,6 +68,60 @@ export function ImportView({ id }: { id: string }) {
       {d.status === "discarded" && <Banner>This import was discarded. Nothing in {ws} changed.</Banner>}
       {d.proposal && d.status === "ready" && (d.source === "sopc" ? <SopcReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} />)}
     </Page>
+  );
+}
+
+// --- the onboarding pull request (repo mode) ------------------------------------------------------
+
+const PR_STATE: Record<NonNullable<ImportOut["pr_state"]>, string> = { open: "waiting for your review", merged: "merged", closed: "closed" };
+
+function OnboardingPullRequest({ imp }: { imp: ImportOut }) {
+  const { ws } = useWs();
+  if (imp.mode !== "repo" || imp.source !== "agent") return null;
+  const folder = imp.repo_path ? `${imp.repo_path}/` : "the repository root";
+  if (!imp.pr_url) {
+    if (imp.repo_project === "valid" || TERMINAL.includes(imp.status)) return null;
+    return (
+      <Banner>
+        Your agent will propose a pull request {imp.repo_project === "invalid" ? "replacing" : "adding"} <code>{folder}</code> in {imp.repo}
+        {imp.repo_branch ? (
+          <>
+            {" "}
+            on <code>{imp.repo_branch}</code>
+          </>
+        ) : null}
+        . Nothing merges without you. It shows here once your agent opens it.
+      </Banner>
+    );
+  }
+  return (
+    <>
+      {imp.pr_state === "merged" &&
+        (imp.error ? (
+          <Banner tone="err">
+            {imp.error} <HrefLink href={wsHref(ws, "settings")}>Pull it from Settings</HrefLink>.
+          </Banner>
+        ) : (
+          <Banner tone="ok">
+            <b>Your onboarding PR merged.</b> Its <code>{folder}</code> is now your drafts. <HrefLink href={wsHref(ws, "changes")}>Publish your first release</HrefLink>.
+          </Banner>
+        ))}
+      {imp.pr_state === "closed" && <Banner tone="warn">The onboarding pull request was closed without merging. Nothing was pulled.</Banner>}
+      <Panel title="Onboarding pull request">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <a href={imp.pr_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 font-semibold break-all hover:underline">
+            {imp.pr_url.replace(/^https?:\/\/[^/]+\//, "")} <ExternalLink className="size-3.5 shrink-0" />
+          </a>
+          {imp.pr_state && <Tag tone={imp.pr_state === "merged" ? "live" : imp.pr_state === "closed" ? "removed" : undefined}>{PR_STATE[imp.pr_state]}</Tag>}
+        </div>
+        {imp.pr_state === "open" && (
+          <Note className="mt-1.5">
+            It adds <code>{folder}</code> to {imp.repo}. Nothing merges without you: review and merge it on GitHub. sopops checks it every minute and pulls{" "}
+            <code>{folder}</code> into drafts when it merges.
+          </Note>
+        )}
+      </Panel>
+    </>
   );
 }
 

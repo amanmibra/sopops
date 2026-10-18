@@ -51,8 +51,8 @@ class PlatformAgent(BaseModel):
 
 
 class AgentImportRequest(BaseModel):
-    mode: Literal["hosted", "repo"] = Field("hosted", description="hosted: instructions live in sopops. repo: the agent also opens a PR adding sops/.")
-    repo: str | None = Field(None, description="Repo mode: the repository URL or path (recorded; syncing from it comes later).")
+    mode: Literal["hosted", "repo"] = Field("hosted", description="hosted: instructions live in sopops. repo: they live in the workspace's connected "
+                                            "GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.")
     server_url: str | None = Field(None, description="The URL the coding agent reaches sopops at. Default: this request's base URL.")
     author: str | None = None
 
@@ -71,7 +71,13 @@ class ImportOut(BaseModel):
     source: Literal["llm", "agent", "sopc"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project.")
     status: Literal["waiting", "running", "ready", "failed", "applied", "discarded"]
     mode: str
-    repo: str | None
+    repo: str | None = Field(description="Repo mode: the connected repository (owner/name).")
+    repo_branch: str | None
+    repo_path: str | None = Field(description="Repo mode: the sopc project's folder; empty for the root.")
+    repo_project: Literal["missing", "invalid", "valid"] | None = Field(description="Repo mode: what the folder held when the import started.")
+    pr_url: str | None = Field(description="The onboarding pull request the coding agent opened.")
+    pr_state: Literal["open", "merged", "closed"] | None = Field(description="Followed on GitHub. Merged: the folder was pulled into drafts.")
+    pr_merged_at: datetime | None
     agents: list[str]
     error: str | None
     pushes: int
@@ -136,8 +142,16 @@ class SessionInfo(BaseModel):
     import_id: str
     mode: str
     repo: str | None
+    repo_branch: str | None
+    repo_path: str | None
+    repo_project: Literal["missing", "invalid", "valid"] | None
+    pr_url: str | None
     scopes: list[str]
     expires_at: datetime | None
+
+
+class PullRequestIn(BaseModel):
+    url: str = Field(max_length=1024, description="The onboarding pull request, e.g. https://github.com/acme/agents/pull/12.")
 
 
 class ProgressIn(BaseModel):

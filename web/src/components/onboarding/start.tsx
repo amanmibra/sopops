@@ -16,6 +16,8 @@ import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
+import { repoProjectQuery, repoQuery } from "../repo";
+import { ProjectFinding, RepoConnect } from "./github";
 import { SopcSource } from "./sopc";
 
 type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
@@ -299,15 +301,20 @@ function AgentSource() {
   const { ws } = useWs();
   const qc = useQueryClient();
   const go = useGo();
+  const repo = useQuery(repoQuery(ws));
+  const project = useQuery({ ...repoProjectQuery(ws), enabled: !!repo.data });
   const [mode, setMode] = useState<"hosted" | "repo">("hosted");
-  const [repo, setRepo] = useState("");
+  const [useAgent, setUseAgent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const state = repo.data ? project.data?.state : undefined;
+  // Repo mode: the coding agent runs when there's no project to import (it proposes one), or to rewrite one sopc can't build.
+  const agentReady = mode === "hosted" || state === "missing" || (state === "invalid" && useAgent);
   const start = async () => {
     setBusy(true);
     setError(null);
     try {
-      const k = await call(sdk.startAgentImport({ path: { workspace: ws }, body: { mode, repo: mode === "repo" ? repo.trim() || null : null, server_url: window.location.origin, author: author() } }));
+      const k = await call(sdk.startAgentImport({ path: { workspace: ws }, body: { mode, server_url: window.location.origin, author: author() } }));
       rememberKickoff(k);
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
       go(wsHref(ws, "import", k.import.id));
@@ -317,6 +324,7 @@ function AgentSource() {
       setBusy(false);
     }
   };
+  const finding = repo.data && <ProjectFinding repo={repo.data} mode={mode} useAgent={useAgent} onAgent={() => setUseAgent(true)} />;
   return (
     <div className="grid gap-4">
       <p className="max-w-[75ch]">
@@ -337,24 +345,41 @@ function AgentSource() {
         <p className="text-muted-foreground mt-2 max-w-[72ch] text-[13px]">
           {mode === "hosted"
             ? "Instructions are edited and published in sopops. Your repo doesn't change."
-            : "The agent also opens a pull request adding a sopc project at sops/. sopops will sync from it once GitHub sync is available; for now the repo is only recorded."}
+            : "Instructions live as a sopc project in your GitHub repository. sopops pulls it into drafts, and fixes arrive as pull requests."}
         </p>
       </div>
-      {mode === "repo" && (
-        <div>
-          <label htmlFor="f-repo" className="mb-1 block font-semibold">
-            Repository
-          </label>
-          <Input id="f-repo" className="max-w-md" placeholder="github.com/your-org/agents" value={repo} onChange={(e) => setRepo(e.target.value)} />
-        </div>
+      {mode === "repo" ? (
+        <Panel title="GitHub repository" className="mb-0">
+          <div className="grid gap-3">
+            <RepoConnect />
+            {finding}
+          </div>
+        </Panel>
+      ) : (
+        <details className="bg-card group rounded-xl border px-4 py-3">
+          <summary className="cursor-pointer font-semibold">
+            Connect GitHub so fixes arrive as pull requests <span className="text-muted-foreground font-normal">(optional)</span>
+            {repo.data && (
+              <Note className="ml-2">
+                {repo.data.owner}/{repo.data.repo} is connected
+              </Note>
+            )}
+          </summary>
+          <div className="mt-3 grid gap-3">
+            <RepoConnect />
+            {finding}
+          </div>
+        </details>
       )}
       {error ? <ErrorBanner error={error} lead="Couldn't create the token:" /> : null}
-      <div>
-        <Button disabled={busy || (mode === "repo" && !repo.trim())} onClick={start}>
-          {busy ? "Creating…" : "Create token and commands"}
-        </Button>
-        <Note className="ml-3">The token works for 2 hours, only for importing into {ws}. It can't publish anything.</Note>
-      </div>
+      {agentReady && (
+        <div>
+          <Button disabled={busy} onClick={start}>
+            {busy ? "Creating…" : "Create token and commands"}
+          </Button>
+          <Note className="ml-3">The token works for 2 hours, only for importing into {ws}. It can't publish anything.</Note>
+        </div>
+      )}
     </div>
   );
 }

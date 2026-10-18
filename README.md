@@ -70,11 +70,11 @@ Already running agents? **Import** turns their prompts into sopops: each agent's
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@v0 sopops-mcp \
+  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
-(Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill` copies it into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. a local clone).
+(Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. **In my repo too** (repo mode) connects GitHub right there, with the same form as Settings, and sopops looks in the folder (default `sops/`) on the base branch: a sopc project sopc builds is offered for import as it is; with none, the coding agent also opens the onboarding pull request adding it (nothing merges without you), reports it, and sopops follows it and pulls the folder into drafts when you merge it; one sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it in a pull request. **In sopops** can connect GitHub too (optional), so suggested fixes arrive as pull requests. The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill` copies it into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. a local clone).
 
 **An existing sopc project.** Already keep one, or export one from wherever your prompts live? Import → **A sopc project**: pick its folder (or read it from the connected GitHub repository) and add each agent's original prompt. sopops runs the same fidelity check (sentences kept, rules word for word, similarity, missing lines) and applying writes exactly the project's files as drafts (`POST …/imports/sopc`, [API.md](API.md#onboarding)). The [walkthrough](examples/walkthrough/WALKTHROUGH.md#2-onboard-the-agent-repo) shows both ways.
 
@@ -190,10 +190,10 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks are refused for a workspace with no webhook secret or runtime token, instead of answered openly. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
-| `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@v0` | What the onboarding command's `uvx --from` installs. |
+| `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@main` | What the onboarding command's `uvx --from` installs. |
 | `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3`. |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |
-| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking suggestions' pull requests (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
+| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking suggestions' and onboarding's pull requests (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
 | `SOPOPS_WEB_DIR` | the built UI | Serve the UI from another folder. |
 
 ## Git or database
@@ -221,7 +221,7 @@ Instead of CI, sopops can read the repo itself, and send changes back as pull re
 | Pull requests | Read and write | Opening the pull request, and following whether it's merged |
 | Metadata | Read | Required by GitHub for every fine-grained token |
 
-sopops checks that the token can read the repository and that the folder has a `sopc.yaml`, then stores the token encrypted with `SOPOPS_SECRET_KEY`; the API never returns it. **Pull** (`POST …/repo/pull`) makes the workspace's drafts exactly the folder at the branch's head (files sopops has that the repo doesn't are deleted, `build/` is skipped) and records the commit; you review and publish as usual, and pulling the same commit again does nothing. **Pull requests come from suggestions**: an instruction edit made from reviewed patterns is committed to a new `sopops/<id>` branch off the branch's head and opened as a PR against it, so the change goes through your usual review. sopops never pushes to the base branch. For GitHub Enterprise Server, set `SOPOPS_GITHUB_API_URL` to `https://HOST/api/v3`.
+sopops checks that the token can read the repository and that the folder has a `sopc.yaml` (onboarding connects before there is one, and proposes it in a pull request), then stores the token encrypted with `SOPOPS_SECRET_KEY`; the API never returns it. **Pull** (`POST …/repo/pull`) makes the workspace's drafts exactly the folder at the branch's head (files sopops has that the repo doesn't are deleted, `build/` is skipped) and records the commit; you review and publish as usual, and pulling the same commit again does nothing. **Pull requests come from suggestions**: an instruction edit made from reviewed patterns is committed to a new `sopops/<id>` branch off the branch's head and opened as a PR against it, so the change goes through your usual review. sopops never pushes to the base branch. For GitHub Enterprise Server, set `SOPOPS_GITHUB_API_URL` to `https://HOST/api/v3`.
 
 ## API
 

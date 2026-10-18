@@ -31,6 +31,7 @@ from ..schemas.onboarding import (
     PlatformAgent,
     PlatformAgentsRequest,
     ProgressIn,
+    PullRequestIn,
     ProjectImport,
     PushIn,
     PushOut,
@@ -41,6 +42,7 @@ from ..schemas.onboarding import (
 )
 from ..store import Store
 from ..tokens import Forbidden, Unauthorized
+from .repo import GITHUB
 
 # --- routes --------------------------------------------------------------------------------
 
@@ -123,12 +125,18 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 
-    @r.post(f"{base}/agent", response_model=AgentImportOut, status_code=201, response_model_by_alias=True)
+    @r.post(f"{base}/agent", response_model=AgentImportOut, status_code=201, response_model_by_alias=True,
+            responses={**GITHUB, 400: {"description": "Repo mode without a GitHub repository connected, or GitHub refused the token."}})
     def start_agent_import(workspace: str, req: AgentImportRequest, request: Request) -> dict:
         """An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the
-        commands and prompt to start one. The token is shown only in this response."""
+        commands and prompt to start one. The token is shown only in this response. Repo mode reads the connected
+        repository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull
+        request adding one, and to report it."""
         server = (req.server_url or str(request.base_url)).rstrip("/")
-        return onboarding.start_agent(workspace, server, req.mode, req.repo, req.author)
+        try:
+            return onboarding.start_agent(workspace, server, req.mode, req.author)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
 
     @r.get(f"{base}/{{id}}", response_model=ImportOut)
     def get_import(workspace: str, id: str) -> dict:
@@ -217,10 +225,9 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.get("/v1/onboarding/session", response_model=SessionInfo)
     def onboarding_session(authorization: str | None = Header(None)) -> dict:
-        """The workspace and mode an onboarding token is for."""
-        rec = agent(authorization)
-        token = onboarding.token_of(rec) or {}
-        return {"workspace": rec.workspace, "import_id": rec.id, "mode": rec.mode, "repo": rec.repo, "scopes": token.get("scopes", []), "expires_at": token.get("expires_at")}
+        """The workspace and mode an onboarding token is for, and in repo mode the connected repository, branch and
+        folder, what the folder held, and the onboarding pull request once reported."""
+        return onboarding.session(agent(authorization))
 
     @r.post("/v1/onboarding/progress", response_model=EventOut)
     def onboarding_progress(req: ProgressIn, authorization: str | None = Header(None)) -> dict:
@@ -231,6 +238,15 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     def onboarding_push(req: PushIn, authorization: str | None = Header(None)) -> dict:
         """Push the proposal for review; it replaces any earlier push. Returns fidelity per agent."""
         return onboarding.push(agent(authorization), req.proposal, req.originals, req.findings, req.notes)
+
+    @r.post("/v1/onboarding/pull-request", response_model=ImportOut, responses={400: {"description": "Not a pull request in the connected repository, or not repo mode."}})
+    def onboarding_pull_request(req: PullRequestIn, authorization: str | None = Header(None)) -> dict:
+        """Repo mode: the onboarding pull request the agent opened. sopops follows it on GitHub and, when it merges,
+        pulls the folder into drafts."""
+        try:
+            return onboarding.report_pull_request(agent(authorization), req.url)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
 
     @r.post("/v1/onboarding/fidelity", response_model=FidelityOut)
     def onboarding_check(req: FidelityIn, authorization: str | None = Header(None)) -> dict:
