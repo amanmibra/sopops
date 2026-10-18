@@ -2,7 +2,7 @@
 
 # 📋🗄️ sopops
 
-**Serves sopc agent prompts from a UI and an API, collects your agents' sessions, and checks each one against its procedures. Patterns across sessions and GitHub PRs are coming.**
+**Serves sopc agent prompts from a UI and an API, collects your agents' sessions, and checks each one against its procedures. Reviewed patterns become suggested edits, applied as drafts or opened as GitHub pull requests.**
 
 Edit shared instructions and procedures in a browser, compose each agent from them,<br>
 and publish releases your agents fetch when a call starts. No redeploys.
@@ -182,6 +182,18 @@ python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"file
 
 You can switch any time: `GET …/files?content=true` exports a workspace as sopc files to commit.
 
+### Connect a GitHub repository
+
+Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it in Settings, or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sop`) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
+
+| Permission | Access | For |
+|---|---|---|
+| Contents | Read and write | Reading the project; committing a suggestion to its own branch |
+| Pull requests | Read and write | Opening the pull request, and following whether it's merged |
+| Metadata | Read | Required by GitHub for every fine-grained token |
+
+sopops checks that the token can read the repository and that the folder has a `sopc.yaml`, then stores the token encrypted with `SOPOPS_SECRET_KEY`; the API never returns it. **Pull** (`POST …/repo/pull`) makes the workspace's drafts exactly the folder at the branch's head (files sopops has that the repo doesn't are deleted, `build/` is skipped) and records the commit; you review and publish as usual, and pulling the same commit again does nothing. **Pull requests come from suggestions**: an instruction edit made from reviewed patterns is committed to a new `sopops/<id>` branch off the branch's head and opened as a PR against it, so the change goes through your usual review. sopops never pushes to the base branch. For GitHub Enterprise Server, set `SOPOPS_GITHUB_API_URL` to `https://HOST/api/v3`.
+
 ## API
 
 Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs generate from it), and [API.md](API.md) lists every endpoint.
@@ -204,6 +216,7 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `POST …/releases`, `POST …/releases/<n>/activate` | Publish head; make an older release live. |
 | `POST …/publish` | Replace every file and release, for CI. |
 | `POST …/migrate` | Convert a workspace stored in an older sopc format (v0.0.8, or `locked` from v0.0.9). |
+| `GET/POST/DELETE …/repo`, `POST …/repo/pull` | The workspace's GitHub repository (token write-only); pull its sopc project into drafts. |
 | `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
@@ -216,7 +229,7 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 
 - A Slack digest of new patterns and suggestions
 - ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
-- GitHub: load a sopc project from a repo path, and open PRs with suggested changes
+- GitHub: a GitHub App instead of a personal token, and pulling on push (a webhook)
 - Sign-in for the UI, and tokens for the rest of the API
 - Renaming agents and blocks
 - A webhook on publish

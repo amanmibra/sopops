@@ -21,6 +21,7 @@ from .api import (
     onboarding,
     patterns,
     releases,
+    repo,
     review,
     runtime,
     serving,
@@ -91,6 +92,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         review.router(store, jobs),
         suggestions.router(store, jobs),
         insights.router(store),
+        repo.router(store),
     ):
         app.include_router(r)
     app.include_router(onboarding.router(store, app.state.onboarding), dependencies=OPEN)

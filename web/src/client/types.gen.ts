@@ -3430,6 +3430,40 @@ export type PublishResponse = {
 };
 
 /**
+ * PullOut
+ */
+export type PullOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Sha
+     *
+     * The base branch's head commit, now the workspace's drafts.
+     */
+    sha: string;
+    /**
+     * Files
+     *
+     * Files in the sopc project at that commit.
+     */
+    files: number;
+    /**
+     * Changed
+     *
+     * New file versions (drafts). Empty if head already matched.
+     */
+    changed: Array<WrittenFile>;
+    /**
+     * Unchanged
+     *
+     * Nothing changed: the commit was already pulled, or its files match head.
+     */
+    unchanged: boolean;
+};
+
+/**
  * PushIn
  */
 export type PushIn = {
@@ -3984,6 +4018,106 @@ export type ReplaceRequest = {
      * Note
      */
     note?: string | null;
+};
+
+/**
+ * RepoIn
+ */
+export type RepoIn = {
+    /**
+     * Owner
+     *
+     * The user or organization, e.g. `acme`.
+     */
+    owner: string;
+    /**
+     * Repo
+     *
+     * The repository's name, e.g. `voice-agents`.
+     */
+    repo: string;
+    /**
+     * Token
+     *
+     * A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it out to keep the stored one (to change the branch or path).
+     */
+    token?: string | null;
+    /**
+     * Base Branch
+     *
+     * The branch to pull from and open pull requests against.
+     */
+    base_branch?: string;
+    /**
+     * Path
+     *
+     * The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.
+     */
+    path?: string;
+};
+
+/**
+ * RepoOut
+ */
+export type RepoOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Owner
+     */
+    owner: string;
+    /**
+     * Repo
+     */
+    repo: string;
+    /**
+     * Base Branch
+     */
+    base_branch: string;
+    /**
+     * Path
+     *
+     * The sopc project's folder; empty for the root.
+     */
+    path: string;
+    /**
+     * Auth
+     *
+     * How sopops signs in to GitHub: `token`, a fine-grained personal access token.
+     */
+    auth: 'token';
+    /**
+     * Token Hint
+     *
+     * The token's last characters, to tell tokens apart. Never the token.
+     */
+    token_hint: string;
+    /**
+     * Url
+     *
+     * The folder on GitHub.
+     */
+    url: string;
+    /**
+     * Pulled Sha
+     *
+     * The commit last pulled.
+     */
+    pulled_sha: string | null;
+    /**
+     * Pulled At
+     */
+    pulled_at: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
 };
 
 /**
@@ -10488,6 +10622,171 @@ export type InsightsReportResponses = {
 };
 
 export type InsightsReportResponse = InsightsReportResponses[keyof InsightsReportResponses];
+
+export type DisconnectRepoData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo';
+};
+
+export type DisconnectRepoErrors = {
+    /**
+     * No repository connected.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DisconnectRepoError = DisconnectRepoErrors[keyof DisconnectRepoErrors];
+
+export type DisconnectRepoResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DisconnectRepoResponse = DisconnectRepoResponses[keyof DisconnectRepoResponses];
+
+export type GetRepoData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo';
+};
+
+export type GetRepoErrors = {
+    /**
+     * No repository connected.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRepoError = GetRepoErrors[keyof GetRepoErrors];
+
+export type GetRepoResponses = {
+    /**
+     * Successful Response
+     */
+    200: RepoOut;
+};
+
+export type GetRepoResponse = GetRepoResponses[keyof GetRepoResponses];
+
+export type ConnectRepoData = {
+    body: RepoIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo';
+};
+
+export type ConnectRepoErrors = {
+    /**
+     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
+};
+
+export type ConnectRepoError = ConnectRepoErrors[keyof ConnectRepoErrors];
+
+export type ConnectRepoResponses = {
+    /**
+     * Successful Response
+     */
+    200: RepoOut;
+};
+
+export type ConnectRepoResponse = ConnectRepoResponses[keyof ConnectRepoResponses];
+
+export type PullRepoData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Author
+         */
+        author?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/repo/pull';
+};
+
+export type PullRepoErrors = {
+    /**
+     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     */
+    400: unknown;
+    /**
+     * The files don't compile; sopc's issues.
+     */
+    422: ValidateResponse;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
+};
+
+export type PullRepoError = PullRepoErrors[keyof PullRepoErrors];
+
+export type PullRepoResponses = {
+    /**
+     * Successful Response
+     */
+    200: PullOut;
+};
+
+export type PullRepoResponse = PullRepoResponses[keyof PullRepoResponses];
 
 export type OnboardingCapabilitiesData = {
     body?: never;

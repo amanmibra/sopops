@@ -6984,6 +6984,223 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/repo": {
+      "get": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Get Repo",
+        "description": "The workspace's GitHub repository. Never the token.",
+        "operationId": "get_repo",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No repository connected."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Connect Repo",
+        "description": "Connect a GitHub repository, or change the connection. Checks that the token can read the repository and that\n`path` on `base_branch` holds a sopc project (sopc.yaml); the token is stored encrypted with SOPOPS_SECRET_KEY.",
+        "operationId": "connect_repo",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Disconnect Repo",
+        "description": "Forget the repository and its token. The workspace's files stay.",
+        "operationId": "disconnect_repo",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No repository connected."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/repo/pull": {
+      "post": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Pull Repo",
+        "description": "Make the workspace's head the sopc project at the base branch's head, as drafts: files not in the repository\nare deleted. Publish from Unpublished changes as usual. Pulling a commit already pulled is a no-op.",
+        "operationId": "pull_repo",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PullOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/onboarding/capabilities": {
       "get": {
         "tags": [
@@ -14186,6 +14403,46 @@
         ],
         "title": "PublishResponse"
       },
+      "PullOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha",
+            "description": "The base branch's head commit, now the workspace's drafts."
+          },
+          "files": {
+            "type": "integer",
+            "title": "Files",
+            "description": "Files in the sopc project at that commit."
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed",
+            "description": "New file versions (drafts). Empty if head already matched."
+          },
+          "unchanged": {
+            "type": "boolean",
+            "title": "Unchanged",
+            "description": "Nothing changed: the commit was already pulled, or its files match head."
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "sha",
+          "files",
+          "changed",
+          "unchanged"
+        ],
+        "title": "PullOut"
+      },
       "PushIn": {
         "properties": {
           "proposal": {
@@ -15103,6 +15360,149 @@
           "files"
         ],
         "title": "ReplaceRequest"
+      },
+      "RepoIn": {
+        "properties": {
+          "owner": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Owner",
+            "description": "The user or organization, e.g. `acme`."
+          },
+          "repo": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Repo",
+            "description": "The repository's name, e.g. `voice-agents`."
+          },
+          "token": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it out to keep the stored one (to change the branch or path)."
+          },
+          "base_branch": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Base Branch",
+            "description": "The branch to pull from and open pull requests against.",
+            "default": "main"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "title": "Path",
+            "description": "The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.",
+            "default": "sop"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owner",
+          "repo"
+        ],
+        "title": "RepoIn"
+      },
+      "RepoOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "repo": {
+            "type": "string",
+            "title": "Repo"
+          },
+          "base_branch": {
+            "type": "string",
+            "title": "Base Branch"
+          },
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "The sopc project's folder; empty for the root."
+          },
+          "auth": {
+            "type": "string",
+            "const": "token",
+            "title": "Auth",
+            "description": "How sopops signs in to GitHub: `token`, a fine-grained personal access token."
+          },
+          "token_hint": {
+            "type": "string",
+            "title": "Token Hint",
+            "description": "The token's last characters, to tell tokens apart. Never the token."
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "The folder on GitHub."
+          },
+          "pulled_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pulled Sha",
+            "description": "The commit last pulled."
+          },
+          "pulled_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pulled At"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "owner",
+          "repo",
+          "base_branch",
+          "path",
+          "auth",
+          "token_hint",
+          "url",
+          "pulled_sha",
+          "pulled_at",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RepoOut"
       },
       "ReportHeadline": {
         "properties": {

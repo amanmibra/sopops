@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 
 from .. import forms
 from ..errors import Conflict, NotFound
+from ..github import GitHubError
 from ..insights import BadFilter
 from ..sessions import BadCursor
 from ..sopc import Invalid, SopcUnavailable
@@ -45,3 +46,7 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(BadFilter)
     def _bad_filter(_, exc: BadFilter) -> JSONResponse:
         return JSONResponse(status_code=422, content={"detail": str(exc)})
+
+    @app.exception_handler(GitHubError)
+    def _github(_, exc: GitHubError) -> JSONResponse:
+        return JSONResponse(status_code=exc.status, content={"detail": str(exc)})

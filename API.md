@@ -104,6 +104,19 @@ How each agent gets its prompt: **pull** (the agent, or its platform's call-star
 
 **Linking sessions.** Each prompt served by a webhook, or reported to `…/runtime/served`, is kept for 7 days keyed by the call id: Vapi's `call.id`, ElevenLabs' `conversation_id` or `call_sid`. A session ingested without a `release` takes it from there, matching `external_id`, `metadata.call_sid` or `metadata.phone_call.call_sid`.
 
+## GitHub
+
+A workspace's repository: the sopc project at `path` on `base_branch`. Auth is a fine-grained personal access token (Contents and Pull requests: read and write; Metadata: read), encrypted with `SOPOPS_SECRET_KEY` and never returned. GitHub's refusals come back as `400` with what to fix (a wrong or expired token, missing access, no such repository, branch or `sopc.yaml`), its rate limit as `429`, and GitHub being down or unreachable as `502`.
+
+| Endpoint | What it does |
+|---|---|
+| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sop"}`: check that the token reads the repository and that `path` on `base_branch` has a `sopc.yaml`, then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
+| `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `404` if none. |
+| `DELETE …/repo` | Forget the repository and its token; the files stay. |
+| `POST …/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). `{sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op; `422` (sopc's issues) if it doesn't compile. |
+
+Pull requests are opened from suggestions, in code: `sopops.github.open_pull_request(store, workspace, files, title, body)` commits `files` (paths relative to the project's folder; `None` deletes) to a new branch `sopops/<id>` off the base branch's head (blobs, tree, commit, ref) and opens a PR against the base branch, returning its URL. `pr_status(store, workspace, url)` is `open`, `merged` or `closed`.
+
 ## Stateless
 
 Nothing is stored.
