@@ -1,6 +1,6 @@
 // An item's versions, and what changed from a picked one to the current draft.
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { type ItemVersion, call, sdk } from "@/lib/api";
 import { type Kind, when } from "@/lib/kinds";
 import { setRestore } from "@/lib/restore";
@@ -17,7 +17,8 @@ type ListKind = Exclude<Kind, "settings">;
 const HISTORY = { agent: sdk.configAgentHistory, instruction: sdk.configInstructionHistory, procedure: sdk.configProcedureHistory, group: sdk.configGroupHistory };
 const VERSION = { agent: sdk.configAgentVersion, instruction: sdk.configInstructionVersion, procedure: sdk.configProcedureVersion, group: sdk.configGroupVersion };
 
-export function HistoryView({ kind, id }: { kind: Kind; id: string }) {
+/** `head` replaces the item header: Settings brings its own. */
+export function HistoryView({ kind, id, head: custom }: { kind: Kind; id: string; head?: ReactNode }) {
   const { ws, model, releases, href } = useWs();
   const go = useGo();
   const item = model.find(kind, id) as Record<string, unknown> | undefined;
@@ -40,7 +41,7 @@ export function HistoryView({ kind, id }: { kind: Kind; id: string }) {
   });
   if (!item && kind !== "settings") return <Missing kind={kind} id={id} />;
   const title = kind === "settings" ? "Settings" : model.itemName(kind, id);
-  const head = <ItemHeader kind={kind} id={id} title={title} tab="history" />;
+  const head = custom ?? <ItemHeader kind={kind} id={id} title={title} tab="history" />;
   if (hist.isPending) return <Page>{head}<p className="text-muted-foreground">Loading…</p></Page>;
   if (hist.isError) {
     const notFound = (hist.error as { status?: number }).status === 404;

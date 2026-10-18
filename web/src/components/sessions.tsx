@@ -7,7 +7,7 @@ import { STATUS_MARK, ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
 import { PlatformLabel } from "./brand-icon";
@@ -171,7 +171,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
       </PageTitle>
       <Sub>
         Every voice call and text chat your agents had, newest first. Send them from the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>, the API or{" "}
-        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={wsHref(ws, "settings")}>Settings</HrefLink> (the gear icon).
+        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink> (the gear icon).
       </Sub>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">

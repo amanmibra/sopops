@@ -11,7 +11,7 @@ import { MODES, type Mode, currentMode, modeHref } from "@/lib/mode";
 import { prefs } from "@/lib/prefs";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Logo } from "./logo";
@@ -88,7 +88,7 @@ function SettingsLink({ ws, mode }: { ws: string; mode: Mode }) {
   const here = routeIsSettings(pathname);
   return (
     <Button asChild variant="ghost" size="icon-sm" className={cn("relative", here && "bg-brand-soft hover:bg-brand-soft")}>
-      <HrefLink href={`${wsHref(ws, "settings")}?from=${mode}`} aria-label="Settings" aria-current={here ? "page" : undefined} title="Settings: tokens, GitHub, platforms, defaults" className="text-foreground hover:no-underline">
+      <HrefLink href={`${settingsHref(ws)}?from=${mode}`} aria-label="Settings" aria-current={here ? "page" : undefined} title="Settings: tokens, GitHub, platforms, defaults" className="text-foreground hover:no-underline">
         <Settings />
         {changed && <span className={cn("absolute top-1 right-1 size-[7px] rounded-full", changed.change === "deleted" ? "bg-err" : "bg-warn")} aria-label={`settings ${changed.change}, not published`} />}
       </HrefLink>

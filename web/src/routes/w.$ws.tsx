@@ -34,6 +34,13 @@ function WorkspaceLayout() {
   if (!value) return <main className="text-muted-foreground px-8 py-6">Loading…</main>;
   // A workspace stored in an older sopc format can only be converted (or its releases looked at).
   const convert = value.legacy && !pathname.includes("/releases");
+  // Settings brings its own side menu in place of the mode's rail.
+  if (!convert && /^\/w\/[^/]+\/settings(\/|$)/.test(pathname))
+    return (
+      <WsContext.Provider value={value}>
+        <Outlet />
+      </WsContext.Provider>
+    );
   return (
     <WsContext.Provider value={value}>
       <div className="grid min-h-[calc(100vh-53px)] grid-cols-1 md:grid-cols-[264px_minmax(0,1fr)]">

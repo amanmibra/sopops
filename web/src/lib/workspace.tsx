@@ -42,9 +42,13 @@ const ROUTES: Record<Kind, string> = { agent: "agents", instruction: "instructio
 
 export function itemHref(ws: string, kind: Kind, id?: string, tab?: string): string {
   const base = `/w/${encodeURIComponent(ws)}/${ROUTES[kind]}`;
-  if (kind === "settings") return tab ? `${base}/${tab}` : base;
+  if (kind === "settings") return `${base}/${tab ?? "defaults"}`;
   return [base, id ? encodeURIComponent(id) : "", id && tab ? tab : ""].filter(Boolean).join("/");
 }
 
 export const wsHref = (ws: string, ...parts: (string | number)[]) =>
   [`/w/${encodeURIComponent(ws)}`, ...parts.map((p) => encodeURIComponent(String(p)))].join("/");
+
+/** Settings' sections, each on its own page. A bare /settings link lands on the first. */
+export type SettingsSection = "platforms" | "github" | "access" | "defaults" | "history" | "checks";
+export const settingsHref = (ws: string, section: SettingsSection = "platforms") => wsHref(ws, "settings", section);

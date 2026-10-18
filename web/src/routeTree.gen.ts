@@ -16,6 +16,7 @@ import { Route as WWsChangesRouteImport } from './routes/w.$ws.changes'
 import { Route as WWsConvertRouteImport } from './routes/w.$ws.convert'
 import { Route as WWsOverviewRouteImport } from './routes/w.$ws.overview'
 import { Route as WWsReportRouteImport } from './routes/w.$ws.report'
+import { Route as WWsSettingsRouteImport } from './routes/w.$ws.settings'
 import { Route as WWsAgentsIndexRouteImport } from './routes/w.$ws.agents.index'
 import { Route as WWsGroupsIndexRouteImport } from './routes/w.$ws.groups.index'
 import { Route as WWsImportIndexRouteImport } from './routes/w.$ws.import.index'
@@ -31,7 +32,12 @@ import { Route as WWsReleasesNumberRouteImport } from './routes/w.$ws.releases.$
 import { Route as WWsSessionsIndexRouteImport } from './routes/w.$ws.sessions.index'
 import { Route as WWsSessionsIdRouteImport } from './routes/w.$ws.sessions.$id'
 import { Route as WWsSettingsIndexRouteImport } from './routes/w.$ws.settings.index'
+import { Route as WWsSettingsAccessRouteImport } from './routes/w.$ws.settings.access'
+import { Route as WWsSettingsChecksRouteImport } from './routes/w.$ws.settings.checks'
+import { Route as WWsSettingsDefaultsRouteImport } from './routes/w.$ws.settings.defaults'
+import { Route as WWsSettingsGithubRouteImport } from './routes/w.$ws.settings.github'
 import { Route as WWsSettingsHistoryRouteImport } from './routes/w.$ws.settings.history'
+import { Route as WWsSettingsPlatformsRouteImport } from './routes/w.$ws.settings.platforms'
 import { Route as WWsSuggestionsIndexRouteImport } from './routes/w.$ws.suggestions.index'
 import { Route as WWsSuggestionsIdRouteImport } from './routes/w.$ws.suggestions.$id'
 import { Route as WWsAgentsIdIndexRouteImport } from './routes/w.$ws.agents.$id.index'
@@ -79,6 +85,11 @@ const WWsOverviewRoute = WWsOverviewRouteImport.update({
 const WWsReportRoute = WWsReportRouteImport.update({
   id: '/report',
   path: '/report',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsSettingsRoute = WWsSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsAgentsIndexRoute = WWsAgentsIndexRouteImport.update({
@@ -152,14 +163,39 @@ const WWsSessionsIdRoute = WWsSessionsIdRouteImport.update({
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsSettingsIndexRoute = WWsSettingsIndexRouteImport.update({
-  id: '/settings/',
-  path: '/settings/',
-  getParentRoute: () => WWsRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsAccessRoute = WWsSettingsAccessRouteImport.update({
+  id: '/access',
+  path: '/access',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsChecksRoute = WWsSettingsChecksRouteImport.update({
+  id: '/checks',
+  path: '/checks',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsDefaultsRoute = WWsSettingsDefaultsRouteImport.update({
+  id: '/defaults',
+  path: '/defaults',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsGithubRoute = WWsSettingsGithubRouteImport.update({
+  id: '/github',
+  path: '/github',
+  getParentRoute: () => WWsSettingsRoute,
 } as any)
 const WWsSettingsHistoryRoute = WWsSettingsHistoryRouteImport.update({
-  id: '/settings/history',
-  path: '/settings/history',
-  getParentRoute: () => WWsRoute,
+  id: '/history',
+  path: '/history',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsPlatformsRoute = WWsSettingsPlatformsRouteImport.update({
+  id: '/platforms',
+  path: '/platforms',
+  getParentRoute: () => WWsSettingsRoute,
 } as any)
 const WWsSuggestionsIndexRoute = WWsSuggestionsIndexRouteImport.update({
   id: '/suggestions/',
@@ -237,13 +273,19 @@ export interface FileRoutesByFullPath {
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
+  '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
+  '/w/$ws/settings/access': typeof WWsSettingsAccessRoute
+  '/w/$ws/settings/checks': typeof WWsSettingsChecksRoute
+  '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
+  '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -280,7 +322,12 @@ export interface FileRoutesByTo {
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
+  '/w/$ws/settings/access': typeof WWsSettingsAccessRoute
+  '/w/$ws/settings/checks': typeof WWsSettingsChecksRoute
+  '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
+  '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
   '/w/$ws/groups': typeof WWsGroupsIndexRoute
@@ -313,13 +360,19 @@ export interface FileRoutesById {
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
+  '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
+  '/w/$ws/settings/access': typeof WWsSettingsAccessRoute
+  '/w/$ws/settings/checks': typeof WWsSettingsChecksRoute
+  '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
+  '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -353,13 +406,19 @@ export interface FileRouteTypes {
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws/report'
+    | '/w/$ws/settings'
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
+    | '/w/$ws/settings/access'
+    | '/w/$ws/settings/checks'
+    | '/w/$ws/settings/defaults'
+    | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -396,7 +455,12 @@ export interface FileRouteTypes {
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
+    | '/w/$ws/settings/access'
+    | '/w/$ws/settings/checks'
+    | '/w/$ws/settings/defaults'
+    | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents'
     | '/w/$ws/groups'
@@ -428,13 +492,19 @@ export interface FileRouteTypes {
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws/report'
+    | '/w/$ws/settings'
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
+    | '/w/$ws/settings/access'
+    | '/w/$ws/settings/checks'
+    | '/w/$ws/settings/defaults'
+    | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -514,6 +584,13 @@ declare module '@tanstack/react-router' {
       path: '/report'
       fullPath: '/w/$ws/report'
       preLoaderRoute: typeof WWsReportRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/settings': {
+      id: '/w/$ws/settings'
+      path: '/settings'
+      fullPath: '/w/$ws/settings'
+      preLoaderRoute: typeof WWsSettingsRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/agents/': {
@@ -616,17 +693,52 @@ declare module '@tanstack/react-router' {
     }
     '/w/$ws/settings/': {
       id: '/w/$ws/settings/'
-      path: '/settings'
+      path: '/'
       fullPath: '/w/$ws/settings/'
       preLoaderRoute: typeof WWsSettingsIndexRouteImport
-      parentRoute: typeof WWsRoute
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/access': {
+      id: '/w/$ws/settings/access'
+      path: '/access'
+      fullPath: '/w/$ws/settings/access'
+      preLoaderRoute: typeof WWsSettingsAccessRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/checks': {
+      id: '/w/$ws/settings/checks'
+      path: '/checks'
+      fullPath: '/w/$ws/settings/checks'
+      preLoaderRoute: typeof WWsSettingsChecksRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/defaults': {
+      id: '/w/$ws/settings/defaults'
+      path: '/defaults'
+      fullPath: '/w/$ws/settings/defaults'
+      preLoaderRoute: typeof WWsSettingsDefaultsRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/github': {
+      id: '/w/$ws/settings/github'
+      path: '/github'
+      fullPath: '/w/$ws/settings/github'
+      preLoaderRoute: typeof WWsSettingsGithubRouteImport
+      parentRoute: typeof WWsSettingsRoute
     }
     '/w/$ws/settings/history': {
       id: '/w/$ws/settings/history'
-      path: '/settings/history'
+      path: '/history'
       fullPath: '/w/$ws/settings/history'
       preLoaderRoute: typeof WWsSettingsHistoryRouteImport
-      parentRoute: typeof WWsRoute
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/platforms': {
+      id: '/w/$ws/settings/platforms'
+      path: '/platforms'
+      fullPath: '/w/$ws/settings/platforms'
+      preLoaderRoute: typeof WWsSettingsPlatformsRouteImport
+      parentRoute: typeof WWsSettingsRoute
     }
     '/w/$ws/suggestions/': {
       id: '/w/$ws/suggestions/'
@@ -722,18 +834,42 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface WWsSettingsRouteChildren {
+  WWsSettingsAccessRoute: typeof WWsSettingsAccessRoute
+  WWsSettingsChecksRoute: typeof WWsSettingsChecksRoute
+  WWsSettingsDefaultsRoute: typeof WWsSettingsDefaultsRoute
+  WWsSettingsGithubRoute: typeof WWsSettingsGithubRoute
+  WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
+  WWsSettingsPlatformsRoute: typeof WWsSettingsPlatformsRoute
+  WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
+}
+
+const WWsSettingsRouteChildren: WWsSettingsRouteChildren = {
+  WWsSettingsAccessRoute: WWsSettingsAccessRoute,
+  WWsSettingsChecksRoute: WWsSettingsChecksRoute,
+  WWsSettingsDefaultsRoute: WWsSettingsDefaultsRoute,
+  WWsSettingsGithubRoute: WWsSettingsGithubRoute,
+  WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
+  WWsSettingsPlatformsRoute: WWsSettingsPlatformsRoute,
+  WWsSettingsIndexRoute: WWsSettingsIndexRoute,
+}
+
+const WWsSettingsRouteWithChildren = WWsSettingsRoute._addFileChildren(
+  WWsSettingsRouteChildren,
+)
+
 interface WWsRouteChildren {
   WWsChangesRoute: typeof WWsChangesRoute
   WWsConvertRoute: typeof WWsConvertRoute
   WWsOverviewRoute: typeof WWsOverviewRoute
   WWsReportRoute: typeof WWsReportRoute
+  WWsSettingsRoute: typeof WWsSettingsRouteWithChildren
   WWsIndexRoute: typeof WWsIndexRoute
   WWsImportIdRoute: typeof WWsImportIdRoute
   WWsInsightsReleasesRoute: typeof WWsInsightsReleasesRoute
   WWsPatternsIdRoute: typeof WWsPatternsIdRoute
   WWsReleasesNumberRoute: typeof WWsReleasesNumberRoute
   WWsSessionsIdRoute: typeof WWsSessionsIdRoute
-  WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
   WWsSuggestionsIdRoute: typeof WWsSuggestionsIdRoute
   WWsAgentsIndexRoute: typeof WWsAgentsIndexRoute
   WWsGroupsIndexRoute: typeof WWsGroupsIndexRoute
@@ -744,7 +880,6 @@ interface WWsRouteChildren {
   WWsProceduresIndexRoute: typeof WWsProceduresIndexRoute
   WWsReleasesIndexRoute: typeof WWsReleasesIndexRoute
   WWsSessionsIndexRoute: typeof WWsSessionsIndexRoute
-  WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
   WWsSuggestionsIndexRoute: typeof WWsSuggestionsIndexRoute
   WWsAgentsIdHistoryRoute: typeof WWsAgentsIdHistoryRoute
   WWsAgentsIdPromptRoute: typeof WWsAgentsIdPromptRoute
@@ -764,13 +899,13 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsConvertRoute: WWsConvertRoute,
   WWsOverviewRoute: WWsOverviewRoute,
   WWsReportRoute: WWsReportRoute,
+  WWsSettingsRoute: WWsSettingsRouteWithChildren,
   WWsIndexRoute: WWsIndexRoute,
   WWsImportIdRoute: WWsImportIdRoute,
   WWsInsightsReleasesRoute: WWsInsightsReleasesRoute,
   WWsPatternsIdRoute: WWsPatternsIdRoute,
   WWsReleasesNumberRoute: WWsReleasesNumberRoute,
   WWsSessionsIdRoute: WWsSessionsIdRoute,
-  WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
   WWsSuggestionsIdRoute: WWsSuggestionsIdRoute,
   WWsAgentsIndexRoute: WWsAgentsIndexRoute,
   WWsGroupsIndexRoute: WWsGroupsIndexRoute,
@@ -781,7 +916,6 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsProceduresIndexRoute: WWsProceduresIndexRoute,
   WWsReleasesIndexRoute: WWsReleasesIndexRoute,
   WWsSessionsIndexRoute: WWsSessionsIndexRoute,
-  WWsSettingsIndexRoute: WWsSettingsIndexRoute,
   WWsSuggestionsIndexRoute: WWsSuggestionsIndexRoute,
   WWsAgentsIdHistoryRoute: WWsAgentsIdHistoryRoute,
   WWsAgentsIdPromptRoute: WWsAgentsIdPromptRoute,

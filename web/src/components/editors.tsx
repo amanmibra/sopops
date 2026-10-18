@@ -1,8 +1,6 @@
 // The forms: agent builder, shared instruction, procedure, group and settings.
 import { useEffect, useRef, useState } from "react";
 import { PlatformLabel } from "./brand-icon";
-import { RuntimePanels } from "./runtime";
-import { TokensPanel } from "./tokens";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
 import { DELIVERY, KIND, type Kind, PLATFORMS, slug } from "@/lib/kinds";
@@ -11,12 +9,13 @@ import { type Step, cleanStep } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
 import { takeRestore } from "@/lib/restore";
 import { useWs } from "@/lib/workspace";
-import { Banner, Counts, IssueList, Segmented } from "./bits";
+import { Banner, Counts, IssueList, Segmented, Tag } from "./bits";
 import { DiffView } from "./diff-view";
 import { ActionBar, AgentVars, type Dirty, Field, StepRows, VarRows, useDirty, useItemSave } from "./form";
 import { useGo } from "./href-link";
 import { ItemHeader, Missing, NewHeader, Page, UsedBy } from "./item-shell";
 import { BlockStack } from "./block-stack";
+import { SectionHead } from "./settings";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
@@ -389,13 +388,16 @@ export function SettingsEditor() {
 }
 
 function SettingsForm() {
-  const { cfg } = useWs();
+  const { cfg, changeOf } = useWs();
   const { m, set, dirty, notice } = useFields("settings", "settings", { variables: cfg.settings.variables, procedures_heading: cfg.settings.procedures_heading });
   const { errors, banner, onSave } = useOnSave("settings", "settings", false, dirty);
+  const c = changeOf("settings", "settings");
   return (
     <Page>
       {notice}
-      <ItemHeader kind="settings" id="settings" title="Settings" tab="" />
+      <SectionHead title="Set the defaults every agent's prompt uses" aside={c && <Tag tone={c.change}>{c.change}, not published</Tag>}>
+        Changes here are saved as drafts and go live when you publish, like any other edit.
+      </SectionHead>
       {banner}
       <div className="grid gap-6">
         <Field id="variables" name="Default variables" help="Values for placeholders every agent gets unless the agent sets its own." errors={errors}>
@@ -405,8 +407,6 @@ function SettingsForm() {
           <Input id="f-procedures_heading" value={m.procedures_heading} onChange={(e) => set({ procedures_heading: e.target.value })} />
         </Field>
       </div>
-      <TokensPanel />
-      <RuntimePanels />
       <ActionBar kind="settings" itemId="settings" isNew={false} dirty={dirty} onSave={(note, then) => onSave({ variables: m.variables, procedures_heading: m.procedures_heading }, note, then)} />
     </Page>
   );

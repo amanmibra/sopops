@@ -55,12 +55,7 @@ export function RuntimePanels() {
             <Cable className="size-4" /> What each platform needs
           </span>
         }
-        className="mt-8"
       >
-        <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
-          Each agent gets its prompt from sopops and sends its sessions back to be checked. Most of this is set up on this page. Anything that needs
-          code in your agent is marked.
-        </p>
         <ConnectGuide />
       </Panel>
       <DeliveryPanel />
@@ -89,10 +84,9 @@ function DeliveryPanel() {
           <Send className="size-4" /> Delivery
         </span>
       }
-      className="mt-8"
     >
       <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
-        <p>How each agent gets its prompt.</p>
+        <p>Pick how each agent gets its prompt.</p>
         <ul className="grid list-disc gap-1 pl-5">
           <li>
             <b className="text-foreground">Pull at call start</b>: the agent, or its platform's call-start webhook, fetches the live release when a call
@@ -157,7 +151,7 @@ function PlatformsPanel() {
       }
     >
       <p className="text-muted-foreground mb-2 max-w-prose text-[13px] leading-relaxed">
-        Connect ElevenLabs and Vapi so prompts reach your agents there. Keys and secrets are stored encrypted and never shown again.
+        API keys and webhook secrets for each platform. They're stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       {creds.isError && <ErrorBanner error={creds.error} />}
       {creds.data?.map((c) => <PlatformRow key={c.platform} creds={c} />)}

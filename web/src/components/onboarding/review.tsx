@@ -10,7 +10,7 @@ import { call, refresh, sdk } from "@/lib/api";
 import { plural, when } from "@/lib/kinds";
 import { TERMINAL, iq, kickoffFor, pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { PlatformLabel } from "../brand-icon";
 import { ConnectGuide } from "../connect-guide";
@@ -110,7 +110,7 @@ function OnboardingPullRequest({ imp }: { imp: ImportOut }) {
       {imp.pr_state === "merged" &&
         (imp.error ? (
           <Banner tone="err">
-            {imp.error} <HrefLink href={wsHref(ws, "settings")}>Pull it from Settings</HrefLink>.
+            {imp.error} <HrefLink href={settingsHref(ws, "github")}>Pull it from Settings</HrefLink>.
           </Banner>
         ) : (
           <Banner tone="ok">

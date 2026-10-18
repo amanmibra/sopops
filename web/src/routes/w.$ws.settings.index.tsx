@@ -1,22 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { CalibrationCard } from "@/components/calibration";
-import { SettingsEditor } from "@/components/editors";
-import { ImportCard } from "@/components/onboarding/review";
-import { PricesCard } from "@/components/insights/spend";
-import { RepoCard } from "@/components/repo";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/w/$ws/settings/")({ component: Settings });
-
-function Settings() {
-  return (
-    <>
-      <SettingsEditor />
-      <div className="mt-8 max-w-[860px]">
-        <RepoCard />
-        <CalibrationCard />
-        <PricesCard />
-        <ImportCard />
-      </div>
-    </>
-  );
-}
+// Old /settings links land on the first section, keeping ?from=<mode>.
+export const Route = createFileRoute("/w/$ws/settings/")({
+  beforeLoad: ({ params, search }) => {
+    throw redirect({ to: "/w/$ws/settings/platforms", params, search, replace: true });
+  },
+});

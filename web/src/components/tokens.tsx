@@ -68,11 +68,10 @@ export function TokensPanel() {
           <KeyRound className="size-4" /> Tokens
         </span>
       }
-      className="mt-8"
     >
       <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
         <p>
-          Tokens let your agents and platform webhooks reach sopops. Send one as <code>Authorization: Bearer &lt;token&gt;</code>.
+          Send a token as <code>Authorization: Bearer &lt;token&gt;</code>. Its scopes decide what it can do.
         </p>
         <ul className="grid list-disc gap-1 pl-5">
           <li>
@@ -83,7 +82,7 @@ export function TokensPanel() {
             workspace has a runtime token, every fetch needs one.
           </li>
         </ul>
-        <p>Tokens for coding agents are made on the Import agents page. The rest of sopops has no sign-in yet.</p>
+        <p>Tokens for coding agents are made on the Import agents page.</p>
       </div>
       {list.isError && <ErrorBanner error={list.error} />}
       {shown && (
