@@ -1,5 +1,6 @@
 // The forms: agent builder, shared instruction, procedure, group and settings.
 import { useEffect, useRef, useState } from "react";
+import { PlatformLabel } from "./brand-icon";
 import { RuntimePanels } from "./runtime";
 import { TokensPanel } from "./tokens";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
@@ -116,7 +117,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
                 <SelectContent>
                   {PLATFORMS.filter((p) => !p.legacy || p.value === item?.platform).map((p) => (
                     <SelectItem key={p.value} value={p.value}>
-                      {p.label}
+                      <PlatformLabel platform={p.value} />
                     </SelectItem>
                   ))}
                 </SelectContent>

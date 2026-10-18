@@ -1,12 +1,13 @@
 // Runtime delivery: each agent's delivery mode and the platform credentials (Settings), and push results (a release).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, PlugZap, RefreshCw, Send } from "lucide-react";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AgentDeliveryOut, type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
 import { platformName, when } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
+import { PlatformIcon, PlatformLabel } from "./brand-icon";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -21,14 +22,21 @@ const MODE: Record<Mode, string> = {
   both: "Push and pull",
 };
 
-const WEBHOOK: Record<Platform, { path: string; how: string }> = {
+const WEBHOOK: Record<Platform, { path: string; steps: ReactNode[] }> = {
   elevenlabs: {
     path: "runtime/elevenlabs/conversation-init",
-    how: "ElevenLabs: Agents settings → Conversation initiation webhook. Send the secret as the header X-Sopops-Secret (from a workspace secret), and allow the agent to override its system prompt (Security → Overrides).",
+    steps: [
+      <>In the agent's settings on ElevenLabs, set <b>Conversation initiation webhook</b> to this address.</>,
+      <>Add the header <code>X-Sopops-Secret</code> with the webhook secret. Save it as a workspace secret on ElevenLabs first.</>,
+      <>Under <b>Security → Overrides</b>, let the system prompt be overridden.</>,
+    ],
   },
   vapi: {
     path: "runtime/vapi/assistant-request",
-    how: "Vapi: the phone number's Server URL, with a Bearer Token credential set to the secret (or the X-Vapi-Secret header, or an HMAC credential).",
+    steps: [
+      <>On Vapi, set the phone number's <b>Server URL</b> to this address.</>,
+      <>Add a <b>Bearer Token</b> credential with the webhook secret. The <code>X-Vapi-Secret</code> header or an HMAC credential also work.</>,
+    ],
   },
 };
 
@@ -68,10 +76,18 @@ function DeliveryPanel() {
       }
       className="mt-8"
     >
-      <p className="text-muted-foreground mb-3 text-[13px]">
-        How each agent gets its prompt. <b>Pull</b>: the agent (or its platform's call-start webhook) fetches the live release when a call starts.{" "}
-        <b>Push</b>: publishing, or making a release live, writes the prompt into the agent on ElevenLabs or Vapi. LiveKit agents pull.
-      </p>
+      <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
+        <p>How each agent gets its prompt.</p>
+        <ul className="grid list-disc gap-1 pl-5">
+          <li>
+            <b className="text-foreground">Pull at call start</b>: the agent, or its platform's call-start webhook, fetches the live release when a call
+            starts. LiveKit agents always pull.
+          </li>
+          <li>
+            <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the prompt into the agent on ElevenLabs or Vapi.
+          </li>
+        </ul>
+      </div>
       {rows.isError && <ErrorBanner error={rows.error} />}
       {rows.data &&
         (rows.data.length ? (
@@ -83,7 +99,7 @@ function DeliveryPanel() {
                     <b>{d.agent}</b>
                   </td>
                   <td className="text-muted-foreground border-b px-2.5 py-2 text-[13px]">
-                    {platformName(d.platform)}: {d.platform_id}
+                    <PlatformLabel platform={d.platform} />: {d.platform_id}
                   </td>
                   <td className="border-b px-2.5 py-2 text-right">
                     {d.modes.length > 1 ? (
@@ -125,9 +141,8 @@ function PlatformsPanel() {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 text-[13px]">
-        An API key lets sopops push prompts to the platform; a webhook secret lets the platform fetch them at call start. Both are stored encrypted
-        and never shown again.
+      <p className="text-muted-foreground mb-2 max-w-prose text-[13px] leading-relaxed">
+        Connect ElevenLabs and Vapi so prompts reach your agents there. Keys and secrets are stored encrypted and never shown again.
       </p>
       {creds.isError && <ErrorBanner error={creds.error} />}
       {creds.data?.map((c) => <PlatformRow key={c.platform} creds={c} />)}
@@ -182,11 +197,15 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
   const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast.success("Copied."));
 
   return (
-    <div className="border-t py-3 first-of-type:border-t-0">
-      <h3 className="mb-2 text-sm font-semibold">{name}</h3>
-      <div className="grid gap-2.5">
+    <div className="border-t py-4 first-of-type:border-t-0">
+      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+        <PlatformIcon platform={creds.platform} size={16} /> {name}
+      </h3>
+      <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="w-32 text-[13px]">API key</span>
+          <span className="grid w-48 text-[13px]">
+            API key <span className="text-muted-foreground text-xs">Pushes prompts on publish</span>
+          </span>
           {creds.api_key.set ? (
             <>
               <code className="text-[13px]">{creds.api_key.hint}</code>
@@ -223,7 +242,9 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <span className="w-32 text-[13px]">Webhook secret</span>
+          <span className="grid w-48 text-[13px]">
+            Webhook secret <span className="text-muted-foreground text-xs">Fetches prompts at call start</span>
+          </span>
           {creds.webhook_secret.set ? (
             <>
               <code className="text-[13px]">{creds.webhook_secret.hint}</code>
@@ -252,9 +273,20 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
             </div>
           </Banner>
         )}
-        <p className="text-muted-foreground text-[13px]">
-          Call-start webhook: <code className="break-all">{hook}</code>. {WEBHOOK[creds.platform].how}
-        </p>
+        <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+          <div className="font-medium">Call-start webhook</div>
+          <div className="bg-card flex items-center gap-2 rounded-md border px-2.5 py-1">
+            <code className="flex-1 font-mono text-[12px] break-all">{hook}</code>
+            <Button size="icon-sm" variant="ghost" aria-label="Copy webhook address" onClick={() => copy(hook)}>
+              <Copy />
+            </Button>
+          </div>
+          <ol className="text-muted-foreground grid max-w-prose list-decimal gap-1 pl-5 leading-relaxed">
+            {WEBHOOK[creds.platform].steps.map((step, i) => (
+              <li key={i}>{step}</li>
+            ))}
+          </ol>
+        </div>
       </div>
     </div>
   );
@@ -317,7 +349,7 @@ export function PushResultsPanel({ number, live }: { number: number; live: boole
                 <b>{p.agent}</b>
               </td>
               <td className="text-muted-foreground border-b px-2.5 py-2 align-top text-[13px]">
-                {platformName(p.platform)}: {p.platform_id}
+                <PlatformLabel platform={p.platform} />: {p.platform_id}
               </td>
               <td className="border-b px-2.5 py-2 align-top">
                 <Tag className={STATUS[p.status].className}>{STATUS[p.status].label}</Tag>

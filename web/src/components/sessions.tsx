@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
+import { PlatformLabel } from "./brand-icon";
 import { HrefLink, useGo } from "./href-link";
 import { Page } from "./item-shell";
 import { Button } from "./ui/button";
@@ -238,7 +239,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                     <span className={cn(!s.agent_id && "text-muted-foreground")} title={s.agent_id ? undefined : "Not matched to an agent in sopops"}>
                       {agentName(s)}
                     </span>
-                    <div className="text-muted-foreground text-xs">{s.platform}</div>
+                    <div className="text-muted-foreground text-xs"><PlatformLabel platform={s.platform} size={12} /></div>
                   </td>
                   <td className="border-b px-2.5 py-2 capitalize">{s.channel}</td>
                   <td className="border-b px-2.5 py-2 font-mono text-[13px]">{clock(s.duration_s) || "—"}</td>

@@ -70,11 +70,21 @@ export function TokensPanel() {
       }
       className="mt-8"
     >
-      <p className="text-muted-foreground mb-3 text-[13px]">
-        Send as <code>Authorization: Bearer &lt;token&gt;</code>. <b>ingest</b>: agents and webhooks send sessions to <code>{url}/sessions</code>. <b>runtime</b>:
-        prompt fetches (<code>…/agents/&lt;agent&gt;</code>) and call-start webhooks; once the workspace has a runtime token, fetches need one. Tokens for
-        coding agents are made on the Import agents page. The rest of sopops has no sign-in yet.
-      </p>
+      <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
+        <p>
+          Tokens let your agents and platform webhooks reach sopops. Send one as <code>Authorization: Bearer &lt;token&gt;</code>.
+        </p>
+        <ul className="grid list-disc gap-1 pl-5">
+          <li>
+            <b className="text-foreground">ingest</b> sends sessions to <code className="break-all">{url}/sessions</code>.
+          </li>
+          <li>
+            <b className="text-foreground">runtime</b> fetches prompts (<code>…/agents/&lt;agent&gt;</code>) and answers call-start webhooks. Once the
+            workspace has a runtime token, every fetch needs one.
+          </li>
+        </ul>
+        <p>Tokens for coding agents are made on the Import agents page. The rest of sopops has no sign-in yet.</p>
+      </div>
       {list.isError && <ErrorBanner error={list.error} />}
       {shown && (
         <Banner tone="ok">

@@ -13,6 +13,7 @@ import { type MergeConflict, type PlanAgent, SUGGESTION_STATUSES, type SinceWrit
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, Note, PageTitle, Sub, Tag } from "./bits";
+import { GitHubIcon } from "./brand-icon";
 import { DiffView, PatchView } from "./diff-view";
 import { author } from "./form";
 import { HrefLink, useGo } from "./href-link";
@@ -337,7 +338,7 @@ export function SuggestionView({ id }: { id: string }) {
         <Banner tone="ok">
           Pull request open:{" "}
           <a href={s.pr_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1">
-            {s.pr_url.replace(/^https?:\/\/(www\.)?github\.com\//, "")} <ExternalLink className="size-3.5" />
+            <GitHubIcon size={14} /> {s.pr_url.replace(/^https?:\/\/(www\.)?github\.com\//, "")} <ExternalLink className="size-3.5" />
           </a>
           {s.merged_into_version != null && " Merged with changes made since it was written."}
         </Banner>

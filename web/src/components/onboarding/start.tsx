@@ -8,6 +8,7 @@ import { iq, readPromptFiles, rememberKickoff } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
+import { PlatformIcon, PlatformLabel } from "../brand-icon";
 import { author } from "../form";
 import { HrefLink, useGo } from "../href-link";
 import { Page } from "../item-shell";
@@ -70,7 +71,10 @@ export function ImportStart() {
             onClick={() => setSource(s.value)}
             className={cn("bg-card cursor-pointer rounded-xl border px-4 py-3 text-left hover:bg-muted", source === s.value && "border-primary bg-brand-soft hover:bg-brand-soft")}
           >
-            <div className="font-semibold">{s.title}</div>
+            <div className="flex items-center gap-2 font-semibold">
+              <PlatformIcon platform={s.value} size={14} />
+              {s.title}
+            </div>
             <div className="text-muted-foreground text-[13px]">{s.text}</div>
           </button>
         ))}
@@ -149,7 +153,7 @@ function PasteSource() {
                 <SelectContent>
                   {IMPORT_PLATFORMS.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
-                      {p.label}
+                      <PlatformLabel platform={p.value} />
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -7,11 +7,12 @@ import type {
   AgentFidelity, EventOut, IssueOut, ImportOut, Kickoff, Proposal, ProposalContent, ProposalIssue, ProposedAgent, ProposedInstruction, ProposedProcedure,
 } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
-import { platformName, plural, when } from "@/lib/kinds";
+import { plural, when } from "@/lib/kinds";
 import { TERMINAL, iq, kickoffFor, pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
+import { PlatformLabel } from "../brand-icon";
 import { DiffView } from "../diff-view";
 import { SopcIntro, SopcReview } from "./sopc";
 import { ReviewSummary } from "./summary";
@@ -531,7 +532,7 @@ function AgentCard({
       className="mb-0"
       title={
         <span className="flex flex-wrap items-center gap-2">
-          {a.id} <Note>{platformName(a.platform ?? "livekit")}</Note> <FidelityTag f={f} />
+          {a.id} <Note><PlatformLabel platform={a.platform ?? "livekit"} size={12} /></Note> <FidelityTag f={f} />
           {stale && <Note>(edits not checked yet)</Note>}
         </span>
       }
