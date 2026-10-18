@@ -150,6 +150,24 @@ export type AgentFidelity = {
      */
     added?: Array<string>;
     /**
+     * Rules
+     *
+     * Procedure rules (steps, never rules, warning signs) the compiled prompt states.
+     */
+    rules?: number;
+    /**
+     * Rules Verbatim
+     *
+     * Of those, how many appear word for word in the original (spacing and case aside).
+     */
+    rules_verbatim?: number;
+    /**
+     * Not Verbatim
+     *
+     * The rules that don't: reworded, merged, or not in the original.
+     */
+    not_verbatim?: Array<string>;
+    /**
      * Compiled
      */
     compiled?: string | null;
@@ -1850,8 +1868,10 @@ export type ImportOut = {
     workspace: string;
     /**
      * Source
+     *
+     * llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project.
      */
-    source: 'llm' | 'agent';
+    source: 'llm' | 'agent' | 'sopc';
     /**
      * Status
      */
@@ -2699,6 +2719,20 @@ export type NewProcedure = {
      * Id
      */
     id: string;
+};
+
+/**
+ * OriginalsIn
+ */
+export type OriginalsIn = {
+    /**
+     * Originals
+     *
+     * Original prompts by agent id; an empty one removes it.
+     */
+    originals: {
+        [key: string]: string;
+    };
 };
 
 /**
@@ -3555,6 +3589,38 @@ export type ProgressIn = {
 };
 
 /**
+ * ProjectImport
+ */
+export type ProjectImport = {
+    /**
+     * Files
+     *
+     * The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored.
+     */
+    files?: {
+        [key: string]: string;
+    } | null;
+    /**
+     * From Repo
+     *
+     * Read the project from the workspace's GitHub repository (its branch's head, its folder) instead of `files`.
+     */
+    from_repo?: boolean;
+    /**
+     * Originals
+     *
+     * Each agent's original prompt, by agent id, to check the project against (optional).
+     */
+    originals?: {
+        [key: string]: string;
+    };
+    /**
+     * Author
+     */
+    author?: string | null;
+};
+
+/**
  * Proposal
  */
 export type Proposal = {
@@ -3607,6 +3673,14 @@ export type Proposal = {
      * The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).
      */
     decisions?: {
+        [key: string]: string;
+    };
+    /**
+     * Files
+     *
+     * An imported sopc project's files: the import is these files, written as drafts exactly.
+     */
+    files?: {
         [key: string]: string;
     };
 };
@@ -3693,7 +3767,7 @@ export type ProposedAgent = {
     /**
      * Platform
      */
-    platform?: 'livekit' | 'elevenlabs' | 'vapi';
+    platform?: 'livekit' | 'elevenlabs' | 'vapi' | 'retell';
     /**
      * Platform Id
      */
@@ -6276,7 +6350,7 @@ export type SourcePrompt = {
     /**
      * Platform
      */
-    platform?: 'livekit' | 'elevenlabs' | 'vapi';
+    platform?: 'livekit' | 'elevenlabs' | 'vapi' | 'retell';
     /**
      * Platform Id
      *
@@ -11997,6 +12071,76 @@ export type CreateImportResponses = {
 };
 
 export type CreateImportResponse = CreateImportResponses[keyof CreateImportResponses];
+
+export type ImportSopcProjectData = {
+    body: ProjectImport;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/sopc';
+};
+
+export type ImportSopcProjectErrors = {
+    /**
+     * No files and no repository, or no sopc.yaml.
+     */
+    400: unknown;
+    /**
+     * sopc can't read the project.
+     */
+    422: unknown;
+};
+
+export type ImportSopcProjectResponses = {
+    /**
+     * Successful Response
+     */
+    201: ImportOut;
+};
+
+export type ImportSopcProjectResponse = ImportSopcProjectResponses[keyof ImportSopcProjectResponses];
+
+export type SetImportOriginalsData = {
+    body: OriginalsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/originals';
+};
+
+export type SetImportOriginalsErrors = {
+    /**
+     * An agent that isn't in the import.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetImportOriginalsError = SetImportOriginalsErrors[keyof SetImportOriginalsErrors];
+
+export type SetImportOriginalsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type SetImportOriginalsResponse = SetImportOriginalsResponses[keyof SetImportOriginalsResponses];
 
 export type StartAgentImportData = {
     body: AgentImportRequest;

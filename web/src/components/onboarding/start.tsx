@@ -16,8 +16,9 @@ import { Checkbox } from "../ui/checkbox";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
+import { SopcSource } from "./sopc";
 
-type Source = "agent" | "paste" | "elevenlabs" | "vapi";
+type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
 type Platform = "livekit" | "elevenlabs" | "vapi";
 type Row = { name: string; platform: Platform; platform_id: string; tools: string; prompt: string };
 
@@ -29,6 +30,7 @@ const SOURCES: { value: Source; title: string; text: string }[] = [
   { value: "paste", title: "Paste or upload", text: "LiveKit prompts from your code, or any prompt as text. One agent per prompt or file." },
   { value: "elevenlabs", title: "ElevenLabs", text: "Read your agents' prompts and tools with an API key." },
   { value: "vapi", title: "Vapi", text: "Read your assistants' prompts and tools with an API key." },
+  { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's prompt." },
 ];
 
 export function ImportStart() {
@@ -48,7 +50,7 @@ export function ImportStart() {
           <ul className="grid gap-1">
             {open.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2">
-                <HrefLink href={wsHref(ws, "import", i.id)}>{i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : "Import"}</HrefLink>
+                <HrefLink href={wsHref(ws, "import", i.id)}>{i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sopc" ? "sopc project" : "Import"}</HrefLink>
                 <Tag>{i.status}</Tag>
                 <Note>{when(i.created_at)}</Note>
               </li>
@@ -71,7 +73,7 @@ export function ImportStart() {
           </button>
         ))}
       </div>
-      {source === "agent" ? <AgentSource /> : source === "paste" ? <PasteSource /> : <PlatformSource key={source} platform={source} />}
+      {source === "agent" ? <AgentSource /> : source === "paste" ? <PasteSource /> : source === "sopc" ? <SopcSource /> : <PlatformSource key={source} platform={source} />}
     </Page>
   );
 }

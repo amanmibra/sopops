@@ -396,7 +396,7 @@ A session's detail has its own `model_calls` and `cost_usd`.
 
 ## Onboarding
 
-Importing existing agent prompts. Both ways end in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity from `sopc compare`) that the user reviews and applies as drafts.
+Importing existing agent prompts, or an existing sopc project. Every way ends in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity) that the user reviews and applies as drafts. Fidelity compiles each agent and compares it with its original prompt: `score` (the share of the original's sentences kept, from `sopc compare`), `missing`, `changed` and `reworded` sentences, `similarity` (word-level, 0 to 1), and `rules_verbatim` of `rules`: the steps, never rules and warning signs the compiled prompt states that appear in the original word for word (`not_verbatim` lists the others).
 
 | Endpoint | What it does |
 |---|---|
@@ -404,6 +404,8 @@ Importing existing agent prompts. Both ways end in a **proposal** (agents, share
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
 | `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
 | `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff`: one command per agent (add the MCP server and start the agent on "call get_kickoff"), the Codex config as TOML, and recommended settings. |
+| `POST …/imports/sopc` | `{files?, from_repo?, originals?}`: an existing sopc project (its files by path relative to the folder with `sopc.yaml`, `build/` ignored; or `from_repo: true` reads the workspace's GitHub repository), with each agent's original prompt optionally. `source: sopc`, ready at once: the proposal shows what the project holds and carries its `files`; fidelity is checked for every agent with an original, as for any proposal. `400` without files or `sopc.yaml`, `422` when sopc can't read it. Its content isn't edited here (`409`): change the project and import it again. |
+| `PUT …/imports/<id>/originals` | `{originals: {agent: prompt}}`: add or replace agents' original prompts (an empty one removes it) and check fidelity again. |
 | `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, and the proposal. |
 | `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
 | `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
@@ -411,7 +413,7 @@ Importing existing agent prompts. Both ways end in a **proposal** (agents, share
 | `GET …/imports/<id>/review` | The proposal as summaries, for any number of agents: `counts` (agents, shared blocks, variables, disagreements, undecided, agents with unique content, below 100% fidelity), `disagreements` (rule words that differ, from `sopc overlap`: majority against outliers, smallest minority first; then drift the model suggested beyond what overlap finds), `variables` (each × agent), `blocks` (who uses each proposed block, and who lacks text most agents have), `unique` (each agent's text no other has), `fidelity`. Group ids are sopc's, stable across runs. |
 | `POST …/imports/<id>/review/<group>` | `{choice}`: a disagreement `keep` or `all:<agent>`; unique text `context` or `block` (a new shared instruction). Kept with the proposal by group id. |
 | `PUT …/imports/<id>/variables/<name>` | `{name?, values?}`: rename a variable everywhere, or set agents' values. |
-| `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced). Ends the token. |
+| `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced); an imported sopc project writes exactly its files. Ends the token. |
 | `POST …/imports/<id>/revoke`, `DELETE …/imports/<id>` | End the token (Finish); discard the import. |
 
 With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one workspace, 2 hours, stored hashed; `401` when unknown, expired or revoked, `403` without the scope):

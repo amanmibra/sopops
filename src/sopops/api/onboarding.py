@@ -9,6 +9,7 @@ import time
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
+from .. import github
 from ..ai.lm import AIError, model_for
 from ..onboarding import platforms
 from ..onboarding.review import ReviewError
@@ -26,9 +27,11 @@ from ..schemas.onboarding import (
     FidelityIn,
     FidelityOut,
     ImportOut,
+    OriginalsIn,
     PlatformAgent,
     PlatformAgentsRequest,
     ProgressIn,
+    ProjectImport,
     PushIn,
     PushOut,
     ResolveRequest,
@@ -90,6 +93,33 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             return onboarding.start(workspace, sources, req.author)
         except AIError as e:
             raise HTTPException(503, str(e)) from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.post(f"{base}/sopc", response_model=ImportOut, status_code=201,
+            responses={400: {"description": "No files and no repository, or no sopc.yaml."}, 422: {"description": "sopc can't read the project."}})
+    def import_sopc_project(workspace: str, req: ProjectImport) -> dict:
+        """Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
+        agent's original prompt optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
+        every agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes
+        exactly its files as drafts; nothing is published."""
+        origin = None
+        if req.from_repo:
+            files, origin = github.read_project(store, workspace)
+        elif req.files:
+            files = req.files
+        else:
+            raise HTTPException(400, "send the project's files, or from_repo with a GitHub repository connected")
+        try:
+            return onboarding.import_project(workspace, files, req.originals, req.author, origin)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.put(f"{base}/{{id}}/originals", response_model=ImportOut, responses={400: {"description": "An agent that isn't in the import."}})
+    def set_import_originals(workspace: str, id: str, req: OriginalsIn) -> dict:
+        """Add or replace agents' original prompts (an empty one removes it), and check fidelity again."""
+        try:
+            return onboarding.set_originals(workspace, id, req.originals)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 

@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { DiffView } from "../diff-view";
+import { SopcIntro, SopcReview } from "./sopc";
 import { ReviewSummary } from "./summary";
 import { Field, StepRows, VarRows, author } from "../form";
 import { HrefLink, useGo } from "../href-link";
@@ -47,7 +48,7 @@ export function ImportView({ id }: { id: string }) {
     <Page wide>
       <PageTitle aside={<Tag tone={d.status === "failed" ? "removed" : d.status === "ready" ? "live" : undefined}>{STATUS[d.status]}</Tag>}>Import agents</PageTitle>
       <Sub>
-        {d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
+        {d.source === "sopc" ? <SopcIntro imp={d} /> : d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
         {d.agents.length ? `${plural(d.agents.length, "agent", "agents")}: ${d.agents.length > 8 ? `${d.agents.slice(0, 8).join(", ")} and ${d.agents.length - 8} more` : d.agents.join(", ")}.` : ""}
         {d.mode === "repo" && d.repo ? ` Repo mode: ${d.repo}.` : ""}
       </Sub>
@@ -64,7 +65,7 @@ export function ImportView({ id }: { id: string }) {
         </Banner>
       )}
       {d.status === "discarded" && <Banner>This import was discarded. Nothing in {ws} changed.</Banner>}
-      {d.proposal && d.status === "ready" && <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} />}
+      {d.proposal && d.status === "ready" && (d.source === "sopc" ? <SopcReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} />)}
     </Page>
   );
 }

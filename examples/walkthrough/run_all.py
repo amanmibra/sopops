@@ -3,6 +3,7 @@
     python examples/walkthrough/run_all.py                  # fake models; sopops stays up for the UI afterwards
     python examples/walkthrough/run_all.py --models real    # your models (see WALKTHROUGH.md for the variables)
     python examples/walkthrough/run_all.py --stop           # stop sopops when done (what the test does)
+    WALKTHROUGH_ONBOARD=sopc python examples/walkthrough/run_all.py   # onboard from the existing sopc project instead
 
 Starts `serve.py --fresh` on WALKTHROUGH_PORT (default 8585), then runs onboard.py, generate.py, backfill.py,
 review.py, replay.py and verify.py. Exits with verify.py's status.
@@ -21,8 +22,10 @@ import httpx
 
 from common import HERE, PORT, URL
 
+ONBOARD = os.environ.get("WALKTHROUGH_ONBOARD", "proposal")  # proposal (a coding agent's push) | sopc (an existing sopc project)
 STEPS = [
-    ("2. Onboard (prepared proposal) and publish release 1", ["onboard.py"]),
+    ("2. Onboard (prepared proposal) and publish release 1", ["onboard.py"]) if ONBOARD != "sopc" else
+    ("2. Onboard (an existing sopc project) and publish release 1", ["onboard.py", "sopc"]),
     ("4. Generate the calls", ["generate.py"]),
     ("5. Backfill", ["backfill.py"]),
     ("6. Review patterns, verdicts and suggestions; publish release 2", ["review.py"]),

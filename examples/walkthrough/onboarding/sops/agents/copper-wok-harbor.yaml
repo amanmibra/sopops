@@ -1,0 +1,12 @@
+livekit: copper-wok-harbor
+context: Copper Wok Harbor is a noodle and wok counter by the ferry terminal. Pickup and delivery only, no tables to book.
+blocks:
+  - host-role
+  - brand-voice
+  - allergen-check
+  - delivery-orders
+  - closing
+variables:
+  restaurant_name: Copper Wok Harbor
+  menu_allergen_link: copperwok.example/allergens
+  staff_transfer: the shift lead

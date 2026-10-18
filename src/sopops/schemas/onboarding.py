@@ -29,6 +29,17 @@ class CreateImport(BaseModel):
     author: str | None = None
 
 
+class ProjectImport(BaseModel):
+    files: dict[str, str] | None = Field(None, description="The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored.")
+    from_repo: bool = Field(False, description="Read the project from the workspace's GitHub repository (its branch's head, its folder) instead of `files`.")
+    originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original prompt, by agent id, to check the project against (optional).")
+    author: str | None = None
+
+
+class OriginalsIn(BaseModel):
+    originals: dict[str, str] = Field(description="Original prompts by agent id; an empty one removes it.")
+
+
 class PlatformAgentsRequest(BaseModel):
     platform: Literal["elevenlabs", "vapi"]
     api_key: str = Field(description="Used for this request only: never stored or logged.")
@@ -57,7 +68,7 @@ class ImportTokenOut(BaseModel):
 class ImportOut(BaseModel):
     id: str
     workspace: str
-    source: Literal["llm", "agent"]
+    source: Literal["llm", "agent", "sopc"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project.")
     status: Literal["waiting", "running", "ready", "failed", "applied", "discarded"]
     mode: str
     repo: str | None

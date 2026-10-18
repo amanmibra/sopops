@@ -11,7 +11,7 @@ import pytest
 from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 
-from sopops import Sopc
+from sopops import Sopc, github
 from sopops.ai.lm import Usage
 from sopops.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
 from sopops.onboarding import kickoff, platforms
@@ -490,3 +490,44 @@ def test_the_review_summarizes_sixty_agents(client):
     row = next(v for v in renamed["variables"] if v["name"] == "restaurant_label")
     assert row["values"]["pizzeria-numero-1"] == "Uno"
     assert client.put(f"{IMPORTS}/{body['id']}/variables/restaurant_label", json={"name": "Bad Name"}).status_code == 400
+
+
+# --- an existing sopc project ------------------------------------------------------------
+
+
+def test_importing_a_sopc_project_checks_fidelity_and_applies_its_files(client, files, monkeypatch):
+    compiled = Sopc(SOPC_BIN).compile(files).agents
+    lost = "Never say an item is \"allergen-free\" or \"safe\""
+    a, b = sorted(x for x in compiled if lost in compiled[x]["prompt"])[:2]
+    original_a = compiled[a]["prompt"]
+    original_b = compiled[b]["prompt"].replace(lost, "Never call an item safe") + "\nAlways ask for the caller's phone number.\n"
+    project = {**files, "build/prompt.md": "generated"}
+    r = client.post(f"{IMPORTS}/sopc", json={"files": project, "originals": {a: original_a}, "author": "dana"})
+    assert r.status_code == 201, r.text
+    imp = r.json()
+    assert (imp["source"], imp["status"]) == ("sopc", "ready") and set(imp["agents"]) == set(compiled)
+    p = imp["proposal"]
+    assert "build/prompt.md" not in p["files"] and p["files"] == files and not [i for i in p["issues"] if i["severity"] == "error"]
+    assert {x["id"] for x in p["procedures"]} >= {"allergen-check"} and p["groups"]
+    (fa,) = p["fidelity"]
+    assert (fa["agent"], fa["ok"], fa["score"], fa["similarity"], fa["missing"]) == (a, True, 1.0, 1.0, [])
+    assert fa["rules"] > 0 and fa["rules_verbatim"] == fa["rules"] and fa["not_verbatim"] == []
+
+    imp = client.put(f"{IMPORTS}/{imp['id']}/originals", json={"originals": {b: original_b}}).json()
+    fb = next(f for f in imp["proposal"]["fidelity"] if f["agent"] == b)
+    assert fb["rules_verbatim"] == fb["rules"] - 1 and fb["not_verbatim"] == [lost] and fb["similarity"] < 1
+    assert any("phone number" in m for m in fb["missing"]) and fb["score"] < 1
+    assert client.put(f"{IMPORTS}/{imp['id']}/originals", json={"originals": {"nobody": "x"}}).status_code == 400
+    assert client.put(f"{IMPORTS}/{imp['id']}/proposal", json=imp["proposal"]).status_code == 409  # not edited here: change the project
+
+    applied = client.post(f"{IMPORTS}/{imp['id']}/apply", json={"author": "dana"}).json()
+    assert sorted(c["path"] for c in applied["changed"]) == sorted(files)
+    head = {f["path"]: f["content"] for f in client.get(f"{WS}/files", params={"content": True}).json()["files"]}
+    assert head == files  # exactly the project's files, as drafts
+    assert client.get(f"{WS}/releases").json() == []  # nothing published
+
+    assert client.post(f"{IMPORTS}/sopc", json={}).status_code == 400
+    assert client.post(f"{IMPORTS}/sopc", json={"files": {"agents/x.yaml": "livekit: x"}}).status_code == 400  # no sopc.yaml
+    monkeypatch.setattr(github, "read_project", lambda store, ws: (files, "acme/agents@abc1234"))
+    got = client.post(f"{IMPORTS}/sopc", json={"from_repo": True}).json()
+    assert got["repo"] == "acme/agents@abc1234" and got["proposal"]["fidelity"] == []

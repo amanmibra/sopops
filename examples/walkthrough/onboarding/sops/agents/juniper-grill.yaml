@@ -1,0 +1,12 @@
+livekit: juniper-grill
+context: Juniper Grill is a family grill by the riverside park. Reservations for dinner, delivery until 10pm.
+blocks:
+  - host-role
+  - brand-voice
+  - allergen-check
+  - delivery-orders
+  - reservations
+  - closing
+variables:
+  restaurant_name: Juniper Grill
+  menu_allergen_link: junipergrill.example/menu#allergens

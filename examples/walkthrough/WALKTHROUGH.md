@@ -98,6 +98,14 @@ just examples/walkthrough/onboard-publish  # resolve the drift, apply, publish r
 
 Expected: release 1 at `/w/walkthrough/releases`, and each agent's prompt at `/w/walkthrough/agents/<agent>/prompt`, the same text `prompts.py` built (fidelity 100%).
 
+**Or: from an existing sopc project.** A team that already keeps its instructions as a sopc project (or exports one from wherever its prompts live, a database say) onboards without a coding agent. `onboarding/sops/` is that project for these four agents, with the shared allergen wording already chosen. In **Instructions → Import**, choose **A sopc project** and pick that folder (or, with a GitHub repository connected, read it from there), then **Add original** for each agent with the prompt `prompts.py` builds. The import page shows, per agent, the share of the original's sentences kept, how many rules appear word for word, how similar the two texts are, and the lines that are missing: Bayleaf and Juniper keep everything; both Copper Woks lose their own wording of the allergen never rule (9 of 10 rules word for word, 1 line missing), which is the drift the team settled. **Apply as drafts** writes exactly the project's files; publish as usual. The script does all of it:
+
+```sh
+just examples/walkthrough/onboard-sopc     # instead of onboard: import onboarding/sops/ with the originals, apply, publish release 1
+```
+
+`WALKTHROUGH_ONBOARD=sopc just examples/walkthrough/all` runs the whole walkthrough this way; the release and everything after it are the same.
+
 ### 3. Switch the agent to fetch its prompt
 
 `agent/after/agent.py` is the same agent with the prompt coming from sopops. `prompts.py` is gone; the agent asks for `livekit:<AGENT_NAME>` when each call starts, notes the release on the session, streams the call to sopops and posts it at shutdown:

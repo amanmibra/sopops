@@ -1,0 +1,12 @@
+livekit: bayleaf-bistro
+context: Bayleaf is a neighborhood bistro on Alder Street. Dinner by reservation, walk-ins at the bar. No delivery.
+blocks:
+  - host-role
+  - brand-voice
+  - allergen-check
+  - reservations
+  - closing
+variables:
+  restaurant_name: Bayleaf Bistro
+  menu_allergen_link: bayleafbistro.example/allergens
+  staff_transfer: the head chef

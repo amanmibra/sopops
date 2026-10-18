@@ -8,6 +8,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
 from conftest import SOPC_BIN, fresh_db_url
 
 WALKTHROUGH = Path(__file__).resolve().parents[1] / "examples" / "walkthrough"
@@ -21,9 +23,11 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def test_walkthrough_in_fake_mode(tmp_path):
+@pytest.mark.parametrize("onboard", ["proposal", "sopc"])
+def test_walkthrough_in_fake_mode(tmp_path, onboard):
+    """Onboarding from a coding agent's proposal, or from the team's existing sopc project; the rest is the same."""
     env = {k: v for k, v in os.environ.items() if k not in MODEL_ENV}
-    env.update(WALKTHROUGH_PORT=str(free_port()), WALKTHROUGH_OUT=str(tmp_path / "out"), WALKTHROUGH_DATABASE_URL=fresh_db_url(tmp_path, "walkthrough.db"),
+    env.update(WALKTHROUGH_ONBOARD=onboard, WALKTHROUGH_PORT=str(free_port()), WALKTHROUGH_OUT=str(tmp_path / "out"), WALKTHROUGH_DATABASE_URL=fresh_db_url(tmp_path, "walkthrough.db"),
                WALKTHROUGH_MODELS="fake", SOPC_BIN=SOPC_BIN, SOPOPS_CACHE_DIR=str(tmp_path / "cache"))
     got = subprocess.run([sys.executable, str(WALKTHROUGH / "run_all.py"), "--stop", "--fast"], env=env, cwd=WALKTHROUGH,
                          capture_output=True, text=True, timeout=900)

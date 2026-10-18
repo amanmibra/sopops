@@ -6,6 +6,10 @@ Two ways in, one way out:
   background thread, with the configured models (`sopops.ai`).
 - **Agent import** (`source: agent`): the user starts Claude Code or Codex in their repo with the `sopops-mcp` server
   and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one.
+- **sopc project** (`source: sopc`): a team that already keeps one (or exports one from wherever its prompts live)
+  uploads its files or reads them from the workspace's GitHub repository, optionally with each agent's original prompt.
+  It's checked like any proposal; applying writes exactly its files. Its content isn't edited here: change the
+  project and import it again.
 
 Either way the user reviews the proposal (edits, drift decisions, fidelity) and applies it: its blocks, groups and
 agents are written as drafts, for the usual Unpublished changes review and publish.
@@ -36,7 +40,7 @@ from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
-from . import fidelity, kickoff, summary
+from . import fidelity, kickoff, project, summary
 from .pipeline import extract
 from .review import refresh_used_by, resolve
 from .rules import RulesModels
@@ -155,6 +159,46 @@ class Onboarding:
                     db.add(r)
                     db.commit()
 
+    # --- sopc projects -----------------------------------------------------------------
+
+    def import_project(self, workspace: str, files: dict[str, str], originals: dict[str, str] | None = None, author: str | None = None,
+                       origin: str | None = None) -> dict:
+        """An existing sopc project as an import, ready to review: what it holds, sopc's checks, and fidelity for each agent
+        with an original prompt. `origin`: where the files came from (a repository and commit), for the log."""
+        proposal = fidelity.check(project.proposal_of(files, self.store.sopc, originals), self.store.sopc)
+        rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="sopc", status="ready", repo=origin,
+                           agents=[a.id for a in proposal.agents], proposal=proposal.model_dump(mode="json"), created_at=_now(), updated_at=_now(),
+                           created_by=author)
+        with self._db() as db:
+            db.add(rec)
+            db.commit()
+        what = f"{len(proposal.agents)} agents, {len(proposal.instructions)} instructions, {len(proposal.procedures)} procedures, {len(proposal.files)} files"
+        self.event(rec.id, "start", f"sopc project{f' from {origin}' if origin else ''}: {what}")
+        self.event(rec.id, "fidelity", self._fidelity_line(proposal))
+        return self.get(workspace, rec.id)
+
+    def set_originals(self, workspace: str, id: str, originals: dict[str, str]) -> dict:
+        """Add or replace agents' original prompts (an empty one removes it) and check fidelity again."""
+        proposal = self._proposal(workspace, id)
+        with self._db() as db:
+            if self._load(db, workspace, id).status in DONE:
+                raise Conflict("this import was already applied or discarded")
+        unknown = sorted(set(originals) - {a.id for a in proposal.agents})
+        if unknown:
+            raise ValueError(f"no agent {', '.join(repr(a) for a in unknown)} in this import")
+        merged = {**proposal.originals, **originals}
+        proposal.originals = {k: v for k, v in merged.items() if v.strip()}
+        proposal = fidelity.check(proposal, self.store.sopc)
+        self._save(id, proposal)
+        self.event(id, "fidelity", self._fidelity_line(proposal))
+        return self.get(workspace, id)
+
+    @staticmethod
+    def _fidelity_line(p: Proposal) -> str:
+        if not p.fidelity:
+            return "No original prompts yet: add them to check that the project still says what each agent was told."
+        return "Fidelity: " + ", ".join(f"{f.agent} {round(f.score * 100)}% kept, {f.rules_verbatim}/{f.rules} rules word for word" for f in p.fidelity)
+
     # --- agent imports: onboarding tokens --------------------------------------------
 
     def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", repo: str | None = None, author: str | None = None,
@@ -228,14 +272,14 @@ class Onboarding:
     # --- review ------------------------------------------------------------------------
 
     def update(self, workspace: str, id: str, content: ProposalContent) -> dict:
-        proposal = self._proposal(workspace, id)
+        proposal = self._editable(workspace, id)
         merged = Proposal(**{**proposal.model_dump(), **content.model_dump()})
         refresh_used_by(merged)
         self._save(id, fidelity.check(merged, self.store.sopc))
         return self.get(workspace, id)
 
     def resolve(self, workspace: str, id: str, finding: str, choice: str) -> dict:
-        proposal = resolve(self._proposal(workspace, id), finding, choice)
+        proposal = resolve(self._editable(workspace, id), finding, choice)
         self._save(id, fidelity.check(proposal, self.store.sopc))
         return self.get(workspace, id)
 
@@ -259,13 +303,13 @@ class Onboarding:
         return summary.summary(proposal, self.overlap(proposal))
 
     def decide(self, workspace: str, id: str, group: str, choice: str) -> dict:
-        proposal = self._proposal(workspace, id)
+        proposal = self._editable(workspace, id)
         changed = summary.decide(proposal, self.overlap(proposal), group, choice)
         self._save(id, fidelity.check(changed, self.store.sopc) if changed.model_dump(exclude={"decisions"}) != proposal.model_dump(exclude={"decisions"}) else changed)
         return self.review(workspace, id)
 
     def edit_variable(self, workspace: str, id: str, name: str, new_name: str | None, values: dict[str, str] | None) -> dict:
-        proposal = summary.edit_variable(self._proposal(workspace, id), name, new_name, values)
+        proposal = summary.edit_variable(self._editable(workspace, id), name, new_name, values)
         self._save(id, fidelity.check(proposal, self.store.sopc))
         return self.review(workspace, id)
 
@@ -287,7 +331,15 @@ class Onboarding:
         with self._db() as db:
             if self._load(db, workspace, id).status in DONE:
                 raise Conflict("this import was already applied or discarded")
-        changes, replaced = self.changes(workspace, proposal)
+        if proposal.files:  # a sopc project: exactly its files
+            if any(i.severity == "error" for i in proposal.issues):
+                raise Conflict("sopc can't build this project; fix it and import it again")
+            items = self.store.items(workspace)
+            replaced = [f"{k}:{i.id}" for k, xs in (("agent", proposal.agents), ("instruction", proposal.instructions), ("procedure", proposal.procedures))
+                        for i in xs if forms.find(items, k, i.id)]
+            changes = dict(proposal.files)
+        else:
+            changes, replaced = self.changes(workspace, proposal)
         written = self.store.edit(workspace, changes, author, note or "Imported with sopops onboarding")
         with self._db() as db:
             r = self._load(db, workspace, id)
@@ -339,6 +391,12 @@ class Onboarding:
             if r.proposal is None:
                 raise Conflict("this import has no proposal yet")
             return Proposal.model_validate(r.proposal)
+
+    def _editable(self, workspace: str, id: str) -> Proposal:
+        proposal = self._proposal(workspace, id)
+        if proposal.files:
+            raise Conflict("an imported sopc project is applied as its files: change the project and import it again")
+        return proposal
 
     def _save(self, id: str, proposal: Proposal, status: str | None = None) -> None:
         with self._db() as db:

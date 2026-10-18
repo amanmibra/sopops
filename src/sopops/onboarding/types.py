@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-Platform = Literal["livekit", "elevenlabs", "vapi"]
+Platform = Literal["livekit", "elevenlabs", "vapi", "retell"]
 SegmentKind = Literal["context", "instruction", "procedure", "heading"]
 
 
@@ -149,6 +149,9 @@ class AgentFidelity(BaseModel):
     changed: list[Changed] = Field(default_factory=list)
     reworded: list[str] = Field(default_factory=list)
     added: list[str] = Field(default_factory=list)
+    rules: int = Field(0, description="Procedure rules (steps, never rules, warning signs) the compiled prompt states.")
+    rules_verbatim: int = Field(0, description="Of those, how many appear word for word in the original (spacing and case aside).")
+    not_verbatim: list[str] = Field(default_factory=list, description="The rules that don't: reworded, merged, or not in the original.")
     compiled: str | None = None
 
 
@@ -181,3 +184,4 @@ class Proposal(ProposalContent):
     notes: list[str] = Field(default_factory=list)
     originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original prompt, by agent id.")
     decisions: dict[str, str] = Field(default_factory=dict, description="The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).")
+    files: dict[str, str] = Field(default_factory=dict, description="An imported sopc project's files: the import is these files, written as drafts exactly.")

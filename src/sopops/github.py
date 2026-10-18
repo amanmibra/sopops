@@ -175,6 +175,20 @@ def normalize_path(path: str | None) -> str:
 # --- pull ------------------------------------------------------------------------------------------
 
 
+def read_project(store: Store, workspace: str) -> tuple[dict[str, str], str]:
+    """The sopc project at the base branch's head, as files (relative to its folder), and the commit, without changing
+    the workspace (an import reads it this way, to check before applying)."""
+    ws = _ws(workspace)
+    conn = _require(store, ws)
+    with _Client(credentials(conn)) as gh:
+        sha = _branch_head(gh, conn.owner, conn.repo, conn.base_branch)
+        files = _read_folder(gh, conn, sha, {})
+    if CONFIG not in files:
+        where = f"'{conn.path}'" if conn.path else "the repository root"
+        raise GitHubError(f"no sopc project at {where} on {conn.base_branch} ({sha[:7]}): {CONFIG} isn't there", 400)
+    return files, f"{conn.owner}/{conn.repo}@{sha[:7]}"
+
+
 def pull(store: Store, workspace: str, author: str | None = None) -> dict:
     """Make the workspace's head the sopc project at the base branch's head, as drafts (publish as usual).
     A commit already pulled, with head unchanged since, is a no-op that reads only the branch.

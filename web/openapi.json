@@ -7824,6 +7824,120 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/imports/sopc": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Import Sopc Project",
+        "description": "Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each\nagent's original prompt optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for\nevery agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes\nexactly its files as drafts; nothing is published.",
+        "operationId": "import_sopc_project",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No files and no repository, or no sopc.yaml."
+          },
+          "422": {
+            "description": "sopc can't read the project."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/originals": {
+      "put": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Set Import Originals",
+        "description": "Add or replace agents' original prompts (an empty one removes it), and check fidelity again.",
+        "operationId": "set_import_originals",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OriginalsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "An agent that isn't in the import."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/imports/agent": {
       "post": {
         "tags": [
@@ -9020,6 +9134,26 @@
             },
             "type": "array",
             "title": "Added"
+          },
+          "rules": {
+            "type": "integer",
+            "title": "Rules",
+            "description": "Procedure rules (steps, never rules, warning signs) the compiled prompt states.",
+            "default": 0
+          },
+          "rules_verbatim": {
+            "type": "integer",
+            "title": "Rules Verbatim",
+            "description": "Of those, how many appear word for word in the original (spacing and case aside).",
+            "default": 0
+          },
+          "not_verbatim": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Not Verbatim",
+            "description": "The rules that don't: reworded, merged, or not in the original."
           },
           "compiled": {
             "anyOf": [
@@ -12029,9 +12163,11 @@
             "type": "string",
             "enum": [
               "llm",
-              "agent"
+              "agent",
+              "sopc"
             ],
-            "title": "Source"
+            "title": "Source",
+            "description": "llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project."
           },
           "status": {
             "type": "string",
@@ -13477,6 +13613,23 @@
           "id"
         ],
         "title": "NewProcedure"
+      },
+      "OriginalsIn": {
+        "properties": {
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals",
+            "description": "Original prompts by agent id; an empty one removes it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "originals"
+        ],
+        "title": "OriginalsIn"
       },
       "OverrideIn": {
         "properties": {
@@ -15142,6 +15295,52 @@
         ],
         "title": "ProgressIn"
       },
+      "ProjectImport": {
+        "properties": {
+          "files": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files",
+            "description": "The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored."
+          },
+          "from_repo": {
+            "type": "boolean",
+            "title": "From Repo",
+            "description": "Read the project from the workspace's GitHub repository (its branch's head, its folder) instead of `files`.",
+            "default": false
+          },
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals",
+            "description": "Each agent's original prompt, by agent id, to check the project against (optional)."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          }
+        },
+        "type": "object",
+        "title": "ProjectImport"
+      },
       "Proposal": {
         "properties": {
           "agents": {
@@ -15219,6 +15418,14 @@
             "type": "object",
             "title": "Decisions",
             "description": "The reviewer's decisions, by the id of the group they're about (sopc overlap's ids)."
+          },
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "An imported sopc project's files: the import is these files, written as drafts exactly."
           }
         },
         "type": "object",
@@ -15361,7 +15568,8 @@
             "enum": [
               "livekit",
               "elevenlabs",
-              "vapi"
+              "vapi",
+              "retell"
             ],
             "title": "Platform",
             "default": "livekit"
@@ -19865,7 +20073,8 @@
             "enum": [
               "livekit",
               "elevenlabs",
-              "vapi"
+              "vapi",
+              "retell"
             ],
             "title": "Platform",
             "default": "livekit"

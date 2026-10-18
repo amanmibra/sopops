@@ -76,6 +76,8 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=
 
 (Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. In repo mode it also opens a PR adding a sopc project at `sops/`. The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill` copies it into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. a local clone).
 
+**An existing sopc project.** Already keep one, or export one from wherever your prompts live? Import → **A sopc project**: pick its folder (or read it from the connected GitHub repository) and add each agent's original prompt. sopops runs the same fidelity check (sentences kept, rules word for word, similarity, missing lines) and applying writes exactly the project's files as drafts (`POST …/imports/sopc`, [API.md](API.md#onboarding)). The [walkthrough](examples/walkthrough/WALKTHROUGH.md#2-onboard-the-agent-repo) shows both ways.
+
 **Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`; `rules` tries it without a model). Platform keys are used for that request only, never stored or logged.
 
 ## Connect your agent

@@ -1,0 +1,12 @@
+livekit: copper-wok-eastside
+context: Copper Wok Eastside is a noodle and wok counter on Fifth and Main. Pickup and delivery only, no tables to book.
+blocks:
+  - host-role
+  - brand-voice
+  - allergen-check
+  - delivery-orders
+  - closing
+variables:
+  restaurant_name: Copper Wok Eastside
+  menu_allergen_link: copperwok.example/allergens
+  staff_transfer: the shift lead
