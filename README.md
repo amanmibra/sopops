@@ -34,7 +34,7 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | Variable | Default | |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
-| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
+| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.17 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 | `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions and import prompts, as model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`; see [Model backends](#model-backends)), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). If only one is set it serves both. Unset, sessions are stored but not checked, and imports need Claude Code or Codex. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
 | `SOPOPS_LLM_API_BASE` | unset | Send every model call to this base URL (an OpenAI-compatible endpoint for local models). |

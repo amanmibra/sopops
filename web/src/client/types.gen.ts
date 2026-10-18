@@ -473,6 +473,36 @@ export type BlockRequest = {
 };
 
 /**
+ * BlockRow
+ */
+export type BlockRow = {
+    /**
+     * Kind
+     */
+    kind: 'instruction' | 'procedure';
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Agents
+     *
+     * The agents that use it.
+     */
+    agents: Array<string>;
+    /**
+     * Missing
+     *
+     * Agents that don't use it, though most agents' prompts have its text.
+     */
+    missing: Array<string>;
+};
+
+/**
  * Capabilities
  */
 export type Capabilities = {
@@ -710,6 +740,18 @@ export type CreateImport = {
 };
 
 /**
+ * DecisionIn
+ */
+export type DecisionIn = {
+    /**
+     * Choice
+     *
+     * A disagreement: keep, or all:<agent>. Unique text: context or block.
+     */
+    choice: string;
+};
+
+/**
  * DeliveryIn
  */
 export type DeliveryIn = {
@@ -717,6 +759,49 @@ export type DeliveryIn = {
      * Mode
      */
     mode: 'pull' | 'push' | 'both';
+};
+
+/**
+ * Disagreement
+ */
+export type Disagreement = {
+    /**
+     * Id
+     *
+     * sopc overlap's group id (stable across runs), or the extraction's finding id.
+     */
+    id: string;
+    /**
+     * Source
+     *
+     * overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict).
+     */
+    source: 'overlap' | 'model';
+    majority: WordingGroup;
+    /**
+     * Outliers
+     */
+    outliers: Array<WordingGroup>;
+    /**
+     * Minority
+     *
+     * How many agents aren't in the majority.
+     */
+    minority: number;
+    /**
+     * Words
+     *
+     * Each agent's differing words.
+     */
+    words: {
+        [key: string]: string;
+    };
+    /**
+     * Decision
+     *
+     * keep, or all:<agent>.
+     */
+    decision: string | null;
 };
 
 /**
@@ -2598,6 +2683,14 @@ export type Proposal = {
     originals?: {
         [key: string]: string;
     };
+    /**
+     * Decisions
+     *
+     * The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).
+     */
+    decisions?: {
+        [key: string]: string;
+    };
 };
 
 /**
@@ -3504,6 +3597,75 @@ export type RetryIn = {
      * Push these agents again; default: every agent whose last push failed.
      */
     agents?: Array<string> | null;
+};
+
+/**
+ * ReviewCounts
+ */
+export type ReviewCounts = {
+    /**
+     * Agents
+     */
+    agents: number;
+    /**
+     * Shared Blocks
+     *
+     * Proposed blocks more than one agent uses.
+     */
+    shared_blocks: number;
+    /**
+     * Variables
+     */
+    variables: number;
+    /**
+     * Disagreements
+     */
+    disagreements: number;
+    /**
+     * Undecided
+     *
+     * Disagreements with no decision yet.
+     */
+    undecided: number;
+    /**
+     * Agents With Unique
+     *
+     * Agents with text no other agent has.
+     */
+    agents_with_unique: number;
+    /**
+     * Below Full Fidelity
+     *
+     * Agents whose compiled prompt lost or changed a sentence of the original.
+     */
+    below_full_fidelity: number;
+};
+
+/**
+ * ReviewOut
+ */
+export type ReviewOut = {
+    counts: ReviewCounts;
+    /**
+     * Disagreements
+     */
+    disagreements: Array<Disagreement>;
+    /**
+     * Variables
+     */
+    variables: Array<VariableRow>;
+    /**
+     * Blocks
+     */
+    blocks: Array<BlockRow>;
+    /**
+     * Unique
+     */
+    unique: Array<UniqueText>;
+    /**
+     * Fidelity
+     */
+    fidelity: Array<AgentFidelity>;
 };
 
 /**
@@ -4976,6 +5138,28 @@ export type TurnIn = {
 };
 
 /**
+ * UniqueText
+ */
+export type UniqueText = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Decision
+     */
+    decision: 'context' | 'block';
+};
+
+/**
  * Use
  */
 export type Use = {
@@ -5031,6 +5215,54 @@ export type ValidationError = {
     ctx?: {
         [key: string]: unknown;
     };
+};
+
+/**
+ * VariableEdit
+ */
+export type VariableEdit = {
+    /**
+     * Name
+     *
+     * A new name (snake_case).
+     */
+    name?: string | null;
+    /**
+     * Values
+     *
+     * New values, by agent.
+     */
+    values?: {
+        [key: string]: string;
+    };
+};
+
+/**
+ * VariableRow
+ */
+export type VariableRow = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Values
+     *
+     * Each agent's value.
+     */
+    values: {
+        [key: string]: string | null;
+    };
+    /**
+     * Source
+     *
+     * proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default).
+     */
+    source: 'proposal' | 'overlap';
+    /**
+     * Id
+     */
+    id: string | null;
 };
 
 /**
@@ -5123,6 +5355,20 @@ export type Wording = {
      * Results
      */
     results: number;
+};
+
+/**
+ * WordingGroup
+ */
+export type WordingGroup = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Agents
+     */
+    agents: Array<string>;
 };
 
 /**
@@ -9019,6 +9265,128 @@ export type ResolveImportFindingResponses = {
 };
 
 export type ResolveImportFindingResponse = ResolveImportFindingResponses[keyof ResolveImportFindingResponses];
+
+export type GetImportReviewData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/review';
+};
+
+export type GetImportReviewErrors = {
+    /**
+     * No proposal yet.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetImportReviewError = GetImportReviewErrors[keyof GetImportReviewErrors];
+
+export type GetImportReviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewOut;
+};
+
+export type GetImportReviewResponse = GetImportReviewResponses[keyof GetImportReviewResponses];
+
+export type DecideImportGroupData = {
+    body: DecisionIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+        /**
+         * Group
+         */
+        group: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/review/{group}';
+};
+
+export type DecideImportGroupErrors = {
+    /**
+     * Not a choice for this group.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DecideImportGroupError = DecideImportGroupErrors[keyof DecideImportGroupErrors];
+
+export type DecideImportGroupResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewOut;
+};
+
+export type DecideImportGroupResponse = DecideImportGroupResponses[keyof DecideImportGroupResponses];
+
+export type EditImportVariableData = {
+    body: VariableEdit;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+        /**
+         * Name
+         */
+        name: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/variables/{name}';
+};
+
+export type EditImportVariableErrors = {
+    /**
+     * Not a valid name, or an unknown agent.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EditImportVariableError = EditImportVariableErrors[keyof EditImportVariableErrors];
+
+export type EditImportVariableResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewOut;
+};
+
+export type EditImportVariableResponse = EditImportVariableResponses[keyof EditImportVariableResponses];
 
 export type ApplyImportData = {
     /**

@@ -1,4 +1,5 @@
 // The pages that aren't forms: lists, overview, prompt, unpublished changes, releases, convert, home.
+import { UsageGrid } from "./usage-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
@@ -148,70 +149,51 @@ export function OverviewView() {
       <PageTitle>Overview</PageTitle>
       <Sub>Which agents use which blocks. Click a cell to add a block to an agent (it goes at the end of the agent's list) or take it out. Each click saves a draft.</Sub>
       {agents.length ? (
-        <div className="bg-card overflow-auto rounded-xl border">
-          <table className="min-w-full border-collapse">
-            <thead>
-              <tr>
-                <th className="bg-card sticky top-0 border-b" />
-                {agents.map((a) => (
-                  <th key={a.id} scope="col" className="bg-card sticky top-0 border-b px-2 py-2.5 text-center text-[13px] font-semibold whitespace-nowrap">
-                    <HrefLink href={href("agent", a.id)}>{a.id}</HrefLink>
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            {sections.map(([kind, items]) =>
-              items.length ? (
-                <tbody key={kind}>
-                  <tr>
-                    <th colSpan={agents.length + 1} scope="colgroup" className="bg-muted text-muted-foreground border-b px-3 py-1.5 text-left text-xs font-semibold">
-                      {KIND[kind].many}
-                    </th>
-                  </tr>
-                  {items.map((it) => (
-                    <tr key={it.id}>
-                      <th scope="row" className="border-b px-3 py-1.5 text-left font-medium whitespace-nowrap">
-                        <KindBadge kind={kind} /> <HrefLink href={href(kind, it.id)}>{model.itemName(kind, it.id)}</HrefLink>
-                      </th>
-                      {agents.map((a) => {
-                        const u = uses.get(a.id)!;
-                        const direct = u.direct.has(it.id);
-                        const via = direct ? undefined : u.via.get(it.id);
-                        const nm = model.itemName(kind, it.id);
-                        const label = direct ? `${a.id} lists ${nm}. Click to take it out.` : via ? `${a.id} gets ${nm} through ${via}.` : `Add ${nm} to ${a.id}.`;
-                        return (
-                          <td key={a.id} className="min-w-[110px] border-b border-l p-0 text-center">
-                            <button
-                              type="button"
-                              aria-label={label}
-                              title={label}
-                              aria-pressed={direct}
-                              disabled={busy === `${a.id}/${it.id}`}
-                              onClick={() => toggle(a.id, it.id, direct, via)}
-                              className={cn(
-                                "group flex min-h-9 w-full cursor-pointer items-center justify-center gap-1 text-base font-bold text-primary hover:bg-muted disabled:opacity-50",
-                                direct && "bg-brand-soft",
-                                via && "text-muted-foreground text-sm font-semibold",
-                              )}
-                            >
-                              {direct ? "✓" : via ? (
-                                <span>
-                                  ✓<small className="ml-1 text-[11px] font-medium">{via}</small>
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground invisible group-hover:visible">+</span>
-                              )}
-                            </button>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              ) : null,
-            )}
-          </table>
-        </div>
+        <UsageGrid
+          columns={agents.map((a) => ({ id: a.id, head: <HrefLink href={href("agent", a.id)}>{a.id}</HrefLink> }))}
+          sections={sections.map(([kind, items]) => ({
+            key: kind,
+            title: KIND[kind].many,
+            rows: items.map((it) => ({
+              id: it.id,
+              head: (
+                <>
+                  <KindBadge kind={kind} /> <HrefLink href={href(kind, it.id)}>{model.itemName(kind, it.id)}</HrefLink>
+                </>
+              ),
+              cell: (agent: string) => {
+                const u = uses.get(agent)!;
+                const direct = u.direct.has(it.id);
+                const via = direct ? undefined : u.via.get(it.id);
+                const nm = model.itemName(kind, it.id);
+                const label = direct ? `${agent} lists ${nm}. Click to take it out.` : via ? `${agent} gets ${nm} through ${via}.` : `Add ${nm} to ${agent}.`;
+                return (
+                  <button
+                    type="button"
+                    aria-label={label}
+                    title={label}
+                    aria-pressed={direct}
+                    disabled={busy === `${agent}/${it.id}`}
+                    onClick={() => toggle(agent, it.id, direct, via)}
+                    className={cn(
+                      "group flex min-h-9 w-full cursor-pointer items-center justify-center gap-1 text-base font-bold text-primary hover:bg-muted disabled:opacity-50",
+                      direct && "bg-brand-soft",
+                      via && "text-muted-foreground text-sm font-semibold",
+                    )}
+                  >
+                    {direct ? "✓" : via ? (
+                      <span>
+                        ✓<small className="ml-1 text-[11px] font-medium">{via}</small>
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground invisible group-hover:visible">+</span>
+                    )}
+                  </button>
+                );
+              },
+            })),
+          }))}
+        />
       ) : (
         <Note>No agents yet.</Note>
       )}

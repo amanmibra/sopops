@@ -11,6 +11,7 @@ from fastapi.responses import StreamingResponse
 
 from ..ai.lm import AIError, model_for
 from ..onboarding import platforms
+from ..onboarding.review import ReviewError
 from ..onboarding.service import DONE, Onboarding
 from ..onboarding.types import ProposalContent, SourcePrompt
 from ..schemas.onboarding import (
@@ -20,6 +21,7 @@ from ..schemas.onboarding import (
     ApplyRequest,
     Capabilities,
     CreateImport,
+    DecisionIn,
     EventOut,
     FidelityIn,
     FidelityOut,
@@ -30,7 +32,9 @@ from ..schemas.onboarding import (
     PushIn,
     PushOut,
     ResolveRequest,
+    ReviewOut,
     SessionInfo,
+    VariableEdit,
 )
 from ..store import Store
 from ..tokens import Forbidden, Unauthorized
@@ -138,6 +142,29 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         try:
             return onboarding.resolve(workspace, id, finding, req.choice)
         except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.get(f"{base}/{{id}}/review", response_model=ReviewOut, responses={409: {"description": "No proposal yet."}})
+    def get_import_review(workspace: str, id: str) -> dict:
+        """The proposal as summaries, for any number of agents: counts, disagreements (rule words that differ, from
+        sopc overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity."""
+        return onboarding.review(workspace, id)
+
+    @r.post(f"{base}/{{id}}/review/{{group}}", response_model=ReviewOut, responses={400: {"description": "Not a choice for this group."}})
+    def decide_import_group(workspace: str, id: str, group: str, req: DecisionIn) -> dict:
+        """Decide a disagreement (keep, or all:<agent>) or what to do with an agent's unique text (context, block),
+        by the group's id. Decisions are kept with the proposal, so a re-run of the review keeps them."""
+        try:
+            return onboarding.decide(workspace, id, group, req.choice)
+        except ReviewError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.put(f"{base}/{{id}}/variables/{{name}}", response_model=ReviewOut, responses={400: {"description": "Not a valid name, or an unknown agent."}})
+    def edit_import_variable(workspace: str, id: str, name: str, req: VariableEdit) -> dict:
+        """Rename a variable everywhere it's used, and/or set agents' values for it."""
+        try:
+            return onboarding.edit_variable(workspace, id, name, req.name, req.values)
+        except ReviewError as e:
             raise HTTPException(400, str(e)) from None
 
     @r.post(f"{base}/{{id}}/apply", response_model=ApplyOut, response_model_by_alias=True, responses={409: {"description": "Already applied, or an id clashes."}})

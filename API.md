@@ -307,11 +307,14 @@ Importing existing agent prompts. Both ways end in a **proposal** (agents, share
 | `GET /v1/onboarding/capabilities` | `{llm, model, platforms}`: whether sopops can extract with its own model. |
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
 | `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
-| `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff` (MCP commands, prompt, settings). |
+| `POST …/imports/agent` | `{mode: hosted\|repo, repo?, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff`: one command per agent (add the MCP server and start the agent on "call get_kickoff"), the Codex config as TOML, and recommended settings. |
 | `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, and the proposal. |
 | `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
 | `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
 | `POST …/imports/<id>/findings/<finding>` | `{choice}`: `keep`, or the agent whose version every agent gets. |
+| `GET …/imports/<id>/review` | The proposal as summaries, for any number of agents: `counts` (agents, shared blocks, variables, disagreements, undecided, agents with unique content, below 100% fidelity), `disagreements` (rule words that differ, from `sopc overlap`: majority against outliers, smallest minority first; then drift the model suggested beyond what overlap finds), `variables` (each × agent), `blocks` (who uses each proposed block, and who lacks text most agents have), `unique` (each agent's text no other has), `fidelity`. Group ids are sopc's, stable across runs. |
+| `POST …/imports/<id>/review/<group>` | `{choice}`: a disagreement `keep` or `all:<agent>`; unique text `context` or `block` (a new shared instruction). Kept with the proposal by group id. |
+| `PUT …/imports/<id>/variables/<name>` | `{name?, values?}`: rename a variable everywhere, or set agents' values. |
 | `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced). Ends the token. |
 | `POST …/imports/<id>/revoke`, `DELETE …/imports/<id>` | End the token (Finish); discard the import. |
 

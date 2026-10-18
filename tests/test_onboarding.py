@@ -424,3 +424,69 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
     written = kickoff.install_skill(tmp_path, ["claude", "codex"])
     assert [w.relative_to(tmp_path).as_posix() for w in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md"]
     assert written[0].read_text() == skill
+
+
+# --- the review at scale -------------------------------------------------------------------------------------------
+
+
+def many_agents(n=60) -> list[SourcePrompt]:
+    """Synthetic pizzerias: one shared host text with the name and phone as values, a pickup procedure, three that
+    allow two upsells instead of one (a rule word), two missing the closing line, and five with a line of their own."""
+    out = []
+    for i in range(1, n + 1):
+        name = f"Pizzeria Numero {i}"
+        upsells = "twice" if i in (7, 21, 42) else "once"
+        lines = [
+            f"You are the phone host for {name}. You take pickup orders by phone.",
+            "Speak warmly and briefly, one question at a time.",
+            f"Our phone number is 555-01{i:02d}.",
+            "## Pickup orders",
+            "When the caller wants to order for pickup:",
+            "1. Ask for the items and the quantity of each.",
+            "2. Offer one add-on that fits the order.",
+            "3. Read back the order and the total.",
+            f"Never upsell more than {upsells} per call.",
+        ]
+        if i not in (13, 31):
+            lines.append("Before hanging up, thank the caller and say when the order will be ready.")
+        own = {12: "We have a wood-fired oven and parking out back.", 24: "Gluten-free crust costs three dollars extra.",
+               36: "The patio closes when it rains.", 48: "Catering trays need a day of notice.", 60: "Delivery drivers wear blue jackets."}
+        if i in own:
+            lines.append(own[i])
+        out.append(SourcePrompt(name=name, platform="livekit", prompt="\n\n".join(lines)))
+    return out
+
+
+def test_the_review_summarizes_sixty_agents(client):
+    client.app.state.onboarding.ai = RulesModels()
+    created = client.post(IMPORTS, json={"sources": [s.model_dump() for s in many_agents()]})
+    body = wait_ready(client, created.json()["id"], timeout=120)
+    assert body["status"] == "ready", body["error"]
+    review = client.get(f"{IMPORTS}/{body['id']}/review")
+    assert review.status_code == 200 and len(review.content) < 400_000  # summaries, not one card per sentence
+    r = review.json()
+    c = r["counts"]
+    assert c["agents"] == 60 and c["shared_blocks"] >= 1 and c["disagreements"] >= 1 and c["agents_with_unique"] == 5
+    upsell = next(d for d in r["disagreements"] if d["source"] == "overlap" and "upsell" in d["majority"]["text"])
+    assert len(upsell["majority"]["agents"]) == 57 and upsell["minority"] == 3 and upsell["decision"] is None
+    assert any(v["values"].get("pizzeria-numero-5") for v in r["variables"])
+    closing = next(b for b in r["blocks"] if any("thank the caller" in u.lower() for u in [b["title"]]) or b["missing"])
+    assert set(closing["missing"]) <= {"pizzeria-numero-13", "pizzeria-numero-31"}
+    assert len(r["fidelity"]) == 60
+
+    # decisions are kept by the group's id
+    decided = client.post(f"{IMPORTS}/{body['id']}/review/{upsell['id']}", json={"choice": "keep"}).json()
+    assert next(d for d in decided["disagreements"] if d["id"] == upsell["id"])["decision"] == "keep"
+    unique = r["unique"][0]
+    made = client.post(f"{IMPORTS}/{body['id']}/review/{unique['id']}", json={"choice": "block"}).json()
+    assert next(u for u in made["unique"] if u["id"] == unique["id"])["decision"] == "block"
+    assert client.post(f"{IMPORTS}/{body['id']}/review/{unique['id']}", json={"choice": "nope"}).status_code == 400
+    again = client.get(f"{IMPORTS}/{body['id']}/review").json()
+    assert next(d for d in again["disagreements"] if d["id"] == upsell["id"])["decision"] == "keep"
+
+    # a variable renamed everywhere, a value edited
+    var = next(v for v in again["variables"] if v["source"] == "proposal")
+    renamed = client.put(f"{IMPORTS}/{body['id']}/variables/{var['name']}", json={"name": "restaurant_label", "values": {"pizzeria-numero-1": "Uno"}}).json()
+    row = next(v for v in renamed["variables"] if v["name"] == "restaurant_label")
+    assert row["values"]["pizzeria-numero-1"] == "Uno"
+    assert client.put(f"{IMPORTS}/{body['id']}/variables/restaurant_label", json={"name": "Bad Name"}).status_code == 400

@@ -7022,6 +7022,209 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/imports/{id}/review": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Get Import Review",
+        "description": "The proposal as summaries, for any number of agents: counts, disagreements (rule words that differ, from\nsopc overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity.",
+        "operationId": "get_import_review",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No proposal yet."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/review/{group}": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Decide Import Group",
+        "description": "Decide a disagreement (keep, or all:<agent>) or what to do with an agent's unique text (context, block),\nby the group's id. Decisions are kept with the proposal, so a re-run of the review keeps them.",
+        "operationId": "decide_import_group",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "group",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Group"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a choice for this group."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/variables/{name}": {
+      "put": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Edit Import Variable",
+        "description": "Rename a variable everywhere it's used, and/or set agents' values for it.",
+        "operationId": "edit_import_variable",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          },
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariableEdit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not a valid name, or an unknown agent."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/imports/{id}/apply": {
       "post": {
         "tags": [
@@ -8145,6 +8348,51 @@
         ],
         "title": "BlockRequest"
       },
+      "BlockRow": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "instruction",
+              "procedure"
+            ],
+            "title": "Kind"
+          },
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "The agents that use it."
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing",
+            "description": "Agents that don't use it, though most agents' prompts have its text."
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "title",
+          "agents",
+          "missing"
+        ],
+        "title": "BlockRow"
+      },
       "Capabilities": {
         "properties": {
           "llm": {
@@ -8624,6 +8872,20 @@
         "type": "object",
         "title": "CreateImport"
       },
+      "DecisionIn": {
+        "properties": {
+          "choice": {
+            "type": "string",
+            "title": "Choice",
+            "description": "A disagreement: keep, or all:<agent>. Unique text: context or block."
+          }
+        },
+        "type": "object",
+        "required": [
+          "choice"
+        ],
+        "title": "DecisionIn"
+      },
       "DeliveryIn": {
         "properties": {
           "mode": {
@@ -8641,6 +8903,70 @@
           "mode"
         ],
         "title": "DeliveryIn"
+      },
+      "Disagreement": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "sopc overlap's group id (stable across runs), or the extraction's finding id."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "overlap",
+              "model"
+            ],
+            "title": "Source",
+            "description": "overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict)."
+          },
+          "majority": {
+            "$ref": "#/components/schemas/WordingGroup"
+          },
+          "outliers": {
+            "items": {
+              "$ref": "#/components/schemas/WordingGroup"
+            },
+            "type": "array",
+            "title": "Outliers"
+          },
+          "minority": {
+            "type": "integer",
+            "title": "Minority",
+            "description": "How many agents aren't in the majority."
+          },
+          "words": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Words",
+            "description": "Each agent's differing words."
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision",
+            "description": "keep, or all:<agent>."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "majority",
+          "outliers",
+          "minority",
+          "words",
+          "decision"
+        ],
+        "title": "Disagreement"
       },
       "DraftAgent": {
         "properties": {
@@ -12013,6 +12339,14 @@
             "type": "object",
             "title": "Originals",
             "description": "Each agent's original prompt, by agent id."
+          },
+          "decisions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Decisions",
+            "description": "The reviewer's decisions, by the id of the group they're about (sopc overlap's ids)."
           }
         },
         "type": "object",
@@ -13479,6 +13813,105 @@
         },
         "type": "object",
         "title": "RetryIn"
+      },
+      "ReviewCounts": {
+        "properties": {
+          "agents": {
+            "type": "integer",
+            "title": "Agents"
+          },
+          "shared_blocks": {
+            "type": "integer",
+            "title": "Shared Blocks",
+            "description": "Proposed blocks more than one agent uses."
+          },
+          "variables": {
+            "type": "integer",
+            "title": "Variables"
+          },
+          "disagreements": {
+            "type": "integer",
+            "title": "Disagreements"
+          },
+          "undecided": {
+            "type": "integer",
+            "title": "Undecided",
+            "description": "Disagreements with no decision yet."
+          },
+          "agents_with_unique": {
+            "type": "integer",
+            "title": "Agents With Unique",
+            "description": "Agents with text no other agent has."
+          },
+          "below_full_fidelity": {
+            "type": "integer",
+            "title": "Below Full Fidelity",
+            "description": "Agents whose compiled prompt lost or changed a sentence of the original."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "shared_blocks",
+          "variables",
+          "disagreements",
+          "undecided",
+          "agents_with_unique",
+          "below_full_fidelity"
+        ],
+        "title": "ReviewCounts"
+      },
+      "ReviewOut": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/ReviewCounts"
+          },
+          "disagreements": {
+            "items": {
+              "$ref": "#/components/schemas/Disagreement"
+            },
+            "type": "array",
+            "title": "Disagreements"
+          },
+          "variables": {
+            "items": {
+              "$ref": "#/components/schemas/VariableRow"
+            },
+            "type": "array",
+            "title": "Variables"
+          },
+          "blocks": {
+            "items": {
+              "$ref": "#/components/schemas/BlockRow"
+            },
+            "type": "array",
+            "title": "Blocks"
+          },
+          "unique": {
+            "items": {
+              "$ref": "#/components/schemas/UniqueText"
+            },
+            "type": "array",
+            "title": "Unique"
+          },
+          "fidelity": {
+            "items": {
+              "$ref": "#/components/schemas/AgentFidelity"
+            },
+            "type": "array",
+            "title": "Fidelity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "counts",
+          "disagreements",
+          "variables",
+          "blocks",
+          "unique",
+          "fidelity"
+        ],
+        "title": "ReviewOut"
       },
       "RuleInsights": {
         "properties": {
@@ -16149,6 +16582,38 @@
         "title": "TurnIn",
         "description": "One turn. Extra fields (interrupted, confidence, ...) are kept as sent."
       },
+      "UniqueText": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "context",
+              "block"
+            ],
+            "title": "Decision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "agent",
+          "text",
+          "decision"
+        ],
+        "title": "UniqueText"
+      },
       "Use": {
         "properties": {
           "agent": {
@@ -16235,6 +16700,83 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "VariableEdit": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "A new name (snake_case)."
+          },
+          "values": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Values",
+            "description": "New values, by agent."
+          }
+        },
+        "type": "object",
+        "title": "VariableEdit"
+      },
+      "VariableRow": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Values",
+            "description": "Each agent's value."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "proposal",
+              "overlap"
+            ],
+            "title": "Source",
+            "description": "proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default)."
+          },
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "values",
+          "source",
+          "id"
+        ],
+        "title": "VariableRow"
       },
       "Variant": {
         "properties": {
@@ -16396,6 +16938,27 @@
           "results"
         ],
         "title": "Wording"
+      },
+      "WordingGroup": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "agents": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Agents"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "agents"
+        ],
+        "title": "WordingGroup"
       },
       "WorkspaceOut": {
         "properties": {

@@ -4,7 +4,7 @@ import { Check, Copy } from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import type {
-  AgentFidelity, EventOut, Finding, IssueOut, ImportOut, Kickoff, Proposal, ProposalContent, ProposalIssue, ProposedAgent, ProposedInstruction, ProposedProcedure,
+  AgentFidelity, EventOut, IssueOut, ImportOut, Kickoff, Proposal, ProposalContent, ProposalIssue, ProposedAgent, ProposedInstruction, ProposedProcedure,
 } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
 import { platformName, plural, when } from "@/lib/kinds";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { DiffView } from "../diff-view";
+import { ReviewSummary } from "./summary";
 import { Field, StepRows, VarRows, author } from "../form";
 import { HrefLink, useGo } from "../href-link";
 import { Page } from "../item-shell";
@@ -214,6 +215,8 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
 
 type Draft = Required<ProposalContent>;
 
+const AGENTS_PAGE = 20;
+
 const content = (p: Proposal | ProposalContent): Draft => ({
   agents: p.agents ?? [],
   instructions: p.instructions ?? [],
@@ -231,6 +234,7 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [tab, setTab] = useState<"blocks" | "agents">("blocks");
+  const [agentPage, setAgentPage] = useState(0);
   useEffect(() => setDraft(content(proposal)), [proposal]);
 
   const edit = (next: Draft) => {
@@ -255,11 +259,6 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
       setDirty(false);
       await reload();
     });
-  const decide = (finding: string, choice: string) =>
-    act(`decide:${finding}`, async () => {
-      await call(sdk.resolveImportFinding({ path: { workspace: ws, id: imp.id, finding }, body: { choice } }));
-      await reload();
-    });
   const apply = () =>
     act("apply", async () => {
       const res = await call(sdk.applyImport({ path: { workspace: ws, id: imp.id }, body: { proposal: dirty ? draft : null, author: author() } }));
@@ -274,36 +273,12 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
     });
 
   const fidelity = proposal.fidelity ?? [];
-  const findings = proposal.findings ?? [];
-  const drift = findings.filter((f) => f.kind === "drift");
-  const merged = findings.filter((f) => f.kind !== "drift");
   const errors = (proposal.issues ?? []).filter((i) => i.severity === "error");
-  const lost = fidelity.filter((f) => !f.ok);
   const names = useMemo(() => new Map<string, string>([...draft.procedures.map((p) => [p.id, p.name] as const), ...draft.instructions.map((i) => [i.id, i.id] as const)]), [draft]);
 
   return (
     <>
-      <Panel title="What was found">
-        <div className="flex flex-wrap gap-x-6 gap-y-1">
-          <span>{plural(draft.agents.length, "agent", "agents")}</span>
-          <span>{plural(draft.instructions.length, "shared instruction", "shared instructions")}</span>
-          <span>{plural(draft.procedures.length, "procedure", "procedures")}</span>
-          {draft.groups.length > 0 && <span>{plural(draft.groups.length, "group", "groups")}</span>}
-          <span>{plural(drift.length, "difference to decide", "differences to decide")}</span>
-          <span>
-            Fidelity:{" "}
-            {fidelity.length ? (
-              lost.length ? (
-                <b className="text-err">{plural(lost.length, "agent loses", "agents lose")} text</b>
-              ) : (
-                <b className="text-ok">every agent keeps all of its text</b>
-              )
-            ) : (
-              "not checked"
-            )}
-          </span>
-        </div>
-      </Panel>
+      <ReviewSummary ws={ws} id={imp.id} disabled={dirty} />
       {errors.length > 0 && (
         <Banner tone="err">
           sopc can't build this yet:
@@ -316,34 +291,6 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
             ))}
           </ul>
         </Banner>
-      )}
-      {drift.length > 0 && (
-        <Panel title="Where agents differ">
-          <p className="text-muted-foreground mb-3 text-[13px]">Until you decide, each agent keeps what it says today.{dirty ? " Save your edits before deciding." : ""}</p>
-          <div className="grid gap-3">
-            {drift.map((f) => (
-              <DriftCard key={f.id} f={f} disabled={dirty || !!busy} onDecide={(choice) => decide(f.id, choice)} />
-            ))}
-          </div>
-        </Panel>
-      )}
-      {merged.length > 0 && (
-        <details className="bg-card mb-4 rounded-xl border px-4 py-3">
-          <summary className="cursor-pointer font-semibold">Merged across agents ({merged.length})</summary>
-          <ul className="mt-2 grid gap-1.5 text-[13px]">
-            {merged.map((f) => (
-              <li key={f.id}>
-                <Tag>{f.kind === "duplicate" ? "same text" : "values"}</Tag> {f.message}
-                {f.kind === "values" && (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    ({(f.variants ?? []).map((v) => `${v.agents.join(", ")}: "${v.text}"`).join("; ")})
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </details>
       )}
       {(proposal.notes ?? []).length > 0 && (
         <Banner tone="warn">
@@ -392,7 +339,20 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
         </div>
       ) : (
         <div className="grid gap-4">
-          {draft.agents.map((a, i) => (
+          {draft.agents.length > AGENTS_PAGE && (
+            <div className="flex items-center gap-2 text-[13px]">
+              <Button size="xs" variant="outline" disabled={agentPage === 0} onClick={() => setAgentPage(agentPage - 1)}>
+                Previous
+              </Button>
+              <span className="text-muted-foreground">
+                Agents {agentPage * AGENTS_PAGE + 1}–{Math.min((agentPage + 1) * AGENTS_PAGE, draft.agents.length)} of {draft.agents.length}
+              </span>
+              <Button size="xs" variant="outline" disabled={(agentPage + 1) * AGENTS_PAGE >= draft.agents.length} onClick={() => setAgentPage(agentPage + 1)}>
+                Next
+              </Button>
+            </div>
+          )}
+          {draft.agents.map((a, i) => (i < agentPage * AGENTS_PAGE || i >= (agentPage + 1) * AGENTS_PAGE ? null : (
             <AgentCard
               key={a.id}
               a={a}
@@ -403,7 +363,7 @@ function Review({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
               stale={dirty}
               onChange={(next) => edit({ ...draft, agents: draft.agents.map((x, j) => (j === i ? next : x)) })}
             />
-          ))}
+          )))}
         </div>
       )}
       {error ? <ErrorBanner error={error} lead="That didn't work:" /> : null}
@@ -430,38 +390,6 @@ function issuesFor(p: Proposal, kind: string, id: string): ProposalIssue[] {
 
 const asIssues = (issues: ProposalIssue[]): IssueOut[] =>
   issues.map((i) => ({ code: i.code, message: i.message, path: i.path ?? "", severity: (i.severity === "warning" ? "warning" : "error") as "error" | "warning", kind: (i.kind ?? null) as IssueOut["kind"], id: i.id ?? null, field: i.field ?? null, index: i.index ?? null, text: i.text ?? null }));
-
-function DriftCard({ f, disabled, onDecide }: { f: Finding; disabled: boolean; onDecide: (choice: string) => void }) {
-  return (
-    <div className={cn("rounded-lg border px-3.5 py-3", f.resolved ? "bg-muted" : "bg-warn-soft border-transparent")}>
-      <div className="mb-2 font-medium">{f.message}</div>
-      <div className="grid gap-2">
-        {(f.variants ?? []).map((v, i) => (
-          <div key={i} className="bg-card flex flex-wrap items-start gap-3 rounded-md border px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <div className="text-muted-foreground mb-0.5 text-[12px]">{v.agents.join(", ")}</div>
-              <div className="text-[13px] whitespace-pre-wrap">{v.text}</div>
-            </div>
-            {!f.resolved && (
-              <Button size="sm" variant="outline" disabled={disabled} onClick={() => onDecide(v.agents[0])}>
-                Use for every agent
-              </Button>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="mt-2 flex items-center gap-2">
-        {f.resolved ? (
-          <Note>{f.resolved === "keep" ? "Decided: each agent keeps its version." : `Decided: every agent uses ${f.resolved}'s version.`}</Note>
-        ) : (
-          <Button size="sm" variant="ghost" disabled={disabled} onClick={() => onDecide("keep")}>
-            Keep {(f.variants ?? []).length > 2 ? "each version" : "both"}
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-}
 
 function Users({ ids }: { ids: string[] }) {
   return <Note>{ids.length ? `Used by ${ids.join(", ")}` : "No agent uses it"}</Note>;

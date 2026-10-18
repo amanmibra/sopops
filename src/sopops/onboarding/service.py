@@ -17,6 +17,8 @@ discarded.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import threading
 import uuid
@@ -33,7 +35,7 @@ from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
-from . import fidelity, kickoff
+from . import fidelity, kickoff, summary
 from .pipeline import extract
 from .review import refresh_used_by, resolve
 from .rules import RulesModels
@@ -59,6 +61,8 @@ class Onboarding:
     def __init__(self, store: Store, ai: AI | None | Callable[[], AI | None] = ai_from_env):
         self.store = store
         self._ai = ai
+        self._overlaps: dict[str, dict] = {}
+        self._overlap_lock = threading.Lock()
         self._fail_interrupted()
 
     @property
@@ -230,6 +234,36 @@ class Onboarding:
         proposal = resolve(self._proposal(workspace, id), finding, choice)
         self._save(id, fidelity.check(proposal, self.store.sopc))
         return self.get(workspace, id)
+
+    # --- the review, as summaries (see `summary`) ------------------------------------------------------------------
+
+    def overlap(self, proposal: Proposal) -> dict:
+        """`sopc overlap --json` on the originals, cached by their content (it's the same until they change)."""
+        key = hashlib.sha256(json.dumps(proposal.originals, sort_keys=True).encode()).hexdigest()
+        with self._overlap_lock:
+            if key in self._overlaps:
+                return self._overlaps[key]
+        got = self.store.sopc.overlap(proposal.originals) if len(proposal.originals) > 1 else {}
+        with self._overlap_lock:
+            self._overlaps[key] = got
+            while len(self._overlaps) > 32:
+                self._overlaps.pop(next(iter(self._overlaps)))
+        return got
+
+    def review(self, workspace: str, id: str) -> dict:
+        proposal = self._proposal(workspace, id)
+        return summary.summary(proposal, self.overlap(proposal))
+
+    def decide(self, workspace: str, id: str, group: str, choice: str) -> dict:
+        proposal = self._proposal(workspace, id)
+        changed = summary.decide(proposal, self.overlap(proposal), group, choice)
+        self._save(id, fidelity.check(changed, self.store.sopc) if changed.model_dump(exclude={"decisions"}) != proposal.model_dump(exclude={"decisions"}) else changed)
+        return self.review(workspace, id)
+
+    def edit_variable(self, workspace: str, id: str, name: str, new_name: str | None, values: dict[str, str] | None) -> dict:
+        proposal = summary.edit_variable(self._proposal(workspace, id), name, new_name, values)
+        self._save(id, fidelity.check(proposal, self.store.sopc))
+        return self.review(workspace, id)
 
     def discard(self, workspace: str, id: str) -> dict:
         with self._db() as db:

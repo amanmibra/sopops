@@ -180,3 +180,4 @@ class Proposal(ProposalContent):
     issues: list[ProposalIssue] = Field(default_factory=list, description="sopc's checks of the proposal as files.")
     notes: list[str] = Field(default_factory=list)
     originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original prompt, by agent id.")
+    decisions: dict[str, str] = Field(default_factory=dict, description="The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).")

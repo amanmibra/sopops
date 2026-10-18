@@ -7,7 +7,13 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from ..onboarding.types import Finding, Proposal, ProposalContent, SourcePrompt
+from ..onboarding.types import (
+    AgentFidelity,
+    Finding,
+    Proposal,
+    ProposalContent,
+    SourcePrompt,
+)
 from .files import WrittenFile
 
 
@@ -148,3 +154,71 @@ class FidelityOut(BaseModel):
 class PushOut(FidelityOut):
     id: str
     pushes: int
+
+
+# --- the review, as summaries ----------------------------------------------------------------------------------------
+
+
+class ReviewCounts(BaseModel):
+    agents: int
+    shared_blocks: int = Field(description="Proposed blocks more than one agent uses.")
+    variables: int
+    disagreements: int
+    undecided: int = Field(description="Disagreements with no decision yet.")
+    agents_with_unique: int = Field(description="Agents with text no other agent has.")
+    below_full_fidelity: int = Field(description="Agents whose compiled prompt lost or changed a sentence of the original.")
+
+
+class WordingGroup(BaseModel):
+    text: str
+    agents: list[str]
+
+
+class Disagreement(BaseModel):
+    id: str = Field(description="sopc overlap's group id (stable across runs), or the extraction's finding id.")
+    source: Literal["overlap", "model"] = Field(description="overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict).")
+    majority: WordingGroup
+    outliers: list[WordingGroup]
+    minority: int = Field(description="How many agents aren't in the majority.")
+    words: dict[str, str] = Field(description="Each agent's differing words.")
+    decision: str | None = Field(description="keep, or all:<agent>.")
+
+
+class VariableRow(BaseModel):
+    name: str
+    values: dict[str, str | None] = Field(description="Each agent's value.")
+    source: Literal["proposal", "overlap"] = Field(description="proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default).")
+    id: str | None
+
+
+class BlockRow(BaseModel):
+    kind: Literal["instruction", "procedure"]
+    id: str
+    title: str
+    agents: list[str] = Field(description="The agents that use it.")
+    missing: list[str] = Field(description="Agents that don't use it, though most agents' prompts have its text.")
+
+
+class UniqueText(BaseModel):
+    id: str
+    agent: str
+    text: str
+    decision: Literal["context", "block"]
+
+
+class ReviewOut(BaseModel):
+    counts: ReviewCounts
+    disagreements: list[Disagreement]
+    variables: list[VariableRow]
+    blocks: list[BlockRow]
+    unique: list[UniqueText]
+    fidelity: list[AgentFidelity]
+
+
+class DecisionIn(BaseModel):
+    choice: str = Field(description="A disagreement: keep, or all:<agent>. Unique text: context or block.")
+
+
+class VariableEdit(BaseModel):
+    name: str | None = Field(None, description="A new name (snake_case).")
+    values: dict[str, str] = Field(default_factory=dict, description="New values, by agent.")
