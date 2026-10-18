@@ -3,7 +3,9 @@
 - Made for a pattern whose verdict is `real`, `acceptable` or `sop_wrong` (`create`, then `generate` as a job, inline
   or on Hatchet). Status: `generating`, then `proposed` or `failed`; a proposal is then `applied`, `pr_open` or
   `dismissed`. A pull request is followed on GitHub (`sync_prs`, every `PR_CHECK_EVERY` at most per suggestion, by a
-  periodic job and when it's read): merged makes it `merged`, closed without merging `dismissed` ("PR closed").
+  periodic job and when it's read; backed off while the repository sends webhooks), and right away when the
+  `pull_request` webhook says it closed (`pr_closed`): merged makes it `merged`, closed without merging `dismissed`
+  ("PR closed").
 - The reasoning model sees the procedure's file at head, the rule, the pattern, the verdict and its note, and up to 5
   of the pattern's findings (`sopops.ai.programs.SuggestEdits`). The edited file must compile with the rest of head;
   if it doesn't, it's sent back once with sopc's issues, else the suggestion fails with them. `plan` records which
@@ -186,18 +188,30 @@ class Suggestions:
             out[self._sync_pr(s, force) or "failed"] += 1
         return out
 
-    def _sync_pr(self, s: Suggestion, force: bool = False) -> str | None:
-        """The pull request's state, applied to the suggestion; None when GitHub couldn't say (logged)."""
+    def pr_closed(self, workspaces: list[str], url: str, state: str) -> int:
+        """A webhook said the pull request at `url` merged or closed: apply it to its open suggestions, as polling
+        would. Returns how many."""
+        with self._db() as db:
+            rows = list(db.exec(select(Suggestion).where(Suggestion.status == "pr_open", Suggestion.pr_url == url, Suggestion.workspace_id.in_(workspaces))))
+        for s in rows:
+            self._sync_pr(s, force=True, state=state)
+        return len(rows)
+
+    def _sync_pr(self, s: Suggestion, force: bool = False, state: str | None = None) -> str | None:
+        """The pull request's state (`state` when a webhook said it, else read from GitHub), applied to the
+        suggestion; None when GitHub couldn't say (logged)."""
         now = _now()
-        checked = _utc(s.pr_checked_at)
-        if not force and checked is not None and now - checked < PR_CHECK_EVERY:
-            return "open"  # checked a moment ago
-        try:
-            state = github.pr_status(self.store, s.workspace_id, s.pr_url or "")
-        except github.GitHubError as e:
-            log.warning("checking %s for suggestion %s failed: %s", s.pr_url, s.id, e)
-            self._save(s, pr_checked_at=now)
-            return None
+        if state is None:
+            checked = _utc(s.pr_checked_at)
+            every = github.check_every(github.repo_connection(self.store, s.workspace_id), PR_CHECK_EVERY)
+            if not force and checked is not None and now - checked < every:
+                return "open"  # checked a moment ago
+            try:
+                state = github.pr_status(self.store, s.workspace_id, s.pr_url or "")
+            except github.GitHubError as e:
+                log.warning("checking %s for suggestion %s failed: %s", s.pr_url, s.id, e)
+                self._save(s, pr_checked_at=now)
+                return None
         if state == "merged":
             self._save(s, status="merged", pr_checked_at=now, merged_at=now)
         elif state == "closed":

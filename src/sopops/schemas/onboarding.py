@@ -145,6 +145,7 @@ class SessionInfo(BaseModel):
     repo_branch: str | None
     repo_path: str | None
     repo_project: Literal["missing", "invalid", "valid"] | None
+    repo_auth: Literal["token", "app"] | None = Field(None, description="How sopops signs in to the repository: `app` means sopops opens the onboarding pull request.")
     pr_url: str | None
     scopes: list[str]
     expires_at: datetime | None
@@ -152,6 +153,10 @@ class SessionInfo(BaseModel):
 
 class PullRequestIn(BaseModel):
     url: str = Field(max_length=1024, description="The onboarding pull request, e.g. https://github.com/acme/agents/pull/12.")
+
+
+class OpenPullRequestIn(BaseModel):
+    description: str | None = Field(None, max_length=20000, description="The pull request's description: the agents, where each prompt was found, the blocks, drift found.")
 
 
 class ProgressIn(BaseModel):

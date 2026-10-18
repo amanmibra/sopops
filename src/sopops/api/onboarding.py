@@ -27,6 +27,7 @@ from ..schemas.onboarding import (
     FidelityIn,
     FidelityOut,
     ImportOut,
+    OpenPullRequestIn,
     OriginalsIn,
     PlatformAgent,
     PlatformAgentsRequest,
@@ -245,6 +246,26 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         pulls the folder into drafts."""
         try:
             return onboarding.report_pull_request(agent(authorization), req.url)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.post("/v1/onboarding/pull-request/open", response_model=ImportOut,
+            responses={400: {"description": "Not repo mode, no proposal pushed yet, or GitHub refused."}, 404: {"description": "No repository connected."}})
+    def onboarding_open_pull_request(req: OpenPullRequestIn, authorization: str | None = Header(None)) -> dict:
+        """Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at
+        the connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it."""
+        try:
+            return onboarding.open_pull_request(agent(authorization), req.description)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.post(f"{base}/{{id}}/pull-request", response_model=ImportOut,
+            responses={400: {"description": "Not repo mode, no proposal yet, or GitHub refused."}, 404: {"description": "No repository connected."}})
+    def open_import_pull_request(workspace: str, id: str) -> dict:
+        """Repo mode: open the onboarding pull request from the import's proposal (the same as the agent's
+        `open_pull_request`), when the coding agent didn't."""
+        try:
+            return onboarding.open_pull_request(onboarding.record_of(workspace, id), by="sopops")
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 

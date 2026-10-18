@@ -1142,6 +1142,42 @@ export type ConfigResponse = {
 };
 
 /**
+ * ConflictOut
+ */
+export type ConflictOut = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Sha
+     */
+    sha: string;
+    /**
+     * Base
+     *
+     * The file when last synced; null if it didn't exist.
+     */
+    base: string | null;
+    /**
+     * Ours
+     *
+     * The draft here; null if deleted here.
+     */
+    ours: string | null;
+    /**
+     * Theirs
+     *
+     * GitHub's file; null if deleted on GitHub.
+     */
+    theirs: string | null;
+    /**
+     * At
+     */
+    at: string;
+};
+
+/**
  * CreateImport
  */
 export type CreateImport = {
@@ -1764,6 +1800,54 @@ export type Finding = {
 };
 
 /**
+ * GitHubAppOut
+ */
+export type GitHubAppOut = {
+    /**
+     * Configured
+     */
+    configured: boolean;
+    /**
+     * Source
+     *
+     * env: from SOPOPS_GITHUB_APP_ID and the rest. db: created from sopops.
+     */
+    source: 'env' | 'db' | null;
+    /**
+     * App Id
+     */
+    app_id: string | null;
+    /**
+     * Slug
+     */
+    slug: string | null;
+    /**
+     * Name
+     */
+    name: string | null;
+    /**
+     * Html Url
+     */
+    html_url: string | null;
+    /**
+     * Install Url
+     */
+    install_url: string | null;
+    /**
+     * Can Create
+     *
+     * No App yet, and SOPOPS_SECRET_KEY is set: one can be created from sopops.
+     */
+    can_create: boolean;
+    /**
+     * Problem
+     *
+     * What's missing, in words to show.
+     */
+    problem: string | null;
+};
+
+/**
  * GroupConfig
  */
 export type GroupConfig = {
@@ -1964,6 +2048,58 @@ export type ImportTokenOut = {
      * Active
      */
     active: boolean;
+};
+
+/**
+ * InstallOut
+ */
+export type InstallOut = {
+    /**
+     * Url
+     *
+     * GitHub's page to install the App, with a signed state naming the workspace.
+     */
+    url: string;
+};
+
+/**
+ * InstallationOut
+ */
+export type InstallationOut = {
+    /**
+     * Installation Id
+     */
+    installation_id: number;
+    /**
+     * Account
+     */
+    account: string | null;
+};
+
+/**
+ * InstallationRepoOut
+ */
+export type InstallationRepoOut = {
+    /**
+     * Owner
+     */
+    owner: string;
+    /**
+     * Repo
+     */
+    repo: string;
+    /**
+     * Full Name
+     */
+    full_name: string;
+    /**
+     * Default Branch
+     */
+    default_branch: string;
+    /**
+     * Private
+     */
+    private: boolean;
 };
 
 /**
@@ -2458,6 +2594,54 @@ export type LintSource = {
 };
 
 /**
+ * ManifestIn
+ */
+export type ManifestIn = {
+    /**
+     * Public Url
+     *
+     * This server's address as the browser reaches it (GitHub sends people and webhooks back to it).
+     */
+    public_url: string;
+    /**
+     * Return To
+     *
+     * The page to come back to.
+     */
+    return_to?: string;
+    /**
+     * Organization
+     *
+     * Create the App in this organization; else in your account.
+     */
+    organization?: string | null;
+    /**
+     * Webhook Url
+     *
+     * Where GitHub sends webhooks, when it can't reach `public_url` (a smee.io channel, say).
+     */
+    webhook_url?: string | null;
+};
+
+/**
+ * ManifestOut
+ */
+export type ManifestOut = {
+    /**
+     * Action
+     *
+     * Where the browser posts the form.
+     */
+    action: string;
+    /**
+     * Manifest
+     *
+     * The form's `manifest` field (JSON).
+     */
+    manifest: string;
+};
+
+/**
  * MergeConflict
  */
 export type MergeConflict = {
@@ -2777,6 +2961,18 @@ export type NewProcedure = {
      * Id
      */
     id: string;
+};
+
+/**
+ * OpenPullRequestIn
+ */
+export type OpenPullRequestIn = {
+    /**
+     * Description
+     *
+     * The pull request's description: the agents, where each prompt was found, the blocks, drift found.
+     */
+    description?: string | null;
 };
 
 /**
@@ -4701,9 +4897,15 @@ export type RepoIn = {
     /**
      * Token
      *
-     * A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it out to keep the stored one (to change the branch or path).
+     * A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it and `installation_id` out to keep the stored one (to change the branch or path).
      */
     token?: string | null;
+    /**
+     * Installation Id
+     *
+     * Sign in through the GitHub App's installation instead of a token: one installed from this workspace (`GET …/github/installations`).
+     */
+    installation_id?: number | null;
     /**
      * Base Branch
      *
@@ -4753,15 +4955,21 @@ export type RepoOut = {
     /**
      * Auth
      *
-     * How sopops signs in to GitHub: `token`, a fine-grained personal access token.
+     * How sopops signs in to GitHub: `token`, a fine-grained personal access token, or `app`, the GitHub App.
      */
-    auth: 'token';
+    auth: 'token' | 'app';
+    /**
+     * Installation Id
+     *
+     * The GitHub App's installation, for `app`.
+     */
+    installation_id: number | null;
     /**
      * Token Hint
      *
-     * The token's last characters, to tell tokens apart. Never the token.
+     * The token's last characters, to tell tokens apart; null for `app`. Never the token.
      */
-    token_hint: string;
+    token_hint: string | null;
     /**
      * Url
      *
@@ -4771,13 +4979,41 @@ export type RepoOut = {
     /**
      * Pulled Sha
      *
-     * The commit last pulled.
+     * The commit last pulled or synced: the base of the next sync.
      */
     pulled_sha: string | null;
     /**
      * Pulled At
      */
     pulled_at: string | null;
+    /**
+     * Broken
+     *
+     * Why the connection stopped working (the App was uninstalled, suspended, or lost the repository).
+     */
+    broken: string | null;
+    /**
+     * Sync Error
+     *
+     * Why the last sync from GitHub wrote nothing (the files don't build with the drafts, say).
+     */
+    sync_error: string | null;
+    /**
+     * Webhook At
+     *
+     * When GitHub last sent a webhook for the repository. While recent, polling backs off.
+     */
+    webhook_at: string | null;
+    /**
+     * Conflicts
+     *
+     * Files changed both on GitHub and here since the last sync, that don't merge.
+     */
+    conflicts: Array<SyncConflictOut>;
+    /**
+     * The pull request that sends drafts to GitHub, once opened.
+     */
+    sync_pr: SyncPrOut | null;
     /**
      * Created At
      */
@@ -4984,6 +5220,32 @@ export type ReportResponse = {
      * Procedures
      */
     procedures: Array<ReportProcedure>;
+};
+
+/**
+ * ResolveIn
+ */
+export type ResolveIn = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Take
+     *
+     * mine: keep the draft. github: take GitHub's. edited: write `content`.
+     */
+    take: 'mine' | 'github' | 'edited';
+    /**
+     * Content
+     *
+     * The file as edited, for `edited`.
+     */
+    content?: string | null;
+    /**
+     * Author
+     */
+    author?: string | null;
 };
 
 /**
@@ -5820,6 +6082,30 @@ export type SecretSaved = {
 };
 
 /**
+ * SendOut
+ */
+export type SendOut = {
+    /**
+     * Url
+     *
+     * The sync pull request.
+     */
+    url: string;
+    /**
+     * Files
+     *
+     * The files it changes, relative to the folder.
+     */
+    files: Array<string>;
+    /**
+     * Updated
+     *
+     * An open sync pull request was updated, rather than a new one opened.
+     */
+    updated: boolean;
+};
+
+/**
  * ServedIn
  */
 export type ServedIn = {
@@ -6164,6 +6450,12 @@ export type SessionInfo = {
      * Repo Project
      */
     repo_project: 'missing' | 'invalid' | 'valid' | null;
+    /**
+     * Repo Auth
+     *
+     * How sopops signs in to the repository: `app` means sopops opens the onboarding pull request.
+     */
+    repo_auth?: 'token' | 'app' | null;
     /**
      * Pr Url
      */
@@ -7011,6 +7303,90 @@ export type SuggestionsResponse = {
      * Items
      */
     items: Array<SuggestionSummary>;
+};
+
+/**
+ * SyncConflictOut
+ */
+export type SyncConflictOut = {
+    /**
+     * Path
+     */
+    path: string;
+    /**
+     * Sha
+     *
+     * The GitHub commit it conflicted at.
+     */
+    sha: string;
+    /**
+     * Deleted On Github
+     *
+     * GitHub deleted the file, and it was edited here.
+     */
+    deleted_on_github: boolean;
+    /**
+     * At
+     */
+    at: string;
+};
+
+/**
+ * SyncOut
+ */
+export type SyncOut = {
+    /**
+     * Workspace
+     */
+    workspace: string;
+    /**
+     * Sha
+     *
+     * The commit synced.
+     */
+    sha: string;
+    /**
+     * Changed
+     *
+     * New file versions (drafts).
+     */
+    changed: Array<WrittenFile>;
+    /**
+     * Merged
+     *
+     * Files changed both ways that merged cleanly.
+     */
+    merged: Array<string>;
+    /**
+     * Conflicts
+     *
+     * Files changed both ways that don't merge: the drafts are left alone.
+     */
+    conflicts: Array<string>;
+    /**
+     * Unchanged
+     */
+    unchanged: boolean;
+    /**
+     * Error
+     *
+     * Why nothing was written, when GitHub's files don't build with the drafts.
+     */
+    error: string | null;
+};
+
+/**
+ * SyncPrOut
+ */
+export type SyncPrOut = {
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * State
+     */
+    state: 'open' | 'merged' | 'closed' | null;
 };
 
 /**
@@ -10807,7 +11183,7 @@ export type StreamSessionsError = StreamSessionsErrors[keyof StreamSessionsError
 
 export type StreamSessionsResponses = {
     /**
-     * Server-sent events: `event: session`, `data: SessionEvent` JSON.
+     * Server-sent events: `event: session`, `data: SessionEvent` JSON; and `event: repo`, `data: RepoEvent` JSON.
      */
     200: unknown;
 };
@@ -12274,6 +12650,395 @@ export type PullRepoResponses = {
 
 export type PullRepoResponse = PullRepoResponses[keyof PullRepoResponses];
 
+export type SyncRepoData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Author
+         */
+        author?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/repo/sync';
+};
+
+export type SyncRepoErrors = {
+    /**
+     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
+};
+
+export type SyncRepoError = SyncRepoErrors[keyof SyncRepoErrors];
+
+export type SyncRepoResponses = {
+    /**
+     * Successful Response
+     */
+    200: SyncOut;
+};
+
+export type SyncRepoResponse = SyncRepoResponses[keyof SyncRepoResponses];
+
+export type SendRepoDraftsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo/send';
+};
+
+export type SendRepoDraftsErrors = {
+    /**
+     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     */
+    400: unknown;
+    /**
+     * Nothing to send, unresolved sync conflicts, or never synced.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * GitHub's rate limit for the token is used up.
+     */
+    429: unknown;
+    /**
+     * GitHub failed or couldn't be reached.
+     */
+    502: unknown;
+    /**
+     * SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read.
+     */
+    503: unknown;
+};
+
+export type SendRepoDraftsError = SendRepoDraftsErrors[keyof SendRepoDraftsErrors];
+
+export type SendRepoDraftsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SendOut;
+};
+
+export type SendRepoDraftsResponse = SendRepoDraftsResponses[keyof SendRepoDraftsResponses];
+
+export type GetRepoConflictData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query: {
+        /**
+         * Path
+         */
+        path: string;
+    };
+    url: '/v1/workspaces/{workspace}/repo/conflict';
+};
+
+export type GetRepoConflictErrors = {
+    /**
+     * No such conflict.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRepoConflictError = GetRepoConflictErrors[keyof GetRepoConflictErrors];
+
+export type GetRepoConflictResponses = {
+    /**
+     * Successful Response
+     */
+    200: ConflictOut;
+};
+
+export type GetRepoConflictResponse = GetRepoConflictResponses[keyof GetRepoConflictResponses];
+
+export type ResolveRepoConflictData = {
+    body: ResolveIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/repo/conflict';
+};
+
+export type ResolveRepoConflictErrors = {
+    /**
+     * No such conflict.
+     */
+    404: unknown;
+    /**
+     * The files don't compile; sopc's issues.
+     */
+    422: ValidateResponse;
+};
+
+export type ResolveRepoConflictError = ResolveRepoConflictErrors[keyof ResolveRepoConflictErrors];
+
+export type ResolveRepoConflictResponses = {
+    /**
+     * Successful Response
+     */
+    200: RepoOut;
+};
+
+export type ResolveRepoConflictResponse = ResolveRepoConflictResponses[keyof ResolveRepoConflictResponses];
+
+export type GetGithubAppData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/github/app';
+};
+
+export type GetGithubAppResponses = {
+    /**
+     * Successful Response
+     */
+    200: GitHubAppOut;
+};
+
+export type GetGithubAppResponse = GetGithubAppResponses[keyof GetGithubAppResponses];
+
+export type GithubInstallUrlData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Return To
+         */
+        return_to?: string;
+    };
+    url: '/v1/workspaces/{workspace}/github/install';
+};
+
+export type GithubInstallUrlErrors = {
+    /**
+     * No GitHub App is set up.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * The App has no slug, or no key to sign with.
+     */
+    503: unknown;
+};
+
+export type GithubInstallUrlError = GithubInstallUrlErrors[keyof GithubInstallUrlErrors];
+
+export type GithubInstallUrlResponses = {
+    /**
+     * Successful Response
+     */
+    200: InstallOut;
+};
+
+export type GithubInstallUrlResponse = GithubInstallUrlResponses[keyof GithubInstallUrlResponses];
+
+export type ListGithubInstallationsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/github/installations';
+};
+
+export type ListGithubInstallationsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListGithubInstallationsError = ListGithubInstallationsErrors[keyof ListGithubInstallationsErrors];
+
+export type ListGithubInstallationsResponses = {
+    /**
+     * Response List Github Installations
+     *
+     * Successful Response
+     */
+    200: Array<InstallationOut>;
+};
+
+export type ListGithubInstallationsResponse = ListGithubInstallationsResponses[keyof ListGithubInstallationsResponses];
+
+export type ListInstallationRepositoriesData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Installation Id
+         */
+        installation_id: number;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/github/installations/{installation_id}/repositories';
+};
+
+export type ListInstallationRepositoriesErrors = {
+    /**
+     * Not an installation of this workspace, or GitHub refused.
+     */
+    400: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListInstallationRepositoriesError = ListInstallationRepositoriesErrors[keyof ListInstallationRepositoriesErrors];
+
+export type ListInstallationRepositoriesResponses = {
+    /**
+     * Response List Installation Repositories
+     *
+     * Successful Response
+     */
+    200: Array<InstallationRepoOut>;
+};
+
+export type ListInstallationRepositoriesResponse = ListInstallationRepositoriesResponses[keyof ListInstallationRepositoriesResponses];
+
+export type GithubAppManifestData = {
+    body: ManifestIn;
+    path?: never;
+    query?: never;
+    url: '/v1/github/app/manifest';
+};
+
+export type GithubAppManifestErrors = {
+    /**
+     * An App is already set up.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * SOPOPS_SECRET_KEY isn't set.
+     */
+    503: unknown;
+};
+
+export type GithubAppManifestError = GithubAppManifestErrors[keyof GithubAppManifestErrors];
+
+export type GithubAppManifestResponses = {
+    /**
+     * Successful Response
+     */
+    200: ManifestOut;
+};
+
+export type GithubAppManifestResponse = GithubAppManifestResponses[keyof GithubAppManifestResponses];
+
+export type GithubWebhookData = {
+    body?: never;
+    headers?: {
+        /**
+         * X-Github-Event
+         */
+        'x-github-event'?: string | null;
+        /**
+         * X-Github-Delivery
+         */
+        'x-github-delivery'?: string | null;
+        /**
+         * X-Hub-Signature-256
+         */
+        'x-hub-signature-256'?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/github/webhook';
+};
+
+export type GithubWebhookErrors = {
+    /**
+     * Unsigned, or the signature doesn't match the webhook secret.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * No webhook secret set up.
+     */
+    503: unknown;
+};
+
+export type GithubWebhookError = GithubWebhookErrors[keyof GithubWebhookErrors];
+
+export type GithubWebhookResponses = {
+    /**
+     * Response Github Webhook
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GithubWebhookResponse = GithubWebhookResponses[keyof GithubWebhookResponses];
+
 export type OnboardingCapabilitiesData = {
     body?: never;
     path?: never;
@@ -13053,6 +13818,87 @@ export type OnboardingPullRequestResponses = {
 };
 
 export type OnboardingPullRequestResponse = OnboardingPullRequestResponses[keyof OnboardingPullRequestResponses];
+
+export type OnboardingOpenPullRequestData = {
+    body: OpenPullRequestIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/pull-request/open';
+};
+
+export type OnboardingOpenPullRequestErrors = {
+    /**
+     * Not repo mode, no proposal pushed yet, or GitHub refused.
+     */
+    400: unknown;
+    /**
+     * No repository connected.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingOpenPullRequestError = OnboardingOpenPullRequestErrors[keyof OnboardingOpenPullRequestErrors];
+
+export type OnboardingOpenPullRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type OnboardingOpenPullRequestResponse = OnboardingOpenPullRequestResponses[keyof OnboardingOpenPullRequestResponses];
+
+export type OpenImportPullRequestData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/imports/{id}/pull-request';
+};
+
+export type OpenImportPullRequestErrors = {
+    /**
+     * Not repo mode, no proposal yet, or GitHub refused.
+     */
+    400: unknown;
+    /**
+     * No repository connected.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpenImportPullRequestError = OpenImportPullRequestErrors[keyof OpenImportPullRequestErrors];
+
+export type OpenImportPullRequestResponses = {
+    /**
+     * Successful Response
+     */
+    200: ImportOut;
+};
+
+export type OpenImportPullRequestResponse = OpenImportPullRequestResponses[keyof OpenImportPullRequestResponses];
 
 export type OnboardingCheckData = {
     body: FidelityIn;

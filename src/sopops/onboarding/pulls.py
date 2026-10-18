@@ -1,8 +1,10 @@
 """The onboarding pull request: in repo mode, when the connected folder had no sopc project sopc could build, the coding
 agent opens a pull request adding one and reports its URL (`record`). sopops follows it on GitHub like a suggestion's
-(`sync`: the `sopops_pr_status` cron, `sopops pr-status`, and reading the import, at most every `PR_CHECK_EVERY`). When
-it merges, the folder is pulled into drafts (`sopops.github.pull`) and the import is done: publish the first release.
-Closed without merging, it's only noted.
+(`sync`: the `sopops_pr_status` cron, `sopops pr-status`, and reading the import, at most every `PR_CHECK_EVERY`, backed
+off while the repository sends webhooks), and right away when the `pull_request` webhook says it closed (`pr_closed`).
+When it merges, the folder is pulled into drafts (`sopops.github.pull`) and the import is done: publish the first
+release. Closed without merging, it's only noted. With a GitHub App connection, sopops opens the pull request itself
+from the pushed proposal (`Onboarding.open_pull_request`); with a token, the coding agent opens it with `gh`.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from typing import TYPE_CHECKING
 
 from sqlmodel import Session, select
 
-from .. import github
+from .. import github, repo_sync
 from ..orm import ImportEvent, ImportRecord
 from ..sopc import Invalid
 
@@ -26,7 +28,7 @@ PR_CHECK_EVERY = timedelta(minutes=1)
 DONE = ("applied", "discarded")
 
 
-def record(store: Store, rec: ImportRecord, url: str) -> ImportRecord:
+def record(store: Store, rec: ImportRecord, url: str, by: str = "agent") -> ImportRecord:
     """The coding agent opened the onboarding pull request: follow it. Raises ValueError for a URL that isn't a pull
     request in the connected repository."""
     url = url.strip()
@@ -42,7 +44,7 @@ def record(store: Store, rec: ImportRecord, url: str) -> ImportRecord:
         assert r is not None
         r.pr_url, r.pr_state, r.pr_checked_at, r.pr_merged_at, r.updated_at = url, "open", None, None, _now()
         db.add(r)
-        db.add(_event(r.id, "pr", f"Opened the onboarding pull request: {url}. Nothing merges until you merge it.", "agent"))
+        db.add(_event(r.id, "pr", f"Opened the onboarding pull request: {url}. Nothing merges until you merge it.", by))
         db.commit()
         return r
 
@@ -58,23 +60,34 @@ def sync(store: Store, ws: str | None = None, force: bool = False) -> dict[str, 
     return out
 
 
-def sync_one(store: Store, id: str, force: bool = False) -> str | None:
-    """The pull request's state, applied to the import; None when GitHub couldn't say (logged). Merged pulls the
-    folder into drafts and finishes the import (its token ends)."""
+def pr_closed(store: Store, workspaces: list[str], url: str, state: str) -> int:
+    """A webhook said the pull request at `url` merged or closed: apply it to the imports following it, as polling
+    would. Returns how many."""
+    with Session(store.engine) as db:
+        ids = list(db.exec(select(ImportRecord.id).where(ImportRecord.pr_state == "open", ImportRecord.pr_url == url, ImportRecord.workspace.in_(workspaces))))
+    for id in ids:
+        sync_one(store, id, force=True, state=state)
+    return len(ids)
+
+
+def sync_one(store: Store, id: str, force: bool = False, state: str | None = None) -> str | None:
+    """The pull request's state (`state` when a webhook said it, else read from GitHub), applied to the import; None
+    when GitHub couldn't say (logged). Merged pulls the folder into drafts and finishes the import (its token ends)."""
     now = _now()
     with Session(store.engine, expire_on_commit=False) as db:
         r = db.get(ImportRecord, id)
     if r is None or r.pr_state != "open" or not r.pr_url:
         return r.pr_state if r else None
-    checked = _utc(r.pr_checked_at)
-    if not force and checked is not None and now - checked < PR_CHECK_EVERY:
-        return "open"
-    try:
-        state = github.pr_status(store, r.workspace, r.pr_url)
-    except github.GitHubError as e:
-        log.warning("checking %s for import %s failed: %s", r.pr_url, r.id, e)
-        _update(store, r.id, pr_checked_at=now)
-        return None
+    if state is None:
+        checked = _utc(r.pr_checked_at)
+        if not force and checked is not None and now - checked < github.check_every(github.repo_connection(store, r.workspace), PR_CHECK_EVERY):
+            return "open"
+        try:
+            state = github.pr_status(store, r.workspace, r.pr_url)
+        except github.GitHubError as e:
+            log.warning("checking %s for import %s failed: %s", r.pr_url, r.id, e)
+            _update(store, r.id, pr_checked_at=now)
+            return None
     if state == "open":
         _update(store, r.id, pr_checked_at=now)
     elif state == "closed":
@@ -109,6 +122,7 @@ def _merged(store: Store, r: ImportRecord, now: datetime) -> None:
             db.add(_event(row.id, "merged", f"Your onboarding PR merged. Pulled {r.repo}@{pulled['sha'][:7]} into drafts "
                           f"({n} file{'s' if n != 1 else ''} changed). Publish your first release."))
         db.commit()
+    repo_sync.notify(store, r.workspace, "pr_merged", url=r.pr_url, what="onboarding", import_id=r.id)
 
 
 def _update(store: Store, id: str, **fields) -> None:

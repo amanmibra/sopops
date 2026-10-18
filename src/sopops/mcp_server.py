@@ -219,6 +219,15 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
+    def open_pull_request(description: str = "") -> dict:
+        """Repo mode, when the kickoff says sopops opens the pull request (a GitHub App connection): sopops writes your
+        pushed proposal as a sopc project at the connected folder, opens the onboarding pull request, and follows it.
+        Push the proposal first. Don't run git or gh for it."""
+        got = sopops.call("POST", "/v1/onboarding/pull-request/open", {"description": description or None})
+        return {"pr_url": got["pr_url"], "pr_state": got["pr_state"], "next": "Tell the user the pull request is open for their review; don't merge it."}
+
+    @server.tool()
+    @_explained
     def write_sopc_project(proposal: dict, path: str = "sops") -> dict:
         """Write the proposal as a sopc project (sopc.yaml, instructions/, procedures/, agents/) at `path`, relative to the
         current directory. Existing files with the same names are overwritten; other files are left alone."""

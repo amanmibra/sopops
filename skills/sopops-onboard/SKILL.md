@@ -43,6 +43,7 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
 | `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`). |
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
+| `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |
 
 ## Flow
 
@@ -53,7 +54,7 @@ Onboard this project's voice agents into the sopops workspace this session is fo
 3. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
 4. Call `check_fidelity` with the proposal and the original prompts. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
 5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
-6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. Don't merge it.
+6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
 
 Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score.
 

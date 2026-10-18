@@ -140,11 +140,13 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         dependencies=OPEN,
         tags=["sessions"],
         response_class=StreamingResponse,
-        responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON."}},
+        responses={200: {"content": {"text/event-stream": {}}, "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON; "
+                         "and `event: repo`, `data: RepoEvent` JSON."}},
     )
     async def stream_sessions(workspace: str, request: Request) -> StreamingResponse:
         """Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`
-        each time a session is ingested or the pipeline updates it. A comment every 15s keeps the connection open."""
+        each time a session is ingested or the pipeline updates it, and repository events (`event: repo`: synced from
+        GitHub, a sync conflict, a pull request merged, the connection broken). A comment every 15s keeps it open."""
         ws = workspace_id(workspace)
         loop = asyncio.get_running_loop()
         queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=1000)
@@ -164,7 +166,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
                     except TimeoutError:
                         yield ": keepalive\n\n"
                         continue
-                    yield f"event: session\ndata: {json.dumps(event)}\n\n"
+                    yield f"event: {'repo' if event.get('topic') == 'repo' else 'session'}\ndata: {json.dumps(event, default=str)}\n\n"
             finally:
                 unsubscribe()
 

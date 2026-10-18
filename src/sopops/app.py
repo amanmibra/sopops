@@ -17,6 +17,7 @@ from .api import (
     config,
     errors,
     files,
+    github,
     insights,
     lineage,
     onboarding,
@@ -97,6 +98,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         lineage.router(store),
         usage.router(store),
         repo.router(store),
+        github.router(store),
     ):
         app.include_router(r)
     app.include_router(onboarding.router(store, app.state.onboarding), dependencies=OPEN)

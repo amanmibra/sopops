@@ -7,6 +7,7 @@ import { type ReactNode, useState } from "react";
 import type { RepoOut, RepoProjectOut } from "@/lib/api";
 import { call, sdk } from "@/lib/api";
 import { plural } from "@/lib/kinds";
+import { useRepoStream } from "@/lib/live";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note } from "../bits";
 import { author } from "../form";
@@ -17,6 +18,7 @@ import { Button } from "../ui/button";
 /** The connection, with a Change link, or the connect form (a folder without a project is fine here). */
 export function RepoConnect() {
   const { ws } = useWs();
+  useRepoStream(ws);
   const repo = useQuery(repoQuery(ws));
   const [editing, setEditing] = useState(false);
   if (repo.isPending) return <Note>Loading…</Note>;

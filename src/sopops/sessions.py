@@ -374,6 +374,15 @@ class Sessions:
         dialect = postgresql if self.postgres else sqlite
         db.execute(dialect.insert(Workspace.__table__).values(workspace=ws).on_conflict_do_nothing())
 
+    def notify(self, event: dict) -> None:
+        """Publish an event that isn't part of a session write (a repository sync, say) to the workspace's stream, in
+        every process on Postgres."""
+        if self.postgres:
+            with self._db() as db, db.begin():
+                db.execute(text("SELECT pg_notify(:channel, :payload)"), {"channel": CHANNEL, "payload": json.dumps(event, default=str)})
+        else:
+            self.broker.publish(event)
+
     def _emit(self, db: Session, event: dict) -> None:
         """Postgres: NOTIFY in this transaction (delivered on commit, to every process). SQLite: publish after commit."""
         if self.postgres:

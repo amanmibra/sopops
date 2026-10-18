@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, AppendSessionEventsData, AppendSessionEventsErrors, AppendSessionEventsResponses, ApplyImportData, ApplyImportErrors, ApplyImportResponses, ApplySuggestionData, ApplySuggestionErrors, ApplySuggestionResponses, CalibrateData, CalibrateErrors, CalibrateResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, ConnectRepoData, ConnectRepoErrors, ConnectRepoResponses, CreateImportData, CreateImportErrors, CreateImportResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, CreateTokenData, CreateTokenErrors, CreateTokenResponses, DecideImportGroupData, DecideImportGroupErrors, DecideImportGroupResponses, DeletePlatformSecretData, DeletePlatformSecretErrors, DeletePlatformSecretResponses, DiscardImportData, DiscardImportErrors, DiscardImportResponses, DisconnectRepoData, DisconnectRepoErrors, DisconnectRepoResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, EditImportVariableData, EditImportVariableErrors, EditImportVariableResponses, ElevenlabsConversationInitData, ElevenlabsConversationInitErrors, ElevenlabsConversationInitResponses, ExportRegressionData, ExportRegressionErrors, ExportRegressionResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetImportData, GetImportErrors, GetImportResponses, GetImportReviewData, GetImportReviewErrors, GetImportReviewResponses, GetPatternData, GetPatternErrors, GetPatternResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetRepoData, GetRepoErrors, GetRepoResponses, GetRuleLineageData, GetRuleLineageErrors, GetRuleLineageResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, GetSuggestionData, GetSuggestionErrors, GetSuggestionResponses, ImportEventsData, ImportEventsErrors, ImportEventsResponses, ImportSopcProjectData, ImportSopcProjectErrors, ImportSopcProjectResponses, ImportStreamData, ImportStreamErrors, ImportStreamResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, InsightsCompareData, InsightsCompareErrors, InsightsCompareResponses, InsightsOverviewData, InsightsOverviewErrors, InsightsOverviewResponses, InsightsProcedureData, InsightsProcedureErrors, InsightsProcedureResponses, InsightsReportData, InsightsReportErrors, InsightsReportResponses, InsightsRuleData, InsightsRuleErrors, InsightsRuleResponses, InspectRepoProjectData, InspectRepoProjectErrors, InspectRepoProjectResponses, LinkRuleData, LinkRuleErrors, LinkRuleResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListDeliveryData, ListDeliveryErrors, ListDeliveryResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListImportsData, ListImportsErrors, ListImportsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListPlatformAgentsData, ListPlatformAgentsErrors, ListPlatformAgentsResponses, ListPlatformsData, ListPlatformsErrors, ListPlatformsResponses, ListPushesData, ListPushesErrors, ListPushesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListSuggestionsData, ListSuggestionsErrors, ListSuggestionsResponses, ListTokensData, ListTokensErrors, ListTokensResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, ModelPricesData, ModelPricesResponses, ModelUsageData, ModelUsageErrors, ModelUsageResponses, OnboardingCapabilitiesData, OnboardingCapabilitiesResponses, OnboardingCheckData, OnboardingCheckErrors, OnboardingCheckResponses, OnboardingProgressData, OnboardingProgressErrors, OnboardingProgressResponses, OnboardingPullRequestData, OnboardingPullRequestErrors, OnboardingPullRequestResponses, OnboardingPushData, OnboardingPushErrors, OnboardingPushResponses, OnboardingSessionData, OnboardingSessionErrors, OnboardingSessionResponses, OpenSessionData, OpenSessionErrors, OpenSessionResponses, OverrideFindingData, OverrideFindingErrors, OverrideFindingResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PullRepoData, PullRepoErrors, PullRepoResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RebuildLineageData, RebuildLineageErrors, RebuildLineageResponses, ReclusterPatternsData, ReclusterPatternsErrors, ReclusterPatternsResponses, RecordServedData, RecordServedErrors, RecordServedResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, ResolveImportFindingData, ResolveImportFindingErrors, ResolveImportFindingResponses, RetryPushesData, RetryPushesErrors, RetryPushesResponses, ReviewQueueData, ReviewQueueErrors, ReviewQueueResponses, RevokeImportTokenData, RevokeImportTokenErrors, RevokeImportTokenResponses, RevokeTokenData, RevokeTokenErrors, RevokeTokenResponses, RewriteSuggestionData, RewriteSuggestionErrors, RewriteSuggestionResponses, SetDeliveryData, SetDeliveryErrors, SetDeliveryResponses, SetImportOriginalsData, SetImportOriginalsErrors, SetImportOriginalsResponses, SetPlatformSecretData, SetPlatformSecretErrors, SetPlatformSecretResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, SetVerdictData, SetVerdictErrors, SetVerdictResponses, StartAgentImportData, StartAgentImportErrors, StartAgentImportResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, SuggestEditData, SuggestEditErrors, SuggestEditResponses, TestPlatformKeyData, TestPlatformKeyErrors, TestPlatformKeyResponses, UnlinkRuleData, UnlinkRuleErrors, UnlinkRuleResponses, UpdateImportProposalData, UpdateImportProposalErrors, UpdateImportProposalResponses, ValidateData, ValidateErrors, ValidateResponses, VapiAssistantRequestData, VapiAssistantRequestErrors, VapiAssistantRequestResponses } from './types.gen';
+import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, AppendSessionEventsData, AppendSessionEventsErrors, AppendSessionEventsResponses, ApplyImportData, ApplyImportErrors, ApplyImportResponses, ApplySuggestionData, ApplySuggestionErrors, ApplySuggestionResponses, CalibrateData, CalibrateErrors, CalibrateResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, ConnectRepoData, ConnectRepoErrors, ConnectRepoResponses, CreateImportData, CreateImportErrors, CreateImportResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, CreateTokenData, CreateTokenErrors, CreateTokenResponses, DecideImportGroupData, DecideImportGroupErrors, DecideImportGroupResponses, DeletePlatformSecretData, DeletePlatformSecretErrors, DeletePlatformSecretResponses, DiscardImportData, DiscardImportErrors, DiscardImportResponses, DisconnectRepoData, DisconnectRepoErrors, DisconnectRepoResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, EditImportVariableData, EditImportVariableErrors, EditImportVariableResponses, ElevenlabsConversationInitData, ElevenlabsConversationInitErrors, ElevenlabsConversationInitResponses, ExportRegressionData, ExportRegressionErrors, ExportRegressionResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetGithubAppData, GetGithubAppResponses, GetImportData, GetImportErrors, GetImportResponses, GetImportReviewData, GetImportReviewErrors, GetImportReviewResponses, GetPatternData, GetPatternErrors, GetPatternResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetRepoConflictData, GetRepoConflictErrors, GetRepoConflictResponses, GetRepoData, GetRepoErrors, GetRepoResponses, GetRuleLineageData, GetRuleLineageErrors, GetRuleLineageResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, GetSuggestionData, GetSuggestionErrors, GetSuggestionResponses, GithubAppManifestData, GithubAppManifestErrors, GithubAppManifestResponses, GithubInstallUrlData, GithubInstallUrlErrors, GithubInstallUrlResponses, GithubWebhookData, GithubWebhookErrors, GithubWebhookResponses, ImportEventsData, ImportEventsErrors, ImportEventsResponses, ImportSopcProjectData, ImportSopcProjectErrors, ImportSopcProjectResponses, ImportStreamData, ImportStreamErrors, ImportStreamResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, InsightsCompareData, InsightsCompareErrors, InsightsCompareResponses, InsightsOverviewData, InsightsOverviewErrors, InsightsOverviewResponses, InsightsProcedureData, InsightsProcedureErrors, InsightsProcedureResponses, InsightsReportData, InsightsReportErrors, InsightsReportResponses, InsightsRuleData, InsightsRuleErrors, InsightsRuleResponses, InspectRepoProjectData, InspectRepoProjectErrors, InspectRepoProjectResponses, LinkRuleData, LinkRuleErrors, LinkRuleResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListDeliveryData, ListDeliveryErrors, ListDeliveryResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListGithubInstallationsData, ListGithubInstallationsErrors, ListGithubInstallationsResponses, ListImportsData, ListImportsErrors, ListImportsResponses, ListInstallationRepositoriesData, ListInstallationRepositoriesErrors, ListInstallationRepositoriesResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListPlatformAgentsData, ListPlatformAgentsErrors, ListPlatformAgentsResponses, ListPlatformsData, ListPlatformsErrors, ListPlatformsResponses, ListPushesData, ListPushesErrors, ListPushesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListSuggestionsData, ListSuggestionsErrors, ListSuggestionsResponses, ListTokensData, ListTokensErrors, ListTokensResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, ModelPricesData, ModelPricesResponses, ModelUsageData, ModelUsageErrors, ModelUsageResponses, OnboardingCapabilitiesData, OnboardingCapabilitiesResponses, OnboardingCheckData, OnboardingCheckErrors, OnboardingCheckResponses, OnboardingOpenPullRequestData, OnboardingOpenPullRequestErrors, OnboardingOpenPullRequestResponses, OnboardingProgressData, OnboardingProgressErrors, OnboardingProgressResponses, OnboardingPullRequestData, OnboardingPullRequestErrors, OnboardingPullRequestResponses, OnboardingPushData, OnboardingPushErrors, OnboardingPushResponses, OnboardingSessionData, OnboardingSessionErrors, OnboardingSessionResponses, OpenImportPullRequestData, OpenImportPullRequestErrors, OpenImportPullRequestResponses, OpenSessionData, OpenSessionErrors, OpenSessionResponses, OverrideFindingData, OverrideFindingErrors, OverrideFindingResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PullRepoData, PullRepoErrors, PullRepoResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, RebuildLineageData, RebuildLineageErrors, RebuildLineageResponses, ReclusterPatternsData, ReclusterPatternsErrors, ReclusterPatternsResponses, RecordServedData, RecordServedErrors, RecordServedResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, ResolveImportFindingData, ResolveImportFindingErrors, ResolveImportFindingResponses, ResolveRepoConflictData, ResolveRepoConflictErrors, ResolveRepoConflictResponses, RetryPushesData, RetryPushesErrors, RetryPushesResponses, ReviewQueueData, ReviewQueueErrors, ReviewQueueResponses, RevokeImportTokenData, RevokeImportTokenErrors, RevokeImportTokenResponses, RevokeTokenData, RevokeTokenErrors, RevokeTokenResponses, RewriteSuggestionData, RewriteSuggestionErrors, RewriteSuggestionResponses, SendRepoDraftsData, SendRepoDraftsErrors, SendRepoDraftsResponses, SetDeliveryData, SetDeliveryErrors, SetDeliveryResponses, SetImportOriginalsData, SetImportOriginalsErrors, SetImportOriginalsResponses, SetPlatformSecretData, SetPlatformSecretErrors, SetPlatformSecretResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, SetVerdictData, SetVerdictErrors, SetVerdictResponses, StartAgentImportData, StartAgentImportErrors, StartAgentImportResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, SuggestEditData, SuggestEditErrors, SuggestEditResponses, SyncRepoData, SyncRepoErrors, SyncRepoResponses, TestPlatformKeyData, TestPlatformKeyErrors, TestPlatformKeyResponses, UnlinkRuleData, UnlinkRuleErrors, UnlinkRuleResponses, UpdateImportProposalData, UpdateImportProposalErrors, UpdateImportProposalResponses, ValidateData, ValidateErrors, ValidateResponses, VapiAssistantRequestData, VapiAssistantRequestErrors, VapiAssistantRequestResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -757,7 +757,8 @@ export const closeSession = <ThrowOnError extends boolean = false>(options: Opti
  * Stream Sessions
  *
  * Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`
- * each time a session is ingested or the pipeline updates it. A comment every 15s keeps the connection open.
+ * each time a session is ingested or the pipeline updates it, and repository events (`event: repo`: synced from
+ * GitHub, a sync conflict, a pull request merged, the connection broken). A comment every 15s keeps it open.
  */
 export const streamSessions = <ThrowOnError extends boolean = false>(options: Options<StreamSessionsData, ThrowOnError, unknown>): Promise<ServerSentEventsResult<StreamSessionsResponses>> => (options.client ?? client).sse.get<StreamSessionsResponses, StreamSessionsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/sessions/stream', ...options });
 
@@ -1059,7 +1060,9 @@ export const disconnectRepo = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Get Repo
  *
- * The workspace's GitHub repository, or null when none is connected. Never the token.
+ * The workspace's GitHub repository, or null when none is connected. Never the token. Reading it polls GitHub
+ * in the background when it's due (the fallback for webhooks, which can't reach a server on 127.0.0.1); what
+ * changes arrives on the live stream.
  */
 export const getRepo = <ThrowOnError extends boolean = false>(options: Options<GetRepoData, ThrowOnError>): RequestResult<GetRepoResponses, GetRepoErrors, ThrowOnError> => (options.client ?? client).get<GetRepoResponses, GetRepoErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/repo', ...options });
 
@@ -1095,6 +1098,97 @@ export const inspectRepoProject = <ThrowOnError extends boolean = false>(options
  * are deleted. Publish from Unpublished changes as usual. Pulling a commit already pulled is a no-op.
  */
 export const pullRepo = <ThrowOnError extends boolean = false>(options: Options<PullRepoData, ThrowOnError>): RequestResult<PullRepoResponses, PullRepoErrors, ThrowOnError> => (options.client ?? client).post<PullRepoResponses, PullRepoErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/repo/pull', ...options });
+
+/**
+ * Sync Repo
+ *
+ * Sync now: bring the folder at the base branch's head into the drafts. Files changed only on GitHub are
+ * written, files changed both ways are merged, and ones that don't merge are left as they are here and listed in
+ * `conflicts`. Nothing is published.
+ */
+export const syncRepo = <ThrowOnError extends boolean = false>(options: Options<SyncRepoData, ThrowOnError>): RequestResult<SyncRepoResponses, SyncRepoErrors, ThrowOnError> => (options.client ?? client).post<SyncRepoResponses, SyncRepoErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/repo/sync', ...options });
+
+/**
+ * Send Repo Drafts
+ *
+ * Send drafts to GitHub: open the sync pull request (branch `sopops/sync`) with the drafts' differences from
+ * the base branch, or update the open one. Syncs from GitHub first.
+ */
+export const sendRepoDrafts = <ThrowOnError extends boolean = false>(options: Options<SendRepoDraftsData, ThrowOnError>): RequestResult<SendRepoDraftsResponses, SendRepoDraftsErrors, ThrowOnError> => (options.client ?? client).post<SendRepoDraftsResponses, SendRepoDraftsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/repo/send', ...options });
+
+/**
+ * Get Repo Conflict
+ *
+ * A sync conflict's three versions: when last synced, the draft here, and GitHub's.
+ */
+export const getRepoConflict = <ThrowOnError extends boolean = false>(options: Options<GetRepoConflictData, ThrowOnError>): RequestResult<GetRepoConflictResponses, GetRepoConflictErrors, ThrowOnError> => (options.client ?? client).get<GetRepoConflictResponses, GetRepoConflictErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/repo/conflict', ...options });
+
+/**
+ * Resolve Repo Conflict
+ *
+ * Settle a sync conflict: keep yours (it goes with the next Send to GitHub), take GitHub's, or save an edit.
+ */
+export const resolveRepoConflict = <ThrowOnError extends boolean = false>(options: Options<ResolveRepoConflictData, ThrowOnError>): RequestResult<ResolveRepoConflictResponses, ResolveRepoConflictErrors, ThrowOnError> => (options.client ?? client).post<ResolveRepoConflictResponses, ResolveRepoConflictErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/repo/conflict',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Get Github App
+ *
+ * Whether a GitHub App is set up (from the environment, or created from sopops), and where to install it.
+ * Never its key or webhook secret.
+ */
+export const getGithubApp = <ThrowOnError extends boolean = false>(options?: Options<GetGithubAppData, ThrowOnError>): RequestResult<GetGithubAppResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetGithubAppResponses, unknown, ThrowOnError>({ url: '/v1/github/app', ...options });
+
+/**
+ * Github Install Url
+ *
+ * Where to send the browser to install the App: GitHub comes back to `/v1/github/setup`, which lets this
+ * workspace use the installation, then to `return_to`.
+ */
+export const githubInstallUrl = <ThrowOnError extends boolean = false>(options: Options<GithubInstallUrlData, ThrowOnError>): RequestResult<GithubInstallUrlResponses, GithubInstallUrlErrors, ThrowOnError> => (options.client ?? client).get<GithubInstallUrlResponses, GithubInstallUrlErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/github/install', ...options });
+
+/**
+ * List Github Installations
+ *
+ * The App's installations this workspace may connect repositories through (installed from it).
+ */
+export const listGithubInstallations = <ThrowOnError extends boolean = false>(options: Options<ListGithubInstallationsData, ThrowOnError>): RequestResult<ListGithubInstallationsResponses, ListGithubInstallationsErrors, ThrowOnError> => (options.client ?? client).get<ListGithubInstallationsResponses, ListGithubInstallationsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/github/installations', ...options });
+
+/**
+ * List Installation Repositories
+ *
+ * The repositories the installation can reach, to pick one.
+ */
+export const listInstallationRepositories = <ThrowOnError extends boolean = false>(options: Options<ListInstallationRepositoriesData, ThrowOnError>): RequestResult<ListInstallationRepositoriesResponses, ListInstallationRepositoriesErrors, ThrowOnError> => (options.client ?? client).get<ListInstallationRepositoriesResponses, ListInstallationRepositoriesErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/github/installations/{installation_id}/repositories', ...options });
+
+/**
+ * Github App Manifest
+ *
+ * Create a GitHub App for this server (self-hosted, with no App yet): the form the browser posts to GitHub.
+ * It asks for Contents and Pull requests (read and write) and Metadata (read), and push and pull_request events.
+ */
+export const githubAppManifest = <ThrowOnError extends boolean = false>(options: Options<GithubAppManifestData, ThrowOnError>): RequestResult<GithubAppManifestResponses, GithubAppManifestErrors, ThrowOnError> => (options.client ?? client).post<GithubAppManifestResponses, GithubAppManifestErrors, ThrowOnError>({
+    url: '/v1/github/app/manifest',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Github Webhook
+ *
+ * GitHub's webhooks, signed with the webhook secret (X-Hub-Signature-256). Each delivery is handled once
+ * (X-GitHub-Delivery); the work runs after the response, so GitHub doesn't wait.
+ */
+export const githubWebhook = <ThrowOnError extends boolean = false>(options?: Options<GithubWebhookData, ThrowOnError>): RequestResult<GithubWebhookResponses, GithubWebhookErrors, ThrowOnError> => (options?.client ?? client).post<GithubWebhookResponses, GithubWebhookErrors, ThrowOnError>({ url: '/v1/github/webhook', ...options });
 
 /**
  * Onboarding Capabilities
@@ -1349,6 +1443,29 @@ export const onboardingPullRequest = <ThrowOnError extends boolean = false>(opti
         ...options.headers
     }
 });
+
+/**
+ * Onboarding Open Pull Request
+ *
+ * Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at
+ * the connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it.
+ */
+export const onboardingOpenPullRequest = <ThrowOnError extends boolean = false>(options: Options<OnboardingOpenPullRequestData, ThrowOnError>): RequestResult<OnboardingOpenPullRequestResponses, OnboardingOpenPullRequestErrors, ThrowOnError> => (options.client ?? client).post<OnboardingOpenPullRequestResponses, OnboardingOpenPullRequestErrors, ThrowOnError>({
+    url: '/v1/onboarding/pull-request/open',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Open Import Pull Request
+ *
+ * Repo mode: open the onboarding pull request from the import's proposal (the same as the agent's
+ * `open_pull_request`), when the coding agent didn't.
+ */
+export const openImportPullRequest = <ThrowOnError extends boolean = false>(options: Options<OpenImportPullRequestData, ThrowOnError>): RequestResult<OpenImportPullRequestResponses, OpenImportPullRequestErrors, ThrowOnError> => (options.client ?? client).post<OpenImportPullRequestResponses, OpenImportPullRequestErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/imports/{id}/pull-request', ...options });
 
 /**
  * Onboarding Check

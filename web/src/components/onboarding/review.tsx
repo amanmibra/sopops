@@ -8,11 +8,12 @@ import type {
 } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
 import { plural, when } from "@/lib/kinds";
+import { useRepoStream } from "@/lib/live";
 import { TERMINAL, iq, kickoffFor, pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, KindBadge, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
-import { PlatformLabel } from "../brand-icon";
+import { GitHubIcon, PlatformLabel } from "../brand-icon";
 import { ConnectGuide } from "../connect-guide";
 import { DiffView } from "../diff-view";
 import { SopcIntro, SopcReview } from "./sopc";
@@ -88,6 +89,7 @@ const PR_STATE: Record<NonNullable<ImportOut["pr_state"]>, string> = { open: "wa
 
 function OnboardingPullRequest({ imp }: { imp: ImportOut }) {
   const { ws } = useWs();
+  useRepoStream(ws); // the pull request merging arrives on the workspace's stream
   if (imp.mode !== "repo" || imp.source !== "agent") return null;
   const folder = imp.repo_path ? `${imp.repo_path}/` : "the repository root";
   if (!imp.pr_url) {
@@ -121,14 +123,14 @@ function OnboardingPullRequest({ imp }: { imp: ImportOut }) {
       <Panel title="Onboarding pull request">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <a href={imp.pr_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 font-semibold break-all hover:underline">
-            {imp.pr_url.replace(/^https?:\/\/[^/]+\//, "")} <ExternalLink className="size-3.5 shrink-0" />
+            <GitHubIcon size={14} /> {imp.pr_url.replace(/^https?:\/\/[^/]+\//, "")} <ExternalLink className="size-3.5 shrink-0" />
           </a>
           {imp.pr_state && <Tag tone={imp.pr_state === "merged" ? "live" : imp.pr_state === "closed" ? "removed" : undefined}>{PR_STATE[imp.pr_state]}</Tag>}
         </div>
         {imp.pr_state === "open" && (
           <Note className="mt-1.5">
-            It adds <code>{folder}</code> to {imp.repo}. Nothing merges without you: review and merge it on GitHub. sopops checks it every minute and pulls{" "}
-            <code>{folder}</code> into drafts when it merges.
+            It adds <code>{folder}</code> to {imp.repo}. Nothing merges without you: review and merge it on GitHub. When it merges, sopops pulls <code>{folder}</code>{" "}
+            into drafts, right away when GitHub tells it, or within a minute.
           </Note>
         )}
       </Panel>

@@ -10,7 +10,7 @@ then rolls the session up. The `patterns` task then assigns the session's findin
 at a time per workspace (`sopops_patterns`), and so do reclustering and themes (`sopops_recluster`, queued when due),
 plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC). Suggested edits are generated
 by `sopops_suggest`, rate-limited by the reasoning model like a check, and calibration runs in `sopops_calibrate`. Pull
-requests (suggestions' and onboarding's) are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
+requests (suggestions', onboarding's, the sync pull request) and connected repositories are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
 """
 
 from __future__ import annotations
@@ -29,6 +29,7 @@ from hatchet_sdk import (
 from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
 from sqlmodel import Session, select
 
+from .. import repo_sync
 from ..ai import lm as ai_lm
 from ..db import database_url
 from ..onboarding import pulls
@@ -197,7 +198,7 @@ def calibrate_one(input: CalibrateRef, ctx: Context) -> dict:
 @pr_status_wf.task(execution_timeout=timedelta(minutes=10), retries=1)
 def pr_status(input, ctx: Context) -> dict:
     store = _get_store()
-    return {"suggestions": store.suggestions.sync_prs(), "onboarding": pulls.sync(store)}
+    return {"suggestions": store.suggestions.sync_prs(), "onboarding": pulls.sync(store), "repos": repo_sync.poll(store)}
 
 
 def run_calibrate(ref: CalibrateRef) -> dict:

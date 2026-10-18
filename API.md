@@ -106,15 +106,26 @@ How each agent gets its prompt: **pull** (the agent, or its platform's call-star
 
 ## GitHub
 
-A workspace's repository: the sopc project at `path` on `base_branch`. Auth is a fine-grained personal access token (Contents and Pull requests: read and write; Metadata: read), encrypted with `SOPOPS_SECRET_KEY` and never returned. GitHub's refusals come back as `400` with what to fix (a wrong or expired token, missing access, no such repository, branch or `sopc.yaml`), its rate limit as `429`, and GitHub being down or unreachable as `502`.
+A workspace's repository: the sopc project at `path` on `base_branch`. Auth is the GitHub App's installation (`auth: "app"`, installation tokens minted from the App's JWT and cached until shortly before they expire), or a fine-grained personal access token (`auth: "token"`; Contents and Pull requests: read and write; Metadata: read), encrypted with `SOPOPS_SECRET_KEY` and never returned. GitHub's refusals come back as `400` with what to fix (a wrong or expired token, missing access, no such repository, branch or `sopc.yaml`), its rate limit as `429`, and GitHub being down or unreachable as `502`.
 
 | Endpoint | What it does |
 |---|---|
-| `POST …/repo` | `{owner, repo, token?, base_branch?: "main", path?: "sops", require_project?: true}`: check that the token reads the repository and the branch and that `path` on `base_branch` has a `sopc.yaml` (`require_project: false`, as onboarding sends, skips that last check), then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
+| `POST …/repo` | `{owner, repo, token?, installation_id?, base_branch?: "main", path?: "sops", require_project?: true}`: with `installation_id`, sign in through the App (an installation made from this workspace, else `400`); check that the token reads the repository and the branch and that `path` on `base_branch` has a `sopc.yaml` (`require_project: false`, as onboarding sends, skips that last check), then save. Without `token` the stored one is kept. `503` without `SOPOPS_SECRET_KEY`. |
 | `GET …/repo/project` | What the folder holds at the branch's head, compiled with sopc, changing nothing: `{state: missing\|invalid\|valid, sha, files, agents, issues}`. `missing`: no folder, or no `sopc.yaml` in it; `invalid`: sopc can't build it (`issues` has its errors). |
-| `GET …/repo` | `{owner, repo, base_branch, path, auth: "token", token_hint, url, pulled_sha, pulled_at, ...}`; `null` if none is connected. |
+| `GET …/repo` | `{owner, repo, base_branch, path, auth: token\|app, installation_id, token_hint, url, pulled_sha, pulled_at, broken, sync_error, webhook_at, conflicts, sync_pr, ...}`; `null` if none is connected. `pulled_sha` is the commit last synced; `broken` says why the connection stopped working (the App uninstalled or suspended, or the repository removed from it). Reading it polls GitHub in the background when due (the fallback for webhooks). |
 | `DELETE …/repo` | Forget the repository and its token; the files stay. |
 | `POST …/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). `{sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op; `422` (sopc's issues) if it doesn't compile. |
+
+| `POST …/repo/sync` | `?author=`: bring the folder at the branch's head into drafts, against the commit synced last: changed only on GitHub is written, changed both ways is merged (`sopops.merge`), and what doesn't merge is left alone and listed in `conflicts`. `{sha, changed, merged, conflicts, unchanged, error}`; `error` when GitHub's files don't build with the drafts (nothing written). Webhooks (`push`) and polling run the same, once a connection has been synced. |
+| `GET/POST …/repo/conflict` | `?path=`: a sync conflict's `base`, `ours` and `theirs`. Post `{path, take: mine\|github\|edited, content?}` to settle it. |
+| `POST …/repo/send` | Open or update the sync pull request (branch `sopops/sync`) with the drafts' differences from the branch's head. Syncs first; `409` with nothing to send, unresolved conflicts, or never synced. `{url, files, updated}`. When it merges, the drafts are synced back, writing nothing new. |
+| `GET /v1/github/app` | `{configured, source: env\|db, slug, name, install_url, can_create, problem}`. Never the key or secret. |
+| `GET …/github/install?return_to=` | `{url}`: GitHub's install page with a signed `state`. GitHub returns to `/v1/github/setup`, which lets the workspace use the installation and redirects to `return_to?github_installation=<id>`. |
+| `GET …/github/installations`, `…/github/installations/<id>/repositories` | The installations this workspace may use, and the repositories each can reach. |
+| `POST /v1/github/app/manifest` | `{public_url, return_to, organization?, webhook_url?}`: the form to post to GitHub to create an App (permissions and events filled in). GitHub returns to `/v1/github/app/manifest/callback`, which stores its id, key and webhook secret (encrypted). |
+| `POST /v1/github/webhook` | GitHub's webhooks: `401` unless `X-Hub-Signature-256` matches the webhook secret; each `X-GitHub-Delivery` is handled once. `push` syncs, `pull_request` closed updates suggestions, the onboarding import and the sync pull request at once, `installation`/`installation_repositories` mark connections broken or working again. |
+
+Repository events go to the sessions stream (`…/sessions/stream`) as `event: repo` (`{topic: "repo", kind: synced|conflict|sync_error|sync_pr|pr_merged|resolved|broken, ...}`).
 
 Pull requests are opened from suggestions, in code: `sopops.github.open_pull_request(store, workspace, files, title, body)` commits `files` (paths relative to the project's folder; `None` deletes) to a new branch `sopops/<id>` off the base branch's head (blobs, tree, commit, ref) and opens a PR against the base branch, returning its URL. `pr_status(store, workspace, url)` is `open`, `merged` or `closed`.
 
@@ -437,3 +448,4 @@ With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one w
 | `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
 | `POST /v1/onboarding/fidelity` | `{proposal, originals}`: fidelity only, nothing stored. |
 | `POST /v1/onboarding/pull-request` | `{url}`: repo mode, the onboarding pull request the agent opened (`400` unless it's a pull request in the connected repository). sopops follows it from then on. |
+| `POST /v1/onboarding/pull-request/open` | `{description?}`: repo mode through the GitHub App (`repo_auth: "app"` in the session): sopops opens the onboarding pull request itself from the pushed proposal, and follows it. `POST …/imports/<id>/pull-request` does the same from the UI. |

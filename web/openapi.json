@@ -4871,7 +4871,7 @@
           "sessions"
         ],
         "summary": "Stream Sessions",
-        "description": "Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`\neach time a session is ingested or the pipeline updates it. A comment every 15s keeps the connection open.",
+        "description": "Live session events for the workspace (server-sent events): `{type: created|updated, workspace, id, status}`\neach time a session is ingested or the pipeline updates it, and repository events (`event: repo`: synced from\nGitHub, a sync conflict, a pull request merged, the connection broken). A comment every 15s keeps it open.",
         "operationId": "stream_sessions",
         "parameters": [
           {
@@ -4886,7 +4886,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON.",
+            "description": "Server-sent events: `event: session`, `data: SessionEvent` JSON; and `event: repo`, `data: RepoEvent` JSON.",
             "content": {
               "text/event-stream": {}
             }
@@ -7503,7 +7503,7 @@
           "repo"
         ],
         "summary": "Get Repo",
-        "description": "The workspace's GitHub repository, or null when none is connected. Never the token.",
+        "description": "The workspace's GitHub repository, or null when none is connected. Never the token. Reading it polls GitHub\nin the background when it's due (the fallback for webhooks, which can't reach a server on 127.0.0.1); what\nchanges arrives on the live stream.",
         "operationId": "get_repo",
         "parameters": [
           {
@@ -7770,6 +7770,569 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/repo/sync": {
+      "post": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Sync Repo",
+        "description": "Sync now: bring the folder at the base branch's head into the drafts. Files changed only on GitHub are\nwritten, files changed both ways are merged, and ones that don't merge are left as they are here and listed in\n`conflicts`. Nothing is published.",
+        "operationId": "sync_repo",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "author",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Author"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/repo/send": {
+      "post": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Send Repo Drafts",
+        "description": "Send drafts to GitHub: open the sync pull request (branch `sopops/sync`) with the drafts' differences from\nthe base branch, or update the open one. Syncs from GitHub first.",
+        "operationId": "send_repo_drafts",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SendOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+          },
+          "429": {
+            "description": "GitHub's rate limit for the token is used up."
+          },
+          "502": {
+            "description": "GitHub failed or couldn't be reached."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
+          },
+          "409": {
+            "description": "Nothing to send, unresolved sync conflicts, or never synced."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/repo/conflict": {
+      "get": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Get Repo Conflict",
+        "description": "A sync conflict's three versions: when last synced, the draft here, and GitHub's.",
+        "operationId": "get_repo_conflict",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConflictOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such conflict."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "repo"
+        ],
+        "summary": "Resolve Repo Conflict",
+        "description": "Settle a sync conflict: keep yours (it goes with the next Send to GitHub), take GitHub's, or save an edit.",
+        "operationId": "resolve_repo_conflict",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepoOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The files don't compile; sopc's issues.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such conflict."
+          }
+        }
+      }
+    },
+    "/v1/github/app": {
+      "get": {
+        "tags": [
+          "github"
+        ],
+        "summary": "Get Github App",
+        "description": "Whether a GitHub App is set up (from the environment, or created from sopops), and where to install it.\nNever its key or webhook secret.",
+        "operationId": "get_github_app",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GitHubAppOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/github/install": {
+      "get": {
+        "tags": [
+          "github"
+        ],
+        "summary": "Github Install Url",
+        "description": "Where to send the browser to install the App: GitHub comes back to `/v1/github/setup`, which lets this\nworkspace use the installation, then to `return_to`.",
+        "operationId": "github_install_url",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "return_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "/",
+              "title": "Return To"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "No GitHub App is set up."
+          },
+          "503": {
+            "description": "The App has no slug, or no key to sign with."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/github/installations": {
+      "get": {
+        "tags": [
+          "github"
+        ],
+        "summary": "List Github Installations",
+        "description": "The App's installations this workspace may connect repositories through (installed from it).",
+        "operationId": "list_github_installations",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstallationOut"
+                  },
+                  "title": "Response List Github Installations"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/github/installations/{installation_id}/repositories": {
+      "get": {
+        "tags": [
+          "github"
+        ],
+        "summary": "List Installation Repositories",
+        "description": "The repositories the installation can reach, to pick one.",
+        "operationId": "list_installation_repositories",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "installation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Installation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstallationRepoOut"
+                  },
+                  "title": "Response List Installation Repositories"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not an installation of this workspace, or GitHub refused."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/github/app/manifest": {
+      "post": {
+        "tags": [
+          "github"
+        ],
+        "summary": "Github App Manifest",
+        "description": "Create a GitHub App for this server (self-hosted, with no App yet): the form the browser posts to GitHub.\nIt asks for Contents and Pull requests (read and write) and Metadata (read), and push and pull_request events.",
+        "operationId": "github_app_manifest",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManifestIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManifestOut"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "An App is already set up."
+          },
+          "503": {
+            "description": "SOPOPS_SECRET_KEY isn't set."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/github/webhook": {
+      "post": {
+        "tags": [
+          "github"
+        ],
+        "summary": "Github Webhook",
+        "description": "GitHub's webhooks, signed with the webhook secret (X-Hub-Signature-256). Each delivery is handled once\n(X-GitHub-Delivery); the work runs after the response, so GitHub doesn't wait.",
+        "operationId": "github_webhook",
+        "parameters": [
+          {
+            "name": "x-github-event",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Github-Event"
+            }
+          },
+          {
+            "name": "x-github-delivery",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Github-Delivery"
+            }
+          },
+          {
+            "name": "x-hub-signature-256",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Hub-Signature-256"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Github Webhook"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unsigned, or the signature doesn't match the webhook secret."
+          },
+          "503": {
+            "description": "No webhook secret set up."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -9040,6 +9603,130 @@
           },
           "400": {
             "description": "Not a pull request in the connected repository, or not repo mode."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/pull-request/open": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Open Pull Request",
+        "description": "Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at\nthe connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it.",
+        "operationId": "onboarding_open_pull_request",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenPullRequestIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not repo mode, no proposal pushed yet, or GitHub refused."
+          },
+          "404": {
+            "description": "No repository connected."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/imports/{id}/pull-request": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Open Import Pull Request",
+        "description": "Repo mode: open the onboarding pull request from the import's proposal (the same as the agent's\n`open_pull_request`), when the coding agent didn't.",
+        "operationId": "open_import_pull_request",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Not repo mode, no proposal yet, or GitHub refused."
+          },
+          "404": {
+            "description": "No repository connected."
           },
           "422": {
             "description": "Validation Error",
@@ -11114,6 +11801,69 @@
         ],
         "title": "ConfigResponse"
       },
+      "ConflictOut": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base",
+            "description": "The file when last synced; null if it didn't exist."
+          },
+          "ours": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ours",
+            "description": "The draft here; null if deleted here."
+          },
+          "theirs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theirs",
+            "description": "GitHub's file; null if deleted on GitHub."
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "sha",
+          "base",
+          "ours",
+          "theirs",
+          "at"
+        ],
+        "title": "ConflictOut"
+      },
       "CreateImport": {
         "properties": {
           "sources": {
@@ -12190,6 +12940,115 @@
         "title": "Finding",
         "description": "Something the reviewer should know or decide.\n\n- `duplicate`: the same text in several agents, now one block.\n- `values`: near-copies that differ only by a value (a name, a link, a number), now one block with a variable.\n- `drift`: agents that say different things about the same topic. Kept as each agent had it (a variable, or a block\n  per version) until someone picks one."
       },
+      "GitHubAppOut": {
+        "properties": {
+          "configured": {
+            "type": "boolean",
+            "title": "Configured"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "env",
+                  "db"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "env: from SOPOPS_GITHUB_APP_ID and the rest. db: created from sopops."
+          },
+          "app_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Id"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "html_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html Url"
+          },
+          "install_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Install Url"
+          },
+          "can_create": {
+            "type": "boolean",
+            "title": "Can Create",
+            "description": "No App yet, and SOPOPS_SECRET_KEY is set: one can be created from sopops."
+          },
+          "problem": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem",
+            "description": "What's missing, in words to show."
+          }
+        },
+        "type": "object",
+        "required": [
+          "configured",
+          "source",
+          "app_id",
+          "slug",
+          "name",
+          "html_url",
+          "install_url",
+          "can_create",
+          "problem"
+        ],
+        "title": "GitHubAppOut"
+      },
       "GroupConfig": {
         "properties": {
           "version": {
@@ -12614,6 +13473,78 @@
           "active"
         ],
         "title": "ImportTokenOut"
+      },
+      "InstallOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "GitHub's page to install the App, with a signed state naming the workspace."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "InstallOut"
+      },
+      "InstallationOut": {
+        "properties": {
+          "installation_id": {
+            "type": "integer",
+            "title": "Installation Id"
+          },
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_id",
+          "account"
+        ],
+        "title": "InstallationOut"
+      },
+      "InstallationRepoOut": {
+        "properties": {
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "repo": {
+            "type": "string",
+            "title": "Repo"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "default_branch": {
+            "type": "string",
+            "title": "Default Branch"
+          },
+          "private": {
+            "type": "boolean",
+            "title": "Private"
+          }
+        },
+        "type": "object",
+        "required": [
+          "owner",
+          "repo",
+          "full_name",
+          "default_branch",
+          "private"
+        ],
+        "title": "InstallationRepoOut"
       },
       "InstructionConfig": {
         "properties": {
@@ -13462,6 +14393,74 @@
         ],
         "title": "LintSource"
       },
+      "ManifestIn": {
+        "properties": {
+          "public_url": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Public Url",
+            "description": "This server's address as the browser reaches it (GitHub sends people and webhooks back to it)."
+          },
+          "return_to": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Return To",
+            "description": "The page to come back to.",
+            "default": "/"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization",
+            "description": "Create the App in this organization; else in your account."
+          },
+          "webhook_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1024
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook Url",
+            "description": "Where GitHub sends webhooks, when it can't reach `public_url` (a smee.io channel, say)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "public_url"
+        ],
+        "title": "ManifestIn"
+      },
+      "ManifestOut": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "Where the browser posts the form."
+          },
+          "manifest": {
+            "type": "string",
+            "title": "Manifest",
+            "description": "The form's `manifest` field (JSON)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "manifest"
+        ],
+        "title": "ManifestOut"
+      },
       "MergeConflict": {
         "properties": {
           "line": {
@@ -13923,6 +14922,25 @@
           "id"
         ],
         "title": "NewProcedure"
+      },
+      "OpenPullRequestIn": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "The pull request's description: the agents, where each prompt was found, the blocks, drift found."
+          }
+        },
+        "type": "object",
+        "title": "OpenPullRequestIn"
       },
       "OriginalsIn": {
         "properties": {
@@ -17271,7 +18289,19 @@
               }
             ],
             "title": "Token",
-            "description": "A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it out to keep the stored one (to change the branch or path)."
+            "description": "A fine-grained personal access token for this repository: Contents and Pull requests read and write, Metadata read. Write-only. Leave it and `installation_id` out to keep the stored one (to change the branch or path)."
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id",
+            "description": "Sign in through the GitHub App's installation instead of a token: one installed from this workspace (`GET \u2026/github/installations`)."
           },
           "base_branch": {
             "type": "string",
@@ -17327,14 +18357,36 @@
           },
           "auth": {
             "type": "string",
-            "const": "token",
+            "enum": [
+              "token",
+              "app"
+            ],
             "title": "Auth",
-            "description": "How sopops signs in to GitHub: `token`, a fine-grained personal access token."
+            "description": "How sopops signs in to GitHub: `token`, a fine-grained personal access token, or `app`, the GitHub App."
+          },
+          "installation_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Id",
+            "description": "The GitHub App's installation, for `app`."
           },
           "token_hint": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Token Hint",
-            "description": "The token's last characters, to tell tokens apart. Never the token."
+            "description": "The token's last characters, to tell tokens apart; null for `app`. Never the token."
           },
           "url": {
             "type": "string",
@@ -17351,7 +18403,7 @@
               }
             ],
             "title": "Pulled Sha",
-            "description": "The commit last pulled."
+            "description": "The commit last pulled or synced: the base of the next sync."
           },
           "pulled_at": {
             "anyOf": [
@@ -17364,6 +18416,62 @@
               }
             ],
             "title": "Pulled At"
+          },
+          "broken": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Broken",
+            "description": "Why the connection stopped working (the App was uninstalled, suspended, or lost the repository)."
+          },
+          "sync_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sync Error",
+            "description": "Why the last sync from GitHub wrote nothing (the files don't build with the drafts, say)."
+          },
+          "webhook_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Webhook At",
+            "description": "When GitHub last sent a webhook for the repository. While recent, polling backs off."
+          },
+          "conflicts": {
+            "items": {
+              "$ref": "#/components/schemas/SyncConflictOut"
+            },
+            "type": "array",
+            "title": "Conflicts",
+            "description": "Files changed both on GitHub and here since the last sync, that don't merge."
+          },
+          "sync_pr": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SyncPrOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The pull request that sends drafts to GitHub, once opened."
           },
           "created_at": {
             "type": "string",
@@ -17384,10 +18492,16 @@
           "base_branch",
           "path",
           "auth",
+          "installation_id",
           "token_hint",
           "url",
           "pulled_sha",
           "pulled_at",
+          "broken",
+          "sync_error",
+          "webhook_at",
+          "conflicts",
+          "sync_pr",
           "created_at",
           "updated_at"
         ],
@@ -17676,6 +18790,56 @@
           "procedures"
         ],
         "title": "ReportResponse"
+      },
+      "ResolveIn": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Path"
+          },
+          "take": {
+            "type": "string",
+            "enum": [
+              "mine",
+              "github",
+              "edited"
+            ],
+            "title": "Take",
+            "description": "mine: keep the draft. github: take GitHub's. edited: write `content`."
+          },
+          "content": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content",
+            "description": "The file as edited, for `edited`."
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "take"
+        ],
+        "title": "ResolveIn"
       },
       "ResolveRequest": {
         "properties": {
@@ -19242,6 +20406,35 @@
         ],
         "title": "SecretSaved"
       },
+      "SendOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "The sync pull request."
+          },
+          "files": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Files",
+            "description": "The files it changes, relative to the folder."
+          },
+          "updated": {
+            "type": "boolean",
+            "title": "Updated",
+            "description": "An open sync pull request was updated, rather than a new one opened."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "files",
+          "updated"
+        ],
+        "title": "SendOut"
+      },
       "ServedIn": {
         "properties": {
           "platform": {
@@ -19875,6 +21068,22 @@
               }
             ],
             "title": "Repo Project"
+          },
+          "repo_auth": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "token",
+                  "app"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Auth",
+            "description": "How sopops signs in to the repository: `app` means sopops opens the onboarding pull request."
           },
           "pr_url": {
             "anyOf": [
@@ -21532,6 +22741,131 @@
           "items"
         ],
         "title": "SuggestionsResponse"
+      },
+      "SyncConflictOut": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha",
+            "description": "The GitHub commit it conflicted at."
+          },
+          "deleted_on_github": {
+            "type": "boolean",
+            "title": "Deleted On Github",
+            "description": "GitHub deleted the file, and it was edited here."
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "sha",
+          "deleted_on_github",
+          "at"
+        ],
+        "title": "SyncConflictOut"
+      },
+      "SyncOut": {
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "title": "Workspace"
+          },
+          "sha": {
+            "type": "string",
+            "title": "Sha",
+            "description": "The commit synced."
+          },
+          "changed": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenFile"
+            },
+            "type": "array",
+            "title": "Changed",
+            "description": "New file versions (drafts)."
+          },
+          "merged": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Merged",
+            "description": "Files changed both ways that merged cleanly."
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conflicts",
+            "description": "Files changed both ways that don't merge: the drafts are left alone."
+          },
+          "unchanged": {
+            "type": "boolean",
+            "title": "Unchanged"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why nothing was written, when GitHub's files don't build with the drafts."
+          }
+        },
+        "type": "object",
+        "required": [
+          "workspace",
+          "sha",
+          "changed",
+          "merged",
+          "conflicts",
+          "unchanged",
+          "error"
+        ],
+        "title": "SyncOut"
+      },
+      "SyncPrOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "merged",
+                  "closed"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "State"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "state"
+        ],
+        "title": "SyncPrOut"
       },
       "ThemeOut": {
         "properties": {

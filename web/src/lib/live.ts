@@ -36,3 +36,14 @@ export function useSessionStream(ws: string) {
 
   return { connected, fresh };
 }
+
+/** Repository events (synced from GitHub, a sync conflict, a pull request merged, the connection broken) on the same
+ * stream: refetch the workspace's queries, so the repo line, drafts and imports update without polling. */
+export function useRepoStream(ws: string) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const source = new EventSource(`/v1/workspaces/${encodeURIComponent(ws)}/sessions/stream`);
+    source.addEventListener("repo", () => void qc.invalidateQueries({ queryKey: ["ws", ws] }));
+    return () => source.close();
+  }, [ws, qc]);
+}

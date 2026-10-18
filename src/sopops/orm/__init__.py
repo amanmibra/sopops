@@ -14,6 +14,9 @@ from .fetches import Fetch
 from .file_versions import FileVersion
 from .finding_overrides import FindingOverride
 from .findings import Finding
+from .github_apps import GitHubApp
+from .github_deliveries import GitHubDelivery
+from .github_installations import GitHubInstallation
 from .import_events import ImportEvent
 from .imports import ImportRecord
 from .model_calls import ModelCall
@@ -29,6 +32,7 @@ from .rule_results import RuleResult
 from .runtime_serves import RuntimeServe
 from .sessions import SessionRecord
 from .suggestions import Suggestion
+from .sync_conflicts import SyncConflict
 from .themes import Theme
 from .tokens import Token
 from .verdicts import Verdict
@@ -37,4 +41,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "Verdict", "Workspace", "metadata"]

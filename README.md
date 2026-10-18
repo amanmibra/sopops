@@ -191,9 +191,10 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
 | `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@main` | What the onboarding command's `uvx --from` installs. |
-| `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3`. |
+| `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3` (and `SOPOPS_GITHUB_URL`, `https://HOST`, for its install pages). |
+| `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `…_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET`, `SOPOPS_GITHUB_APP_SLUG` | unset | The GitHub App sopops signs in as: its id, its private key (PEM, or a file), the webhook secret, and its name in `github.com/apps/<slug>`. Without them, Settings offers to create one (stored encrypted with `SOPOPS_SECRET_KEY`). |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |
-| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking suggestions' and onboarding's pull requests (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
+| `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking pull requests and syncing connected repositories (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
 | `SOPOPS_WEB_DIR` | the built UI | Serve the UI from another folder. |
 
 ## Git or database
@@ -213,15 +214,26 @@ You can switch any time: `GET …/files?content=true` exports a workspace as sop
 
 ### Connect a GitHub repository
 
-Instead of CI, sopops can read the repo itself, and send changes back as pull requests. Connect it under the gear icon (Settings), or with `POST …/repo`: give the repository, the branch (default `main`), the sopc project's folder (default `sops`, where onboarding puts it) and a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) for that one repository with these permissions:
+Instead of CI, sopops can keep the workspace and the repo's sopc folder in sync both ways. Connect it under the gear icon (Settings), or with `POST …/repo`: the repository, the branch (default `main`) and the sopc project's folder (default `sops`, where onboarding puts it). sopops signs in one of two ways.
+
+**The GitHub App** (preferred). Install on GitHub, choose the repository there, and pick it in sopops. It needs these permissions, and the `push` and `pull_request` events (GitHub always sends `installation` and `installation_repositories`):
 
 | Permission | Access | For |
 |---|---|---|
-| Contents | Read and write | Reading the project; committing a suggestion to its own branch |
-| Pull requests | Read and write | Opening the pull request, and following whether it's merged |
-| Metadata | Read | Required by GitHub for every fine-grained token |
+| Contents | Read and write | Reading the project; committing to sopops's own branches |
+| Pull requests | Read and write | Opening pull requests, and following whether they merge |
+| Metadata | Read | Required by GitHub |
 
-sopops checks that the token can read the repository and that the folder has a `sopc.yaml` (onboarding connects before there is one, and proposes it in a pull request), then stores the token encrypted with `SOPOPS_SECRET_KEY`; the API never returns it. **Pull** (`POST …/repo/pull`) makes the workspace's drafts exactly the folder at the branch's head (files sopops has that the repo doesn't are deleted, `build/` is skipped) and records the commit; you review and publish as usual, and pulling the same commit again does nothing. **Pull requests come from suggestions**: an instruction edit made from reviewed patterns is committed to a new `sopops/<id>` branch off the branch's head and opened as a PR against it, so the change goes through your usual review. sopops never pushes to the base branch. For GitHub Enterprise Server, set `SOPOPS_GITHUB_API_URL` to `https://HOST/api/v3`.
+- *Hosted:* register one App (GitHub → Settings → Developer settings → GitHub Apps → New) with those permissions and events, the webhook URL `https://<host>/v1/github/webhook` and a webhook secret, and the setup URL `https://<host>/v1/github/setup` (with "Redirect on update"). Generate a private key and set `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `SOPOPS_GITHUB_APP_PRIVATE_KEY_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET` and `SOPOPS_GITHUB_APP_SLUG`.
+- *Self-hosted:* with `SOPOPS_SECRET_KEY` set and no App, Settings offers **Create a GitHub App**: GitHub's App manifest flow creates it with the right permissions, events and URLs, and sopops stores its key and webhook secret encrypted. GitHub can't reach `127.0.0.1`, so give a smee.io channel as the webhook address to get webhooks locally; without webhooks, sopops polls instead.
+
+**A fine-grained personal access token** for that one repository, with the same permissions, stored encrypted with `SOPOPS_SECRET_KEY` and never returned. Webhooks don't come with a token connection unless you add a repository webhook signed with `SOPOPS_GITHUB_WEBHOOK_SECRET`; sopops polls instead.
+
+**GitHub to sopops.** A push to the branch that touches the folder (the webhook, or polling about once a minute while Settings is open and on the `sopops pr-status` cron) brings the folder into drafts: files changed only on GitHub are written, files changed both ways are merged line by line, and files that don't merge stay as they are here and show in Settings as conflicts to keep yours, take GitHub's, or edit. A file deleted on GitHub is deleted here only if it wasn't edited here since the last sync. Each sync is noted "Synced from GitHub abc1234". **Sync now** (`POST …/repo/sync`) does the same on demand; automatic syncs start after the first one. **Pull** (`POST …/repo/pull`) instead makes the drafts exactly the folder.
+
+**sopops to GitHub.** **Send drafts to GitHub** (`POST …/repo/send`) puts the drafts' differences on the branch `sopops/sync` and opens one pull request, updated by sending again. When it merges, the drafts are synced back with nothing new to write. **Suggestions** are committed to their own `sopops/<id>` branch and opened as PRs. With the App, onboarding's pull request is opened by sopops too. sopops never pushes to the base branch.
+
+**Testing webhooks locally.** Forward GitHub's deliveries to the local server with [smee](https://smee.io) (`npx smee-client --url https://smee.io/<channel> --target http://127.0.0.1:8484/v1/github/webhook`) or, for a repository you admin, `gh webhook forward --repo=OWNER/REPO --events=push,pull_request --url=http://127.0.0.1:8484/v1/github/webhook --secret="$SOPOPS_GITHUB_WEBHOOK_SECRET"` (needs `gh extension install cli/gh-webhook`).
 
 ## API
 
@@ -246,7 +258,8 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `GET …/config`, `…/config/{agents,instructions,procedures,groups}[/<id>]` | Every item as the forms edit it; list, create, read, replace and delete each kind, with history. |
 | `GET …/draft`, `POST …/releases`, `POST …/releases/<n>/activate` | Unpublished changes; publish head; make an older release live. |
 | `POST …/publish`, `GET …/files?content=true` | Replace every file and release, for CI; export as sopc files. |
-| `GET/POST/DELETE …/repo`, `POST …/repo/pull` | The workspace's GitHub repository (token write-only; `null` when none); pull its sopc project into drafts. |
+| `GET/POST/DELETE …/repo`, `POST …/repo/{pull,sync,send}`, `…/repo/conflict` | The workspace's GitHub repository (token write-only; `null` when none); pull or sync its sopc project into drafts, send drafts back as a pull request, settle sync conflicts. |
+| `/v1/github/*` | The GitHub App: its status, install, create (manifest flow), webhooks. |
 | `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
@@ -262,7 +275,7 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 | Pull and push delivery: LiveKit, ElevenLabs, Vapi; Python and TypeScript SDKs | Retell delivery; ElevenLabs and Vapi post-call webhooks; an OpenTelemetry receiver |
 | Sessions: ingest, streaming, backfill import; checks per rule with quotes | Runtime enforcement: checking rules while a session is still going, and guidance back to the agent (the SDKs' `on_guidance` is reserved for it) |
 | Patterns, themes, review verdicts and states, suppression, calibration from review labels, regression export; all of it following a rule across its wordings | A Slack digest of new patterns and suggestions |
-| Suggested edits as drafts or GitHub pull requests; pulling a repo's sopc project | A GitHub App instead of a personal token; pulling on push |
+| Suggested edits as drafts or GitHub pull requests; two-way sync with a repo's sopc project through a GitHub App or a token | |
 | Insights, release compare, the report | Renaming agents and blocks; a webhook on publish; more framework adapters (Pipecat) |
 
 ## Development

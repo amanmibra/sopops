@@ -4,7 +4,8 @@ The UI gives one command per agent that adds the sopops MCP server (server URL a
 starts the agent with a short prompt: call `get_kickoff` and follow it. `get_kickoff` returns the onboarding skill
 (`skills/sopops-onboard/SKILL.md`, the single source of the instructions, bundled with the package so it matches the
 installed version) plus this session's details: workspace, server, mode, and in repo mode the connected repository and
-what to do there: open the onboarding pull request adding the sopc project when the folder has none sopc can build.
+what to do there: open the onboarding pull request adding the sopc project when the folder has none sopc can build (with
+a GitHub App connection, sopops opens it from the pushed proposal; with a token, the agent opens it with `gh`).
 """
 
 from __future__ import annotations
@@ -28,6 +29,12 @@ sopc CLI is installed, and open a pull request into `{branch}` from a new branch
 otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where each prompt was found,
 the blocks extracted, drift found, and each agent's fidelity score. Don't merge it. Then call `report_pull_request` with its
 URL: sopops follows it, and when the user merges it, pulls `{folder}` into drafts."""
+
+REPO_STEP_APP = """Repo mode (the user opted in). sopops is connected to GitHub through its GitHub App: `{repo}`, branch `{branch}`,
+folder `{folder}`, which {finding}. sopops opens the onboarding pull request itself, so don't run git or `gh` for it. After pushing,
+call `open_pull_request` with a description: the agents and where each prompt was found, the blocks extracted, and drift found
+(sopops adds each agent's fidelity score). It opens a pull request into `{branch}` writing your proposal at `{folder}`; tell the user
+it's open for their review, and don't merge it. When the user merges it, sopops pulls `{folder}` into drafts."""
 
 REPO_FINDING = {
     "missing": "doesn't hold a sopc project yet",
@@ -80,7 +87,8 @@ def repo_step(session: dict) -> str:
              "folder": f"{path}/" if path else ("the repository root" if path == "" else "sops/")}
     if session.get("repo_project") == "valid":
         return REPO_VALID.format(**where)
-    return REPO_STEP.format(**where, finding=REPO_FINDING.get(session.get("repo_project") or "missing", REPO_FINDING["missing"]))
+    step = REPO_STEP_APP if session.get("repo_auth") == "app" else REPO_STEP
+    return step.format(**where, finding=REPO_FINDING.get(session.get("repo_project") or "missing", REPO_FINDING["missing"]))
 
 
 def install_skill(root: Path, agents: list[str]) -> list[Path]:

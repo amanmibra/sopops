@@ -22,6 +22,7 @@ import sys
 import uvicorn
 from pydantic import ValidationError
 
+from . import repo_sync
 from .app import create_app
 from .db import database_url
 from .errors import SAFE_ID
@@ -161,7 +162,8 @@ def calibrate(argv: list[str]) -> None:
 
 
 def pr_status(argv: list[str]) -> None:
-    """Check open pull requests on GitHub, suggestions' and onboarding's (what the Hatchet cron runs; without Hatchet, run it from cron)."""
+    """Check open pull requests on GitHub, suggestions', onboarding's and the sync pull request, and sync each repository
+    connection that was synced before (what the Hatchet cron runs; without Hatchet, run it from cron)."""
     parser = argparse.ArgumentParser(prog="sopops pr-status", description="Check open pull requests: suggestions' (merged ones become merged, closed ones "
                                      "dismissed) and onboarding's (merged ones are pulled into drafts).")
     parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
@@ -172,6 +174,8 @@ def pr_status(argv: list[str]) -> None:
     print("suggestions: " + ", ".join(f"{v} {k}" for k, v in out.items()))
     out = pulls.sync(store, args.workspace, force=True)
     print("onboarding: " + ", ".join(f"{v} {k}" for k, v in out.items()))
+    out = repo_sync.poll(store, args.workspace, force=True)
+    print("repositories: " + ", ".join(f"{v} {k}" for k, v in out.items()))
 
 
 def lineage(argv: list[str]) -> None:

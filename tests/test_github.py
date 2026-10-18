@@ -50,6 +50,7 @@ class FakeGitHub:
         self.pulls: list[dict] = []
         self.calls: list[tuple[str, str]] = []
         self.fail: dict[tuple[str, str], httpx.Response] = {}  # (method, path regex) -> response
+        self.token = TOKEN  # what every repository call must be signed with
         self.refs[branch] = self.commit(files)
 
     # git
@@ -91,7 +92,7 @@ class FakeGitHub:
         router.route(host="api.github.com").mock(side_effect=self.handle)
 
     def handle(self, request: httpx.Request) -> httpx.Response:
-        assert request.headers["authorization"] == f"Bearer {TOKEN}"
+        assert request.headers["authorization"] == f"Bearer {self.token}"
         method, path = request.method, request.url.path
         self.calls.append((method, path))
         for (m, pattern), res in self.fail.items():
@@ -148,10 +149,27 @@ class FakeGitHub:
                 return httpx.Response(422, json={"message": "Reference already exists"})
             self.refs[name] = body["sha"]
             return httpx.Response(201, json={"ref": body["ref"]})
+        if method == "GET" and (m := re.fullmatch(r"/git/ref/heads/(.+)", rest)):
+            name = httpx.URL(path="/" + m.group(1)).path[1:]
+            if name not in self.refs:
+                return httpx.Response(404, json={"message": "Not Found"})
+            return httpx.Response(200, json={"ref": f"refs/heads/{name}", "object": {"sha": self.refs[name]}})
+        if method == "PATCH" and (m := re.fullmatch(r"/git/refs/heads/(.+)", rest)):
+            name = httpx.URL(path="/" + m.group(1)).path[1:]
+            if name not in self.refs:
+                return httpx.Response(422, json={"message": "Reference does not exist"})
+            self.refs[name] = body["sha"]
+            return httpx.Response(200, json={"ref": f"refs/heads/{name}"})
+        if method == "GET" and rest == "/pulls":
+            head = request.url.params.get("head", "").partition(":")[2]
+            return httpx.Response(200, json=[{**p, "html_url": f"https://github.com/acme/agents/pull/{p['number']}"} for p in self.pulls
+                                             if p["state"] == "open" and (not head or p.get("head") == head)])
         if method == "DELETE" and (m := re.fullmatch(r"/git/refs/heads/(.+)", rest)):
             self.refs.pop(httpx.URL(path="/" + m.group(1)).path[1:])
             return httpx.Response(204)
         if method == "POST" and rest == "/pulls":
+            if any(p["state"] == "open" and p.get("head") == body["head"] for p in self.pulls):
+                return httpx.Response(422, json={"message": "Validation Failed", "errors": [{"message": f"A pull request already exists for acme:{body['head']}."}]})
             number = len(self.pulls) + 1
             self.pulls.append({**body, "number": number, "state": "open", "merged": False})
             return httpx.Response(201, json={"number": number, "html_url": f"https://github.com/acme/agents/pull/{number}"})

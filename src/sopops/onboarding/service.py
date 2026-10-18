@@ -119,6 +119,10 @@ class Onboarding:
             rows = db.exec(select(ImportEvent).where(ImportEvent.import_id == id, ImportEvent.id > after).order_by(ImportEvent.id))
             return [event_out(e) for e in rows]
 
+    def record_of(self, workspace: str, id: str) -> ImportRecord:
+        with self._db() as db:
+            return self._load(db, workspace, id)
+
     def _load(self, db: Session, workspace: str, id: str) -> ImportRecord:
         r = db.get(ImportRecord, id)
         if r is None or r.workspace != workspace:
@@ -232,11 +236,40 @@ class Onboarding:
         return {"import": self.get(workspace, rec.id), "token": token, "kickoff": kickoff.kickoff(workspace, server_url, token)}
 
     def session(self, rec: ImportRecord) -> dict:
-        """What an onboarding token's agent is told about its session (`get_kickoff`)."""
+        """What an onboarding token's agent is told about its session (`get_kickoff`). `repo_auth` says who opens the
+        onboarding pull request: sopops (`app`, through the GitHub App) or the agent (`token`, with `gh`)."""
         token = self.token_of(rec) or {}
+        conn = github.repo_connection(self.store, rec.workspace) if rec.mode == "repo" else None
         return {"workspace": rec.workspace, "import_id": rec.id, "mode": rec.mode, "repo": rec.repo, "repo_branch": rec.repo_branch,
-                "repo_path": rec.repo_path, "repo_project": rec.repo_project, "pr_url": rec.pr_url, "scopes": token.get("scopes", []),
-                "expires_at": token.get("expires_at")}
+                "repo_path": rec.repo_path, "repo_project": rec.repo_project, "repo_auth": conn.auth if conn else None, "pr_url": rec.pr_url,
+                "scopes": token.get("scopes", []), "expires_at": token.get("expires_at")}
+
+    def open_pull_request(self, rec: ImportRecord, description: str | None = None, by: str = "agent") -> dict:
+        """sopops opens the onboarding pull request itself, from the pushed proposal (the coding agent doesn't need
+        `gh`): its files at the connected folder on a new branch, replacing what the folder held when sopc couldn't build
+        it. Then it's followed like a reported one. ValueError when there's nothing to open it with."""
+        if rec.mode != "repo" or not rec.repo:
+            raise ValueError("this import isn't in repo mode, so there's no onboarding pull request to open")
+        if rec.pr_url and rec.pr_state == "open":
+            return self.get(rec.workspace, rec.id)
+        if rec.repo_project == "valid":
+            raise ValueError("the repository already holds a sopc project sopc builds; there's no pull request to open")
+        if rec.proposal is None:
+            raise ValueError("push the proposal first (push_to_sopops); the pull request is made from it")
+        proposal = Proposal.model_validate(rec.proposal)
+        files, issues = (dict(proposal.files), []) if proposal.files else fidelity.files_of(ProposalContent(**proposal.model_dump(include=set(ProposalContent.model_fields))), self.store.sopc.export)
+        if not files:
+            raise ValueError("the proposal has nothing to write: " + "; ".join(i.message for i in issues)[:500])
+        changes: dict[str, str | None] = dict(files)
+        if rec.repo_project == "invalid":  # replace the project sopc couldn't build
+            existing, _ = github.read_head(self.store, rec.workspace)
+            changes |= {p: None for p in existing if p not in files}
+        agents = ", ".join(a.name or a.id for a in proposal.agents) or "none"
+        body = "\n\n".join(x for x in (description, f"Agents: {agents}.", f"Fidelity: {', '.join(f'{f.agent} {round(f.score * 100)}%' for f in proposal.fidelity)}."
+                                        if proposal.fidelity else None, "Opened by sopops. When it merges, sopops pulls the folder into drafts.") if x)
+        url = github.open_pull_request(self.store, rec.workspace, changes, "Add sopc project for sopops", body)
+        pulls.record(self.store, rec, url, by=by)
+        return self.get(rec.workspace, rec.id)
 
     def report_pull_request(self, rec: ImportRecord, url: str) -> dict:
         """The coding agent opened the onboarding pull request; sopops follows it. ValueError for a bad URL."""
