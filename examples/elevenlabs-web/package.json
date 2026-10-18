@@ -1,0 +1,17 @@
+{
+  "name": "elevenlabs-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build"
+  },
+  "dependencies": {
+    "@elevenlabs/client": "^1.28.0",
+    "sopops-client": "file:../../sdks/node"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.1.0"
+  }
+}

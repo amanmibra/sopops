@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import httpx
 import respx
 
-from sopops_client import Sopops
+from sopops_client import SessionStream, Sopops
 from sopops_client.livekit import attach, from_livekit
 
 URL = "http://sopops.test/v1/workspaces/prod"
@@ -113,3 +113,137 @@ def test_a_failed_post_never_breaks_shutdown(tmp_path):
         await c.callbacks[0]("done")  # logs, doesn't raise
 
     asyncio.run(call())
+
+
+# --- streaming --------------------------------------------------------------------------------------
+
+
+class StreamingSession(Session):
+    """Also like AgentSession's event emitter: `on(event, callback)`, with `emit` for the test to drive it."""
+
+    def __init__(self, userdata=None):
+        super().__init__(userdata)
+        self.handlers = {}
+
+    def on(self, event, callback):
+        self.handlers.setdefault(event, []).append(callback)
+        return callback
+
+    def emit(self, event, payload):
+        for callback in self.handlers.get(event, []):
+            callback(payload)
+
+
+def said(role, text, at, interrupted=False):
+    item = SimpleNamespace(type="message", role=role, content=[text], created_at=at, interrupted=interrupted)
+    return SimpleNamespace(item=item)
+
+
+def tools_ran(call_id, name, arguments, output, at):
+    call = SimpleNamespace(name=name, arguments=arguments, call_id=call_id, created_at=at)
+    return SimpleNamespace(function_calls=[call], function_call_outputs=[SimpleNamespace(output=output, is_error=False)])
+
+
+def routes():
+    return (
+        respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT)),
+        respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True})),
+        respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(200, json={"accepted": 1, "duplicates": 0})),
+        respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"})),
+    )
+
+
+def sent_events(route):
+    return [e for call in route.calls for e in json.loads(call.request.content)["events"]]
+
+
+@respx.mock
+def test_without_stream_nothing_is_sent_until_shutdown(tmp_path):
+    _, opened, events, post = routes()
+    c, session = ctx(), StreamingSession()
+
+    async def call():
+        await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path))
+        assert session.handlers == {}
+        await c.callbacks[0]("done")
+
+    asyncio.run(call())
+    assert not opened.called and not events.called and post.call_count == 1
+
+
+@respx.mock
+def test_stream_sends_turns_and_tool_calls_in_batches_then_the_full_session(tmp_path):
+    _, opened, events, post = routes()
+    c, session = ctx(), StreamingSession()
+    guidance = []
+
+    async def call():
+        await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path), stream=True, on_guidance=guidance.append)
+        session.emit("conversation_item_added", said("assistant", "Tony's Pizza, how can I help?", 100.0))
+        session.emit("conversation_item_added", said("user", "Delivery please.", 104.0))
+        session.emit("conversation_item_added", said("user", "Delivery please.", 104.1))  # a repeat: dropped
+        session.emit("function_tools_executed", tools_ran("c1", "check_delivery_zone", '{"address": "221 Mercer St"}', '{"in_zone": true}', 106.0))
+        await asyncio.sleep(0.7)  # one flush interval
+        assert events.call_count == 1  # everything so far went in one batch
+        session.emit("conversation_item_added", said("assistant", "You're in the zone.", 108.0, interrupted=True))
+        await c.callbacks[0]("user_left")  # sends what's queued, then posts the full session
+
+    asyncio.run(call())
+    assert opened.call_count == 1
+    body = json.loads(opened.calls.last.request.content)
+    assert body["platform"] == "livekit" and body["external_id"] == "AJ_1" and body["agent"] == "tonys-pizza" and body["release"] == 3
+    assert body["channel"] == "voice" and body["metadata"] == {"room": "room-1"} and "started_at" in body
+    assert opened.calls.last.request.headers["Authorization"] == "Bearer tok"
+
+    sent = sent_events(events)
+    assert [e["seq"] for e in sent] == [0, 1, 2, 3, 4] and events.call_count == 2
+    assert [e["type"] for e in sent] == ["turn", "turn", "turn", "tool_call", "turn"]
+    assert sent[1]["turn"] == {"role": "user", "text": "Delivery please.", "at": 104.0, "interrupted": False}
+    assert sent[2]["turn"]["role"] == "tool" and sent[2]["turn"]["name"] == "check_delivery_zone"
+    assert sent[3]["tool_call"] == {"name": "check_delivery_zone", "arguments": '{"address": "221 Mercer St"}', "call_id": "c1", "at": 106.0, "result": '{"in_zone": true}', "is_error": False}
+    assert sent[4]["turn"]["interrupted"] is True
+
+    full = json.loads(post.calls.last.request.content)  # the full history, as without streaming
+    assert full["external_id"] == "AJ_1" and len(full["turns"]) == 4 and full["metadata"]["shutdown_reason"] == "user_left"
+    assert guidance == []  # reserved: never called yet
+
+
+@respx.mock
+def test_stream_failures_never_reach_the_agent(tmp_path):
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    opened = respx.post(f"{URL}/sessions/open").mock(side_effect=[httpx.Response(503), httpx.Response(201, json={"id": "s1", "created": True})])
+    events = respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(side_effect=httpx.ConnectError("down"))
+    post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
+    c, session = ctx(), StreamingSession()
+
+    async def call():
+        await attach(c, session, "tonys-pizza", client=Sopops(URL, cache_dir=tmp_path), stream=True)
+        session.emit("conversation_item_added", said("user", "Hi", 1.0))
+        session.emit("conversation_item_added", SimpleNamespace(item=None))  # malformed: logged
+        await asyncio.sleep(0.7)  # the open fails: this batch is dropped
+        session.emit("conversation_item_added", said("assistant", "Hello!", 2.0))
+        await c.callbacks[0]("done")  # opens, the events fail, the full post still goes
+
+    asyncio.run(call())
+    assert opened.call_count == 2 and events.call_count == 1 and post.call_count == 1
+    assert [e["seq"] for e in sent_events(events)] == [1]
+
+
+def test_a_full_queue_drops_events_and_batches_stay_bounded(tmp_path):
+    async def call():
+        with respx.mock:
+            respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
+            events = respx.post(f"{URL}/sessions/api/web%20chat%2F1/events").mock(return_value=httpx.Response(200, json={"accepted": 2, "duplicates": 0}))
+            stream = SessionStream(Sopops(URL, cache_dir=tmp_path), {"platform": "api", "external_id": "web chat/1", "agent": None}, max_batch=2, max_queue=5)
+            assert stream.session == {"platform": "api", "external_id": "web chat/1"}
+            for i in range(7):
+                stream.turn({"role": "user", "text": str(i)})
+            stream.start()
+            await stream.aclose()
+            stream.turn({"role": "user", "text": "after close"})  # ignored
+            return stream, events
+
+    stream, events = asyncio.run(call())
+    assert stream.sent == 5 and stream.dropped == 2
+    assert [len(json.loads(c.request.content)["events"]) for c in events.calls] == [2, 2, 1]
+    assert [e["seq"] for e in sent_events(events)] == [0, 1, 2, 3, 4]

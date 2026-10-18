@@ -20,6 +20,10 @@
       "types": "./dist/elevenlabs.d.ts",
       "import": "./dist/elevenlabs.js"
     },
+    "./livekit": {
+      "types": "./dist/livekit.d.ts",
+      "import": "./dist/livekit.js"
+    },
     "./node": {
       "types": "./dist/node.d.ts",
       "import": "./dist/node.js"

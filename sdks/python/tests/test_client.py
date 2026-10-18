@@ -108,3 +108,18 @@ def test_record_served(client):
     route = respx.post(f"{URL}/runtime/served").mock(return_value=httpx.Response(200, json={}))
     run(client.record_served("elevenlabs", "conv_1", "tonys-pizza", 3))
     assert json.loads(route.calls.last.request.content) == {"platform": "elevenlabs", "call_id": "conv_1", "agent": "tonys-pizza", "release": 3}
+
+
+@respx.mock
+def test_open_session_and_append_events(client):
+    opened = respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
+    events = respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(200, json={"accepted": 1, "duplicates": 0}))
+    assert run(client.open_session({"platform": "livekit", "external_id": "AJ_1", "agent": "tonys-pizza"})) == {"id": "s1", "created": True}
+    turn = {"seq": 0, "type": "turn", "turn": {"role": "user", "text": "Hi"}}
+    assert run(client.append_events("livekit", "AJ_1", [turn])) == {"accepted": 1, "duplicates": 0}
+    assert json.loads(events.calls.last.request.content) == {"events": [turn]}
+    assert opened.calls.last.request.headers["Authorization"] == "Bearer sopops_tok"
+
+    respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(404, json={"detail": "no such session"}))
+    with pytest.raises(SopopsError, match="no such session"):
+        run(client.append_events("livekit", "AJ_1", [turn]))

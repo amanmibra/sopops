@@ -1,0 +1,16 @@
+[project]
+name = "livekit-restaurant"
+version = "0.0.0"
+description = "A LiveKit restaurant agent whose instructions come from sopops."
+requires-python = ">=3.10"
+dependencies = [
+    "livekit-agents>=1.3",
+    "python-dotenv>=1.0",
+    "sopops-client[livekit]",
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+sopops-client = { path = "../../sdks/python", editable = true }

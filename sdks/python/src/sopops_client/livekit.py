@@ -10,16 +10,18 @@
 
 `attach` fetches the instructions (honoring a release pinned in job or room metadata), keeps the release in
 `session.userdata`, and at shutdown posts the session (`session.history` with timestamps and tool calls) to
-sopops. Nothing here imports livekit at import time; the objects are used through their documented attributes.
+sopops. With `stream=True` it also sends each turn and tool call as it happens. Nothing here imports livekit at
+import time; the objects are used through their documented attributes and events.
 """
 
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping
 
 from .client import Instructions, Sopops, release_pin
+from .stream import SessionStream
 
 if TYPE_CHECKING:  # only for type checkers: the adapter needs no livekit import at runtime
     from livekit.agents import AgentSession, JobContext
@@ -40,18 +42,30 @@ def from_livekit(history: Any) -> tuple[list[dict[str, Any]], list[dict[str, Any
     for item in data.get("items", []):
         kind, at = item.get("type"), item.get("created_at")
         if kind == "message":
-            text = " ".join(c for c in item.get("content", []) if isinstance(c, str)).strip()
-            role = item.get("role")
-            if turns and turns[-1]["role"] == role and turns[-1]["text"] == text and turns[-1].get("name") is None:
-                continue
-            turns.append({"role": role, "text": text, "at": at, "interrupted": bool(item.get("interrupted", False))})
+            turn = _message_turn(item.get("role"), item.get("content", []), at, item.get("interrupted", False))
+            if not _repeats(turns[-1] if turns else None, turn):
+                turns.append(turn)
         elif kind == "function_call":
             name, call_id = item.get("name"), item.get("call_id")
-            turns.append({"role": "tool", "text": f"{name}({item.get('arguments', '')})", "name": name, "at": at})
+            turns.append(_tool_turn(name, item.get("arguments"), at))
             tools[call_id] = {"name": name, "arguments": item.get("arguments"), "call_id": call_id, "at": at}
         elif kind == "function_call_output" and item.get("call_id") in tools:
             tools[item["call_id"]].update(result=item.get("output"), is_error=bool(item.get("is_error", False)))
     return turns, list(tools.values())
+
+
+def _message_turn(role: Any, content: Any, at: Any, interrupted: Any) -> dict[str, Any]:
+    text = " ".join(c for c in content or [] if isinstance(c, str)).strip()
+    return {"role": role, "text": text, "at": at, "interrupted": bool(interrupted)}
+
+
+def _tool_turn(name: Any, arguments: Any, at: Any) -> dict[str, Any]:
+    return {"role": "tool", "text": f"{name}({arguments if arguments is not None else ''})", "name": name, "at": at}
+
+
+def _repeats(prev: Mapping[str, Any] | None, turn: Mapping[str, Any]) -> bool:
+    """LiveKit can add a user transcript twice."""
+    return prev is not None and prev["role"] == turn["role"] and prev["text"] == turn["text"] and prev.get("name") is None
 
 
 def pinned_release(ctx: JobContext) -> int | None:
@@ -69,28 +83,49 @@ async def attach(
     client: Sopops | None = None,
     release: int | None = None,
     fallback: str | None = None,
+    stream: bool = False,
+    on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> Instructions:
     """Fetch the agent's instructions, note the release in `session.userdata`, and post the session at shutdown.
 
     `agent`: the sopc agent id or platform ref; default `livekit:<the job's agent name>`. `release` pins one;
     default: a pin in job or room metadata, else the live release. `fallback`: text to use if sopops is down and
-    nothing is cached (see `Sopops.fetch_instructions`). Call it after `ctx.connect()` for room metadata."""
+    nothing is cached (see `Sopops.fetch_instructions`). Call it after `ctx.connect()` for room metadata.
+
+    `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
+    `on_guidance`: not yet used: reserved for runtime guidance in a later version."""
     client = client or Sopops()
     agent = agent or f"livekit:{ctx.job.agent_name}"
     pin = release if release is not None else pinned_release(ctx)
     ins = await client.fetch_instructions(agent, pin, fallback=fallback)
     _remember(session, ins)
-    record_session(ctx, session, client=client, agent=ins.agent)
+    record_session(ctx, session, client=client, agent=ins.agent, stream=stream, on_guidance=on_guidance)
     return ins
 
 
-def record_session(ctx: JobContext, session: AgentSession[Any], *, client: Sopops | None = None, agent: str | None = None) -> None:
+def record_session(
+    ctx: JobContext,
+    session: AgentSession[Any],
+    *,
+    client: Sopops | None = None,
+    agent: str | None = None,
+    stream: bool = False,
+    on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
+) -> None:
     """Post `session.history` to sopops when the job shuts down, keyed by the job id (rooms get reused), with the
-    release from `session.userdata`. Errors are logged, never raised into shutdown."""
+    release from `session.userdata`. Errors are logged, never raised into shutdown.
+
+    `stream=True` also opens the session now and sends each turn and tool call as it happens, in batches from a
+    background task (see `SessionStream`); it never blocks or raises into the agent. The full post at shutdown
+    still happens and replaces what was streamed. `on_guidance`: not yet used: reserved for runtime guidance in
+    a later version."""
     client = client or Sopops()
     started = datetime.now(timezone.utc)
+    live = _stream(ctx, session, client, agent, started, on_guidance) if stream else None
 
     async def send(reason: str = "") -> None:
+        if live is not None:
+            await live.aclose()
         try:
             turns, tool_calls = from_livekit(session.history)
             userdata = _userdata(session)
@@ -111,6 +146,61 @@ def record_session(ctx: JobContext, session: AgentSession[Any], *, client: Sopop
             log.error("sopops: couldn't send session %s: %s", getattr(ctx.job, "id", "?"), e)
 
     ctx.add_shutdown_callback(send)
+
+
+def _stream(
+    ctx: JobContext, session: AgentSession[Any], client: Sopops, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None
+) -> SessionStream:
+    """Open a SessionStream for the job and feed it from the session's `conversation_item_added` and
+    `function_tools_executed` events."""
+    userdata = _userdata(session)
+    live = SessionStream(
+        client,
+        {
+            "platform": "livekit",
+            "external_id": ctx.job.id,
+            "channel": "voice",
+            "agent": agent or _get(userdata, AGENT_KEY) or ctx.job.agent_name or None,
+            "release": _get(userdata, RELEASE_KEY),
+            "started_at": started.isoformat(),
+            "metadata": {"room": ctx.room.name},
+        },
+        on_guidance=on_guidance,
+    )
+    last: list[dict[str, Any]] = []  # the last turn sent, to drop repeats like from_livekit does
+
+    def on_item(event: Any) -> None:
+        try:
+            item = event.item
+            if getattr(item, "type", "message") != "message":
+                return
+            turn = _message_turn(item.role, item.content, getattr(item, "created_at", None), getattr(item, "interrupted", False))
+            if not _repeats(last[0] if last else None, turn):
+                last[:] = [turn]
+                live.turn(turn)
+        except Exception as e:  # noqa: BLE001 - never raise into the agent
+            log.warning("sopops: couldn't stream a conversation item: %s", e)
+
+    def on_tools(event: Any) -> None:
+        try:
+            outputs = list(getattr(event, "function_call_outputs", None) or [])
+            for i, call in enumerate(event.function_calls):
+                out = outputs[i] if i < len(outputs) else None
+                at = getattr(call, "created_at", None)
+                turn = _tool_turn(call.name, call.arguments, at)
+                last[:] = [turn]
+                live.turn(turn)
+                tool_call = {"name": call.name, "arguments": call.arguments, "call_id": call.call_id, "at": at}
+                if out is not None:
+                    tool_call.update(result=out.output, is_error=bool(getattr(out, "is_error", False)))
+                live.tool_call(tool_call)
+        except Exception as e:  # noqa: BLE001 - never raise into the agent
+            log.warning("sopops: couldn't stream a tool call: %s", e)
+
+    session.on("conversation_item_added", on_item)
+    session.on("function_tools_executed", on_tools)
+    live.start()
+    return live
 
 
 def _userdata(session: Any) -> Any:

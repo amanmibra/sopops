@@ -1,7 +1,7 @@
 /**
  * sopops client: fetch an agent's instructions at call start, and send each finished session back.
  * Runs on Node 18+, browsers and edge runtimes (it uses only `fetch`). Platform adapters are subpaths:
- * `sopops-client/elevenlabs`. A file cache for Node is in `sopops-client/node`.
+ * `sopops-client/elevenlabs`, `sopops-client/livekit`. A file cache for Node is in `sopops-client/node`.
  */
 
 export type Source = "live" | "cache" | "fallback";
@@ -99,6 +99,29 @@ export interface SessionIn {
   turns?: Array<{ role: string; text?: string; offset_s?: number; at?: string | number; [k: string]: unknown }>;
   tool_calls?: Array<{ name: string; arguments?: unknown; result?: unknown; is_error?: boolean; call_id?: string; offset_s?: number; at?: string | number; [k: string]: unknown }>;
   metadata?: Record<string, unknown>;
+}
+
+type Turn = NonNullable<SessionIn["turns"]>[number];
+type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
+
+/** What `openSession` takes: a session's identity and context, before its turns exist. */
+export type SessionOpen = Pick<SessionIn, "platform" | "external_id" | "channel" | "agent" | "release" | "version_ref" | "started_at" | "metadata">;
+
+/** One streamed event. `seq` counts from 0 per session; order doesn't matter and a resent `seq` is ignored. */
+export type SessionEvent = { seq: number; type: "turn"; turn: Turn } | { seq: number; type: "tool_call"; tool_call: ToolCall };
+
+/** Runtime guidance from sopops. Not yet sent: reserved for a later version. */
+export type Guidance = Record<string, unknown>;
+
+export interface StreamOptions {
+  /** Send at most this often. Default 500. */
+  flushMs?: number;
+  /** Events per request. Default 50. */
+  maxBatch?: number;
+  /** Events waiting to be sent; beyond this they're dropped. Default 1000. */
+  maxQueue?: number;
+  /** Not yet used: reserved for runtime guidance in a later version. */
+  onGuidance?: (guidance: Guidance) => void;
 }
 
 export interface SessionIngested {
@@ -245,6 +268,37 @@ export class Sopops {
   }
 
   /**
+   * Open a session while the call runs, so its events can be sent as they happen. Safe to repeat (keyed by
+   * platform + external_id, like `postSession`). Most callers want `stream()` instead.
+   */
+  async openSession(session: SessionOpen, options: { timeoutMs?: number } = {}): Promise<{ id: string; created: boolean }> {
+    return (await this.post("/sessions/open", session, options.timeoutMs ?? 3000)) as { id: string; created: boolean };
+  }
+
+  /** Add events to an open session. The full session sent with `postSession` at the end replaces what was streamed. */
+  async appendEvents(platform: string, externalId: string, events: SessionEvent[], options: { timeoutMs?: number } = {}): Promise<{ accepted: number; duplicates: number }> {
+    const path = `/sessions/${encodeURIComponent(platform)}/${encodeURIComponent(externalId)}/events`;
+    return (await this.post(path, { events }, options.timeoutMs ?? 3000)) as { accepted: number; duplicates: number };
+  }
+
+  /** Stream a session's turns and tool calls while the call runs (see `SessionStream`). */
+  stream(session: SessionOpen, options: StreamOptions = {}): SessionStream {
+    return new SessionStream(this, session, options);
+  }
+
+  /** One POST, no retries. */
+  private async post(path: string, body: unknown, timeoutMs: number): Promise<unknown> {
+    let res: Response;
+    try {
+      res = await this.request(path, { method: "POST", headers: this.headers(true), body: JSON.stringify(body) }, timeoutMs);
+    } catch (e) {
+      throw new SopopsError(`couldn't reach sopops: ${e instanceof Error ? e.name : String(e)}`);
+    }
+    if (!res.ok) throw new SopopsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
+    return res.json();
+  }
+
+  /**
    * Tell sopops which release a call ran on once the platform's id for it is known (an ElevenLabs conversation
    * id, a Vapi call id), so the session its post-call webhook sends links to that release.
    */
@@ -252,6 +306,103 @@ export class Sopops {
     const body = { platform: served.platform, call_id: served.callId, agent: served.agent, release: served.release };
     const res = await this.request("/runtime/served", { method: "POST", headers: this.headers(true), body: JSON.stringify(body) }, options.timeoutMs ?? 3000);
     if (!res.ok) throw new SopopsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
+  }
+}
+
+/**
+ * Sends one session's turns and tool calls to sopops while the call runs, in batches. `turn` and `toolCall` never
+ * block and never throw: when the queue is full, or sopops fails, events are logged and dropped. Send the full
+ * session with `postSession` at the end as usual; it replaces what was streamed.
+ *
+ *   const stream = sopops.stream({ platform: "api", external_id: callId, agent: "tonys-pizza", release: 3 });
+ *   stream.turn({ role: "user", text: "Delivery please.", at: new Date().toISOString() });
+ *   await stream.close();
+ *   await sopops.postSession(fullSession);
+ */
+export class SessionStream {
+  readonly session: SessionOpen;
+  /** Not yet used: reserved for runtime guidance in a later version. */
+  readonly onGuidance: ((guidance: Guidance) => void) | undefined;
+  sent = 0;
+  dropped = 0;
+  private seq = 0;
+  private queue: SessionEvent[] = [];
+  private opened = false;
+  private closed = false;
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private sending: Promise<void> = Promise.resolve();
+  private readonly flushMs: number;
+  private readonly maxBatch: number;
+  private readonly maxQueue: number;
+
+  constructor(
+    private readonly sopops: Sopops,
+    session: SessionOpen,
+    options: StreamOptions = {},
+  ) {
+    this.session = Object.fromEntries(Object.entries(session).filter(([, v]) => v != null)) as SessionOpen;
+    this.onGuidance = options.onGuidance;
+    this.flushMs = options.flushMs ?? 500;
+    this.maxBatch = options.maxBatch ?? 50;
+    this.maxQueue = options.maxQueue ?? 1000;
+  }
+
+  /** Queue a turn (`{role, text, at | offset_s, ...}`, as in the canonical format). */
+  turn(turn: Turn): void {
+    this.add({ seq: this.seq, type: "turn", turn });
+  }
+
+  /** Queue a tool call (`{name, arguments, result, is_error, call_id, at | offset_s}`). */
+  toolCall(call: ToolCall): void {
+    this.add({ seq: this.seq, type: "tool_call", tool_call: call });
+  }
+
+  /** Send what's queued and stop, giving up after `timeoutMs`. Never throws. */
+  async close(timeoutMs = 1000): Promise<void> {
+    if (this.closed) return;
+    this.closed = true;
+    clearTimeout(this.timer);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const gaveUp = new Promise<boolean>((r) => (timer = setTimeout(() => r(true), timeoutMs)));
+    const done = this.flush().then(() => false);
+    if (await Promise.race([done, gaveUp])) console.warn(`sopops: stopped streaming session ${this.session.external_id} with events unsent`);
+    clearTimeout(timer);
+  }
+
+  private add(event: SessionEvent): void {
+    if (this.closed) return;
+    this.seq++;
+    if (this.queue.length >= this.maxQueue) {
+      if (++this.dropped === 1) console.warn(`sopops: the event queue for session ${this.session.external_id} is full; dropping events`);
+      return;
+    }
+    this.queue.push(event);
+    if (this.queue.length >= this.maxBatch) void this.flush();
+    else this.timer ??= setTimeout(() => void this.flush(), this.flushMs);
+  }
+
+  /** Send everything queued, one request at a time. */
+  private flush(): Promise<void> {
+    clearTimeout(this.timer);
+    this.timer = undefined;
+    this.sending = this.sending.then(async () => {
+      while (this.queue.length) await this.send(this.queue.splice(0, this.maxBatch));
+    });
+    return this.sending;
+  }
+
+  private async send(batch: SessionEvent[]): Promise<void> {
+    try {
+      if (!this.opened) {
+        await this.sopops.openSession(this.session);
+        this.opened = true;
+      }
+      await this.sopops.appendEvents(this.session.platform, this.session.external_id, batch);
+      this.sent += batch.length;
+    } catch (e) {
+      this.dropped += batch.length;
+      console.warn(`sopops: dropped ${batch.length} events for session ${this.session.external_id}: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }
 }
 

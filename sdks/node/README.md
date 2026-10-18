@@ -37,7 +37,41 @@ await sopops.postSession({ platform: "api", external_id: callId, agent: ins.agen
 
 **A sopops outage never blocks a call.** The fetch gives up after `timeoutMs` (2000 by default), then returns the last good copy (`ins.source === "cache"`), else your `fallback`, else throws `SopopsUnavailable`. The default cache is in memory; on Node, `new FileCache()` from `sopops-client/node` keeps it on disk (`SOPOPS_CACHE_DIR`, default `~/.cache/sopops`). `releasePin(metadata)` reads a pinned release (`{"sopops_release": 3}`) for A/B tests. `postSession` retries network errors, 429 and 5xx; resending a session is safe.
 
-A LiveKit adapter for Node isn't here yet; LiveKit agents in Python use `sopops_client.livekit` ([sdks/python](../python)).
+## Streaming (optional)
+
+```ts
+const s = await elevenLabsSession(sopops, { agent: "sakura-sushi", stream: true });
+const conversation = await Conversation.startSession({ ...s.sessionOptions });
+```
+
+With `stream: true`, `sessionOptions` also has `onMessage`, `onAgentToolResponse` and `onDisconnect`: each message and tool result goes to sopops as it happens, in batches, keyed by the conversation id, and when the conversation ends the full conversation is posted, replacing what was streamed. Nothing blocks the conversation or throws into it: if sopops is slow or down, or the queue fills, events are logged and dropped. To add your own handler for one of these, call ours from it; `s.end()` stops streaming and posts. Streaming needs a token with the `ingest` scope. `onGuidance` is accepted but not yet used: it's reserved for runtime guidance in a later version.
+
+Anywhere else, `sopops.stream(...)` returns a `SessionStream`:
+
+```ts
+const stream = sopops.stream({ platform: "api", external_id: callId, agent: "tonys-pizza", release: ins.release });
+stream.turn({ role: "user", text: "Delivery please.", at: new Date().toISOString() });
+stream.toolCall({ name: "check_delivery_zone", arguments: { address: "221 Mercer St" }, result: { in_zone: true } });
+await stream.close();                                // sends what's queued (at most 1s), then stops
+await sopops.postSession(fullSession);
+```
+
+`openSession` and `appendEvents` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`).
+
+## LiveKit
+
+```ts
+import { recordSession } from "sopops-client/livekit";
+
+const ins = await sopops.fetchInstructions(`livekit:${ctx.job.agentName}`, { fallback: FALLBACK });
+const session = new voice.AgentSession({ ... });
+recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release });
+await session.start({ agent: voice.Agent.create({ instructions: ins.text }), room: ctx.room });
+```
+
+`recordSession` posts `session.history` to sopops when the job shuts down, with timestamps and tool calls, keyed by the job id, with the release. Errors are logged, never thrown into shutdown. It has no `stream` option yet; the Python adapter does. `@livekit/agents` isn't a dependency: only the parts of `JobContext` and `AgentSession` it reads are typed here.
+
+A complete agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant) (Python), and a web call in [examples/elevenlabs-web](../../examples/elevenlabs-web).
 
 ## Development
 

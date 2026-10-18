@@ -11,7 +11,8 @@ import os
 import tempfile
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Mapping
+from typing import Any, Literal, Mapping, Sequence
+from urllib.parse import quote
 
 import httpx
 
@@ -185,6 +186,33 @@ class Sopops:
                 return out
         assert last is not None
         raise last
+
+    # --- during the call (optional: see SessionStream) ------------------------------------------------
+
+    async def open_session(self, session: Mapping[str, Any], *, timeout: float = 3.0) -> dict[str, Any]:
+        """Open a session while the call runs, so its events can be sent as they happen: `platform`,
+        `external_id` and optionally `channel`, `agent`, `release`, `version_ref`, `started_at`, `metadata`.
+        Returns `{id, created}`. Safe to repeat: keyed by (platform, external_id), like `post_session`."""
+        return await self._post("/sessions/open", dict(session), timeout)
+
+    async def append_events(self, platform: str, external_id: str, events: Sequence[Mapping[str, Any]], *, timeout: float = 3.0) -> dict[str, Any]:
+        """Add events to an open session: `{seq, type: "turn" | "tool_call", turn | tool_call}`, with `seq` counting
+        from 0 per session. Order doesn't matter and a resent `seq` is ignored. Returns `{accepted, duplicates}`.
+        The full session sent with `post_session` at the end replaces what was streamed."""
+        path = f"/sessions/{quote(platform, safe='')}/{quote(external_id, safe='')}/events"
+        return await self._post(path, {"events": [dict(e) for e in events]}, timeout)
+
+    async def _post(self, path: str, body: dict[str, Any], timeout: float) -> dict[str, Any]:
+        """One POST, no retries."""
+        try:
+            async with self._client(timeout) as http:
+                res = await http.post(path, json=body)
+        except httpx.HTTPError as e:
+            raise SopopsError(f"couldn't reach sopops: {type(e).__name__}") from e
+        if res.status_code >= 400:
+            raise SopopsError(f"sopops answered {res.status_code}: {_detail(res)}")
+        out: dict[str, Any] = res.json()
+        return out
 
 
 def _detail(res: httpx.Response) -> str:

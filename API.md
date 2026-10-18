@@ -133,7 +133,7 @@ Prompt fetches stay open while the workspace has no unrevoked `runtime` token, f
 
 ## Sessions
 
-A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the [helper](helpers/livekit)), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API, and all of them use one canonical format.
+A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the SDKs' adapters, [Python](sdks/python) and [Node](sdks/node)), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API, and all of them use one canonical format.
 
 | Endpoint | What it does |
 |---|---|
@@ -196,7 +196,7 @@ Processing (`process_session`) normalizes turns: canonical roles, `offset_s` fro
 
 ### Importing a file
 
-`sopops import FILE.jsonl --workspace WS` reads one session per line in this format (`-` reads stdin) straight into the database named by `DATABASE_URL`, with no token, and runs `process_session` for each new or changed one. Lines that don't parse are reported by line number and skipped; it exits 1 if any did. Importing the same file again changes nothing. [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl) has ten made-up sessions for the test workspace.
+`sopops import FILE.jsonl --workspace WS` reads one session per line in this format (`-` reads stdin) straight into the database named by `DATABASE_URL`, with no token, and runs `process_session` for each new or changed one. Lines that don't parse are reported by line number and skipped; it exits 1 if any did. Importing the same file again changes nothing. [`examples/import-sessions/restaurant-sessions.jsonl`](examples/import-sessions) has ten made-up sessions for the test workspace.
 
 ## SOP checks
 

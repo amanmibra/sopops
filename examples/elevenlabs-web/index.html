@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sakura Sushi, on the web</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: 0.5rem 1.25rem; }
+      #status { color: #666; }
+      #log li[data-role="user"] { color: #1a5fb4; }
+      #log li[data-role="tool"] { color: #666; font-family: ui-monospace, monospace; }
+    </style>
+  </head>
+  <body>
+    <h1>Talk to the host</h1>
+    <p><button id="call">Call</button> <span id="status"></span></p>
+    <ol id="log"></ol>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

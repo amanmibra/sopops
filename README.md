@@ -133,11 +133,11 @@ A session is one conversation an agent had: a voice call or a text chat. Agents 
 
 Every source converts into one canonical JSON format ([API.md](API.md#sessions)), sent to `POST …/sessions` with a token that has the `ingest` scope (Settings → Tokens, shown once). Sending the same session again is safe: it's keyed by platform and session id.
 
-**LiveKit.** `attach` from the SDK (above) posts `session.history` at shutdown, with timestamps and tool calls, keyed by the job id, with the release. Without the SDK, copy [`helpers/livekit`](helpers/livekit) next to your agent.
+**LiveKit.** `attach` from the SDK (above) posts `session.history` at shutdown, with timestamps and tool calls, keyed by the job id, with the release. Node agents use `recordSession` from `sopops-client/livekit` ([sdks/node](sdks/node)). [`examples/livekit-restaurant`](examples/livekit-restaurant) is a complete agent.
 
 **ElevenLabs and Vapi** post-call webhooks are next. Until then, send their transcripts in the canonical format. A call whose prompt came from a sopops webhook (or that the TypeScript client reported) links to that release by its conversation or call id.
 
-**Files.** `sopops import sessions.jsonl --workspace prod` reads one canonical session per line straight into the database, e.g. a backfill or [`examples/restaurant-sessions.jsonl`](examples/restaurant-sessions.jsonl).
+**Files.** `sopops import sessions.jsonl --workspace prod` reads one canonical session per line straight into the database, e.g. a backfill or the ten sessions in [`examples/import-sessions`](examples/import-sessions).
 
 **The pipeline.** Each new or changed session runs `process_session`:
 
