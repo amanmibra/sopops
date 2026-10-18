@@ -97,7 +97,7 @@ def route(input: SessionRef, ctx: Context) -> RouteResult:
     n = ctx.task_output(normalize)
     if n.skipped or n.status == "failed" or n.turn_count == 0:
         return RouteResult(session_id=input.session_id, go=False, status=n.status)
-    ref = RouteRef(**input.model_dump(), model_key=_model_key("fast"), rate_limit=RATE)
+    ref = RouteRef(**input.model_dump(), model_key=_model_key("decide"), rate_limit=RATE)
     out = route_wf.run(ref, child_key=f"route:{input.session_id}:{input.revision}")
     return RouteResult.model_validate(out["route_one"])
 
