@@ -140,16 +140,16 @@ Nothing is stored.
 
 ## Sign-in and the org
 
-Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`_SECRET`, `SOPOPS_GOOGLE_CLIENT_ID`/`_SECRET`; see the README's "Sign in"), and `SOPOPS_AUTH_REQUIRED=true|false` forces it either way. With it on, each endpoint is one of these (the table is `ROUTES` in `src/sopops/auth/access.py`, and a test checks every route is in it):
+Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`_SECRET`, `SOPOPS_GOOGLE_CLIENT_ID`/`_SECRET`, or email: `SOPOPS_SMTP_HOST` and `SOPOPS_SMTP_FROM`, or `SOPOPS_EMAIL_DEV=1`; see the README's "Sign in"), and `SOPOPS_AUTH_REQUIRED=true|false` forces it either way. With it on, each endpoint is one of these (the table is `ROUTES` in `src/sopops/auth/access.py`, and a test checks every route is in it):
 
 | Kind | Needs | Endpoints |
 |---|---|---|
-| open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/invites/lookup`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
+| open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/email`, `POST /v1/auth/email/confirm`, `POST /v1/auth/invites/lookup`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
 | token | the endpoint's own token, no login | `POST …/sessions` (and `…/open`, `…/events`, `…/close`): `ingest`. `POST …/runtime/served`: `runtime`. `/v1/onboarding/{session,progress,proposal,pull-request,pull-request/open,fidelity}`: `onboarding:write` |
 | webhook | the sender's signature or secret, no login | `POST /v1/github/webhook`, `…/capture/livekit/webhook`, `…/capture/elevenlabs/post-call`, `…/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` |
 | token or session | a `runtime` token, or a login session | `GET …/agents/<agent>`, `…/prompt`, `…/sops/<id>`. With sign-in on these always need one, even before the workspace has a runtime token |
 | signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept` |
-| admin | a login session as an owner or admin | `PATCH /v1/org`, `PATCH/DELETE /v1/org/members/<user_id>`, `GET/POST /v1/org/invites`, `DELETE /v1/org/invites/<id>`, `POST /v1/github/app/manifest` and its callback |
+| admin | a login session as an owner or admin | `PATCH /v1/org`, `POST /v1/org/members`, `PATCH/DELETE /v1/org/members/<user_id>`, `GET/POST /v1/org/invites`, `POST /v1/org/invites/<id>/resend`, `DELETE /v1/org/invites/<id>`, `POST /v1/github/app/manifest` and its callback |
 | session | a login session as a member of the workspace's org | everything else |
 
 Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `403`. A workspace in an org you're not in answers `404`. A new workspace goes into the org you're working in.
@@ -162,21 +162,25 @@ Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `
 
 | Endpoint | What it does |
 |---|---|
-| `GET /v1/auth/session` | `{required, providers: [{id, label}], user, org, orgs}`: whether sign-in is on, how to sign in, who's signed in and the org they're working in (`org` is null with no membership). |
-| `GET /v1/auth/login/<provider>?next=/path` | Redirects to GitHub or Google with `state` and a PKCE challenge (kept in a 10-minute HttpOnly cookie). `404` for a provider that isn't set up. |
+| `GET /v1/auth/session` | `{required, providers: [{id, label, redirects}], user, org, orgs}`: whether sign-in is on, how to sign in, who's signed in and the org they're working in (`org` is null with no membership). |
+| `GET /v1/auth/login/<provider>?next=/path` | Redirects to GitHub or Google with `state` and a PKCE challenge (kept in a 10-minute HttpOnly cookie). `404` for a provider that isn't set up, or `email` (it doesn't redirect). |
 | `GET /v1/auth/callback/<provider>` | Where the provider sends the browser back. Checks `state`, signs in and redirects to `next`; on failure, to `/sign-in?error=…`. Refused: no verified email, or a domain outside `SOPOPS_ALLOWED_EMAIL_DOMAINS`. |
+| `POST /v1/auth/email` | `{email, next?}` → `202 {message}`: emails a sign-in link, `<SOPOPS_PUBLIC_URL>/sign-in/email#<token>`, that works once, for 15 minutes. The answer is the same whether a link went or not: none goes to a domain outside `SOPOPS_ALLOWED_EMAIL_DOMAINS`, or past 5 per address or 20 per client IP in 15 minutes. `400` for something that isn't an address; `404` when email sign-in is off. With `SOPOPS_EMAIL_DEV=1` the link is logged at INFO instead of sent. |
+| `POST /v1/auth/email/confirm` | `{token}` (the part after `#`) → `{...session, next}`, with the session cookies set: signs in as the address, the same way as GitHub or Google (the first user owns the org, then invites and allowed domains; the same verified email is the same user). Uses up the link and the address's other open links. `404` if it's unknown, used or expired. |
 | `POST /v1/auth/logout` | Ends the session (`204`) and clears the cookies. |
 | `PUT /v1/auth/org` | `{org_id}`: work in another org you're in. |
 | `POST /v1/auth/invites/lookup` | `{token}` → `{org_id, org_name, email, role, expires_at, accepted}`. `404` once it's expired, withdrawn or used by someone else. |
 | `POST /v1/auth/invites/accept` | `{token}`: join, when you're signed in with the invite's email (else `403`). |
-| `GET /v1/org` | The org you're working in: `{id, name, slug, allowed_domains, role}`. |
+| `GET /v1/org` | The org you're working in: `{id, name, slug, allowed_domains, role, sends_email}`. `sends_email`: SMTP is set up (and dev mode off), so invites are emailed. |
 | `PATCH /v1/org` | `{name?, allowed_domains?}`. People with a verified email at an allowed domain join as members when they sign in. |
 | `GET /v1/org/members` | `[{user_id, email, name, avatar_url, role, joined_at, last_login_at}]`. |
-| `PATCH /v1/org/members/<user_id>` | `{role}`: `owner`, `admin` or `member`. Only an owner makes or changes an owner; the last owner can't step down (`409`). |
-| `DELETE /v1/org/members/<user_id>` | Remove them. They can still sign in, but see nothing of the org. |
+| `POST /v1/org/members` | `{emails: [...], role?}` (up to 100) → `[{email, status, user_id?, invite?}]`. `added`: they have an account and joined now. `invited`: `invite` is the new invite with its `link` and `emailed`; they join when they sign in with that email, any way. `already`: a member. Only an owner adds owners (`403`). |
+| `PATCH /v1/org/members/<user_id>` | `{role}`: `owner`, `admin` or `member`. Only an owner makes or changes an owner (`403`); the last owner can't be demoted (`409`). |
+| `DELETE /v1/org/members/<user_id>` | Remove them. They can still sign in, but see nothing of the org. Only an owner removes an owner, and never the last one (`409`). |
 | `GET /v1/org/invites` | Open invites: `[{id, email, role, created_at, expires_at}]`. |
-| `POST /v1/org/invites` | `{email, role?}` → `201` with `link`, `<SOPOPS_PUBLIC_URL>/invite#<token>`, shown once. Nothing is emailed. It works once, for 7 days, for whoever signs in with that email (signing in accepts it). |
-| `DELETE /v1/org/invites/<id>` | Withdraw it. |
+| `POST /v1/org/invites` | `{email, role?}` → `201` with `link`, `<SOPOPS_PUBLIC_URL>/invite#<token>`, shown once, and `emailed`. With SMTP set up it's emailed ("<name> invited you to <org> on sopops"). It works once, for 7 days, for whoever signs in with that email (signing in accepts it), and replaces the address's open invite. |
+| `POST /v1/org/invites/<id>/resend` | A new link for an open invite, good for 7 more days, emailed again with SMTP. The old link stops working. Same shape as above. |
+| `DELETE /v1/org/invites/<id>` | Cancel it: its link stops working. |
 
 Who joins: the first person to sign in on a fresh install owns the existing org; then invites and allowed domains. With sign-in off, `/v1/org/*` answers `409` (there are no members).
 

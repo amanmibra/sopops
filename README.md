@@ -197,6 +197,8 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform keys, webhook secrets and GitHub tokens; needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | unset | Sign in with GitHub ([Sign in](#sign-in)). |
 | `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | unset | Sign in with Google. |
+| `SOPOPS_SMTP_HOST`, `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER`, `SOPOPS_SMTP_PASSWORD`, `SOPOPS_SMTP_FROM` | unset, `587` | Email: sign-in links and invites. Port 465 is TLS from the start; other ports use STARTTLS when offered. `SOPOPS_SMTP_FROM` is the sender (defaults to the user, if that's an address). |
+| `SOPOPS_EMAIL_DEV` | unset | `1`: email sign-in on without SMTP. Links go to the server log instead of being sent. For local use and demos only. |
 | `SOPOPS_AUTH_REQUIRED` | on when a login provider is set up | `true` or `false` forces sign-in on or off. |
 | `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated: only people with a verified email at these domains can sign in at all. |
 | `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach sopops: the base of sign-in callback URLs and invite links. |
@@ -214,11 +216,17 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 
 ## Sign in
 
-With no login provider set up, sopops has no sign-in: that's how local use and demos work. Set up GitHub, Google or both and people sign in to use the UI and the API; agents, webhooks and coding agents keep using their workspace tokens and webhook secrets, with no login.
+With no login provider set up, sopops has no sign-in: that's how local use and demos work. Set up GitHub, Google, email or any mix, and people sign in to use the UI and the API; agents, webhooks and coding agents keep using their workspace tokens and webhook secrets, with no login.
 
-**Who gets in.** The first person to sign in on a fresh install becomes owner of the existing org, which owns every workspace there is. After that, people join with an invite link (Settings → Members makes one; sopops doesn't send email, so you send the link) or, if the org allows their email domain, just by signing in. Someone who signs in with no invite sees "Ask an owner to invite you". Only verified email addresses count, and signing in with GitHub and with Google using the same verified email is the same person.
+**Who gets in.** The first person to sign in on a fresh install becomes owner of the existing org, which owns every workspace there is. After that, people join when an owner or admin adds them (Settings → Members → Add people) or, if the org allows their email domain, just by signing in. Someone who signs in and hasn't been added sees "Ask an owner to invite you". Only verified email addresses count, and the same verified email is the same person whether they sign in with GitHub, Google or an email link.
 
-**Roles.** Owners and admins manage members, invites and the org's email domains; members do everything else. Only an owner makes or removes owners, and an org always keeps one.
+**Adding people.** Enter one or more email addresses and pick Admin or Member. Someone who already has an account joins right away. Anyone else gets an invite, and joins the moment they sign in with that email, any way. With SMTP set up, sopops emails the invite; either way you get the link to copy. Invites work for 7 days. Under "Invited, not signed in yet" you can resend one (a new link) or cancel it.
+
+**Roles.** Owners and admins add and remove people, change roles and set the org's email domains; members do everything else. Only an owner makes, changes or removes an owner, and nobody can remove or demote the last one.
+
+**Email.** Set `SOPOPS_SMTP_HOST` and `SOPOPS_SMTP_FROM` (plus `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER` and `SOPOPS_SMTP_PASSWORD` as your mail provider says) and the sign-in page gets an email box and "Email me a sign-in link". The link works once, for 15 minutes. Its code is after `#` in the link, which browsers never send to a server, and the page it opens asks for one click to sign in, so mail scanners that open links can't use it up. Each address can get 5 links per 15 minutes, and each client 20. The page always says "If that address can sign in, we sent a link", so it never tells anyone which addresses have accounts.
+
+For a demo or local use, `SOPOPS_EMAIL_DEV=1` turns email sign-in on with no SMTP: each link is written to the server log at INFO, marked `[SOPOPS_EMAIL_DEV]`, instead of being sent. Don't use it on a server other people can reach: anyone who reads the log can sign in as anyone.
 
 **GitHub.** Make an OAuth app: GitHub → Settings → Developer settings → OAuth Apps → New OAuth App (or the same under an organization's settings).
 
@@ -235,9 +243,9 @@ A GitHub App's client id and a client secret made for it work in the same two va
 
 Only addresses Google marks `email_verified` count.
 
-**Behind a proxy**, set `SOPOPS_PUBLIC_URL` to the address people use (`https://sopops.example.com`), so the callback URLs and invite links match what you registered. Cookies are marked Secure when the request is https (with uvicorn behind a proxy, pass `--proxy-headers` and `--forwarded-allow-ips` so it sees `X-Forwarded-Proto`).
+**Behind a proxy**, set `SOPOPS_PUBLIC_URL` to the address people use (`https://sopops.example.com`), so the callback URLs, sign-in links and invite links match what you registered. The per-client limit on email links counts the address the request comes from, so behind a proxy it counts the proxy unless uvicorn trusts its forwarded headers. Cookies are marked Secure when the request is https (with uvicorn behind a proxy, pass `--proxy-headers` and `--forwarded-allow-ips` so it sees `X-Forwarded-Proto`).
 
-**How it works.** Sign-in uses OAuth with `state` and PKCE. A login session is a random token in an HttpOnly, SameSite=Lax cookie, stored hashed; it lasts 30 days from the last visit and ends when you sign out. Requests that change something with the cookie also send `X-CSRF-Token`, the value of the `sopops_csrf` cookie (the web UI does this), which another site can't read. With sign-in on, prompt fetches need the workspace's runtime token (or someone signed in), even for a workspace that has none yet, so make one in Settings → Access first. Every route's rule is in one table, `src/sopops/auth/access.py`.
+**How it works.** GitHub and Google sign-in use OAuth with `state` and PKCE; email links are random tokens stored hashed. A login session is a random token in an HttpOnly, SameSite=Lax cookie, stored hashed; it lasts 30 days from the last visit and ends when you sign out. Requests that change something with the cookie also send `X-CSRF-Token`, the value of the `sopops_csrf` cookie (the web UI does this), which another site can't read. With sign-in on, prompt fetches need the workspace's runtime token (or someone signed in), even for a workspace that has none yet, so make one in Settings → Access first. Every route's rule is in one table, `src/sopops/auth/access.py`.
 
 **More login providers.** Providers register into `sopops.auth.providers`; a package can add one (SAML, say) through the `sopops.login_providers` entry point group.
 
