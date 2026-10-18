@@ -3902,6 +3902,22 @@ export type ServedOut = {
 };
 
 /**
+ * SessionClose
+ */
+export type SessionClose = {
+    /**
+     * Ended At
+     */
+    ended_at?: string | null;
+    /**
+     * Partial
+     *
+     * The sender knows the transcript is incomplete.
+     */
+    partial?: boolean;
+};
+
+/**
  * SessionDetail
  */
 export type SessionDetail = {
@@ -3960,7 +3976,7 @@ export type SessionDetail = {
     /**
      * Status
      */
-    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
     /**
      * Status Reason
      */
@@ -4015,6 +4031,51 @@ export type SessionDetail = {
      * Each procedure the router considered, with its rule results.
      */
     checks: Array<ProcedureCheckOut>;
+};
+
+/**
+ * SessionEventIn
+ *
+ * One turn or tool call of an open session. `seq` counts from 0 per session: a resent `seq` is ignored, and
+ * events can arrive in any order (they're kept in `seq` order).
+ */
+export type SessionEventIn = {
+    /**
+     * Seq
+     */
+    seq: number;
+    /**
+     * Type
+     */
+    type: 'turn' | 'tool_call';
+    turn?: TurnIn | null;
+    tool_call?: ToolCallIn | null;
+};
+
+/**
+ * SessionEventsIn
+ */
+export type SessionEventsIn = {
+    /**
+     * Events
+     */
+    events: Array<SessionEventIn>;
+};
+
+/**
+ * SessionEventsOut
+ */
+export type SessionEventsOut = {
+    /**
+     * Accepted
+     */
+    accepted: number;
+    /**
+     * Duplicates
+     *
+     * Events whose seq was already stored, or sent after the session closed.
+     */
+    duplicates: number;
 };
 
 /**
@@ -4142,13 +4203,58 @@ export type SessionIngested = {
     /**
      * Status
      */
-    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
     /**
      * Warnings
      *
      * E.g. a release that doesn't exist (the session is kept without it).
      */
     warnings: Array<string>;
+};
+
+/**
+ * SessionOpen
+ *
+ * Open a session to stream its turns and tool calls as they happen (optional). The final full post to
+ * `…/sessions` still wins; until then, or until `…/close`, the session isn't checked.
+ */
+export type SessionOpen = {
+    /**
+     * Platform
+     */
+    platform: 'livekit' | 'elevenlabs' | 'vapi' | 'otel' | 'import' | 'api';
+    /**
+     * External Id
+     */
+    external_id: string;
+    /**
+     * Channel
+     */
+    channel?: 'voice' | 'text';
+    /**
+     * Agent
+     */
+    agent?: string | null;
+    /**
+     * Release
+     */
+    release?: number | null;
+    /**
+     * Version Ref
+     */
+    version_ref?: string | null;
+    /**
+     * Started At
+     *
+     * Default: when sopops received it.
+     */
+    started_at?: string | null;
+    /**
+     * Metadata
+     */
+    metadata?: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -4226,7 +4332,7 @@ export type SessionSummary = {
     /**
      * Status
      */
-    status: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
+    status: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed';
     /**
      * Status Reason
      */
@@ -7563,7 +7669,7 @@ export type ListSessionsData = {
         /**
          * Status
          */
-        status?: 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed' | null;
+        status?: 'open' | 'received' | 'routed' | 'checked' | 'excluded' | 'partial' | 'failed' | null;
         /**
          * Result
          *
@@ -7713,6 +7819,151 @@ export type IngestSessionResponses = {
 };
 
 export type IngestSessionResponse = IngestSessionResponses[keyof IngestSessionResponses];
+
+export type OpenSessionData = {
+    body: SessionOpen;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/open';
+};
+
+export type OpenSessionErrors = {
+    /**
+     * Missing, unknown, expired or revoked token.
+     */
+    401: unknown;
+    /**
+     * The token lacks the ingest scope.
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OpenSessionError = OpenSessionErrors[keyof OpenSessionErrors];
+
+export type OpenSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionIngested;
+    /**
+     * Opened.
+     */
+    201: SessionIngested;
+};
+
+export type OpenSessionResponse = OpenSessionResponses[keyof OpenSessionResponses];
+
+export type AppendSessionEventsData = {
+    body: SessionEventsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: string;
+        /**
+         * External Id
+         */
+        external_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/events';
+};
+
+export type AppendSessionEventsErrors = {
+    /**
+     * Missing, unknown, expired or revoked token.
+     */
+    401: unknown;
+    /**
+     * The token lacks the ingest scope.
+     */
+    403: unknown;
+    /**
+     * No such session: open it first.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AppendSessionEventsError = AppendSessionEventsErrors[keyof AppendSessionEventsErrors];
+
+export type AppendSessionEventsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionEventsOut;
+};
+
+export type AppendSessionEventsResponse = AppendSessionEventsResponses[keyof AppendSessionEventsResponses];
+
+export type CloseSessionData = {
+    /**
+     * Req
+     */
+    body?: SessionClose | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: string;
+        /**
+         * External Id
+         */
+        external_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/close';
+};
+
+export type CloseSessionErrors = {
+    /**
+     * Missing, unknown, expired or revoked token.
+     */
+    401: unknown;
+    /**
+     * The token lacks the ingest scope.
+     */
+    403: unknown;
+    /**
+     * No such session.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CloseSessionError = CloseSessionErrors[keyof CloseSessionErrors];
+
+export type CloseSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SessionIngested;
+};
+
+export type CloseSessionResponse = CloseSessionResponses[keyof CloseSessionResponses];
 
 export type StreamSessionsData = {
     body?: never;

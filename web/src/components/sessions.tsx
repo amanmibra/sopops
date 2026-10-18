@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 type Status = SessionSummary["status"];
 
 const STATUS: Record<Status, { label: string; tone: string; help: string }> = {
+  open: { label: "open", tone: "", help: "Streaming in; checked when it closes." },
   received: { label: "received", tone: "", help: "Stored and normalized, not checked yet." },
   routed: { label: "routed", tone: "bg-brand-soft text-primary border-transparent", help: "Matched to the procedures that applied." },
   checked: { label: "checked", tone: "bg-brand-soft text-primary border-transparent", help: "Checked against its procedures." },

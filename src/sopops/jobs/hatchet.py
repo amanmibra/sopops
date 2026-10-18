@@ -151,7 +151,10 @@ def recluster_one(input: ReclusterRef, ctx: Context) -> dict:
 
 @recluster_daily_wf.task(execution_timeout=timedelta(hours=2), retries=1)
 def recluster_daily(input, ctx: Context) -> dict:
-    out = _get_store().patterns.recluster_due()
+    store = _get_store()
+    for ref in store.sessions.close_idle():  # open sessions that stopped streaming: check what came in
+        trigger_process_session(ref)
+    out = store.patterns.recluster_due()
     return {"reclustered": out.reclustered, "themed": out.themed}
 
 

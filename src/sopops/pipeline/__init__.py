@@ -8,6 +8,7 @@ from .process import (
     normalize_session,
     process_session,
     route_session,
+    session_event,
 )
 from .types import (
     CheckRef,
@@ -21,5 +22,5 @@ from .types import (
 
 __all__ = [
     "CheckRef", "CheckResult", "ProcessResult", "ReclusterRef", "RouteRef", "RouteResult", "SessionRef",
-    "assign_patterns", "check_procedure", "finish_session", "normalize_session", "process_session", "route_session",
+    "assign_patterns", "check_procedure", "finish_session", "normalize_session", "process_session", "route_session", "session_event",
 ]

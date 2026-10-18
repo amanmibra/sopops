@@ -290,3 +290,61 @@ def test_pipeline_skips_stale_and_missing_sessions(client, token):
     assert process_session(store, SessionRef(workspace_id="demo", session_id="gone", revision="x")).skipped
     stale = process_session(store, SessionRef(workspace_id="demo", session_id=sid, revision="an-older-payload"))
     assert stale.skipped and stale.status == "received"
+
+
+# --- streaming (optional): open, events, close ---------------------------------------------------------------------
+
+
+def stream_post(client, token, path, body=None):
+    return client.post(f"{WS}/sessions{path}", json=body, headers={"Authorization": f"Bearer {token}"})
+
+
+def turn(seq, role, text):
+    return {"seq": seq, "type": "turn", "turn": {"role": role, "text": text, "offset_s": seq}}
+
+
+def test_streamed_events_are_idempotent_ordered_and_checked_on_close(client, token):
+    opened = stream_post(client, token, "/open", {"platform": "livekit", "external_id": "live-1", "agent": "tonys-pizza"})
+    assert opened.status_code == 201 and opened.json()["status"] == "open"
+    again = stream_post(client, token, "/open", {"platform": "livekit", "external_id": "live-1"})
+    assert again.status_code == 200 and again.json()["id"] == opened.json()["id"]
+
+    first = stream_post(client, token, "/livekit/live-1/events", {"events": [turn(2, "agent", "Pickup or delivery?"), turn(0, "agent", "Tony's Pizza.")]})
+    assert first.json() == {"accepted": 2, "duplicates": 0}
+    tool = {"seq": 3, "type": "tool_call", "tool_call": {"name": "check_delivery_zone", "arguments": {"zip": "10001"}}}
+    second = stream_post(client, token, "/livekit/live-1/events", {"events": [turn(0, "agent", "Tony's Pizza."), turn(1, "user", "A large pepperoni."), tool]})
+    assert second.json() == {"accepted": 2, "duplicates": 1}
+    s = client.get(f"{WS}/sessions/{opened.json()['id']}").json()
+    assert s["status"] == "open" and [t["text"] for t in s["turns"]] == ["Tony's Pizza.", "A large pepperoni.", "Pickup or delivery?"]
+    assert [c["name"] for c in s["tool_calls"]] == ["check_delivery_zone"]
+
+    closed = stream_post(client, token, "/livekit/live-1/close", {})
+    assert closed.status_code == 200 and closed.json()["updated"]
+    s = client.get(f"{WS}/sessions/{opened.json()['id']}").json()
+    assert s["status"] == "received" and s["status_reason"] == NO_MODEL and s["turn_count"] == 3  # the pipeline ran (no model here)
+    late = stream_post(client, token, "/livekit/live-1/events", {"events": [turn(4, "agent", "Bye.")]})
+    assert late.json() == {"accepted": 0, "duplicates": 1}  # closed: ignored
+
+
+def test_the_final_full_post_wins_over_what_streamed(client, token):
+    stream_post(client, token, "/open", {"platform": "livekit", "external_id": "room-1"})
+    stream_post(client, token, "/livekit/room-1/events", {"events": [turn(0, "agent", "Hello?")]})
+    done = ingest(client, token, session())
+    assert done.status_code == 200 and done.json()["updated"]
+    s = client.get(f"{WS}/sessions/{done.json()['id']}").json()
+    assert s["status"] != "open" and "Hello?" not in [t["text"] for t in s["turns"]]
+
+
+def test_events_need_an_open_session_and_the_ingest_scope(client, token):
+    assert client.post(f"{WS}/sessions/open", json={"platform": "livekit", "external_id": "x"}).status_code == 401
+    assert stream_post(client, token, "/livekit/nope/events", {"events": [turn(0, "user", "hi")]}).status_code == 404
+
+
+def test_idle_open_sessions_close_as_partial(client, token):
+    store = client.app.state.store
+    opened = stream_post(client, token, "/open", {"platform": "livekit", "external_id": "idle-1"}).json()
+    stream_post(client, token, "/livekit/idle-1/events", {"events": [turn(0, "user", "Hello?")]})
+    assert store.sessions.close_idle("demo") == []  # not idle yet
+    [ref] = store.sessions.close_idle("demo", idle=timedelta(0))
+    s = client.get(f"{WS}/sessions/{opened['id']}").json()
+    assert ref.session_id == opened["id"] and s["status"] == "partial" and "No events" in s["status_reason"]

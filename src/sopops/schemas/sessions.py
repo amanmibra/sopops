@@ -19,7 +19,8 @@ Channel = Literal["voice", "text"]
 Platform = Literal["livekit", "elevenlabs", "vapi", "otel", "import", "api"]
 
 
-SessionStatus = Literal["received", "routed", "checked", "excluded", "partial", "failed"]
+# open: streaming in (sessions/open, then events), not checked until it closes.
+SessionStatus = Literal["open", "received", "routed", "checked", "excluded", "partial", "failed"]
 
 
 class TurnIn(_BaseModel):
@@ -60,6 +61,44 @@ class SessionIn(_BaseModel):
     turns: list[TurnIn] = Field(default_factory=list, description="In order.")
     tool_calls: list[ToolCallIn] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SessionOpen(_BaseModel):
+    """Open a session to stream its turns and tool calls as they happen (optional). The final full post to
+    `…/sessions` still wins; until then, or until `…/close`, the session isn't checked."""
+
+    platform: Platform
+    external_id: str = Field(min_length=1, max_length=256)
+    channel: Channel = "voice"
+    agent: str | None = Field(None, max_length=256)
+    release: int | None = None
+    version_ref: str | None = Field(None, max_length=256)
+    started_at: datetime | None = Field(None, description="Default: when sopops received it.")
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class SessionEventIn(_BaseModel):
+    """One turn or tool call of an open session. `seq` counts from 0 per session: a resent `seq` is ignored, and
+    events can arrive in any order (they're kept in `seq` order)."""
+
+    seq: int = Field(ge=0)
+    type: Literal["turn", "tool_call"]
+    turn: TurnIn | None = None
+    tool_call: ToolCallIn | None = None
+
+
+class SessionEventsIn(_BaseModel):
+    events: list[SessionEventIn] = Field(max_length=500)
+
+
+class SessionEventsOut(BaseModel):
+    accepted: int
+    duplicates: int = Field(description="Events whose seq was already stored, or sent after the session closed.")
+
+
+class SessionClose(_BaseModel):
+    ended_at: datetime | None = None
+    partial: bool = Field(False, description="The sender knows the transcript is incomplete.")
 
 
 class SessionIngested(BaseModel):

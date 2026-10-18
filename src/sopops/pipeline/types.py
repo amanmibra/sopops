@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+# Why a session is partial: it stays partial through the pipeline (it's still checked).
+SENDER_PARTIAL = "The sender marked the transcript incomplete."
+IDLE_PARTIAL = "No events for a while; closed as incomplete."
+PARTIAL_REASONS = (SENDER_PARTIAL, IDLE_PARTIAL)
+
 
 class SessionRef(BaseModel):
     workspace_id: str

@@ -10,7 +10,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from ..pipeline import SessionRef, process_session
+from ..pipeline import SessionRef, process_session, session_event
 
 if TYPE_CHECKING:
     from fastapi import BackgroundTasks
@@ -51,6 +51,10 @@ class Jobs:
             return "background"
         self.run_inline(ref)
         return "inline"
+
+    def session_event(self, ref: SessionRef, events: list[dict]) -> None:
+        """The pipeline's hook for events of an open session, here and now (it does nothing yet)."""
+        session_event(self.store, ref, events)
 
     def run_inline(self, ref: SessionRef) -> None:
         try:

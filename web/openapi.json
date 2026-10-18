@@ -4255,6 +4255,7 @@
               "anyOf": [
                 {
                   "enum": [
+                    "open",
                     "received",
                     "routed",
                     "checked",
@@ -4581,6 +4582,257 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/open": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Open Session",
+        "description": "Open a session to stream its turns and tool calls (optional; see `\u2026/events`). Idempotent on (platform,\nexternal_id). It isn't checked until it closes: `\u2026/close`, a full post to `\u2026/sessions` (which wins), or no\nevents for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as partial).",
+        "operationId": "open_session",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionOpen"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionIngested"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Opened.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionIngested"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, unknown, expired or revoked token."
+          },
+          "403": {
+            "description": "The token lacks the ingest scope."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/events": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Append Session Events",
+        "description": "Append turns and tool calls to an open session. `seq` counts from 0 per session; a resent `seq` is ignored\nand events may arrive in any order. Events for a session that has closed are ignored.",
+        "operationId": "append_session_events",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionEventsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionEventsOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such session: open it first."
+          },
+          "401": {
+            "description": "Missing, unknown, expired or revoked token."
+          },
+          "403": {
+            "description": "The token lacks the ingest scope."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/close": {
+      "post": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Close Session",
+        "description": "Close an open session with what streamed in, and check it. A session that isn't open is left as is.",
+        "operationId": "close_session",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "external_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "External Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SessionClose"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionIngested"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such session."
+          },
+          "401": {
+            "description": "Missing, unknown, expired or revoked token."
+          },
+          "403": {
+            "description": "The token lacks the ingest scope."
           },
           "422": {
             "description": "Validation Error",
@@ -13955,6 +14207,30 @@
         ],
         "title": "ServedOut"
       },
+      "SessionClose": {
+        "properties": {
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "partial": {
+            "type": "boolean",
+            "title": "Partial",
+            "description": "The sender knows the transcript is incomplete.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "SessionClose"
+      },
       "SessionDetail": {
         "properties": {
           "id": {
@@ -14066,6 +14342,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "open",
               "received",
               "routed",
               "checked",
@@ -14192,6 +14469,86 @@
           "checks"
         ],
         "title": "SessionDetail"
+      },
+      "SessionEventIn": {
+        "properties": {
+          "seq": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Seq"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "turn",
+              "tool_call"
+            ],
+            "title": "Type"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "tool_call": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ToolCallIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "seq",
+          "type"
+        ],
+        "title": "SessionEventIn",
+        "description": "One turn or tool call of an open session. `seq` counts from 0 per session: a resent `seq` is ignored, and\nevents can arrive in any order (they're kept in `seq` order)."
+      },
+      "SessionEventsIn": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/SessionEventIn"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Events"
+          }
+        },
+        "type": "object",
+        "required": [
+          "events"
+        ],
+        "title": "SessionEventsIn"
+      },
+      "SessionEventsOut": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "duplicates": {
+            "type": "integer",
+            "title": "Duplicates",
+            "description": "Events whose seq was already stored, or sent after the session closed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted",
+          "duplicates"
+        ],
+        "title": "SessionEventsOut"
       },
       "SessionIn": {
         "properties": {
@@ -14396,6 +14753,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "open",
               "received",
               "routed",
               "checked",
@@ -14423,6 +14781,97 @@
           "warnings"
         ],
         "title": "SessionIngested"
+      },
+      "SessionOpen": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "livekit",
+              "elevenlabs",
+              "vapi",
+              "otel",
+              "import",
+              "api"
+            ],
+            "title": "Platform"
+          },
+          "external_id": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "External Id"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text"
+            ],
+            "title": "Channel",
+            "default": "voice"
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release"
+          },
+          "version_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version Ref"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At",
+            "description": "Default: when sopops received it."
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "external_id"
+        ],
+        "title": "SessionOpen",
+        "description": "Open a session to stream its turns and tool calls as they happen (optional). The final full post to\n`\u2026/sessions` still wins; until then, or until `\u2026/close`, the session isn't checked."
       },
       "SessionPage": {
         "properties": {
@@ -14564,6 +15013,7 @@
           "status": {
             "type": "string",
             "enum": [
+              "open",
               "received",
               "routed",
               "checked",

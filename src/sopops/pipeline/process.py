@@ -28,7 +28,14 @@ from . import judge, prompts
 from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
 from .rollup import apply_tool_calls, mark_out_of_order, rollup
-from .types import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
+from .types import (
+    PARTIAL_REASONS,
+    CheckRef,
+    CheckResult,
+    ProcessResult,
+    RouteResult,
+    SessionRef,
+)
 
 if TYPE_CHECKING:
     from ..llm import LLM
@@ -38,7 +45,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("sopops.pipeline")
 NO_MODEL = "No model configured: set SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING to check sessions against procedures."
-SENDER_PARTIAL = "The sender marked the transcript incomplete."
 
 
 def process_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> ProcessResult:
@@ -59,6 +65,11 @@ def process_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Pr
     return done
 
 
+def session_event(store: Store, ref: SessionRef, events: list[dict]) -> None:
+    """Runs for each batch of events appended to an open session (`…/events`). Reserved for checking rules while a
+    session is still going, and sending guidance back, in a later version; does nothing yet."""
+
+
 def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
     try:
         session = store.sessions.load(ref.workspace_id, ref.session_id)
@@ -72,7 +83,7 @@ def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
     except Exception as e:  # a payload we can't make sense of: keep it, and say why
         store.sessions.finish(ref, session.turns, session.tool_calls, "failed", f"normalize: {e}")
         raise
-    if session.status_reason == SENDER_PARTIAL:  # set at ingest when the sender says the transcript is incomplete
+    if session.status_reason in PARTIAL_REASONS:  # set at ingest (the sender said so) or when an idle open session closed
         status, reason = "partial", session.status_reason
     elif not turns:
         status, reason = "partial", "No turns."
@@ -92,7 +103,7 @@ def _load(store: Store, ref: SessionRef) -> SessionRecord | None:
 
 def _partial(s: SessionRecord) -> bool:
     """The sender said the transcript is incomplete: the session is still checked, but its status stays partial."""
-    return s.status_reason == SENDER_PARTIAL
+    return s.status_reason in PARTIAL_REASONS
 
 
 def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> RouteResult:
@@ -105,13 +116,13 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
     partial = _partial(s)
     base = "partial" if partial else "received"
     if not llm_mod.configured(llm):
-        store.checks.reset(ref, base, SENDER_PARTIAL if partial else NO_MODEL)
+        store.checks.reset(ref, base, s.status_reason if partial else NO_MODEL)
         return RouteResult(session_id=ref.session_id, go=False, status=base, reason=NO_MODEL)
     cand = candidates(store, s)
     if cand.release is None or not cand.procedures:
         why = "No release to check against." if cand.release is None else f"Release {cand.release} has no procedures for this agent."
         status = "partial" if partial else (base if cand.release is None else "excluded")
-        store.checks.reset(ref, status, SENDER_PARTIAL if partial else why)
+        store.checks.reset(ref, status, s.status_reason if partial else why)
         return RouteResult(session_id=ref.session_id, go=False, status=status, release_id=cand.release, reason=why)
     jev = jev_mod.get_jev()
     model, version = llm.model("fast"), prompts.load("route").version
@@ -135,7 +146,7 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         excluded = [d for d in decisions if d.excluded_reason]
         status, reason = "excluded", (excluded[0].excluded_reason if excluded else "No procedure applied.")
     if partial:
-        status, reason = "partial", SENDER_PARTIAL
+        status, reason = "partial", s.status_reason
     stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, model, version)
     if not stored:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")

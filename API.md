@@ -144,6 +144,18 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 
 Ingest needs a token with the `ingest` scope ([Tokens](#tokens)); the rest of the API is open, as above.
 
+### Streaming (optional)
+
+A sender can also stream a session as it happens, then close it. Nothing is checked until it closes, so a session that streams ends up the same as one posted at the end. The SDKs do this with `stream=True` (Python `attach`) or `stream: true` (Node). It's the transport for runtime guidance in a later version: the pipeline has a hook for each batch of events (`pipeline.session_event`), which does nothing yet.
+
+| Endpoint | What it does |
+|---|---|
+| `POST …/sessions/open` | `{platform, external_id, channel?, agent?, release?, version_ref?, started_at?, metadata?}`. Creates the session with status `open` (`201`), or returns the existing one (`200`). |
+| `POST …/sessions/<platform>/<external_id>/events` | `{events: [{seq, type: turn \| tool_call, turn? \| tool_call?}]}`, up to 500. `seq` counts from 0 per session; a resent `seq` is ignored and events can arrive in any order (they're kept in `seq` order). Returns `{accepted, duplicates}`. Events for a session that has closed are ignored. `404` if it was never opened. |
+| `POST …/sessions/<platform>/<external_id>/close` | `{ended_at?, partial?}`. Closes it with what streamed in and runs `process_session`. |
+
+The full post to `POST …/sessions` still works at any point and wins: it replaces whatever streamed in. An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `partial` and checked, the next time that workspace opens a session or by the daily job. All three take the `ingest` token.
+
 ### The canonical format
 
 ```json

@@ -17,9 +17,13 @@ from ..schemas import (
     CheckResultValue,
     Platform,
     RuleStatus,
+    SessionClose,
     SessionDetail,
+    SessionEventsIn,
+    SessionEventsOut,
     SessionIn,
     SessionIngested,
+    SessionOpen,
     SessionPage,
     SessionStatus,
 )
@@ -54,6 +58,51 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         if done.changed:
             jobs.process_session(done.ref, background)
         response.status_code = 201 if done.created else 200
+        return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}
+
+    # streaming (optional): open a session, append its events as they happen, close it (or post it in full, which wins)
+
+    auth = {401: {"description": "Missing, unknown, expired or revoked token."}, 403: {"description": "The token lacks the ingest scope."}}
+
+    def ingest_token(workspace: str, credentials: HTTPAuthorizationCredentials | None) -> None:
+        store.tokens.check(workspace, f"Bearer {credentials.credentials}" if credentials else None, INGEST)
+
+    @r.post("/v1/workspaces/{workspace}/sessions/open", response_model=SessionIngested, tags=["sessions"],
+            responses={201: {"model": SessionIngested, "description": "Opened."}, **auth})
+    def open_session(workspace: str, req: SessionOpen, response: Response, background: BackgroundTasks,
+                     credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
+        """Open a session to stream its turns and tool calls (optional; see `…/events`). Idempotent on (platform,
+        external_id). It isn't checked until it closes: `…/close`, a full post to `…/sessions` (which wins), or no
+        events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30; closed as partial)."""
+        ingest_token(workspace, credentials)
+        for ref in store.sessions.close_idle(workspace):
+            jobs.process_session(ref, background)
+        done = store.sessions.open(workspace, req)
+        response.status_code = 201 if done.created else 200
+        return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}
+
+    @r.post("/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/events", response_model=SessionEventsOut, tags=["sessions"],
+            responses={404: {"description": "No such session: open it first."}, **auth})
+    def append_session_events(workspace: str, platform: str, external_id: str, req: SessionEventsIn,
+                              credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
+        """Append turns and tool calls to an open session. `seq` counts from 0 per session; a resent `seq` is ignored
+        and events may arrive in any order. Events for a session that has closed are ignored."""
+        ingest_token(workspace, credentials)
+        ref, accepted, duplicates = store.sessions.append(workspace, platform, external_id, req.events)
+        if accepted:
+            jobs.session_event(ref, [e.model_dump(mode="json", exclude_none=True) for e in req.events])
+        return {"accepted": accepted, "duplicates": duplicates}
+
+    @r.post("/v1/workspaces/{workspace}/sessions/{platform}/{external_id}/close", response_model=SessionIngested, tags=["sessions"],
+            responses={404: {"description": "No such session."}, **auth})
+    def close_session(workspace: str, platform: str, external_id: str, background: BackgroundTasks, req: SessionClose | None = None,
+                      credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
+        """Close an open session with what streamed in, and check it. A session that isn't open is left as is."""
+        ingest_token(workspace, credentials)
+        req = req or SessionClose()
+        done = store.sessions.close(workspace, platform, external_id, req.ended_at, req.partial)
+        if done.changed:
+            jobs.process_session(done.ref, background)
         return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}
 
     @r.get("/v1/workspaces/{workspace}/sessions", response_model=SessionPage, dependencies=OPEN, tags=["sessions"])

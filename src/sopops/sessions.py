@@ -9,9 +9,10 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import os
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import event as sa_event
@@ -30,15 +31,17 @@ from .orm import (
     Workspace,
 )
 from .pipeline.normalize import to_utc
-from .pipeline.types import SessionRef
+from .pipeline.types import IDLE_PARTIAL, SENDER_PARTIAL, SessionRef
 from .runtime.service import served_release
-from .schemas import SessionIn
+from .schemas import SessionEventIn, SessionIn, SessionOpen
 
 if TYPE_CHECKING:
     from .store import Store
 
 from .errors import NotFound, workspace_id
 from .tokens import Unauthorized  # noqa: F401  (re-exported: the app maps it to 401)
+
+IDLE = timedelta(minutes=int(os.environ.get("SOPOPS_SESSION_IDLE_MINUTES", "30")))  # an open session with no events this long is closed
 
 
 class BadCursor(ValueError):
@@ -117,7 +120,7 @@ class Sessions:
                 started_at=started,
                 ended_at=to_utc(p.ended_at),
                 status="partial" if p.partial else "received",
-                status_reason="The sender marked the transcript incomplete." if p.partial else None,
+                status_reason=SENDER_PARTIAL if p.partial else None,
                 turns=body["turns"],
                 tool_calls=body["tool_calls"],
                 meta=body["metadata"],
@@ -136,6 +139,96 @@ class Sessions:
             db.flush()
             self._emit(db, {"type": "created" if created else "updated", "workspace": ws, "id": row.id, "status": row.status})
             return Ingested(row.id, created, not created, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=digest))
+
+    # --- streaming (optional): open, append events, close ----------------------------------------------------------
+
+    def open(self, workspace: str, p: SessionOpen) -> Ingested:
+        """Start a session that streams in. Idempotent: an existing session (open or already posted) is returned as is."""
+        ws = workspace_id(workspace)
+        now = _now()
+        with self._db() as db, db.begin():
+            self._ensure_workspace(db, ws)
+            row = self._row(db, ws, p.platform, p.external_id)
+            if row is not None:
+                return Ingested(row.id, False, False, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+            warnings: list[str] = []
+            release = p.release
+            if release is not None and db.get(Release, (ws, release)) is None:
+                warnings.append(f"Release {release} doesn't exist in workspace '{ws}'; the session is kept without it.")
+                release = None
+            against = release or db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
+            agent_id = self._match_agent(db, ws, p.agent, p.platform, against) if p.agent and against else None
+            row = SessionRecord(
+                id=str(uuid.uuid4()), workspace_id=ws, platform=p.platform, external_id=p.external_id, created_at=now, updated_at=now,
+                agent_id=agent_id, agent_ref=p.agent, channel=p.channel, release_id=release, version_ref=p.version_ref,
+                started_at=to_utc(p.started_at) or now, ended_at=None, status="open", status_reason=None, turns=[], tool_calls=[],
+                meta=p.model_dump(mode="json")["metadata"], payload_hash=_digest({"open": p.external_id}), processed_at=None, result=None,
+            )
+            db.add(row)
+            db.flush()
+            self._emit(db, {"type": "created", "workspace": ws, "id": row.id, "status": row.status})
+            return Ingested(row.id, True, False, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+
+    def append(self, workspace: str, platform: str, external_id: str, events: list[SessionEventIn]) -> tuple[SessionRef, int, int]:
+        """Add events to an open session, in `seq` order; a `seq` already stored is ignored, and so is anything sent
+        after the session closed (its final post wins). Returns the session and how many were accepted and ignored."""
+        ws = workspace_id(workspace)
+        with self._db() as db, db.begin():
+            row = self._row(db, ws, platform, external_id)
+            if row is None:
+                raise NotFound(f"no session '{platform}/{external_id}': open it first")
+            ref = SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash)
+            if row.status != "open":
+                return ref, 0, len(events)
+            seen = {x.get("seq") for x in (*row.turns, *row.tool_calls)}
+            turns, calls, accepted = list(row.turns), list(row.tool_calls), 0
+            for e in events:
+                item = e.turn if e.type == "turn" else e.tool_call
+                if e.seq in seen or item is None:
+                    continue
+                seen.add(e.seq)
+                (turns if e.type == "turn" else calls).append({**item.model_dump(mode="json", exclude_none=True), "seq": e.seq})
+                accepted += 1
+            if accepted:
+                row.turns = sorted(turns, key=lambda x: x["seq"])
+                row.tool_calls = sorted(calls, key=lambda x: x["seq"])
+                row.updated_at = _now()
+                db.add(row)
+            return ref, accepted, len(events) - accepted
+
+    def close(self, workspace: str, platform: str, external_id: str, ended_at: datetime | None = None, partial: bool = False,
+              reason: str | None = None) -> Ingested:
+        """Close an open session so it's checked, with what streamed in. A session that isn't open is left as is."""
+        ws = workspace_id(workspace)
+        with self._db() as db, db.begin():
+            row = self._row(db, ws, platform, external_id)
+            if row is None:
+                raise NotFound(f"no session '{platform}/{external_id}'")
+            if row.status != "open":
+                return Ingested(row.id, False, False, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+            row.status = "partial" if partial else "received"
+            row.status_reason = (reason or SENDER_PARTIAL) if partial else None
+            row.ended_at = to_utc(ended_at) or row.ended_at or _now()
+            row.payload_hash = _digest({"turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "closed": row.ended_at.isoformat()})
+            row.updated_at = _now()
+            db.add(row)
+            db.flush()
+            self._emit(db, {"type": "updated", "workspace": ws, "id": row.id, "status": row.status})
+            return Ingested(row.id, False, True, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+
+    def close_idle(self, workspace: str | None = None, idle: timedelta = IDLE) -> list[SessionRef]:
+        """Close open sessions with no events for `idle` as incomplete (the sender never posted or closed them)."""
+        cutoff = _now() - idle
+        with self._db() as db:
+            q = select(SessionRecord.workspace_id, SessionRecord.platform, SessionRecord.external_id).where(SessionRecord.status == "open", SessionRecord.updated_at < cutoff)
+            if workspace is not None:
+                q = q.where(SessionRecord.workspace_id == workspace_id(workspace))
+            stale = list(db.exec(q))
+        return [self.close(ws, platform, ext, partial=True, reason=IDLE_PARTIAL).ref for ws, platform, ext in stale]
+
+    def _row(self, db: Session, ws: str, platform: str, external_id: str) -> SessionRecord | None:
+        q = select(SessionRecord).where(SessionRecord.workspace_id == ws, SessionRecord.platform == platform, SessionRecord.external_id == external_id)
+        return db.exec(q.with_for_update() if self.postgres else q).first()
 
     def finish(self, ref: SessionRef, turns: list[dict], tool_calls: list[dict], status: str, reason: str | None) -> bool:
         """Store the pipeline's result, unless the session was re-sent since the run was queued. True if stored."""
@@ -333,3 +426,7 @@ def _call_keys(p: SessionIn) -> list:
     meta = p.metadata or {}
     phone = meta.get("phone_call") if isinstance(meta.get("phone_call"), dict) else {}
     return [p.external_id, meta.get("call_sid"), phone.get("call_sid")]
+
+
+def _digest(body: dict) -> str:
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
