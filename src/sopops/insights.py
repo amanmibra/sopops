@@ -412,11 +412,11 @@ class Insights:
                 "agents": agents, "callouts": callouts}
 
     PROBLEMS = (
-        ("skipped", "A step skipped", ("skipped",), "step"),
-        ("never", "A never rule broken", NEVER_FAIL, "never"),
-        ("out_of_order", "A step out of order", ("out_of_order",), "step"),
+        ("skipped", "Step skipped", ("skipped",), "step"),
+        ("never", "Never rule broken", NEVER_FAIL, "never"),
+        ("out_of_order", "Step out of order", ("out_of_order",), "step"),
         ("not_reached", "Ended before a step", ("not_reached",), "step"),
-        ("unheeded", "A warning sign unheeded", ("unheeded",), "warning"),
+        ("unheeded", "Warning sign unheeded", ("unheeded",), "warning"),
     )
 
     def _problems(self, db: Session, f: Filters) -> list[dict[str, Any]]:
@@ -510,14 +510,14 @@ class Insights:
                 verb = "lifted" if flag == "improved" else "dropped"
                 out.append({"id": f"release:{procedure_id}:{a}:{b}", "kind": "release", "tone": "good" if flag == "improved" else "bad", "procedure_id": procedure_id,
                             "procedure_name": name, "rule_id": None, "title": f"Release #{b} {verb} {name} from {ra}% to {rb}%",
-                            "body": f"Followed end to end on {per[b][0]} of {per[b][1]} sessions on #{b}, against {per[a][0]} of {per[a][1]} on #{a}. The 95% intervals don't overlap.",
+                            "body": f"Followed end to end on {per[b][0]} of {per[b][1]} sessions on #{b}, against {per[a][0]} of {per[a][1]} on #{a}. The two releases' 95% ranges don't overlap, so the change is unlikely to be chance.",
                             "drill": {"procedure": procedure_id, "release": b}})
         # warning signs that drop the pass rate
         for w in impact:
             if w["flag"]:
                 out.append({"id": f"warning:{procedure_id}:{w['rule_id']}", "kind": "warning", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name,
-                            "rule_id": w["rule_id"], "title": f"{name} holds up worse when warning sign {w['index']} comes up",
-                            "body": f"Pass rate {w['present_pass_rate']}% with it (n={w['present_n']}) against {w['absent_pass_rate']}% without (n={w['absent_n']}): “{w['text']}”",
+                            "rule_id": w["rule_id"], "title": f"{name} passes less often when warning sign {w['index']} comes up",
+                            "body": f"Pass rate {w['present_pass_rate']}% of {w['present_n']} checks with the sign, against {w['absent_pass_rate']}% of {w['absent_n']} without it: “{w['text']}”",
                             "drill": {"procedure": procedure_id, "rule": w["rule_id"], "rule_status": list(WARNING_PRESENT)}})
         # rising patterns: at least RISING_MIN findings and at least twice the prior window's. A rule pattern counts its
         # whole family (findings wait in its "other" until they're clustered); a named sub-pattern counts on its own.
@@ -536,7 +536,7 @@ class Insights:
                 continue
             fired.add(p.id)
             out.append({"id": f"rising:{p.id}", "kind": "rising_pattern", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name, "rule_id": p.rule_id,
-                        "title": f"“{p.name}” is rising on {name}", "body": f"{n} findings in this window, up from {was} in the one before ({prior_checks} checks then).",
+                        "title": f"“{p.name}” is rising on {name}", "body": f"{n} findings in this time range, up from {was} in the period before ({prior_checks} checks then).",
                         "drill": {"pattern": p.id}})
         return out
 

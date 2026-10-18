@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Pencil, TriangleAlert } from "lucide-react";
 import type { InsightFilters, LadderRow, PatternOut, ProcedureInsights, RulePatternOut, SessionFilters, SplitRow, ThemeOut, WarningImpact } from "@/lib/api";
 import { q } from "@/lib/api";
-import { FAIL_STATUSES, STATUS_MARK, type Scope, bucketHref, fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
+import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
@@ -19,10 +19,10 @@ export function failFilter(kind: string, rule: string): SessionFilters {
 }
 
 const FLAG: Record<string, { label: string; className: string; help: (minN: number, pts: number) => string }> = {
-  thin: { label: "thin", className: "text-muted-foreground", help: (n) => `Fewer than ${n} results on a side: not flagged.` },
-  regressed: { label: "regressed", className: "bg-err-soft text-err border-transparent", help: (_n, p) => `At least ${p} points worse, and the 95% intervals don't overlap.` },
-  improved: { label: "improved", className: "bg-brand-soft text-primary border-transparent", help: (_n, p) => `At least ${p} points better, and the 95% intervals don't overlap.` },
-  steady: { label: "steady", className: "text-muted-foreground", help: () => "No clear change." },
+  thin: { label: "too few", className: "text-muted-foreground", help: (n) => `Fewer than ${n} results on one side, too few to call a change.` },
+  regressed: { label: "worse", className: "bg-err-soft text-err border-transparent", help: (_n, p) => `At least ${p} points worse, and the two 95% ranges don't overlap, so the drop is unlikely to be chance.` },
+  improved: { label: "better", className: "bg-brand-soft text-primary border-transparent", help: (_n, p) => `At least ${p} points better, and the two 95% ranges don't overlap, so the gain is unlikely to be chance.` },
+  steady: { label: "no clear change", className: "text-muted-foreground", help: (_n, p) => `The change is under ${p} points or the two 95% ranges overlap, so it could be chance.` },
 };
 
 export function FlagTag({ flag, minN = 10, points = 5 }: { flag: string; minN?: number; points?: number }) {
@@ -49,23 +49,23 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
     <div className="text-[13.5px]">
       <div className={cn(cols, "text-muted-foreground border-b py-2 text-xs font-medium")}>
         <span />
-        <HeaderHint label="Rule" tip="Steps in order, then never rules, then warning signs." />
+        <HeaderHint label="Rule" tip="Steps in order, then never rules, then warning signs. S, N and W mark the kind." />
         <span className={hideNarrow}>
-          <HeaderHint label="What happened" tip="Every judgment on this rule in the window. Hover a bar for the counts; not applicable is striped and left out of every rate." />
+          <HeaderHint label="Results" tip="Every result for this rule in the time range. Hover a bar for the counts. Not applicable is striped and never counts toward a rate." />
         </span>
         <span className={cn(hideNarrow, "text-right")}>
-          <HeaderHint label="Reached" tip="Steps: judged sessions still going when the step was due. A drop between steps means sessions ending early." />
+          <HeaderHint label="Reached" tip="Share of sessions still going when this step was due. A drop from one step to the next means sessions ended early." />
         </span>
         <span className="text-right">
-          <HeaderHint label="Fail rate" tip={`Fails / (passes + fails). Colored only at n ≥ ${t.min_n}: amber from ${t.fail_warn}%, red from ${t.fail_bad}%. Warning signs: how often they came up.`} />
+          <HeaderHint label="Fail rate" tip={`Failed results out of passed and failed ones. Colored only with ${t.min_n} or more results: amber from ${t.fail_warn}%, red from ${t.fail_bad}%. For a warning sign, how often it came up.`} />
         </span>
         {d.release_split && (
           <span className={cn(hideNarrow, "text-right")}>
-            <HeaderHint label={`#${d.release_split.a} → #${d.release_split.b}`} tip={`Pass rate on the previous release against the latest, by the release each session ran. Flagged only with n ≥ ${d.release_split.min_n} on both sides.`} />
+            <HeaderHint label={`#${d.release_split.a} → #${d.release_split.b}`} tip={`Pass rate on release #${d.release_split.a}, then on release #${d.release_split.b} (the latest), counted by the release each session ran. Flagged only with ${d.release_split.min_n} or more results on each.`} />
           </span>
         )}
         <span className={cn(hideNarrow, "text-right")}>
-          <HeaderHint label="Findings" tip="Failed results in the window; select to open those sessions." />
+          <HeaderHint label="Findings" tip="Failed results in the time range. Select a number to open those sessions." />
         </span>
       </div>
       {d.rules.map((r) => {
@@ -82,7 +82,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
               <span className="mt-0.5 flex flex-wrap gap-1">
                 {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-[11px] font-medium">Most failed</span>}
                 {r.wordings > 1 && (
-                  <Hint tip={`Worded ${r.wordings} ways in this procedure's history; results are kept by rule id.`} focusable={false}>
+                  <Hint tip={`This rule has had ${r.wordings} wordings. Its results carry over from one wording to the next.`} focusable={false}>
                     <span className="bg-warn-soft text-warn rounded-full px-1.5 text-[11px] font-medium">reworded</span>
                   </Hint>
                 )}
@@ -101,9 +101,9 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
             </span>
             <span className="text-right">
               {warn ? (
-                <Hint tip="Warning signs never count toward a pass rate: this is how often the sign came up." focusable={false}>
+                <Hint tip="How often the sign came up. Warning signs never count toward a pass rate." focusable={false}>
                   <span className="tabular-nums">
-                    <b className="font-semibold">{fmtPct(r.present_rate)}</b> <span className="text-muted-foreground text-[11.5px]">n={r.n}</span>
+                    <b className="font-semibold">{fmtPct(r.present_rate)}</b> <span className="text-muted-foreground text-[11.5px]">of {r.n}</span>
                     <span className="text-muted-foreground block text-[11px]">came up{r.unheeded ? `, ${r.unheeded} unheeded` : ""}</span>
                   </span>
                 </Hint>
@@ -114,7 +114,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
             {d.release_split && (
               <span className={cn(hideNarrow, "text-right text-[13px] whitespace-nowrap tabular-nums")}>
                 {s ? (
-                  <Hint tip={<TipBody head={`Pass rate #${d.release_split.a}: ${fmtPct(s.a_pass_rate)} (n=${s.a_n}); #${d.release_split.b}: ${fmtPct(s.b_pass_rate)} (n=${s.b_n})`}>{s.delta_points == null ? `Under ${d.release_split.min_n} on a side: no delta.` : `${s.delta_points > 0 ? "+" : ""}${s.delta_points} points.`}</TipBody>} focusable={false}>
+                  <Hint tip={<TipBody head={`Pass rate on #${d.release_split.a}: ${fmtPct(s.a_pass_rate)} of ${s.a_n}; on #${d.release_split.b}: ${fmtPct(s.b_pass_rate)} of ${s.b_n}`}>{s.delta_points == null ? `Too few results to compare (needs ${d.release_split.min_n} on each release).` : `${s.delta_points > 0 ? "+" : ""}${s.delta_points} percentage points.`}</TipBody>} focusable={false}>
                     <span>
                       <span className="text-muted-foreground">{fmtPct(s.a_pass_rate)}</span> → <b className="font-semibold">{fmtPct(s.b_pass_rate)}</b>
                       <span className="block">
@@ -140,8 +140,8 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
         );
       })}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2">
-        <Legend items={["done", "out_of_order", "skipped", "not_reached", "not_applicable", "present", "unheeded"].map((k) => ({ label: k === "present" ? "Sign present" : k === "unheeded" ? "Sign unheeded" : STATUS_MARK[k].label, color: STATUS_MARK[k].color, striped: STATUS_MARK[k].striped }))} />
-        <span className="text-muted-foreground text-xs">Select a rule for its page: by release, by agent, patterns and recent findings.</span>
+        <Legend items={["done", "out_of_order", "skipped", "not_reached", "not_applicable", "present", "unheeded"].map((k) => ({ label: k === "present" ? "Sign present" : k === "unheeded" ? "Sign unheeded" : STATUS_MARK[k].label, color: STATUS_MARK[k].color, striped: STATUS_MARK[k].striped, tip: statusTip(k) }))} />
+        <span className="text-muted-foreground text-xs">Select a rule to see it by release and by agent, with its patterns and recent findings.</span>
       </div>
     </div>
   );
@@ -151,7 +151,7 @@ function NeverList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
   const { ws } = useWs();
   const nevers = d.rules.filter((r) => r.kind === "never");
   return (
-    <WidgetCard title="Never rules" subtitle="What this procedure rules out, and on how many sessions the agent did it. Select one to open those sessions." help="The count is sessions where the rule was broken, of the sessions it was judged on." flush empty={!nevers.length} emptyMessage="This procedure has no never rules.">
+    <WidgetCard title="Never rules" subtitle="How often an agent did something this procedure forbids. Select a rule to open those sessions." help="The number counts sessions where the rule was broken; under it, the sessions it was judged on." flush empty={!nevers.length} emptyMessage="This procedure has no never rules.">
       <ul className="divide-y">
         {nevers.map((r) => (
           <li key={r.rule_id}>
@@ -176,8 +176,8 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
   return (
     <WidgetCard
       title="Warning signs and their effect"
-      subtitle="How often each sign came up, and the pass rate without it → with it. Select one to open those sessions."
-      help={`Both rates are over measurable checks that judged the sign. Flagged when the pass rate drops ${t.warning_drop_points}+ points with the sign present and both sides have n ≥ ${t.min_n}.`}
+      subtitle="How often each sign came up, and the pass rate without the sign → with it. Select one to open those sessions."
+      help={`Both rates count measurable checks that were judged on the sign. The second rate turns red when it is ${t.warning_drop_points} or more points lower and each side has ${t.min_n} or more checks.`}
       flush
       empty={!d.warning_impact.length}
       emptyMessage="This procedure has no warning signs."
@@ -198,7 +198,7 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
                 <span className="text-right text-[13px] whitespace-nowrap tabular-nums">
                   <span className="text-muted-foreground">{fmtPct(w.absent_pass_rate)}</span> → <b className={cn("font-semibold", w.flag && "text-err")}>{fmtPct(w.present_pass_rate)}</b>
                   <span className="text-muted-foreground block text-[11px]">
-                    n={w.absent_n} → n={w.present_n}
+                    of {w.absent_n} → of {w.present_n}
                     {w.delta_points != null && (
                       <>
                         {" · "}
@@ -309,7 +309,7 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
                   {[proc?.version != null ? `v${proc.version}` : null, d ? `${d.rules.length} rules` : null, proc?.used_by.length ? `used by ${proc.used_by.length} agents` : null].filter(Boolean).join(" · ")}
                 </span>
               </div>
-              <p className="text-muted-foreground mt-1 text-[13px]">Each rule's results over {windowPhrase(filters)}, where sessions fail, and the patterns behind it.</p>
+              <p className="text-muted-foreground mt-1 text-[13px]">How each rule of this procedure went over {windowPhrase(filters)}, where sessions fail, and the patterns in its findings.</p>
             </div>
           )}
           <Button asChild size="sm" variant="outline">
@@ -325,12 +325,12 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
           <WidgetCard
             title="No sessions checked"
             empty
-            emptyTitle="No sessions were checked against this procedure in this window"
-            emptyMessage="Sessions are checked against the procedures the router finds apply to them. Widen the window or clear a filter to look further back."
+            emptyTitle="No sessions were checked against this procedure in this time range"
+            emptyMessage="A session is checked against a procedure only when the router decides the procedure applies. Pick a longer time range or clear a filter."
             emptyAction={
               <Button asChild size="xs" variant="outline">
                 <HrefLink href={sessionsHref(ws, { procedure: id })} className="text-foreground hover:no-underline">
-                  All sessions it was considered for
+                  Sessions the router considered
                 </HrefLink>
               </Button>
             }
@@ -341,12 +341,12 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
             {d && scope && <Callouts callouts={d.callouts} scope={scope} />}
             <WidgetCard
               title="How each rule went"
-              subtitle={d ? `Every rule of the procedure across ${d.tiles.current.checks} checks.` : undefined}
-              help="Each rule is judged on every session the procedure applied to. Not reached and not applicable are left out of the fail rate."
+              subtitle={d ? `Results and fail rate per rule, across ${d.tiles.current.checks} checks.` : undefined}
+              help="Each rule is judged on every session the procedure applied to. Not reached and not applicable results never count toward the fail rate."
               flush
               {...shared}
               empty={!!d && !d.rules.length}
-              emptyMessage="No rule results in this window."
+              emptyMessage="No rule results in this time range."
             >
               {d && scope && <Ladder d={d} filters={filters} scope={scope} />}
             </WidgetCard>
@@ -357,15 +357,35 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
               </div>
             )}
             <div className="grid gap-4 lg:grid-cols-[3fr_2fr]">
-              <WidgetCard title="Sessions over time" subtitle="By this procedure's result; the pass rate under it. Dashed lines: the first session on each release." {...shared}>
+              <WidgetCard
+                title="Sessions over time"
+                subtitle="Sessions by this procedure's result, with the pass rate below. A dashed line marks the first session on a new release."
+                help="Each bar counts sessions by this procedure's result. The line below is followed checks out of measurable checks for the same day or week, on its own 0 to 100% scale."
+                {...shared}
+              >
                 {d && scope && <TrendCharts trend={d.trend} bucketHref={(b) => bucketHref(ws, b, scope, { procedure: id })} />}
               </WidgetCard>
-              <WidgetCard title="What went wrong" subtitle="Measurable checks with each problem; they overlap." {...shared} empty={!!d && d.problems.every((p) => !p.checks)} emptyTitle="Nothing went wrong" emptyMessage="Every measurable check was clean.">
+              <WidgetCard
+                title="What went wrong"
+                subtitle="How many checks had each kind of problem. One check can have several."
+                help="Red problems mark a check deviated. Amber ones mark it partial (a step out of order, or a session that ended before a step). An unheeded warning sign leaves the result as it was, and it's still worth reading."
+                {...shared}
+                empty={!!d && d.problems.every((p) => !p.checks)}
+                emptyTitle="Nothing went wrong"
+                emptyMessage="No measurable check had a problem."
+              >
                 {d && scope && <ProblemsChart problems={d.problems} problemHref={(p) => sessionsHref(ws, { procedure: id, rule_status: p.statuses as SessionFilters["rule_status"] }, scope)} />}
               </WidgetCard>
             </div>
             <AgentsTable agents={d?.agents ?? []} scope={scope} procedure={id} minN={d?.thresholds.min_n ?? 10} agentMinN={d?.thresholds.agent_min_n ?? 3} loading={res.isPending} error={d ? undefined : res.error} />
-            <WidgetCard title="Patterns by theme" subtitle="Failure patterns on this procedure's rules, grouped by where in the conversation they happen." {...shared} empty={!!d && !d.themes.length} emptyMessage="No findings yet, so no patterns.">
+            <WidgetCard
+              title="Patterns by theme"
+              subtitle="Findings on this procedure's rules, grouped into patterns, and the patterns grouped by where in a session they happen."
+              help="A finding is one failed result. Similar findings form a pattern. Select a pattern to open its sessions."
+              {...shared}
+              empty={!!d && !d.themes.length}
+              emptyMessage="No findings yet."
+            >
               {d && scope && <PatternsByTheme themes={d.themes} scope={scope} />}
             </WidgetCard>
           </>

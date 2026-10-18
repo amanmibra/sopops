@@ -1,7 +1,7 @@
 // The Insights kit: widget cards with their loading / empty / error states, KPI tiles with deltas, hover hints,
 // outcome and status bars, sparklines, legends and the chart tooltip. Every Insights page is built from these.
 import { ArrowDownRight, ArrowUpRight, CircleHelp, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import { ApiError } from "@/lib/api";
 import { OUTCOMES, STATUS_MARK, STATUS_ORDER, fmtDelta, fmtPct } from "@/lib/insights";
@@ -12,12 +12,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 // --- hints ---------------------------------------------------------------------------------------------------------
 
-/** Hover (or focus) explanation for a value: what it counts and the numbers behind it. */
+/** Hover, focus or tap explanation for a value: what it counts and the numbers behind it. On touch a tap toggles
+ * the tip (and doesn't follow a link or select a row underneath); a tap anywhere else closes it. */
 export function Hint({ tip, children, focusable = true, className }: { tip: ReactNode; children: ReactNode; focusable?: boolean; className?: string }) {
+  const [open, setOpen] = useState(false);
+  const touch = useRef(false);
   return (
-    <Tooltip>
+    <Tooltip open={open} onOpenChange={setOpen}>
       <TooltipTrigger asChild>
-        <span tabIndex={focusable ? 0 : undefined} className={className}>
+        <span
+          tabIndex={focusable ? 0 : undefined}
+          className={className}
+          onPointerDown={(e) => {
+            touch.current = e.pointerType === "touch";
+            if (touch.current) e.preventDefault();
+          }}
+          onClick={(e) => {
+            if (!touch.current) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setOpen((o) => !o);
+          }}
+        >
           {children}
         </span>
       </TooltipTrigger>
@@ -85,8 +101,8 @@ export function WidgetCard({
 }: CardState & { title: ReactNode; subtitle?: ReactNode; help?: ReactNode; action?: ReactNode; flush?: boolean; className?: string; bodyClassName?: string; children?: ReactNode }) {
   return (
     <section className={cn("bg-card flex min-w-0 flex-col overflow-hidden rounded-lg border", className)}>
-      <header className="flex items-start justify-between gap-3 border-b px-4 py-2.5">
-        <div className="min-w-0 flex-1">
+      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b px-4 py-2.5">
+        <div className="min-w-[min(100%,16rem)] flex-1">
           <h2 className="text-[13.5px] leading-snug font-semibold">{title}</h2>
           {subtitle && <p className="text-muted-foreground mt-px text-xs leading-snug">{subtitle}</p>}
         </div>
@@ -102,7 +118,7 @@ export function WidgetCard({
   );
 }
 
-function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "Nothing in this window.", emptyAction, children }: CardState & { children?: ReactNode }) {
+function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "No sessions in this time range.", emptyAction, children }: CardState & { children?: ReactNode }) {
   if (loading)
     return (
       <div className="grid gap-2 p-1" aria-busy>
@@ -114,9 +130,9 @@ function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "
   if (error)
     return (
       <div role="alert" className="flex flex-col items-center gap-1.5 px-4 py-6 text-center">
-        <div className="text-[13px] font-semibold">Couldn't load this</div>
+        <div className="text-[13px] font-semibold">These numbers didn't load</div>
         <p className="text-muted-foreground max-w-[52ch] text-xs">
-          It stays blank rather than showing zeros that would read as real numbers.{" "}
+          The card stays empty until they do, so a failed load never reads as zero.{" "}
           {error instanceof ApiError || error instanceof Error ? <span className="font-mono">{error.message}</span> : null}
         </p>
         {onRetry && (
@@ -208,8 +224,15 @@ export function Kpi({
       </div>
       <div className="text-[24px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
       <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-        {delta && <DeltaMark delta={delta} />}
-        <span className="text-muted-foreground">{prior === undefined ? null : prior === null ? "no prior window" : `was ${prior}`}</span>
+        {delta && delta.value != null && (
+          <Hint
+            focusable={false}
+            tip={`${delta.unit === "pts" ? "Change in percentage points" : "Change in percent"} against the same length of time just before.${delta.good ? " Green is better, red is worse." : ""}`}
+          >
+            <DeltaMark delta={delta} />
+          </Hint>
+        )}
+        <span className="text-muted-foreground">{prior === undefined ? null : prior === null ? "no earlier data" : `was ${prior} before`}</span>
       </div>
       {sub && <div className="text-muted-foreground mt-0.5 text-[11.5px]">{sub}</div>}
     </>
@@ -217,7 +240,7 @@ export function Kpi({
   return (
     <div className={cn("bg-card min-w-0 rounded-lg border px-4 py-3.5", href && "hover:border-ring/60 transition-colors")}>
       {href ? (
-        <HrefLink href={href} className="text-foreground block hover:no-underline" aria-label={`${label}: open the sessions`}>
+        <HrefLink href={href} className="text-foreground block hover:no-underline" aria-label={`${label}: open these sessions`}>
           {body}
         </HrefLink>
       ) : (
@@ -301,7 +324,7 @@ export function StatusBar({ counts, className, focusable }: { counts: Record<str
             ))}
           </span>
         ) : (
-          "No results in this window."
+          "No results in this time range."
         )
       }
     >
@@ -318,20 +341,31 @@ export function Swatch({ color, striped, round }: { color: string; striped?: boo
   return <span aria-hidden className={cn("inline-block size-2 shrink-0", round ? "rounded-full" : "rounded-[2px]", striped && "stripes border")} style={striped ? undefined : { background: color }} />;
 }
 
-export function Legend({ items, className }: { items: { label: string; color: string; striped?: boolean; line?: boolean }[]; className?: string }) {
+export function Legend({ items, className }: { items: { label: string; color: string; striped?: boolean; line?: boolean; tip?: ReactNode }[]; className?: string }) {
   return (
     <span className={cn("text-muted-foreground inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-xs", className)}>
-      {items.map((i) => (
-        <span key={i.label} className="inline-flex items-center gap-1.5">
-          {i.line ? <span aria-hidden className="inline-block h-0.5 w-3.5 rounded" style={{ background: i.color }} /> : <Swatch color={i.color} striped={i.striped} />}
-          {i.label}
-        </span>
-      ))}
+      {items.map((i) => {
+        const body = (
+          <>
+            {i.line ? <span aria-hidden className="inline-block h-0.5 w-3.5 rounded" style={{ background: i.color }} /> : <Swatch color={i.color} striped={i.striped} />}
+            <span className={cn(i.tip && "cursor-help border-b border-dotted border-current")}>{i.label}</span>
+          </>
+        );
+        return i.tip ? (
+          <Hint key={i.label} tip={<TipBody head={i.label}>{i.tip}</TipBody>} className="inline-flex items-center gap-1.5">
+            {body}
+          </Hint>
+        ) : (
+          <span key={i.label} className="inline-flex items-center gap-1.5">
+            {body}
+          </span>
+        );
+      })}
     </span>
   );
 }
 
-export const OutcomeLegend = () => <Legend items={OUTCOMES.map((o) => ({ label: o.label, color: o.color }))} />;
+export const OutcomeLegend = () => <Legend items={OUTCOMES.map((o) => ({ label: o.label, color: o.color, tip: o.tip }))} />;
 
 // --- sparkline -----------------------------------------------------------------------------------------------------
 
@@ -353,7 +387,7 @@ export function Spark({ points, unit }: { points: { start: string; n: number; pa
                 <span key={p.start} className="contents">
                   <span className="opacity-80">{fmt(p.start)}</span>
                   <b>{fmtPct(p.pass_rate)}</b>
-                  <span className="opacity-80">n={p.n}</span>
+                  <span className="opacity-80">of {p.n}</span>
                 </span>
               ))}
           </span>
@@ -417,10 +451,10 @@ export function RateN({ rate, n, thin, tone, className }: { rate: number | null 
   return (
     <span className={cn("tabular-nums whitespace-nowrap", className)}>
       <b className={cn("font-semibold", tone === "bad" && "text-err", tone === "warn" && "text-warn", thin && "text-muted-foreground")}>{fmtPct(rate)}</b>{" "}
-      <span className="text-muted-foreground text-[11.5px]">n={n}</span>
+      <span className="text-muted-foreground text-[11.5px]">of {n}</span>
       {thin && n > 0 && (
-        <Hint tip="Too few results to read much into: no tone, no flag." focusable={false}>
-          <span className="text-muted-foreground ml-1 rounded border px-1 text-[10px] uppercase">thin</span>
+        <Hint tip={`Only ${n} results, too few to judge. The rate gets no color and no flag until there are more.`} focusable={false}>
+          <span className="text-muted-foreground ml-1 rounded border px-1 text-[10px] uppercase">too few</span>
         </Hint>
       )}
     </span>

@@ -40,6 +40,9 @@
   --o-deviated: #b42318;
   --o-none: #c5ccd6;
   --grid: #e8ebef;
+  /* release compare: side A (baseline) and side B (candidate), blue against orange so they stay apart under CVD */
+  --side-a: #2563b0;
+  --side-b: #c2410c;
   color-scheme: light;
 }
 
@@ -76,6 +79,8 @@
   --o-deviated: #c04848;
   --o-none: #3a4552;
   --grid: #252c36;
+  --side-a: #7fb0f0;
+  --side-b: #f59a62;
   color-scheme: dark;
 }
 
@@ -115,6 +120,8 @@
   --color-o-partial: var(--o-partial);
   --color-o-deviated: var(--o-deviated);
   --color-o-none: var(--o-none);
+  --color-side-a: var(--side-a);
+  --color-side-b: var(--side-b);
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
 }

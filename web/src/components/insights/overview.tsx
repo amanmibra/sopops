@@ -5,7 +5,7 @@ import { Ban, CheckCircle2, ChevronDown, ChevronUp, Flag, Goal, ListChecks, Spar
 import { useMemo, useState } from "react";
 import type { AgentRow, Callout, InsightFilters, ScoreboardRow, SessionFilters, Tiles as TilesT } from "@/lib/api";
 import { q } from "@/lib/api";
-import { type Scope, bucketHref, drillHref, fmtDuration, fmtPct, insightsHref, priorPhrase, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
+import { CHECK_DEF, type Scope, bucketHref, drillHref, fmtDuration, fmtPct, insightsHref, priorPhrase, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
@@ -45,9 +45,9 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         value={n(c.sessions_checked)}
         delta={{ value: tiles.delta_pct.sessions_checked, unit: "%" }}
         prior={was(n(p.sessions_checked))}
-        sub={`+${c.excluded} excluded · ${c.in_progress} in progress · ${c.failed} failed`}
+        sub={`${c.excluded} excluded · ${c.in_progress} still running · ${c.failed} failed`}
         href={link({ eligible: true })}
-        help="Sessions whose checks ran (checked, or partial with a result). Excluded, in-progress and failed sessions are counted, never rated."
+        help="Sessions judged against at least one procedure in this time range. Excluded, still running and failed sessions are counted under the number and never rated."
       />
       <Kpi
         label="Followed end to end"
@@ -58,10 +58,10 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         prior={was(fmtPct(p.followed_pct))}
         sub={`${n(c.followed)} of ${n(c.sessions_checked)} sessions`}
         href={link(outcome("followed"))}
-        help="Sessions where every procedure check in scope was followed: each applicable step done in order, no never rule broken."
+        help="Sessions where every procedure check came out followed: each step that applied done in order, and no never rule broken."
       />
       <Kpi
-        label="Need attention"
+        label="Deviated"
         icon={TriangleAlert}
         accent="err"
         value={fmtPct(c.need_attention_pct)}
@@ -69,17 +69,17 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         prior={was(fmtPct(p.need_attention_pct))}
         sub={`${n(c.need_attention)} of ${n(c.sessions_checked)} sessions`}
         href={link(outcome("deviated"))}
-        help="Sessions where some procedure check deviated: a step skipped or a never rule broken."
+        help="Sessions where at least one procedure check deviated: a step skipped or a never rule broken. These are the sessions to read first."
       />
       <Kpi
-        label="Procedure pass rate"
+        label="Pass rate"
         icon={Flag}
         accent="procedure"
         value={fmtPct(c.pass_rate)}
         delta={{ value: tiles.delta_points.pass_rate, unit: "pts", good: "up" }}
         prior={was(fmtPct(p.pass_rate))}
-        sub={`n=${n(c.measurable_checks)} checks · rules ${fmtPct(c.rule_pass_rate)} of ${n(c.rule_n)}`}
-        help="Procedure checks followed / measurable checks (one session × one procedure; not measurable ones left out). Rules: step and never results passed / judged, warning signs left out."
+        sub={`of ${n(c.measurable_checks)} checks · single rules pass ${fmtPct(c.rule_pass_rate)} of ${n(c.rule_n)}`}
+        help={`Followed checks out of measurable checks. ${CHECK_DEF} The second line counts single step and never rule results instead; warning signs never count.`}
       />
       <Kpi
         label="Never rules broken"
@@ -88,9 +88,9 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         value={n(c.never_violations)}
         delta={{ value: tiles.delta_pct.never_violations, unit: "%", good: "down" }}
         prior={was(n(p.never_violations))}
-        sub={`on ${n(c.never_sessions)} sessions`}
+        sub={`in ${n(c.never_sessions)} sessions`}
         href={link({ rule_status: ["violated"] })}
-        help="Never rules the agent broke. One session can break several."
+        help="Times an agent broke a never rule. One session can break several."
       />
       <Kpi
         label="Goal reached"
@@ -99,8 +99,8 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         value={fmtPct(c.goal_rate)}
         delta={{ value: tiles.delta_points.goal_rate, unit: "pts", good: "up" }}
         prior={was(fmtPct(p.goal_rate))}
-        sub={`n=${n(c.goal_n)} checks`}
-        help="Measurable procedure checks where the procedure's goal was reached, of those judged on it."
+        sub={`of ${n(c.goal_n)} checks`}
+        help="Checks where the session reached the procedure's goal, out of the measurable checks judged on a goal."
       />
     </KpiGrid>
   );
@@ -112,7 +112,12 @@ export function Callouts({ callouts, scope, title = "What stands out" }: { callo
   const { ws } = useWs();
   if (!callouts.length) return null;
   return (
-    <WidgetCard title={title} subtitle="Worked out from the numbers on this page, with the thresholds the server applies; no model involved." flush>
+    <WidgetCard
+      title={title}
+      subtitle="Changes big enough to flag, found with fixed thresholds on the numbers on this page. No AI model is involved."
+      help="Four things get flagged: a step or never rule that fails often, a release that moved the pass rate, a warning sign that pulls the pass rate down, and a pattern of findings that at least doubled since the period before."
+      flush
+    >
       <ul className="divide-y">
         {callouts.map((c) => (
           <li key={c.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
@@ -123,7 +128,7 @@ export function Callouts({ callouts, scope, title = "What stands out" }: { callo
             </div>
             <Button asChild size="xs" variant="outline">
               <HrefLink href={drillHref(ws, c.drill, scope)} className="text-foreground hover:no-underline">
-                See the sessions
+                Open sessions
               </HrefLink>
             </Button>
           </li>
@@ -136,9 +141,9 @@ export function Callouts({ callouts, scope, title = "What stands out" }: { callo
 // --- scoreboard --------------------------------------------------------------------------------------------------------
 
 const SORTS = {
-  attention: { label: "Needs attention", lead: "with the lowest pass rate first", by: (a: ScoreboardRow, b: ScoreboardRow) => (a.pass_rate ?? 101) - (b.pass_rate ?? 101) || b.deviated - a.deviated },
-  volume: { label: "Most checks", lead: "with the most checks first", by: (a: ScoreboardRow, b: ScoreboardRow) => b.checks - a.checks },
-  never: { label: "Most never broken", lead: "with the most never rules broken first", by: (a: ScoreboardRow, b: ScoreboardRow) => b.never_violations - a.never_violations },
+  attention: { label: "Lowest pass rate", lead: "lowest pass rate first", by: (a: ScoreboardRow, b: ScoreboardRow) => (a.pass_rate ?? 101) - (b.pass_rate ?? 101) || b.deviated - a.deviated },
+  volume: { label: "Most checks", lead: "most checks first", by: (a: ScoreboardRow, b: ScoreboardRow) => b.checks - a.checks },
+  never: { label: "Most never rules broken", lead: "most never rules broken first", by: (a: ScoreboardRow, b: ScoreboardRow) => b.never_violations - a.never_violations },
 } as const;
 type Sort = keyof typeof SORTS;
 const TOP_N = 6;
@@ -157,8 +162,8 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
   return (
     <WidgetCard
       title="Procedures"
-      subtitle={`${sorted.length <= TOP_N || all ? `All ${sorted.length}` : `The ${TOP_N}`} procedures ${SORTS[sort].lead}. Select a row to open it.`}
-      help={`Pass rate: procedure checks followed / measurable checks, against ${priorPhrase(scope.start, scope.end)}. Most failed rules only count rules judged at least ${minN} times. The trend line follows the selected window.`}
+      subtitle={`Pass rate per procedure (${sorted.length <= TOP_N || all ? `all ${sorted.length}` : `top ${TOP_N}`}, ${SORTS[sort].lead}), with the rule that fails most. Select a row to see every rule.`}
+      help={`Pass rate is followed checks out of measurable checks, compared with ${priorPhrase(scope.start, scope.end)}. The most failed rule only counts rules judged at least ${minN} times. The trend line covers the selected time range.`}
       action={
         <div className="flex items-center gap-2">
           <span className="hidden md:inline-flex">
@@ -169,21 +174,21 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
       }
       flush
       empty={!rows.length}
-      emptyTitle="No procedure checks in this window"
-      emptyMessage="Sessions are checked against the procedures that apply to them once they're processed. Widen the window or clear a filter to look further back."
+      emptyTitle="No sessions were checked in this time range"
+      emptyMessage="Each session is checked against the procedures that apply to it after it ends. Pick a longer time range or clear a filter."
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[920px] border-collapse text-[13.5px]">
           <thead>
             <tr>
-              <th className={th}><HeaderHint label="Procedure" tip="The procedure and how many rules it has." /></th>
-              <th className={cn(th, "text-right")}><HeaderHint label="Checks" tip="Sessions this procedure applied to in the window." /></th>
-              <th className={th}><HeaderHint label="Outcome split" tip="How the measurable checks ended. Hover a bar for the counts." /></th>
-              <th className={cn(th, "text-right")}><HeaderHint label="Pass rate" tip="Followed / measurable checks, with the change in points against the prior window." /></th>
-              <th className={th}><HeaderHint label="Most failed rule" tip={`The rule that fails most, among rules judged at least ${minN} times.`} /></th>
-              <th className={cn(th, "text-right")}><HeaderHint label="Never broken" tip="Never rules broken on this procedure's checks." /></th>
-              <th className={cn(th, "text-right")}><HeaderHint label="Patterns" tip="Failure patterns with findings in the window." /></th>
-              <th className={th}><HeaderHint label="Trend" tip={`Pass rate per ${unit} over the selected window.`} /></th>
+              <th className={th}><HeaderHint label="Procedure" tip="Each procedure, with its number of rules. Select a row to see every rule." /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Checks" tip={`${CHECK_DEF} This counts sessions the procedure applied to in the time range; checks with nothing to judge are listed as not measurable.`} /></th>
+              <th className={th}><HeaderHint label="Results" tip="How the measurable checks came out: followed, partial or deviated. Hover a bar for the counts." /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Pass rate" tip="Followed checks out of measurable checks. Under it, the change in percentage points from the period before." /></th>
+              <th className={th}><HeaderHint label="Most failed rule" tip={`The step or never rule that fails most often, among rules judged at least ${minN} times.`} /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Never rules broken" tip="Times an agent broke one of this procedure's never rules. Select a number to open those sessions." /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Patterns" tip="Groups of similar findings on this procedure that had at least one finding in the time range. A finding is one failed result." /></th>
+              <th className={th}><HeaderHint label="Trend" tip={`Pass rate per ${unit} over the selected time range. Hover a line for each ${unit}.`} /></th>
             </tr>
           </thead>
           <tbody>
@@ -231,11 +236,11 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                     <RateN rate={r.pass_rate} n={r.measurable} thin={thin} />
                     <div className="text-xs">
                       {r.delta_points != null && r.prior_measurable > 0 ? (
-                        <Hint tip={`Prior: ${fmtPct(r.prior_pass_rate)} (n=${r.prior_measurable})`} focusable={false}>
+                        <Hint tip={`Change in percentage points. The period before: ${fmtPct(r.prior_pass_rate)} of ${r.prior_measurable} checks.`} focusable={false}>
                           <DeltaMark delta={{ value: r.delta_points, unit: "pts", good: "up" }} />
                         </Hint>
                       ) : (
-                        <span className="text-muted-foreground">no prior</span>
+                        <span className="text-muted-foreground">no earlier data</span>
                       )}
                     </div>
                   </td>
@@ -248,14 +253,14 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                             onClick={(e) => e.stopPropagation()}
                             className={cn("font-semibold", top.tone === "bad" ? "text-err" : top.tone === "warn" ? "text-warn" : "text-foreground")}
                           >
-                            {ruleName(top.kind, top.index)}, {fmtPct(top.fail_rate)} fail
+                            {ruleName(top.kind, top.index)} fails {fmtPct(top.fail_rate)}
                           </HrefLink>{" "}
-                          <span className="text-muted-foreground text-xs">n={top.n}</span>
+                          <span className="text-muted-foreground text-xs">of {top.n}</span>
                           <span className="text-muted-foreground line-clamp-1 text-xs">{top.text}</span>
                         </span>
                       </Hint>
                     ) : (
-                      <span className="text-muted-foreground text-xs">{thin ? `under ${minN} judged` : "none failing"}</span>
+                      <span className="text-muted-foreground text-xs">{thin ? `too few results (needs ${minN})` : "none failing"}</span>
                     )}
                   </td>
                   <td className={cn(td, "text-right tabular-nums")}>
@@ -295,25 +300,25 @@ export function AgentsTable({ agents, scope, procedure, minN, agentMinN, loading
   return (
     <WidgetCard
       title="Agents"
-      subtitle="Each agent's checks, measured the same way. Most checks first; select an agent to open its sessions."
-      help={`Pass rate with its n; the change needs at least ${minN} checks in both windows. Biggest gap: the rule this agent fails most, among rules it ran at least ${agentMinN} times.`}
+      subtitle="Pass rate per agent, with the rule each one fails most. Agents with the most checks come first; select one to open its sessions."
+      help={`The change in pass rate shows only when an agent has at least ${minN} checks now and in the period before. Biggest gap is the rule an agent fails most often, among rules it was judged on at least ${agentMinN} times.`}
       loading={loading}
       error={error}
       empty={!agents.length}
-      emptyMessage="No checked sessions in this window."
+      emptyMessage="No sessions were checked in this time range."
       flush
     >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
           <thead>
             <tr>
-              <th className={th}>Agent</th>
-              <th className={cn(th, "text-right")}>Checks</th>
-              <th className={th}>Split</th>
-              <th className={cn(th, "text-right")}>Pass rate</th>
-              <th className={th}>Biggest gap</th>
+              <th className={th}><HeaderHint label="Agent" tip="The agent that ran the sessions, and how many it ran." /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Checks" tip={`${CHECK_DEF} Only measurable checks count here.`} /></th>
+              <th className={th}><HeaderHint label="Results" tip="How this agent's measurable checks came out: followed, partial or deviated. Hover a bar for the counts." /></th>
+              <th className={cn(th, "text-right")}><HeaderHint label="Pass rate" tip={`Followed checks out of measurable checks. Under it, the change in percentage points from the period before (shown at ${minN} or more checks in both).`} /></th>
+              <th className={th}><HeaderHint label="Biggest gap" tip={`The rule this agent fails most often, with its fail rate, among rules judged at least ${agentMinN} times. Select it to open those sessions.`} /></th>
               <th className={cn(th, "text-right")}>
-                <HeaderHint label="Median length" tip="Median session length, start to end." />
+                <HeaderHint label="Median length" tip="Half of this agent's sessions ran shorter than this, and half ran longer." />
               </th>
             </tr>
           </thead>
@@ -347,9 +352,9 @@ export function AgentsTable({ agents, scope, procedure, minN, agentMinN, loading
                         href={sessionsHref(ws, { agent: a.agent ?? undefined, procedure: a.top_gap.procedure_id, rule: a.top_gap.rule_id, rule_status: a.top_gap.kind === "never" ? ["violated"] : ["skipped", "out_of_order"] }, scope)}
                         className={cn("font-semibold", a.top_gap.tone === "bad" ? "text-err" : a.top_gap.tone === "warn" ? "text-warn" : "text-foreground")}
                       >
-                        {ruleName(a.top_gap.kind, a.top_gap.index)}, {fmtPct(a.top_gap.fail_rate)}
+                        {ruleName(a.top_gap.kind, a.top_gap.index)} fails {fmtPct(a.top_gap.fail_rate)}
                       </HrefLink>{" "}
-                      <span className="text-muted-foreground text-xs">n={a.top_gap.n}</span>
+                      <span className="text-muted-foreground text-xs">of {a.top_gap.n}</span>
                     </Hint>
                   ) : (
                     <span className="text-muted-foreground text-xs">none</span>
@@ -377,7 +382,7 @@ export function OverviewView({ filters, onFilters }: { filters: InsightFilters; 
     <InsightsShell
       view="overview"
       title="Insights"
-      subtitle={<>How sessions went against your procedures over {windowPhrase(filters)}, compared with the same length of time before. Every number opens the sessions behind it.</>}
+      subtitle={<>How sessions went against your procedures over {windowPhrase(filters)}, compared with the same length of time just before. Select a number to open the sessions behind it.</>}
       filters={filters}
       onFilters={onFilters}
       status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />}
@@ -396,23 +401,23 @@ export function OverviewView({ filters, onFilters }: { filters: InsightFilters; 
             )}
             <WidgetCard
               title="Sessions over time"
-              subtitle="Each session by its worst procedure result, and the pass rate under it. Dashed lines: the first session on each release."
-              help="Bars count sessions (one each, by the worst result of their procedure checks in scope). The line is followed / measurable checks per bucket, on its own 0–100% axis."
+              subtitle="Sessions by their worst result, with the pass rate below. A dashed line marks the first session on a new release."
+              help="Each bar counts sessions once, by the worst result among their procedure checks. The line below is followed checks out of measurable checks for the same day or week, on its own 0 to 100% scale."
               {...shared}
               empty={!!d && d.trend.buckets.every((b) => b.n + b.not_measurable === 0)}
-              emptyMessage="No checked sessions in this window."
+              emptyMessage="No sessions were checked in this time range."
             >
               {d && scope && <TrendCharts trend={d.trend} bucketHref={(b) => bucketHref(ws, b, scope, { eligible: true })} />}
             </WidgetCard>
             <div className="grid gap-4 lg:grid-cols-[2fr_3fr]">
               <WidgetCard
                 title="What went wrong"
-                subtitle="Measurable checks with each problem. One check can have several."
-                help="Red problems make a check deviated. Amber ones don't: out of order or not reached make it partial, and an unheeded warning sign never changes a result but is worth a look."
+                subtitle="How many checks had each kind of problem. One check can have several."
+                help="Red problems mark a check deviated. Amber ones mark it partial (a step out of order, or a session that ended before a step). An unheeded warning sign leaves the result as it was, and it's still worth reading."
                 {...shared}
                 empty={!!d && d.problems.every((p) => p.checks === 0)}
                 emptyTitle="Nothing went wrong"
-                emptyMessage="No step skipped, out of order or not reached, no never rule broken, no warning sign unheeded."
+                emptyMessage="No step skipped or out of order, no session ended before a step, no never rule broken and no warning sign unheeded."
               >
                 {d && scope && <ProblemsChart problems={d.problems} problemHref={(p) => sessionsHref(ws, { rule_status: p.statuses as SessionFilters["rule_status"], eligible: true }, scope)} />}
               </WidgetCard>

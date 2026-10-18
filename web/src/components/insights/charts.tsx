@@ -37,7 +37,13 @@ export function TrendCharts({ trend, bucketHref }: { trend: Trend; bucketHref: (
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <Legend items={[...OUTCOMES.map((o) => ({ label: o.label, color: o.color })), { label: "Pass rate", color: "var(--primary)", line: true }, { label: "Release", color: "var(--k-procedure)", line: true }]} />
+        <Legend
+          items={[
+            ...OUTCOMES.map((o) => ({ label: o.label, color: o.color, tip: o.tip })),
+            { label: "Pass rate", color: "var(--primary)", line: true, tip: `Followed checks out of measurable checks for each ${unit}.` },
+            { label: "Release", color: "var(--k-procedure)", line: true, tip: `A dashed line marks the ${unit} a new release ran its first session.` },
+          ]}
+        />
         <span className="text-muted-foreground text-xs">Per {unit}. Select a {unit} to open its sessions.</span>
       </div>
       <div className="h-44">
@@ -53,11 +59,11 @@ export function TrendCharts({ trend, bucketHref }: { trend: Trend; bucketHref: (
                   {...p}
                   head={(x) => {
                     const r = rows.find((row) => row.x === x);
-                    return r ? `${unit === "week" ? "Week of " : ""}${x}: ${r.followed + r.partial + r.deviated} measurable${r.not_measurable ? `, ${r.not_measurable} not measurable` : ""}` : x;
+                    return r ? `${unit === "week" ? "Week of " : ""}${x}: ${r.followed + r.partial + r.deviated} measurable sessions${r.not_measurable ? `, ${r.not_measurable} not measurable` : ""}` : x;
                   }}
                   footer={(x) => {
                     const r = rows.find((row) => row.x === x);
-                    return r ? `Pass rate ${fmtPct(r.pass_rate)} (n=${r.n}). One session counts once, by its worst procedure result.` : null;
+                    return r ? `Pass rate ${fmtPct(r.pass_rate)} of ${r.n} checks. Each session counts once, by its worst result.` : null;
                   }}
                 />
               )}
@@ -77,7 +83,7 @@ export function TrendCharts({ trend, bucketHref }: { trend: Trend; bucketHref: (
             <CartesianGrid vertical={false} stroke="var(--grid)" />
             <XAxis dataKey="x" {...AXIS} interval="preserveStartEnd" minTickGap={24} />
             <YAxis {...AXIS} domain={[0, 100]} ticks={[0, 50, 100]} unit="%" width={44} />
-            <Tooltip content={(p) => <ChartTip {...p} format={(v, e) => `${fmtPct(v as number | null)} (n=${(e.payload as { n: number }).n})`} />} />
+            <Tooltip content={(p) => <ChartTip {...p} format={(v, e) => `${fmtPct(v as number | null)} of ${(e.payload as { n: number }).n} checks`} />} />
             {marks.map((m) => (
               <ReferenceLine key={m.release} x={m.x} stroke="var(--k-procedure)" strokeDasharray="4 3" />
             ))}
@@ -108,7 +114,7 @@ export function ProblemsChart({ problems, problemHref }: { problems: Problem[]; 
                   const r = problems.find((row) => row.label === x);
                   return r ? `${x}: ${fmtPct(r.pct)} of ${r.of} checks` : x;
                 }}
-                footer={() => "One check can have several problems. Select to open those sessions."}
+                footer={() => "Select the bar to open those sessions. One check can have several problems."}
               />
             )}
           />
@@ -125,8 +131,21 @@ export function ProblemsChart({ problems, problemHref }: { problems: Problem[]; 
 }
 
 /** Pass rate per release with its 95% interval and n; thin releases are drawn faded. */
-export function ReleaseTimeline({ points, highlight, onPick, sessions = true }: { points: ReleasePoint[]; highlight: (number | null)[]; onPick?: (release: number) => void; sessions?: boolean }) {
-  const rows = points.map((p) => ({ ...p, x: `#${p.release}`, err: p.interval && p.pass_rate != null ? [p.pass_rate - p.interval[0], p.interval[1] - p.pass_rate] : [0, 0] }));
+export function ReleaseTimeline({
+  points,
+  highlight,
+  onPick,
+  sessions = true,
+  colorOf,
+}: {
+  points: ReleasePoint[];
+  highlight: (number | null)[];
+  onPick?: (release: number) => void;
+  sessions?: boolean;
+  /** A color per release (the A and B colors on release compare); others fall back to the highlight color. */
+  colorOf?: (release: number) => string | undefined;
+}) {
+  const rows = points.map((p) => ({ ...p, x: `#${p.release} · ${p.n} checks`, err: p.interval && p.pass_rate != null ? [p.pass_rate - p.interval[0], p.interval[1] - p.pass_rate] : [0, 0] }));
   return (
     <div className="h-56">
       <ResponsiveContainer width="100%" height="100%">
@@ -141,21 +160,20 @@ export function ReleaseTimeline({ points, highlight, onPick, sessions = true }: 
                 {...p}
                 format={(v, e) => {
                   const r = e.payload as (typeof rows)[number];
-                  return `${fmtPct(v as number | null)} (${r.passes} of ${r.n}${r.interval ? `, 95%: ${r.interval[0]}–${r.interval[1]}%` : ""})`;
+                  return `${fmtPct(v as number | null)} (${r.passes} of ${r.n} checks${r.interval ? `; 95% range ${r.interval[0]} to ${r.interval[1]}%` : ""})`;
                 }}
                 footer={(x) => {
                   const r = rows.find((row) => row.x === x);
-                  return r ? `${sessions ? `${r.sessions} sessions ran this release. ` : ""}${r.thin ? "Thin: too few to compare." : "By the release each session ran."}` : null;
+                  return r ? `${sessions ? `${r.sessions} sessions ran this release. ` : ""}${r.thin ? "Too few checks to compare." : "Counted by the release each session ran."}` : null;
                 }}
               />
             )}
           />
           <Bar dataKey="pass_rate" name="Pass rate" maxBarSize={44} radius={[3, 3, 0, 0]} isAnimationActive={false} onClick={(d) => onPick?.((d.payload as ReleasePoint).release)} className={onPick ? "cursor-pointer" : undefined}>
             {rows.map((r) => (
-              <Cell key={r.release} fill={highlight.includes(r.release) ? "var(--primary)" : "var(--o-none)"} fillOpacity={r.thin ? 0.45 : 1} />
+              <Cell key={r.release} fill={colorOf?.(r.release) ?? (highlight.includes(r.release) ? "var(--primary)" : "var(--o-none)")} fillOpacity={r.thin ? 0.45 : 1} />
             ))}
             <ErrorBar dataKey="err" direction="y" width={8} stroke="var(--foreground)" strokeWidth={1.5} />
-            <LabelList dataKey="n" position="top" fontSize={11} fill="var(--muted-foreground)" formatter={(v) => `n=${v}`} offset={10} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -176,7 +194,7 @@ export function RateByGroup({ rows }: { rows: { name: string; n: number; passes:
     : kept;
   const data = all.map((r) => {
     const rate = r.n ? Math.round((100 * r.passes) / r.n) : null;
-    return { ...r, rate, lbl: `${rate == null ? "—" : `${rate}%`} · n=${r.n}` };
+    return { ...r, rate, lbl: `${rate == null ? "—" : `${rate}%`} of ${r.n}` };
   });
   return (
     <div style={{ height: Math.max(80, data.length * 30 + 10) }}>

@@ -47,7 +47,7 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
   const btn = (active: boolean) => cn("cursor-pointer border-r border-border px-2.5 py-1 text-[13px] last:border-r-0", active ? "bg-brand-soft text-foreground font-semibold" : "text-muted-foreground hover:bg-muted hover:text-foreground");
   const bad = !start || (end && end < start) || start > today();
   return (
-    <div role="group" aria-label="Time window" className="bg-card inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input">
+    <div role="group" aria-label="Time range" className="bg-card inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input">
       {WINDOWS.map((w) => (
         <button key={w} type="button" aria-pressed={current === w} title={`The last ${WINDOW_LABEL[w]}, up to now`} className={btn(current === w)} onClick={() => onChange({ window: w === "7d" ? undefined : w, start: undefined, end: undefined })}>
           {WINDOW_SHORT[w]}
@@ -69,16 +69,16 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
               setOpen(false);
             }}
           >
-            <div className="text-[13px] font-semibold">Custom window</div>
+            <div className="text-[13px] font-semibold">Custom time range</div>
             <label className="text-muted-foreground grid gap-1 text-xs">
-              From (inclusive)
+              From
               <Input type="date" max={today()} value={start} onChange={(e) => setStart(e.target.value)} required />
             </label>
             <label className="text-muted-foreground grid gap-1 text-xs">
-              To (inclusive; empty: up to now)
+              To (leave empty to run up to now)
               <Input type="date" max={today()} min={start || undefined} value={end} onChange={(e) => setEnd(e.target.value)} />
             </label>
-            <p className="text-muted-foreground text-[11.5px]">At most 366 days. Every number is compared with the same length of time just before.</p>
+            <p className="text-muted-foreground text-[11.5px]">Up to 366 days, both days included. Every number is compared with the same length of time just before.</p>
             <Button size="sm" type="submit" disabled={!!bad}>
               Apply
             </Button>

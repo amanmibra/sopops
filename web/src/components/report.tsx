@@ -63,7 +63,7 @@ function PatternCard({ p, scope }: { p: RulePatternOut; scope: Scope }) {
         <h4 className="text-[16px] font-semibold">{subs.length === 1 && subs[0].kind === "sub" ? subs[0].name : p.name}</h4>
         <span className="text-muted-foreground text-[13px] tabular-nums">
           {plural(p.sessions, "session", "sessions")}
-          {p.need_attention_pct != null && ` · ${p.need_attention_pct}% of those needing attention`}
+          {p.need_attention_pct != null && ` · ${p.need_attention_pct}% of all deviated sessions`}
         </span>
       </div>
       {quote && <blockquote className="border-k-procedure/50 text-muted-foreground mt-1.5 border-l-2 pl-2.5 text-[14px]">{quote}</blockquote>}
@@ -75,7 +75,7 @@ function PatternCard({ p, scope }: { p: RulePatternOut; scope: Scope }) {
                 <span className={cn("font-semibold", s.kind === "other" && "text-muted-foreground")}>{s.name}</span>
                 <span className="text-muted-foreground text-[13px] tabular-nums">
                   {plural(s.sessions, "session", "sessions")}
-                  {s.need_attention_pct != null && ` · ${s.need_attention_pct}%`}
+                  {s.need_attention_pct != null && ` · ${s.need_attention_pct}% of deviated`}
                 </span>
               </div>
               {s.description && <p className="text-muted-foreground text-[13px]">{s.description}</p>}
@@ -106,14 +106,14 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
   return (
     <InsightsShell
       view="report"
-      title="Session review"
+      title="Review report"
       subtitle={
         <>
-          What went wrong across {windowPhrase(filters)} of sessions, grouped by where in the conversation it happens, with what was said.
+          What went wrong in sessions over {windowPhrase(filters)}, grouped by where in a session it happens, with what was said.
           {d && (
             <>
               {" "}
-              Sessions from {when(d.filters.start)} to {when(d.filters.end)}.
+              Covers sessions from {when(d.filters.start)} to {when(d.filters.end)}.
             </>
           )}
         </>
@@ -125,19 +125,19 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
       <div className="grid max-w-[1040px] gap-4">
         {h && scope ? (
           <KpiGrid narrow>
-            <Kpi label="Sessions checked" icon={ListChecks} value={h.sessions_checked} sub={`${h.not_measurable} not measurable`} href={link({ eligible: true })} help="Sessions whose checks ran." />
-            <Kpi label="Followed end to end" icon={CheckCircle2} accent="ok" value={fmtPct(h.followed_pct)} sub={`${h.followed} of ${h.sessions_checked}`} href={link({ result: "followed" })} help="Every procedure check in scope followed." />
-            <Kpi label="Need attention" icon={TriangleAlert} accent="err" value={fmtPct(h.need_attention_pct)} sub={`${h.need_attention} of ${h.sessions_checked}`} href={link({ result: "deviated" })} help="Some procedure check deviated: a step skipped or a never rule broken." />
-            <Kpi label="Partial" icon={ListChecks} accent="warn" value={h.partial} sub="out of order or not reached" href={link({ result: "partial" })} help="Sessions whose worst result was partial." />
-            <Kpi label="More than one problem" icon={Layers} accent="procedure" value={h.multi_problem_sessions} sub="so the patterns below overlap" help="Sessions with findings on more than one rule." />
-            <Kpi label="Excluded" icon={LogOut} value={h.excluded} sub="ended before a procedure started or finished" href={link({ status: "excluded" })} help="Counted, never rated." />
+            <Kpi label="Sessions checked" icon={ListChecks} value={h.sessions_checked} sub={`${h.not_measurable} not measurable`} href={link({ eligible: true })} help="Sessions judged against at least one procedure in this time range." />
+            <Kpi label="Followed end to end" icon={CheckCircle2} accent="ok" value={fmtPct(h.followed_pct)} sub={`${h.followed} of ${h.sessions_checked}`} href={link({ result: "followed" })} help="Sessions where every procedure check came out followed: each step that applied done in order, and no never rule broken." />
+            <Kpi label="Deviated" icon={TriangleAlert} accent="err" value={fmtPct(h.need_attention_pct)} sub={`${h.need_attention} of ${h.sessions_checked}`} href={link({ result: "deviated" })} help="Sessions where at least one procedure check deviated: a step skipped or a never rule broken." />
+            <Kpi label="Partial" icon={ListChecks} accent="warn" value={h.partial} sub="out of order or not reached" href={link({ result: "partial" })} help="Sessions whose worst result was partial: a step out of order or not reached, and nothing worse." />
+            <Kpi label="More than one problem" icon={Layers} accent="procedure" value={h.multi_problem_sessions} sub="so some patterns below share sessions" help="Sessions with findings on more than one rule." />
+            <Kpi label="Excluded" icon={LogOut} value={h.excluded} sub="ended before a procedure started or finished" href={link({ status: "excluded" })} help="Sessions that ended too early to judge. They're counted here and never rated." />
           </KpiGrid>
         ) : (
           <KpiGrid loading narrow />
         )}
         {(res.isPending || res.error) && !d && <WidgetCard title="Themes" {...shared} />}
         {d && d.procedures.every((p) => !p.themes.length) && (
-          <WidgetCard title="Themes" empty emptyTitle="No findings in this window" emptyMessage="Nothing went wrong in the sessions checked, or none were checked. Widen the window to look further back." />
+          <WidgetCard title="Themes" empty emptyTitle="No findings in this time range" emptyMessage="Either nothing went wrong in the sessions checked, or no sessions were checked. Pick a longer time range." />
         )}
         {d &&
           scope &&
@@ -153,7 +153,7 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
                       <h3 className="text-[15px] font-semibold">{t.name}</h3>
                       <span className="text-muted-foreground text-[13px] tabular-nums">
                         {plural(t.sessions, "session", "sessions")}
-                        {t.need_attention_pct != null ? ` · ${fmtPct(t.need_attention_pct)} of those needing attention` : ""}
+                        {t.need_attention_pct != null ? ` · ${fmtPct(t.need_attention_pct)} of all deviated sessions` : ""}
                       </span>
                       {t.description && <p className="text-muted-foreground basis-full pl-7 text-[13px]">{t.description}</p>}
                     </summary>
