@@ -233,7 +233,7 @@ def segments(header: Any, lines: list[Line], budget: int = MAX_STATE_TOKENS, max
     return out
 
 
-def _brief(p: Procedure, variables: dict[str, str]) -> ProcedureBrief:
+def procedure_brief(p: Procedure, variables: dict[str, str]) -> ProcedureBrief:
     return ProcedureBrief(name=p.name, goal=fill(p.goal, variables), when=fill(p.when, variables))
 
 
@@ -288,7 +288,7 @@ def route(ai: AI, procedures: list[Procedure], variables: dict[str, str], turns:
     if not procedures:
         return Routing([], False, str(ai.model(DECIDE)))
     keys = {p.id: field_name(f"p_{p.id}") for p in procedures}
-    briefs = {keys[p.id]: _brief(p, variables) for p in procedures}
+    briefs = {keys[p.id]: procedure_brief(p, variables) for p in procedures}
     lines = transcript_lines(turns)
     STATS.add(routes=1)
     if not any(x.speaker == "user" for x in lines):
@@ -493,7 +493,7 @@ def find_evidence(ai: AI, items: list[Item], decisions: dict[str, Decision], got
     if not texts:
         return
     found: dict[str, Line] = {}
-    if getattr(ai, "decision_native", lambda: False)():
+    if ai.decision_native():
         by_segment: dict[tuple[int, bool], list[str]] = {}
         for n, (_, user) in texts.items():
             by_segment.setdefault((got[n].segment, user), []).append(n)
@@ -541,7 +541,7 @@ def check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[
     if cfg.mode == "review":
         return _review(ai, p, variables, turns, tool_calls, list(p.rules), {}, None, "")
     items = items_for(p, rule_checks(ai, engine, workspace, p, variables))
-    brief = _brief(p, variables)
+    brief = procedure_brief(p, variables)
     predictor = decision_predictor(items, variables, cfg)
     if params is None:
         params = calibration.load(engine, workspace, f"check:{p.id}", question_hashes(predictor))

@@ -28,7 +28,7 @@ class CheckDecisions(dspy.Module):
     def __init__(self, p: Procedure, splits: dict[str, RuleChecks], variables: dict[str, str], cfg: decide.DecisionConfig, client: Any):
         super().__init__()
         self.items = decide.items_for(p, splits)
-        self.brief = decide._brief(p, variables)
+        self.brief = decide.procedure_brief(p, variables)
         self.cfg = cfg
         self.decide = decide.decision_predictor(self.items, variables, cfg)
         self.decide.set_lm(client)
@@ -56,7 +56,7 @@ class RouteDecisions(dspy.Module):
 
     def forward(self, turns: list[dict[str, Any]]) -> dspy.Prediction:
         keys = {p.id: decide.field_name(f"p_{p.id}") for p in self.procedures}
-        briefs = {keys[p.id]: decide._brief(p, self.variables) for p in self.procedures}
+        briefs = {keys[p.id]: decide.procedure_brief(p, self.variables) for p in self.procedures}
         lines = decide.transcript_lines(turns)
         if not any(x.speaker == "user" for x in lines):
             return dspy.Prediction(applied=set())
