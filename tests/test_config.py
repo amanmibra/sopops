@@ -3,9 +3,9 @@
 from datetime import datetime, timezone
 
 import pytest
+from conftest import FIXTURE, WS, expected, read_files
 from sqlalchemy import insert
 
-from conftest import FIXTURE, WS, expected, read_files
 from sopops.orm import FileVersion, Release, Workspace
 
 CFG = f"{WS}/config"

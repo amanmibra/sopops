@@ -14,8 +14,8 @@ from sqlalchemy import delete
 from sqlmodel import Session, select
 
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
-from .pipeline.types import SessionRef
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
+from .pipeline.types import SessionRef
 
 if TYPE_CHECKING:
     from .pipeline.judge import Routed

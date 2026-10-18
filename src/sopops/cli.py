@@ -15,9 +15,16 @@ import json
 import os
 import sys
 
+import uvicorn
 from pydantic import ValidationError
 
+from .app import create_app
 from .db import database_url
+from .errors import SAFE_ID
+from .jobs import Jobs
+from .schemas import SessionIn
+from .sopc import Sopc
+from .store import Store
 
 COMMANDS = ("serve", "import", "worker", "recluster")
 
@@ -29,12 +36,6 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def serve(argv: list[str]) -> None:
-    import uvicorn
-
-    from .app import create_app
-    from .sopc import Sopc
-    from .store import Store
-
     parser = argparse.ArgumentParser(prog="sopops", description="Versioned sopc workspaces, each agent's prompt at session start, and sessions.")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8484)))
@@ -48,19 +49,12 @@ def serve(argv: list[str]) -> None:
 
 def import_sessions(argv: list[str]) -> None:
     """Read canonical session JSON, one per line (see API.md), into a workspace. Re-importing a file is safe."""
-    from .jobs import Jobs
-    from .schemas import SessionIn
-    from .sopc import Sopc
-    from .store import Store
-
     parser = argparse.ArgumentParser(prog="sopops import", description="Import sessions from a JSONL file (one canonical session per line). '-' reads stdin.")
     parser.add_argument("file")
     parser.add_argument("--workspace", "-w", required=True)
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    from .store import _SAFE_ID
-
-    if not _SAFE_ID.match(args.workspace):
+    if not SAFE_ID.match(args.workspace):
         parser.error(f"invalid workspace id '{args.workspace}'")
 
     store = Store(args.database_url, Sopc())
@@ -102,9 +96,6 @@ def worker(argv: list[str]) -> None:
 
 def recluster(argv: list[str]) -> None:
     """Assign unassigned findings to patterns, recluster rules and regroup themes (what the daily cron runs)."""
-    from .sopc import Sopc
-    from .store import Store
-
     parser = argparse.ArgumentParser(prog="sopops recluster", description="Assign findings to patterns, recluster rules whose triggers fired (every rule with --force), and regroup themes. Calls the models.")
     parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
     parser.add_argument("--procedure", help="Only this procedure's rules (with --force).")

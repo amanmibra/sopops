@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
+from ..errors import NotFound, workspace_id
 from ..orm import AgentDelivery, PlatformSecret, PushResult, RuntimeServe
 from ..tokens import RUNTIME, Forbidden, Unauthorized
 from . import crypto, platforms
@@ -71,9 +72,7 @@ class Runtime:
 
     def deliveries(self, workspace: str) -> list[dict]:
         """Every agent at head with its platform and delivery mode."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         agents = self.store.items(ws)["agents"]
         with self._db() as db:
             modes = {r.agent: r.mode for r in db.exec(select(AgentDelivery).where(AgentDelivery.workspace == ws))}
@@ -89,9 +88,7 @@ class Runtime:
         ]
 
     def set_delivery(self, workspace: str, agent: str, mode: str) -> dict:
-        from ..store import NotFound, _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         row = next((d for d in self.deliveries(ws) if d["agent"] == agent), None)
         if row is None:
             raise NotFound(f"agent '{agent}' not found")
@@ -112,9 +109,7 @@ class Runtime:
     # --- credentials ---------------------------------------------------------------------
 
     def credentials(self, workspace: str) -> list[dict]:
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._db() as db:
             rows = {(r.platform, r.kind): r for r in db.exec(select(PlatformSecret).where(PlatformSecret.workspace == ws))}
 
@@ -126,9 +121,7 @@ class Runtime:
 
     def set_secret(self, workspace: str, platform: str, kind: str, value: str | None) -> dict:
         """Store a credential (encrypted). A webhook secret without a value is generated, and returned this once."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         _check_platform(platform)
         generated = None
         if not value or not value.strip():
@@ -147,9 +140,7 @@ class Runtime:
         return {"platform": platform, "kind": kind, "hint": row.hint, "created_at": row.created_at, "secret": generated}
 
     def delete_secret(self, workspace: str, platform: str, kind: str) -> None:
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         _check_platform(platform)
         with self._db() as db, db.begin():
             row = db.get(PlatformSecret, (ws, platform, kind))
@@ -163,9 +154,7 @@ class Runtime:
 
     def test_key(self, workspace: str, platform: str, platform_id: str | None = None) -> dict:
         """Read one agent with the stored key (read-only): the given id, else the first agent at head on that platform."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         _check_platform(platform)
         key = self._secret(ws, platform, "api_key")
         if key is None:
@@ -188,9 +177,7 @@ class Runtime:
     def push_release(self, workspace: str, number: int, agents: Iterable[str] | None = None, only_failed: bool = False) -> list[dict]:
         """Push each push-mode agent's prompt in release `number` to its platform, recording each result.
         `agents` limits it to those; `only_failed` to agents whose last push failed (a retry)."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         rel = self.store.get_release(ws, number)
         modes = self._modes(ws)
         wanted = set(agents) if agents is not None else None
@@ -231,9 +218,7 @@ class Runtime:
                 row.at = _now()
 
     def push_results(self, workspace: str, number: int) -> list[dict]:
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._db() as db:
             rows = db.exec(select(PushResult).where(PushResult.workspace == ws, PushResult.release == number).order_by(PushResult.agent))
             return [{**r.model_dump(exclude={"workspace"}), "at": _utc(r.at)} for r in rows]
@@ -248,9 +233,7 @@ class Runtime:
         """Accept the platform's webhook secret (as a bearer token, a secret header, or an HMAC signature) or the
         a runtime-scoped token. Open only when the workspace has neither (local mode), and never with
         SOPOPS_REQUIRE_WEBHOOK_SECRET set."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         secret = self._secret(ws, platform, "webhook_secret")
         has_token = self._has_token(ws)
         if secret is None and not has_token:
@@ -282,8 +265,6 @@ class Runtime:
     def resolve(self, workspace: str, platform: str, ref: str | None, release: int | None) -> dict:
         """The served build for an agent named by sopc id, platform ref, or its id on `platform`. Without `ref`,
         the only agent on that platform in the release."""
-        from ..store import NotFound
-
         rel = self.store.get_release(workspace, release)
         built = rel["build"]["agents"]
         on_platform = [a for a, b in built.items() if split_ref(b["platform_ref"])[0] == platform]
@@ -300,9 +281,7 @@ class Runtime:
     def record_serve(self, workspace: str, platform: str, call_ids: Iterable[str | None], served: dict, log_fetch: bool = True) -> None:
         """Log the fetch (unless the client already fetched it), and remember the release per call id for the
         session that arrives later."""
-        from ..store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         if log_fetch:
             self.store.log_fetch(ws, served["agent"], served["release"], served["hash"])
         ids = [c for c in dict.fromkeys(call_ids) if c]
@@ -358,8 +337,6 @@ def _vapi_signed(signature: str, timestamp: str, raw: bytes, secret: str) -> boo
 
 
 def _check_platform(platform: str) -> None:
-    from ..store import NotFound
-
     if platform not in PUSHABLE:
         raise NotFound(f"unknown platform '{platform}'; sopops stores keys for {', '.join(PUSHABLE)}")
 

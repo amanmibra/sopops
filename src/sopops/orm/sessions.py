@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Column, DateTime, ForeignKeyConstraint, Index, Text, UniqueConstraint
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKeyConstraint,
+    Index,
+    Text,
+    UniqueConstraint,
+)
 from sqlmodel import Field, SQLModel
 
 from .columns import JSONDoc

@@ -23,20 +23,21 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from .. import forms
+from ..errors import workspace_id
 from ..llm import Completer, LLMError, from_env
+from ..orm import ImportEvent, ImportRecord, Token
 from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
-from . import fidelity, kickoff
-from .types import Finding, Proposal, ProposalContent, SourcePrompt
-from .pipeline import extract
-from ..orm import Token
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
-from ..orm import ImportEvent, ImportRecord
+from . import fidelity, kickoff
+from .pipeline import extract
 from .review import refresh_used_by, resolve
+from .types import Finding, Proposal, ProposalContent, SourcePrompt
 
 log = logging.getLogger("sopops.onboarding")
 
@@ -73,8 +74,6 @@ class Onboarding:
         return Session(self.store.engine, expire_on_commit=False)
 
     def _fail_interrupted(self) -> None:
-        from sqlalchemy import inspect
-
         if "imports" not in inspect(self.store.engine).get_table_names():
             return  # a Store made without migrations (e.g. to print the OpenAPI spec)
         with self._db() as db:
@@ -117,7 +116,7 @@ class Onboarding:
         if not sources:
             raise ValueError("add at least one prompt")
         names = [s.name for s in sources]
-        rec = ImportRecord(id=str(uuid.uuid4()), workspace=_ws(workspace), source="llm", status="running", agents=names,
+        rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="llm", status="running", agents=names,
                            created_at=_now(), updated_at=_now(), created_by=author)
         with self._db() as db:
             db.add(rec)
@@ -150,7 +149,7 @@ class Onboarding:
     def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", repo: str | None = None, author: str | None = None,
                     ttl: timedelta = TOKEN_TTL) -> dict:
         rec = ImportRecord(
-            id=str(uuid.uuid4()), workspace=_ws(workspace), source="agent", status="waiting", mode=mode, repo=(repo or "").strip() or None,
+            id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="agent", status="waiting", mode=mode, repo=(repo or "").strip() or None,
             created_at=_now(), updated_at=_now(), created_by=author,
         )
         with self._db() as db:
@@ -350,12 +349,6 @@ def out(r: ImportRecord, token: Token | None = None, proposal: bool = True) -> d
 
 def event_out(e: ImportEvent) -> dict:
     return {"id": e.id, "at": _utc(e.at), "step": e.step, "message": e.message, "by": e.by}
-
-
-def _ws(workspace: str) -> str:
-    from ..store import _ws as check
-
-    return check(workspace)
 
 
 def _now() -> datetime:

@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Iterable
 
 from sqlmodel import Session, select
 
+from .errors import NotFound, workspace_id
 from .orm import Token
 
 if TYPE_CHECKING:
@@ -60,9 +61,7 @@ class Tokens:
         prefix: str = PREFIX,
     ) -> dict:
         """A new token. The token itself is only returned here."""
-        from .store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         scopes = sorted(set(scopes), key=SCOPES.index)
         if not scopes or any(s not in SCOPES for s in scopes):
             raise ValueError(f"scopes must be some of {', '.join(SCOPES)}")
@@ -78,20 +77,16 @@ class Tokens:
 
     def list(self, workspace: str, imports: bool = False) -> list[dict]:
         """The workspace's tokens, newest first. Onboarding tokens (tied to an import) only with `imports`."""
-        from .store import _ws
-
         with self._db() as db:
-            q = select(Token).where(Token.workspace == _ws(workspace))
+            q = select(Token).where(Token.workspace == workspace_id(workspace))
             if not imports:
                 q = q.where(Token.import_id.is_(None))  # type: ignore[union-attr]
             return [out(t) for t in db.exec(q.order_by(Token.created_at.desc()))]  # type: ignore[attr-defined]
 
     def revoke(self, workspace: str, id: str) -> dict:
-        from .store import NotFound, _ws
-
         with self._db() as db, db.begin():
             t = db.get(Token, id)
-            if t is None or t.workspace != _ws(workspace):
+            if t is None or t.workspace != workspace_id(workspace):
                 raise NotFound(f"no token '{id}'")
             if t.revoked_at is None:
                 t.revoked_at = _now()
@@ -117,18 +112,14 @@ class Tokens:
 
     def guarded(self, workspace: str, scope: str) -> bool:
         """Whether the workspace has an unrevoked token with this scope (expired ones count)."""
-        from .store import _ws
-
         with self._db() as db:
-            rows = db.exec(select(Token).where(Token.workspace == _ws(workspace), Token.revoked_at.is_(None)))  # type: ignore[union-attr]
+            rows = db.exec(select(Token).where(Token.workspace == workspace_id(workspace), Token.revoked_at.is_(None)))  # type: ignore[union-attr]
             return any(scope in (t.scopes or []) for t in rows)
 
     def check(self, workspace: str | None, authorization: str | None, scope: str) -> Token:
         """The token in `authorization` (`Bearer <token>`), if it's live, for `workspace` (any, if None) and has
         `scope`. Raises Unauthorized (401) or Forbidden (403)."""
-        from .store import _ws
-
-        ws = _ws(workspace) if workspace is not None else None
+        ws = workspace_id(workspace) if workspace is not None else None
         scheme, _, raw = (authorization or "").partition(" ")
         if scheme.lower() != "bearer" or not raw.strip():
             raise Unauthorized(f"send a token with the {scope} scope as 'Authorization: Bearer <token>'{_where(scope)}")

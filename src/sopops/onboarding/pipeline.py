@@ -26,10 +26,22 @@ from pathlib import Path
 
 from ..llm import Completer, LLMError
 from ..sopc import Sopc
+from . import fidelity
 from . import text as tx
 from .types import (
-    Finding, Proposal, ProposedAgent, ProposedGroup, ProposedInstruction, ProposedProcedure, ProposedSettings,
-    ProcedureDraft, ProposedStep, Segmentation, SourcePrompt, VariableNames, Variant,
+    Finding,
+    ProcedureDraft,
+    Proposal,
+    ProposedAgent,
+    ProposedGroup,
+    ProposedInstruction,
+    ProposedProcedure,
+    ProposedSettings,
+    ProposedStep,
+    Segmentation,
+    SourcePrompt,
+    VariableNames,
+    Variant,
 )
 
 PROMPTS = Path(__file__).parent / "prompts"
@@ -475,10 +487,8 @@ def extract(sources: list[SourcePrompt], llm: Completer, sopc: Sopc | None = Non
         findings=b.findings, notes=list(dict.fromkeys(b.notes)), originals={a: s.prompt for a, s in zip(ids, sources)},
     )
     if sopc is not None:
-        from .fidelity import check
-
         say("fidelity", "Compiling each agent with sopc and comparing it with its original")
-        proposal = check(proposal, sopc)
+        proposal = fidelity.check(proposal, sopc)
         kept = [f for f in proposal.fidelity]
         if kept:
             say("fidelity", "; ".join(f"{f.agent} {round(f.score * 100)}%" for f in kept))

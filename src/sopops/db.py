@@ -11,6 +11,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.engine import Engine
 
@@ -53,7 +54,5 @@ def upgrade(engine: Engine) -> None:
 
 
 def current_revision(engine: Engine) -> str | None:
-    from alembic.runtime.migration import MigrationContext
-
     with engine.connect() as conn:
         return MigrationContext.configure(conn).get_current_revision()

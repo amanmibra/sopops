@@ -20,17 +20,20 @@ import threading
 from typing import TYPE_CHECKING
 
 from .. import llm as llm_mod
-from ..ai import classify, jev as jev_mod, lm as ai_lm
+from ..ai import classify
+from ..ai import jev as jev_mod
+from ..ai import lm as ai_lm
+from ..errors import NotFound
 from . import judge, prompts
-from .types import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
 from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
 from .rollup import apply_tool_calls, mark_out_of_order, rollup
+from .types import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
 
 if TYPE_CHECKING:
     from ..llm import LLM
-    from ..patterns import Outcome
     from ..orm import SessionRecord
+    from ..patterns import Outcome
     from ..store import Store
 
 log = logging.getLogger("sopops.pipeline")
@@ -57,8 +60,6 @@ def process_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Pr
 
 
 def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
-    from ..store import NotFound
-
     try:
         session = store.sessions.load(ref.workspace_id, ref.session_id)
     except NotFound:  # deleted since: nothing to do, and nothing to retry
@@ -82,8 +83,6 @@ def normalize_session(store: Store, ref: SessionRef) -> ProcessResult:
 
 
 def _load(store: Store, ref: SessionRef) -> SessionRecord | None:
-    from ..store import NotFound
-
     try:
         s = store.sessions.load(ref.workspace_id, ref.session_id)
     except NotFound:

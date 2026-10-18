@@ -21,7 +21,12 @@ from ..llm import LLM
 from . import prompts
 from .procedures import Procedure
 from .rollup import JUDGED_STEP_STATUSES, NEVER_STATUSES, WARNING_STATUSES, Judged
-from .transcript import render_procedure, render_route_procedure, render_transcript, verify_evidence
+from .transcript import (
+    render_procedure,
+    render_route_procedure,
+    render_transcript,
+    verify_evidence,
+)
 
 CACHE = {"type": "ephemeral"}
 ROUTE_STATUSES = ("applied", "not_applicable", "ended_before_start", "ended_before_finish")

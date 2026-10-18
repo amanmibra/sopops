@@ -4,7 +4,7 @@ builds one from DATABASE_URL."""
 from alembic import context
 from sqlalchemy import pool
 
-from sopops.db import engine_from_url, database_url
+from sopops.db import database_url, engine_from_url
 from sopops.orm import metadata
 
 config = context.config

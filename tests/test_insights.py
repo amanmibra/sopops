@@ -7,10 +7,10 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from fastapi.testclient import TestClient
-
 from conftest import SOPC_BIN, WS, fresh_db_url
 from fakes import PATTERN_SCHEMAS, pattern_reply
+from fastapi.testclient import TestClient
+
 from sopops import Sopc, Store, create_app
 from sopops.insights import Filters, compare_flag, delta_points, pct, wilson
 from sopops.jobs import Jobs

@@ -5,9 +5,9 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from conftest import WS
 from fastapi.testclient import TestClient
 
-from conftest import WS
 from sopops.cli import main as cli
 from sopops.events import Broker
 from sopops.pipeline.normalize import normalize_turns
@@ -262,7 +262,8 @@ def test_stream_endpoint_sends_events(client, token):
     import asyncio
 
     app = client.app
-    route = next(r for r in app.routes if getattr(r, "path", "") == "/v1/workspaces/{workspace}/sessions/stream")
+    routes = [x for r in app.routes for x in getattr(getattr(r, "original_router", None), "routes", [r])]  # routers are included lazily
+    route = next(r for r in routes if getattr(r, "path", "") == "/v1/workspaces/{workspace}/sessions/stream")
 
     class FakeRequest:
         async def is_disconnected(self):

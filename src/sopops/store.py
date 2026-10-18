@@ -6,7 +6,6 @@ the workspace's current release is what agents get. Writes compile the resulting
 
 from __future__ import annotations
 
-import re
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
@@ -19,28 +18,19 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from . import forms
-from .db import engine_from_url, upgrade
-from .orm import Fetch, FileVersion, Release, Workspace
 from .checks import Checks
+from .db import engine_from_url, upgrade
+from .errors import Conflict, NotFound, workspace_id
 from .insights import Insights
+from .orm import Fetch, FileVersion, Release, Workspace
 from .patterns import Patterns
 from .sessions import Sessions
-from .tokens import Tokens
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
-
-_SAFE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+from .tokens import Tokens
 
 # Which folder each lock.json block kind lives in.
 _KIND_DIRS = {"agent": "agents", "instruction": "instructions", "sop": "procedures", "base": "bases"}  # base: sopc v0.0.8
 CONFIG = "sopc.yaml"
-
-
-class NotFound(Exception):
-    pass
-
-
-class Conflict(Exception):
-    pass
 
 
 class Store:
@@ -68,10 +58,10 @@ class Store:
     def head(self, workspace: str, content: bool = False) -> list[dict]:
         """The latest version of every file that isn't deleted."""
         with self._session() as db:
-            return [_file_out(r, content) for r in self._head_rows(db, _ws(workspace))]
+            return [_file_out(r, content) for r in self._head_rows(db, workspace_id(workspace))]
 
     def file(self, workspace: str, path: str, version: int | None = None) -> dict:
-        q = select(FileVersion).where(FileVersion.workspace == _ws(workspace), FileVersion.path == path)
+        q = select(FileVersion).where(FileVersion.workspace == workspace_id(workspace), FileVersion.path == path)
         q = q.where(FileVersion.version == version) if version else q.order_by(FileVersion.version.desc()).limit(1)
         with self._session() as db:
             found = db.exec(q).first()
@@ -83,7 +73,7 @@ class Store:
     def history(self, workspace: str, path: str) -> list[dict]:
         q = (
             select(FileVersion)
-            .where(FileVersion.workspace == _ws(workspace), FileVersion.path == path)
+            .where(FileVersion.workspace == workspace_id(workspace), FileVersion.path == path)
             .order_by(FileVersion.version.desc())
         )
         with self._session() as db:
@@ -109,7 +99,7 @@ class Store:
     def items(self, workspace: str) -> dict:
         """Head as {settings, agents, instructions, procedures, groups}, each with its version.
         Instructions, procedures and groups also get `used_by`: [{agent, via}] (via: the group, if not listed directly)."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._session() as db:
             head = self._head_rows(db, ws)
         return self._items(head)
@@ -144,7 +134,7 @@ class Store:
 
     def put_item(self, workspace: str, kind: str, id: str, data: dict, author=None, note=None, create=False) -> tuple[dict, list[dict]]:
         """Create or replace one item from its fields. Returns (the item as saved, files written)."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         issues = forms.check(kind, id, data)
         if issues:
             raise Invalid(issues)
@@ -189,7 +179,7 @@ class Store:
     def delete_item(self, workspace: str, kind: str, id: str, author=None, note=None) -> list[dict]:
         """Delete an item. A shared instruction or procedure is taken out of every agent and group that lists it;
         a group is replaced by its blocks wherever it's listed, so no prompt changes."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         if kind == "settings":
             raise Conflict("settings can't be deleted")
         with self._locked(ws) as db:
@@ -226,7 +216,7 @@ class Store:
 
     def add_block(self, workspace: str, agent: str, block: str, author=None, note=None) -> tuple[dict, list[dict]]:
         """Add a shared instruction, procedure or group to the end of an agent's blocks."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._locked(ws) as db:
             head = self._head_rows(db, ws)
             items = self._items(head)
@@ -245,7 +235,7 @@ class Store:
 
     def remove_block(self, workspace: str, agent: str, block: str, author=None, note=None) -> tuple[dict, list[dict]]:
         """Take a block out of an agent's blocks. One the agent gets through a group can't be removed here."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._locked(ws) as db:
             head = self._head_rows(db, ws)
             items = self._items(head)
@@ -263,7 +253,7 @@ class Store:
 
     def preview_agent(self, workspace: str, agent: str, data: dict) -> dict:
         """Compile head with this agent's unsaved fields, without saving anything."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._session() as db:
             head = self._head_rows(db, ws)
             current = self._current(db, ws)
@@ -293,7 +283,7 @@ class Store:
     def migrate(self, workspace: str, apply: bool = False, author=None, note=None) -> dict:
         """Convert head from an older sopc format with `sopc migrate` (v0.0.8 targeting, or v0.0.9 `locked`).
         Without `apply`, only the plan."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._locked(ws) as db:
             files = {r["path"]: r["content"] for r in self._head_rows(db, ws)}
             result = self.sopc.migrate(files) if files else {"migrated": False, "plan": "", "files": {}}
@@ -351,7 +341,7 @@ class Store:
     def item_history(self, workspace: str, kind: str, id: str) -> list[dict]:
         """Every version of an item, newest first. A procedure moved from Markdown to YAML keeps both histories.
         Settings and groups share sopc.yaml, so each lists only the versions that changed it."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         q = (
             select(FileVersion)
             .where(FileVersion.workspace == ws, FileVersion.path.in_(forms.paths_of(kind, id)))
@@ -399,7 +389,7 @@ class Store:
 
     def draft(self, workspace: str) -> dict:
         """Head compiled, compared with the current release."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._session() as db:
             head = self._head_rows(db, ws)
             current = self._current(db, ws)
@@ -511,7 +501,7 @@ class Store:
             return release, created, changed
 
     def releases(self, workspace: str) -> list[dict]:
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         q = select(Release.number, Release.created_at, Release.author, Release.note, Release.files)
         with self._session() as db:
             current = self._current_number(db, ws)
@@ -520,7 +510,7 @@ class Store:
 
     def get_release(self, workspace: str, number: int | None = None) -> dict:
         """A release with its build; the current one if `number` is None."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._session() as db:
             current = self._current_number(db, ws)
             number = number or current
@@ -534,7 +524,7 @@ class Store:
 
     def activate(self, workspace: str, number: int) -> dict:
         """Serve an existing release, e.g. to roll back."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         with self._session() as db, db.begin():
             if db.get(Release, (ws, number)) is None:
                 raise NotFound(f"release {number} not found")
@@ -558,7 +548,7 @@ class Store:
 
     def fetches(self, workspace: str, agent: str | None = None, limit: int = 100) -> list[dict]:
         """Newest first."""
-        q = select(Fetch).where(Fetch.workspace == _ws(workspace))
+        q = select(Fetch).where(Fetch.workspace == workspace_id(workspace))
         if agent:
             q = q.where(Fetch.agent == agent)
         with self._session() as db:
@@ -570,7 +560,7 @@ class Store:
     @contextmanager
     def _locked(self, workspace: str) -> Iterator[Session]:
         """A transaction holding the workspace's lock, so file versions and release numbers don't race."""
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         try:
             with self._session() as db, db.begin():
                 name = db.get_bind().dialect.name
@@ -735,12 +725,6 @@ def _file_out(row, content: bool = False) -> dict:
     if content:
         out["content"] = row["content"]
     return out
-
-
-def _ws(workspace: str) -> str:
-    if not _SAFE_ID.match(workspace):
-        raise NotFound(f"invalid workspace id '{workspace}'")
-    return workspace
 
 
 def _now() -> datetime:

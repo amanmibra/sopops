@@ -7,19 +7,25 @@ from pathlib import Path
 
 import httpx
 import pytest
+from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 
-from conftest import SOPC_BIN, WS
 from sopops import Sopc
-from sopops.orm import Token
 from sopops.onboarding import kickoff, platforms
 from sopops.onboarding import text as tx
 from sopops.onboarding.fidelity import check, parse_compare
-from sopops.onboarding.types import ProcedureDraft, Segment, Segmentation, SourcePrompt, StepDraft, VariableNames
 from sopops.onboarding.pipeline import extract
-from sopops.orm import ImportRecord
 from sopops.onboarding.review import resolve
 from sopops.onboarding.rules import Rules
+from sopops.onboarding.types import (
+    ProcedureDraft,
+    Segment,
+    Segmentation,
+    SourcePrompt,
+    StepDraft,
+    VariableNames,
+)
+from sopops.orm import ImportRecord, Token
 
 FIXTURES = Path(__file__).parent / "fixtures" / "onboarding"
 IMPORTS = f"{WS}/imports"

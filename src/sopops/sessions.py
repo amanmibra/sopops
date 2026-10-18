@@ -15,19 +15,30 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import and_, or_, text
+from sqlalchemy import event as sa_event
 from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .events import CHANNEL, Broker
-from .orm import Release, SessionRecord, Workspace
-from .pipeline.types import SessionRef
+from .orm import (
+    Finding,
+    Pattern,
+    ProcedureCheck,
+    Release,
+    RuleResult,
+    SessionRecord,
+    Workspace,
+)
 from .pipeline.normalize import to_utc
+from .pipeline.types import SessionRef
+from .runtime.service import served_release
 from .schemas import SessionIn
 
 if TYPE_CHECKING:
     from .store import Store
 
+from .errors import NotFound, workspace_id
 from .tokens import Unauthorized  # noqa: F401  (re-exported: the app maps it to 401)
 
 
@@ -63,9 +74,7 @@ class Sessions:
 
     def ingest(self, workspace: str, payload: SessionIn) -> Ingested:
         """Create the session, or update it if its content changed. Re-sending identical content changes nothing."""
-        from .store import _ws
-
-        ws = _ws(workspace)
+        ws = workspace_id(workspace)
         for attempt in range(2):
             try:
                 return self._ingest(ws, payload)
@@ -90,8 +99,6 @@ class Sessions:
 
             release = p.release
             if release is None and p.platform in ("elevenlabs", "vapi"):  # served by a call-start webhook
-                from .runtime.service import served_release
-
                 release = served_release(db, ws, p.platform, _call_keys(p))
             if release is not None and db.get(Release, (ws, release)) is None:
                 warnings.append(f"Release {release} doesn't exist in workspace '{ws}'; the session is kept without it.")
@@ -149,10 +156,8 @@ class Sessions:
     # --- reading ---------------------------------------------------------------
 
     def load(self, workspace: str, id: str) -> SessionRecord:
-        from .store import NotFound, _ws
-
         with self._db() as db:
-            row = db.exec(select(SessionRecord).where(SessionRecord.workspace_id == _ws(workspace), SessionRecord.id == id)).first()
+            row = db.exec(select(SessionRecord).where(SessionRecord.workspace_id == workspace_id(workspace), SessionRecord.id == id)).first()
         if row is None:
             raise NotFound(f"session '{id}' not found")
         return row
@@ -187,11 +192,8 @@ class Sessions:
         """Newest first (by start time). `agent` matches the sopc agent or the agent as sent. The drill-down filters
         (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
         check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it."""
-        from .orm import Finding, Pattern, ProcedureCheck, RuleResult
-        from .store import _ws
-
         S = SessionRecord
-        q = select(S).where(S.workspace_id == _ws(workspace))
+        q = select(S).where(S.workspace_id == workspace_id(workspace))
         if release is not None:
             q = q.where(S.release_id == release)
         if procedure or procedure_result:
@@ -209,14 +211,14 @@ class Sessions:
                 rr = rr.where(RuleResult.status.in_(rule_status))
             q = q.where(S.id.in_(rr))
         if pattern or theme:
-            pats = select(Pattern.id).where(Pattern.workspace_id == _ws(workspace))
+            pats = select(Pattern.id).where(Pattern.workspace_id == workspace_id(workspace))
             pats = pats.where(or_(Pattern.id == pattern, Pattern.parent_id == pattern)) if pattern else pats.where(Pattern.theme_id == theme)
             q = q.where(S.id.in_(select(Finding.session_id).where(Finding.pattern_id.in_(pats))))
         if eligible is not None:  # Insights' eligible sessions: checked (or partial) with a result
             ok = and_(S.status.in_(("checked", "partial")), S.result.is_not(None))
             q = q.where(ok if eligible else ~ok)
         if finding is not None:
-            has = S.id.in_(select(Finding.session_id).where(Finding.workspace_id == _ws(workspace)))
+            has = S.id.in_(select(Finding.session_id).where(Finding.workspace_id == workspace_id(workspace)))
             q = q.where(has if finding else ~has)
         if agent:
             q = q.where(or_(S.agent_id == agent, S.agent_ref == agent))
@@ -256,8 +258,6 @@ class Sessions:
         if self.postgres:
             db.execute(text("SELECT pg_notify(:channel, :payload)"), {"channel": CHANNEL, "payload": json.dumps(event)})
         else:
-            from sqlalchemy import event as sa_event
-
             sa_event.listen(db, "after_commit", lambda _s: self.broker.publish(event), once=True)
 
     def _match_agent(self, db: Session, ws: str, agent: str, platform: str, number: int) -> str | None:

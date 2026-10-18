@@ -9,7 +9,6 @@ from pydantic import ConfigDict, Field
 
 from .base import BaseModel
 
-
 # A procedure check's rolled-up result; a session's is the worst of its procedures' (see pipeline.rollup).
 CheckResultValue = Literal["deviated", "partial", "followed", "not_measurable"]
 

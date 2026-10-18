@@ -5,11 +5,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel as _BaseModel, ConfigDict, Field
+from pydantic import BaseModel as _BaseModel
+from pydantic import ConfigDict, Field
 
 from .base import BaseModel
 from .checks import CheckResultValue, ProcedureCheckOut
-
 
 Channel = Literal["voice", "text"]
 

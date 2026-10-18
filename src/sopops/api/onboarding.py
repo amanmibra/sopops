@@ -10,12 +10,30 @@ from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from ..llm import LLMError, model_for
-from ..schemas.onboarding import CreateImport, PlatformAgentsRequest, PlatformAgent, AgentImportRequest, ImportOut, AgentImportOut, EventOut, ResolveRequest, ApplyRequest, ApplyOut, Capabilities, SessionInfo, ProgressIn, PushIn, FidelityIn, FidelityOut, PushOut
+from ..onboarding import platforms
+from ..onboarding.service import DONE, Onboarding
+from ..onboarding.types import ProposalContent, SourcePrompt
+from ..schemas.onboarding import (
+    AgentImportOut,
+    AgentImportRequest,
+    ApplyOut,
+    ApplyRequest,
+    Capabilities,
+    CreateImport,
+    EventOut,
+    FidelityIn,
+    FidelityOut,
+    ImportOut,
+    PlatformAgent,
+    PlatformAgentsRequest,
+    ProgressIn,
+    PushIn,
+    PushOut,
+    ResolveRequest,
+    SessionInfo,
+)
 from ..store import Store
 from ..tokens import Forbidden, Unauthorized
-from . import platforms
-from .types import ProposalContent, SourcePrompt
-from .service import DONE, Onboarding
 
 # --- routes --------------------------------------------------------------------------------
 

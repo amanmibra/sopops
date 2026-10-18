@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel as _BaseModel, ConfigDict
-
+from pydantic import BaseModel as _BaseModel
+from pydantic import ConfigDict
 
 Files = dict[str, str]
 

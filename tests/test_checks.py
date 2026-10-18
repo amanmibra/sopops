@@ -6,11 +6,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
+from conftest import SOPC_BIN, WS, fresh_db_url
+from fakes import PATTERN_SCHEMAS, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
-from conftest import SOPC_BIN, WS, fresh_db_url
-from fakes import PATTERN_SCHEMAS, pattern_reply
 from sopops import Sopc, Store, create_app
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM, LiteLLM, text_of

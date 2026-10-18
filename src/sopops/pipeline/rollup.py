@@ -31,6 +31,7 @@ that was present and handled. A skipped step that the leniency rule kept from ma
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -152,7 +153,5 @@ def worst(results: list[str | None]) -> str | None:
 
 
 def _short(v: Any, n: int = 120) -> str:
-    import json
-
     s = v if isinstance(v, str) else json.dumps(v, separators=(",", ":"), default=str)
     return s if len(s) <= n else s[: n - 1] + "…"

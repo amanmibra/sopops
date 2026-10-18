@@ -21,7 +21,15 @@ from typing import Any, Protocol
 import dspy
 from pydantic import BaseModel, TypeAdapter
 
-from ..llm import MAX_TOKENS, RULES, TIMEOUT_S, LLMError, NotConfigured, Usage, model_for
+from ..llm import (
+    MAX_TOKENS,
+    RULES,
+    TIMEOUT_S,
+    LLMError,
+    NotConfigured,
+    Usage,
+    model_for,
+)
 
 ROLES = ("fast", "reasoning")
 

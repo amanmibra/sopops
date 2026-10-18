@@ -5,19 +5,27 @@ from types import SimpleNamespace
 
 import dspy
 import pytest
+from conftest import SOPC_BIN, WS, fresh_db_url
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
+from test_checks import (
+    ALLERGEN,
+    DELIVERY,
+    Scenario,
+    checks_by_id,
+    rules_by_key,
+    session,
+)
 
-from conftest import WS, fresh_db_url, SOPC_BIN
 from sopops import Sopc, Store, create_app
-from sopops.ai import classify, jev as jev_mod, lm
+from sopops.ai import classify, lm
+from sopops.ai import jev as jev_mod
 from sopops.ai.classify import Band, JevConfig, Line, segments
 from sopops.ai.jev import Choice, FakeJev, Noul
 from sopops.ai.signatures import CheckRules, SplitRule
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM
 from sopops.orm import RuleChecks
-from test_checks import ALLERGEN, DELIVERY, Scenario, checks_by_id, rules_by_key, session
 
 NEVER_SAFE = 'Never say an item is "allergen-free" or "safe"'
 

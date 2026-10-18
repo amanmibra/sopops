@@ -4,10 +4,9 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
-from sopops import Sopc, Store, create_app
 from sqlalchemy import text
 
+from sopops import Sopc, Store, create_app
 from sopops.db import engine_from_url
 from sopops.orm import metadata
 

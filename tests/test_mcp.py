@@ -5,13 +5,12 @@ import json
 
 import httpx
 import pytest
-from fastapi.testclient import TestClient
-
 from conftest import SOPC_BIN, WS
+from fastapi.testclient import TestClient
 from mcp.server.mcpserver.exceptions import ToolError
+from test_onboarding import FIXTURES, sources
 
 from sopops.mcp_server import make_server
-from test_onboarding import FIXTURES, sources
 
 TOOLS = {"get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "write_sopc_project"}
 

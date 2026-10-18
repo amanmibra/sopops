@@ -9,9 +9,8 @@ import time
 import httpx
 import pytest
 import respx
-from cryptography.fernet import Fernet
-
 from conftest import WS
+from cryptography.fernet import Fernet
 
 EL = "https://api.elevenlabs.io"
 VAPI = "https://api.vapi.ai"
@@ -363,9 +362,9 @@ def test_a_client_reports_the_call_its_prompt_served(client, files, published):
 
 
 def test_cors_for_browser_clients(monkeypatch, tmp_path):
+    from conftest import SOPC_BIN
     from fastapi.testclient import TestClient
 
-    from conftest import SOPC_BIN
     from sopops import Sopc, Store, create_app
 
     monkeypatch.setenv("SOPOPS_CORS_ORIGINS", "https://app.example.com")

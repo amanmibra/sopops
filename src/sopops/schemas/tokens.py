@@ -9,7 +9,6 @@ from pydantic import Field
 
 from .base import BaseModel
 
-
 TokenScope = Literal["ingest", "runtime", "onboarding:write"]
 
 

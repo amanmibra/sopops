@@ -10,7 +10,6 @@ from pydantic import Field
 from .base import BaseModel
 from .checks import RuleKind
 
-
 PatternKind = Literal["rule", "sub", "other"]
 
 

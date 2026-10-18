@@ -3,10 +3,10 @@
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
+from conftest import SOPC_BIN, WS
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 
-from conftest import SOPC_BIN, WS
 from sopops import Sopc, Store, create_app
 from sopops.db import alembic_config, current_revision, upgrade
 from sopops.orm import metadata

@@ -25,13 +25,16 @@ from hatchet_sdk import (
     StatusBasedIdempotencyConfig,
 )
 from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
+from sqlmodel import Session, select
 
 from .. import llm as llm_mod
+from ..db import database_url
+from ..orm import Finding
 from ..pipeline import (
     CheckRef,
-    ReclusterRef,
     CheckResult,
     ProcessResult,
+    ReclusterRef,
     RouteRef,
     RouteResult,
     SessionRef,
@@ -40,6 +43,8 @@ from ..pipeline import (
     normalize_session,
     route_session,
 )
+from ..sopc import Sopc
+from ..store import Store
 
 hatchet = Hatchet()
 RATE = int(os.environ.get("SOPOPS_RATE_LIMIT_PER_MINUTE", "60"))
@@ -72,10 +77,6 @@ def _get_store():
     """The worker's store, from DATABASE_URL. The API process runs migrations; the worker doesn't."""
     global _store
     if _store is None:
-        from ..db import database_url
-        from ..sopc import Sopc
-        from ..store import Store
-
         _store = Store(database_url(), Sopc(), migrate=False)
     return _store
 
@@ -155,10 +156,6 @@ def recluster_daily(input, ctx: Context) -> dict:
 
 
 def _session_findings(store, ref: SessionRef):
-    from sqlmodel import Session, select
-
-    from ..orm import Finding
-
     with Session(store.engine) as db:
         return list(db.exec(select(Finding).where(Finding.session_id == ref.session_id)))
 

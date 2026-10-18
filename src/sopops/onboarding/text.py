@@ -136,7 +136,6 @@ def template(variants: list[str]) -> Template | None:
     variants[0] is the base; every variant renders back exactly (`render(variant=i)`)."""
     toks = [TOKEN.findall(v) for v in variants]
     base = toks[0]
-    n = len(base)
     ranges: list[tuple[int, int]] = []  # base token ranges that differ in some variant
     maps: list[tuple[dict[int, int], dict[int, int]]] = []
     for other in toks[1:]:

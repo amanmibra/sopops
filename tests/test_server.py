@@ -1,7 +1,6 @@
 import json
 
 import pytest
-
 from conftest import WS, expected
 
 
