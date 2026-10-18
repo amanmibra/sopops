@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Keyboard, Loader2, RefreshCw, RotateCcw, Sparkles, Undo2, X, Check } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { type PatternOut, type RulePatternOut, call, q, refresh, sdk } from "@/lib/api";
+import { type PatternOut, type RulePatternOut, type RuleRef, call, q, refresh, sdk } from "@/lib/api";
 import { ruleName, sessionsHref } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import {
@@ -33,7 +33,7 @@ import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { Page } from "./item-shell";
-import { ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
+import { ReviewStateChip, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
 import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
@@ -196,6 +196,7 @@ function ReviewCard({
           {item.name}
         </HrefLink>
       </h3>
+      {item.kind === "rule" && <RuleTag rule={item.rule} className="self-center" />}
       <span className="text-muted-foreground text-xs tabular-nums">
         {plural(item.sessions, "session", "sessions")} · {plural(item.findings, "finding", "findings")}
       </span>
@@ -273,7 +274,7 @@ function ReviewCard({
           </div>
         )}
         {head}
-        {item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
+        {item.kind !== "rule" && item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
         {item.rule?.text && (
           <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
             <span className="text-muted-foreground">{ruleName(item.rule.kind, item.rule.index)}:</span> {item.rule.text}
@@ -664,7 +665,7 @@ function AllPatterns({
                 <ul className="grid gap-1">
                   {list.map(({ p, subs }) => (
                     <li key={p.pattern_id}>
-                      <PatternRow p={p} depth={0} split={p.sub_patterns.some((x) => x.kind === "sub")} />
+                      <PatternRow p={p} depth={0} rule={p.rule} split={p.sub_patterns.some((x) => x.kind === "sub")} />
                       {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs">{ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}</div>}
                       {subs.length > 0 && (
                         <ul className="ml-1 border-l pl-3">
@@ -688,13 +689,14 @@ function AllPatterns({
 
 /** One pattern in a list: name, verdict, review state and counts. A rule pattern split into failure modes shows no
  * state of its own: each failure mode has one. */
-function PatternRow({ p, depth, split }: { p: PatternOut; depth: number; split?: boolean }) {
+function PatternRow({ p, depth, split, rule }: { p: PatternOut; depth: number; split?: boolean; rule?: RuleRef | null }) {
   const { ws } = useWs();
   return (
     <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-0.5 py-1", depth && "text-[13px]")}>
       <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn("min-w-0", depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")}>
         {p.name}
       </HrefLink>
+      {p.kind === "rule" && <RuleTag rule={rule} />}
       {p.status === "retired" && <Tag>retired</Tag>}
       <VerdictChip v={p.verdict} />
       {!split && <ReviewStateChip state={p.review_state} note={p.review_note} />}
@@ -793,6 +795,7 @@ export function PatternView({ id }: { id: string }) {
       <PageTitle
         aside={
           <span className="flex flex-wrap items-center gap-1.5">
+            {d.kind === "rule" && <RuleTag rule={d.rule} className="text-[12px]" />}
             <VerdictChip v={verdict} className="text-[13px]" />
             {!(d.kind === "rule" && subs.some((x) => x.kind === "sub")) && <ReviewStateChip state={d.review_state} note={d.review_note} className="text-[13px]" />}
           </span>
@@ -800,7 +803,7 @@ export function PatternView({ id }: { id: string }) {
       >
         {d.name}
       </PageTitle>
-      {d.description && <Sub>{d.description}</Sub>}
+      {d.kind !== "rule" && d.description && <Sub>{d.description}</Sub>}
       {d.rule.text && (
         <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-[14px]">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> {d.rule.text}

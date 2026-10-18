@@ -8,7 +8,7 @@ Two kinds, by output type:
   `check_signature`, `evidence_signature`, `assign_signature`. Each output's question goes in the predictor's `fields`
   (`instructions` and `criteria`), which is also where calibrated thresholds live.
 - **Generative signatures** run on the reasoning model (or the fast one, as noted): `SplitRule`, `CheckRules`,
-  `LocateEvidence` (fast), `ClusterFindings`, `GroupThemes`, `SuggestEdit`, `SegmentPrompt`, `StructureProcedure`,
+  `LocateEvidence` (fast), `NameRulePattern`, `ClusterFindings`, `GroupThemes`, `SuggestEdit`, `SegmentPrompt`, `StructureProcedure`,
   `NameVariables` (fast).
 
 `VERSIONS` names the instructions each stored result was made with; bump one whenever its text changes.
@@ -34,6 +34,7 @@ VERSIONS = {
     "locate": "locate-1",
     "assign": "assign-2",
     "cluster": "cluster-2",
+    "name": "name-1",
     "themes": "themes-2",
     "suggest": "suggest-1",
     "segment": "segment-2",
@@ -361,6 +362,20 @@ class ClusterFindings(dspy.Signature):
     rule: str = dspy.InputField(desc="The rule the findings broke")
     findings: list[FindingIn] = dspy.InputField()
     modes: list[FailureMode] = dspy.OutputField(desc="At most 5")
+
+
+class NameRulePattern(dspy.Signature):
+    """You name a QA pattern: every conversation where an AI agent (voice call or text chat) broke one rule of a procedure (SOP). People scan a list of these names to see what keeps going wrong, so the name says what the agent did wrong, in a few plain words.
+
+    - Name the failure, not the rule: what the agent did (a "never" rule broken), didn't do (a step missed), or didn't act on (a warning sign), in the past tense. For example, the never rule "Never volunteer prices or descriptions of menu items" becomes "Volunteered a price or description"; the step "Read the whole order back before you confirm it" becomes "Didn't read the order back"; the warning sign "The caller mentions anaphylaxis or an EpiPen: transfer to staff" becomes "Didn't transfer an allergy emergency".
+    - At most 6 words. Plain spoken English, whatever the rule's language. No rule numbers, no quotes, no period at the end.
+    - Keep the rule's meaning: don't add details or exceptions it doesn't state, and keep placeholders like {{name}} out of the name.
+    """
+
+    kind: Literal["step", "never", "warning"] = dspy.InputField(desc="step (the agent must do it), never (the agent must not), warning (a situation to act on)")
+    rule: str = dspy.InputField(desc="The rule as the procedure states it")
+    procedure: str = dspy.InputField(desc="The procedure's name, for context")
+    name: str = dspy.OutputField(desc="At most 6 words: what the agent did wrong")
 
 
 class PatternIn(BaseModel):

@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { type PatternOut, q } from "@/lib/api";
+import { type PatternOut, type RuleRef, q } from "@/lib/api";
+import { ruleName } from "@/lib/insights";
 import { when } from "@/lib/kinds";
 import { REVIEW_STATE, type ReviewState, type SuggestionSummary, VERDICT, type VerdictOut, rq, writing } from "@/lib/review";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,17 @@ export function ago(t: string | null | undefined): string {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   if (s < 86400 * 30) return `${Math.floor(s / 86400)}d ago`;
   return new Date(t).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+/** A rule pattern's secondary label ("Never rule 2"), next to its name; the rule as it reads now on hover. */
+export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined; className?: string }) {
+  if (!rule?.kind) return null;
+  const label = ruleName(rule.kind, rule.index);
+  return (
+    <Hint focusable={false} tip={<TipBody head={label}>{rule.text ?? "The rule's text isn't known yet."}</TipBody>}>
+      <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-[11px] font-normal whitespace-nowrap", className)}>{label}</span>
+    </Hint>
+  );
 }
 
 export function VerdictChip({ v, className }: { v: VerdictOut | null | undefined; className?: string }) {

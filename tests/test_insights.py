@@ -17,6 +17,8 @@ from sopops.ai.signatures import CheckRules, field_name
 from sopops.insights import Filters, compare_flag, delta_points, pct, wilson
 from sopops.jobs import Jobs
 
+NEVER_1 = 'Never say an item is "allergen-free" or "safe"'  # the rule pattern's name: the rule's text, without a model
+
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 ALLERGEN = "allergen-check"
 
@@ -142,7 +144,7 @@ def test_rule_ladder_keeps_warning_signs_out_of_pass_rates(env):
     row = next(r for r in split["rules"] if r["rule_id"] == never["rule_id"])
     assert (row["a_n"], row["a_pass_rate"], row["b_n"], row["b_pass_rate"], row["delta_points"], row["flag"]) == (10, 50, 4, 100, None, "thin")
     names = [pat["name"] for th in p["themes"] for pat in th["patterns"]]
-    assert names == ["Never rule 1 broken"]
+    assert names == [NEVER_1]
 
 
 def test_release_compare_needs_min_n(env):

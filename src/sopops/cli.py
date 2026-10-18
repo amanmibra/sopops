@@ -5,6 +5,7 @@ sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force] [--databa
 sopops calibrate --workspace WS [--procedure P] [--dry-run] [--database-url URL]
 sopops pr-status [--workspace WS] [--database-url URL]
 sopops lineage rebuild [--workspace WS] [--database-url URL]
+sopops patterns rename [--workspace WS] [--all] [--database-url URL]
 
 Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
@@ -29,14 +30,14 @@ from .schemas import SessionIn
 from .sopc import Sopc
 from .store import Store
 
-COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage")
+COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage", "patterns")
 
 
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     command = argv.pop(0) if argv and argv[0] in COMMANDS else "serve"
     {"serve": serve, "import": import_sessions, "worker": worker, "recluster": recluster, "calibrate": calibrate, "pr-status": pr_status,
-     "lineage": lineage}[command](argv)
+     "lineage": lineage, "patterns": patterns}[command](argv)
 
 
 def serve(argv: list[str]) -> None:
@@ -179,6 +180,20 @@ def lineage(argv: list[str]) -> None:
     for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
         out = store.lineage.rebuild(ws)
         print(f"{ws}: {out['links']} rules linked to an earlier wording, {out['procedures']} procedures")
+
+
+def patterns(argv: list[str]) -> None:
+    """Name rule patterns from their rules (see `sopops.patterns.Patterns.name`): the backfill for patterns named by index."""
+    parser = argparse.ArgumentParser(prog="sopops patterns", description="Rule patterns.")
+    parser.add_argument("action", choices=["rename"], help="rename: name rule patterns that no model has named yet from their rule's current wording, with the "
+                        "reasoning model (SOPOPS_MODEL_REASONING), else the rule's text trimmed.")
+    parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
+    parser.add_argument("--all", action="store_true", help="Every rule pattern, including those a model already named.")
+    parser.add_argument("--database-url", default=database_url())
+    args = parser.parse_args(argv)
+    store = Store(args.database_url, Sopc())
+    for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
+        print(f"{ws}: {store.patterns.name(ws, force=args.all)} rule patterns renamed")
 
 
 def _short(e: Exception) -> str:

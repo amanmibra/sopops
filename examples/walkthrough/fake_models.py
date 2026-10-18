@@ -11,7 +11,8 @@ data with a known answer; how well a real model finds the failures is what real 
   it flags the word "safe" even when the agent says it can't promise something is safe, which gives a
   "checker wrong" verdict something to act on.
 - Clustering (`ClusterFindings`): findings with the same reason form one failure mode; assignment (a decision) picks
-  the mode whose name is the finding's reason. Themes: one per rule kind.
+  the mode whose name is the finding's reason. Themes: one per rule kind. Rule patterns (`NameRulePattern`) get a
+  scripted name for each of the walkthrough's rules, and the rule's text trimmed for any other.
 - Onboarding's extraction (`SegmentPrompt`, `StructureProcedure`, `NameVariables`) is answered by sopops's own
   model-free rules mode (`sopops.onboarding.rules`), so Import → Paste works too.
 - Any other signature (one added after this was written) gets a plain reply built from its output fields' types.
@@ -26,8 +27,17 @@ from typing import Any
 import dspy
 from pydantic import BaseModel
 
-from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops.ai.signatures import CheckRules, ClusterFindings, GroupThemes, NameVariables, SegmentPrompt, StructureProcedure, SuggestEdit
+from sopops.ai.fakes import FakeModels, FakeSystemOne, default_reply
+from sopops.ai.signatures import (
+    CheckRules,
+    ClusterFindings,
+    GroupThemes,
+    NameRulePattern,
+    NameVariables,
+    SegmentPrompt,
+    StructureProcedure,
+    SuggestEdit,
+)
 from sopops.onboarding.rules import RulesModels
 
 TOPICS = {
@@ -174,6 +184,26 @@ def themes(inputs: dict[str, Any]) -> dict[str, Any]:
     return {"themes": out}
 
 
+# Rule patterns' names, by words in the rule: what the agent did wrong.
+RULE_NAMES = [
+    (("allergen-free", "safe"), "Called a dish safe for an allergy"),
+    (("check each item",), "Didn't check the allergen list"),
+    (("anaphylaxis",), "Didn't transfer an allergy emergency"),
+    (("delivery time",), "Gave a delivery time"),
+    (("delivery zone",), "Didn't check the delivery zone"),
+    (("8 guests",), "Booked a large party without the manager"),
+    (("availability",), "Booked without checking availability"),
+]
+
+
+def name_rule(inputs: dict[str, Any]) -> dict[str, Any]:
+    rule = inputs["rule"].lower()
+    for words, name in RULE_NAMES:
+        if any(w in rule for w in words):
+            return {"name": name}
+    return default_reply(NameRulePattern, inputs) or {"name": inputs["rule"]}
+
+
 # Scripted edits for the walkthrough's two suggestions; any other gets a generic one of the same shape.
 REWORD = {"Never tell the caller a delivery time": "Never tell the caller a delivery time before the delivery zone check confirms the address"}
 GUIDANCE = {
@@ -233,6 +263,8 @@ class WalkthroughModels(FakeModels):
             return themes(inputs)
         if signature is SuggestEdit:
             return suggest(inputs)
+        if signature is NameRulePattern:
+            return name_rule(inputs)
         if signature in (SegmentPrompt, StructureProcedure, NameVariables):
             return dict(self.rules.predict(role, signature, **inputs).items())
         return plain(signature)

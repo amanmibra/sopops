@@ -2,13 +2,13 @@
 // release split), never rules and warning signs, the trend, what went wrong, agents and patterns by theme.
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Ban, Pencil, TriangleAlert } from "lucide-react";
-import type { InsightFilters, LadderRow, PatternOut, ProcedureInsights, RulePatternOut, SessionFilters, SplitRow, ThemeOut, WarningImpact } from "@/lib/api";
+import type { InsightFilters, LadderRow, PatternOut, ProcedureInsights, RulePatternOut, RuleRef, SessionFilters, SplitRow, ThemeOut, WarningImpact } from "@/lib/api";
 import { q } from "@/lib/api";
 import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
-import { ReviewStateChip, VerdictChip, usePatternIndex } from "../review-bits";
+import { ReviewStateChip, RuleTag, VerdictChip, usePatternIndex } from "../review-bits";
 import { Button } from "../ui/button";
 import { ProblemsChart, TrendCharts } from "./charts";
 import { DeltaMark, HeaderHint, Hint, Legend, RateN, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
@@ -219,13 +219,14 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
   );
 }
 
-function PatternLine({ p, depth, scope, known, split }: { p: PatternOut; depth: number; scope?: Scope; known?: PatternOut; split?: boolean }) {
+function PatternLine({ p, depth, scope, known, split, rule }: { p: PatternOut; depth: number; scope?: Scope; known?: PatternOut; split?: boolean; rule?: RuleRef | null }) {
   const { ws } = useWs();
   return (
     <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-0.5", depth && "pl-5 text-[13px]")}>
       <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn(depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, examples and suggestions">
         {p.name}
       </HrefLink>
+      {p.kind === "rule" && <RuleTag rule={rule} className="self-center" />}
       {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-1.5 text-[11px]">retired</span>}
       <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-muted-foreground text-xs tabular-nums" title="Its sessions">
         {p.sessions} sessions · {p.findings} findings
@@ -252,7 +253,7 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
           <div className="border-l-2 pl-3">
             {t.patterns.map((p: RulePatternOut) => (
               <div key={p.pattern_id} className="mb-1.5">
-                <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} split={p.sub_patterns.some((s) => s.kind === "sub")} />
+                <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} rule={p.rule} split={p.sub_patterns.some((s) => s.kind === "sub")} />
                 {p.rule?.text && (
                   <div className="text-muted-foreground mb-0.5 text-xs">
                     {ruleName(p.rule.kind, p.rule.index)}: {p.rule.text}

@@ -142,7 +142,7 @@ Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_
 
 ## Patterns, review and suggestions
 
-**Patterns.** Every rule with findings is a pattern. Once a rule has 8, the reviewer model splits it into named failure modes ("Told the caller a dish is safe"), new findings are assigned to them, and themes group them by the phase of the call. Reclustering keeps names and ids stable ([how](API.md#patterns-and-themes)).
+**Patterns.** Every rule with findings is a pattern, named by the reviewer model for what the agent did wrong ("Didn't read the order back"; without a model, the rule's own words). Once a rule has 8, the reviewer model splits it into named failure modes ("Told the caller a dish is safe"), new findings are assigned to them, and themes group them by the phase of the call. Reclustering keeps names and ids stable ([how](API.md#patterns-and-themes)).
 
 **Review.** QA → Patterns → Needs review is a queue (keys `1` to `4`) of patterns waiting for a verdict:
 
@@ -165,7 +165,7 @@ Each pattern then moves through review states: **needs review** (no verdict, or 
 
 Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/signatures.py`](src/sopops/ai/signatures.py)), and every result records the model and instructions version that made it. Bring your own keys.
 
-- **Two roles.** `SOPOPS_MODEL_FAST` answers the decisions (routing, rule checks, pattern assignment) and `SOPOPS_MODEL_REASONING` is the reviewer: it judges the rules the decisions flag or aren't sure about, splits rules into checks, clusters, names themes and writes suggestions. Model strings like `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`, with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...); either alone serves both. Any provider DSPy knows works, or an OpenAI-compatible endpoint for local models (`SOPOPS_LLM_API_BASE`). Unset, sessions are stored but not checked.
+- **Two roles.** `SOPOPS_MODEL_FAST` answers the decisions (routing, rule checks, pattern assignment) and `SOPOPS_MODEL_REASONING` is the reviewer: it judges the rules the decisions flag or aren't sure about, splits rules into checks, names patterns, clusters, names themes and writes suggestions. Model strings like `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`, with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...); either alone serves both. Any provider DSPy knows works, or an OpenAI-compatible endpoint for local models (`SOPOPS_LLM_API_BASE`). Unset, sessions are stored but not checked.
 - **Jev (optional).** With `pip install 'sopops[jev]'` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers the decisions instead of the fast model: calibrated probabilities, faster and much cheaper than an LLM call. The reviewer still reviews.
 - **Check modes.** `decide` (default): decisions first, the reviewer on what they flag. `review`: the reviewer judges every rule. `SOPOPS_CHECK_REVIEW=off` lets the decisions stand.
 - **Calibration.** Decision thresholds can be fitted to a workspace's own labeled sessions (verdicts and overrides are the labels; checker-wrong ones are negative) and are stored per workspace; until then the defaults apply (`SOPOPS_DECISIONS` overrides them). Run it with `sopops calibrate --workspace WS [--procedure P] [--dry-run]` or `POST …/calibrate`: it reports each threshold before and after, and refuses a procedure with fewer than 5 labeled sessions or no rule with 3 labeled failures. Calibration widens the review band, never narrows it.
@@ -274,7 +274,7 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
 | `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering prompts to platforms; inline or Hatchet runs |
 | `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `lineage.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
-| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild) and `sopops-mcp` |
+| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild, patterns rename) and `sopops-mcp` |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |
 | `sdks/python`, `sdks/node` | The client SDKs |
 | `skills/sopops-onboard` | The onboarding skill coding agents follow |

@@ -361,7 +361,8 @@ class Insights:
         return {p: (n, s) for p, n, s in db.exec(q.group_by(F.pattern_id)).all()}
 
     def _patterns(self, db: Session, f: Filters, procedure_id: str | None, rule_id: str | None = None) -> list[dict[str, Any]]:
-        """Rule patterns with their sub-patterns, counts in the window (all-time counts alongside)."""
+        """Rule patterns with their sub-patterns, counts in the window (all-time counts alongside), and `rule`: the rule
+        as sessions ran it most recently (its lineage's current wording), which is also a rule pattern's description."""
         P = Pattern
         q = select(P).where(P.workspace_id == f.workspace)
         if procedure_id:
@@ -372,6 +373,7 @@ class Insights:
         counts = self._pattern_window_counts(db, f, procedure_id)
         hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         theme_names = dict(db.exec(select(Theme.id, Theme.name).where(Theme.workspace_id == f.workspace)).all())
+        texts = self._rule_texts(db, f.workspace, procedure_id)
         children: dict[str, list[Pattern]] = defaultdict(list)
         for p in pats:
             if p.parent_id:
@@ -390,7 +392,10 @@ class Insights:
             n = own[0] + sum(x["findings"] for x in subs)
             s = own[1] + sum(x["sessions"] for x in subs)  # a session has at most one finding per rule
             gone = hidden.get(p.id, (0, 0))[0] + sum(hidden.get(c.id, (0, 0))[0] for c in children.get(p.id, []))
-            out.append({**_pattern_out(p, n, s), "theme_name": theme_names.get(p.theme_id or ""), "suppressed": gone, "sub_patterns": subs})
+            t = texts.get((p.procedure_id, p.rule_id), {})
+            rule = {"kind": t.get("kind"), "index": t.get("index"), "text": t.get("text")}
+            out.append({**_pattern_out(p, n, s), "description": t.get("text") or p.description, "theme_name": theme_names.get(p.theme_id or ""), "suppressed": gone,
+                        "sub_patterns": subs, "rule": rule})
         return out
 
     # --- views ---
@@ -743,10 +748,6 @@ class Insights:
     def _themes(self, db: Session, f: Filters, procedure_id: str) -> list[dict[str, Any]]:
         pats = self._patterns(db, f, procedure_id)
         themes = list(db.exec(select(Theme).where(Theme.workspace_id == f.workspace, Theme.procedure_id == procedure_id).order_by(Theme.position)))
-        texts = self._rule_texts(db, f.workspace, procedure_id)
-        for p in pats:
-            t = texts.get((procedure_id, p["rule_id"]), {})
-            p["rule"] = {"kind": t.get("kind"), "index": t.get("index"), "text": t.get("text")}
         S, F = SessionRecord, Finding
         sessions_of: dict[str, set[str]] = defaultdict(set)  # rule pattern id -> sessions with a finding on it
         parent = {p["pattern_id"]: p["pattern_id"] for p in pats} | {s["pattern_id"]: p["pattern_id"] for p in pats for s in p["sub_patterns"]}
@@ -928,10 +929,6 @@ class Insights:
     def patterns(self, f: Filters, procedure_id: str | None = None, rule_id: str | None = None) -> dict[str, Any]:
         with self._db() as db:
             pats = self._patterns(db, f, procedure_id or f.procedure, rule_id)
-            texts = self._rule_texts(db, f.workspace, procedure_id or f.procedure)
-        for p in pats:
-            t = texts.get((p["procedure_id"], p["rule_id"]), {})
-            p["rule"] = {"kind": t.get("kind"), "index": t.get("index"), "text": t.get("text")}
         pats.sort(key=lambda p: (p["procedure_id"], -p["findings"], p["name"]))
         return {"items": pats}
 

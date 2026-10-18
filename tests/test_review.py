@@ -212,7 +212,7 @@ def test_review_queue_and_states(env):
     assert q["total"] == 2 and [i["sessions"] for i in q["items"]] == [4, 3]  # most sessions first
     assert q["counts"] == {"needs_review": 2, "open": 0, "fixing": 0, "fixed": 0, "regressed": 0, "closed": 0}
     top, step = q["items"]
-    assert top["name"] == "Never rule 1 broken" and top["procedure_name"] == "Allergen check" and SAFE in top["rule_text"] and top["review_state"] == "needs_review"
+    assert top["name"] == SAFE and top["procedure_name"] == "Allergen check" and SAFE in top["rule_text"] and top["review_state"] == "needs_review"
     assert top["verdict"] is None and top["suggestion"] is None and top["new_findings"] == 4 and top["theme_name"] == "Never problems"
     assert len(top["examples"]) == 4 and top["examples"][0]["excerpt"] == "totally safe" and top["examples"][0]["finding_id"]
 
@@ -223,7 +223,7 @@ def test_review_queue_and_states(env):
     # real: open (waiting for a fix), not in the default queue, even as new findings come in
     verdict(env, top["pattern_id"], "real")
     env.send("A")
-    assert [i["name"] for i in queue(env)["items"]] == ["Step 2 missed"]
+    assert [i["name"] for i in queue(env)["items"]] == ["Name the specific allergen back to the customer"]
     assert [i["pattern_id"] for i in queue(env, "open")["items"]] == [top["pattern_id"]]
     listed = next(p for p in env.client.get(f"{WS}/patterns", params={"procedure": ALLERGEN}).json()["items"] if p["pattern_id"] == top["pattern_id"])
     assert (listed["verdict"]["verdict"], listed["review_state"]) == ("real", "open")
@@ -362,7 +362,7 @@ def test_verdicts_follow_reclustering(env):
         env.send(mode)  # the 8th finding splits the rule into Mode A and Mode B
     with Session(env.store.engine) as db:
         pats = {p.name: p for p in db.exec(select(Pattern))}
-    a, b, rule = pats["Mode A"], pats["Mode B"], pats["Never rule 1 broken"]
+    a, b, rule = pats["Mode A"], pats["Mode B"], pats[SAFE]
     verdict(env, a.id, "acceptable")
     # a sub-pattern without a verdict of its own has its rule pattern's
     verdict(env, rule.id, "real")

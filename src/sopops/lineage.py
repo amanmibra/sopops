@@ -25,7 +25,7 @@ row, which the matcher and `rebuild` never overwrite. `rebuild` recomputes the m
 release, each against the release before it; the migration that adds the table runs it on existing data.
 
 After any change, `follow` (`sopops.patterns.rekey`) moves rule patterns onto their lineage. Reading helpers
-(`lineages`, `lineage_of`, `members`, `in_lineage`, `expand`, `wordings`) are what patterns, verdicts, suggestions,
+(`lineages`, `lineage_of`, `members`, `in_lineage`, `expand`, `latest`, `wordings`) are what patterns, verdicts, suggestions,
 Insights, sessions and calibration use to follow a rule across its wordings.
 """
 
@@ -207,6 +207,15 @@ def expand(db: Session, ws: str, rule_id: str, procedure_id: str | None = None) 
         q, rq = q.where(RuleLineage.procedure_id == procedure_id), rq.where(RuleLineage.procedure_id == procedure_id)
     lins = {rule_id, *db.exec(q).all()}
     return lins, lins | set(db.exec(rq.where(RuleLineage.lineage_id.in_(lins))).all())
+
+
+def latest(db: Session, ws: str, procedure_id: str, lineage_id: str) -> tuple[str, int, str] | None:
+    """(kind, index, text) of the lineage's rule as the most recent session ran it, or None before any did."""
+    R, S = RuleResult, SessionRecord
+    row = db.exec(select(R.kind, R.index, R.rule_text).join(S, S.id == R.session_id)
+                  .where(R.workspace_id == ws, R.procedure_id == procedure_id, in_lineage(R.rule_id, ws, procedure_id, lineage_id))
+                  .order_by(S.started_at.desc()).limit(1)).first()
+    return (row[0], row[1], row[2]) if row else None
 
 
 @dataclass

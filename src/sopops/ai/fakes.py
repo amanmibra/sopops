@@ -2,8 +2,9 @@
 
 - `FakeModels`: an `AI` whose generative calls are answered by `responder(role, signature, inputs)` (the output
   fields, as a dict), and whose decision calls run through DSPy's real decision decoding against `decider`. A field
-  the responder leaves out (or None) is answered by `default_reply` where it knows the signature (`SplitRule`), so a
-  fake written for the checks still serves the programs that split rules first (calibration).
+  the responder leaves out (or None) is answered by `default_reply` where it knows the signature (`SplitRule`,
+  `NameRulePattern`), so a fake written for the checks still serves the programs that split rules first (calibration)
+  and names patterns.
 - `FakeSystemOne`: a System One client like `dspy.experimental.TypeSafe`: `responder(state, questions)` returns, per
   question, a probability (a Noul), or a label or a label -> probability mapping (a Choice).
 - `FakeEngine`: a `dspy.LM` engine that answers in DSPy's chat format, for running decision signatures on a
@@ -23,7 +24,8 @@ from dspy.lm15 import Usage as LMUsage
 from pydantic import BaseModel, TypeAdapter
 
 from .lm import DECIDE, NotConfigured, Usage, as_predict
-from .signatures import SplitRule
+from .programs import rule_phrase
+from .signatures import NameRulePattern, SplitRule
 
 Responder = Callable[[str, type[dspy.Signature], dict[str, Any]], BaseModel | Mapping[str, Any]]
 DecisionResponder = Callable[[dict[str, Any], dict[str, dict[str, Any]]], Mapping[str, Any]]
@@ -37,7 +39,12 @@ def split_rule(inputs: Mapping[str, Any]) -> dict[str, Any]:
     return {"checks": {"condition": None, "actions": [rule], "forbidden": []}}
 
 
-DEFAULT_REPLIES: dict[type[dspy.Signature], Callable[[Mapping[str, Any]], dict[str, Any]]] = {SplitRule: split_rule}
+def name_rule_pattern(inputs: Mapping[str, Any]) -> dict[str, Any]:
+    """`NameRulePattern` without a model: the rule's text, trimmed."""
+    return {"name": rule_phrase(str(inputs.get("rule") or ""))}
+
+
+DEFAULT_REPLIES: dict[type[dspy.Signature], Callable[[Mapping[str, Any]], dict[str, Any]]] = {SplitRule: split_rule, NameRulePattern: name_rule_pattern}
 
 
 def default_reply(signature: type[dspy.Signature], inputs: Mapping[str, Any]) -> dict[str, Any] | None:

@@ -1,6 +1,8 @@
 """Patterns and themes: findings grouped so a person sees what keeps going wrong, not one session at a time.
 
-- Every rule with findings has one **rule pattern** (`kind = rule`). Its name is made from the rule, no model needed.
+- Every rule with findings has one **rule pattern** (`kind = rule`), named once when it's made by the reasoning model
+  (`sopops.ai.programs.NamePattern`: what the agent did wrong, "Didn't read the order back"), or from the rule's text
+  without one (`rule_phrase`). A pattern named without a model is named again by the next recluster (`name`).
 - Once a rule has `SPLIT_AT` findings, the reasoning model splits its findings into at most 5 named failure modes:
   **sub-patterns** (`kind = sub`), plus one `other` sub-pattern for findings that fit none.
 - New findings on a split rule are **assigned** to one of its sub-patterns, or to `other`, by a decision (`sopops.ai.decide`).
@@ -25,6 +27,7 @@ Each function takes an `AI` (tests pass a fake) and is plain, so it runs inline 
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -36,6 +39,7 @@ from sqlmodel import Session, func, select
 from . import lineage
 from .ai import decide
 from .ai import lm as ai_lm
+from .ai.programs import NamePattern, rule_phrase
 from .ai.signatures import (
     VERSIONS,
     ClusterFindings,
@@ -67,10 +71,7 @@ ASSIGN_BATCH = 25
 MAX_THEMES = 6
 
 KIND_LABEL = {"step": "Step", "never": "Never", "warning": "Warning sign"}
-
-
-def rule_pattern_name(kind: str, index: int) -> str:
-    return {"step": f"Step {index} missed", "never": f"Never rule {index} broken", "warning": f"Warning sign {index} not acted on"}.get(kind, f"Rule {index}")
+INDEX_NAME = re.compile(r"^(Step \d+ missed|Never rule \d+ broken|Warning sign \d+ not acted on|Rule \d+)$")  # before names came from the rule
 
 
 def _now() -> datetime:
@@ -230,8 +231,9 @@ class Patterns:
         return out
 
     def _assign(self, ws: str, findings: list[Finding], ai: AI) -> int:
-        """Rule pattern for every finding (created if new); the fast model picks a sub-pattern on split rules."""
+        """Rule pattern for every finding (created, then named, if new); the fast model picks a sub-pattern on split rules."""
         now = _now()
+        created: list[str] = []
         with self._db() as db, db.begin():
             ids = [f.id for f in findings]
             findings = list(db.exec(select(Finding).where(Finding.id.in_(ids))))
@@ -241,7 +243,7 @@ class Patterns:
             rule_pats: dict[tuple[str, str], Pattern] = {}
             for f in findings:
                 if key[f.id] not in rule_pats:
-                    rule_pats[key[f.id]] = _rule_pattern(db, ws, *key[f.id], views.get(f.id), now)
+                    rule_pats[key[f.id]] = _rule_pattern(db, ws, *key[f.id], views.get(f.id), now, created)
             subs = self._subs_by_rule(db, ws, list(rule_pats.values()))
             simple = [f for f in findings if not subs.get(rule_pats[key[f.id]].id)]
             for f in simple:
@@ -261,8 +263,50 @@ class Patterns:
             db.flush()
             for p in rule_pats.values():
                 refresh_counts(db, p)
+        if created:
+            self.name(ws, created, ai)
         self.store.verdicts.refresh(ws, rules=list(rule_pats))
         return len(findings)
+
+    # --- names -------------------------------------------------------------------------------------------------
+
+    def name(self, ws: str, pattern_ids: list[str] | None = None, ai: AI | None = None, force: bool = False) -> int:
+        """Name rule patterns from their rule as it reads now (its lineage's current wording): with the reasoning model
+        when it's configured, else the rule's text trimmed. Only patterns no model has named yet (`named_by_model`),
+        unless `force` (`pattern_ids`: just those; else every rule pattern of the workspace). A model error leaves the
+        trimmed text. Returns how many names changed."""
+        ai = ai or ai_lm.get_ai()
+        with self._db() as db:
+            q = select(Pattern).where(Pattern.workspace_id == ws, Pattern.kind == "rule")
+            if pattern_ids is not None:
+                q = q.where(Pattern.id.in_(pattern_ids))
+            pats = list(db.exec(q))
+            if not pats:
+                return 0
+            groups = lineage.wordings(db, ws)
+            procs = dict(db.exec(select(ProcedureCheck.procedure_id, ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws).distinct()).all())
+        program = NamePattern(ai) if ai_lm.configured(ai, "reasoning") else None
+        names: dict[str, str] = {}
+        for p in pats:
+            group = groups.get((p.procedure_id, p.rule_id), [])
+            if not force and named_by_model(p, [w.text for w in group]):
+                continue
+            w = lineage.current(group) if group else None
+            name = rule_phrase(w.text if w else (p.description or ""))
+            if program is not None and w is not None:
+                try:
+                    name = program(kind=w.kind, rule=w.text, procedure=procs.get(p.procedure_id) or p.procedure_id).name
+                except Exception:  # a pattern still needs a name: the rule's text will do until the next try
+                    log.exception("naming rule pattern %s failed; it keeps the rule's text", p.id)
+            names[p.id] = name[:256]
+        changed = 0
+        with self._db() as db, db.begin():
+            for p in db.exec(select(Pattern).where(Pattern.id.in_(list(names)))):
+                if p.name != names[p.id]:
+                    changed += 1
+                    p.name, p.updated_at = names[p.id], _now()
+                    db.add(p)
+        return changed
 
     def _choose(self, ai: AI, views: list[FindingView], options: dict[str, list[Pattern]]) -> dict[str, str]:
         """{finding id: pattern id}: a decision picks among each finding's rule's sub-patterns (other included)."""
@@ -329,6 +373,8 @@ class Patterns:
             if workspace:
                 q = q.where(Pattern.workspace_id == workspace)
             rule_pats = list(db.exec(q))
+        for ws in sorted({rp.workspace_id for rp in rule_pats}):  # rule patterns named without a model get the model's name
+            self.name(ws, ai=ai)
         touched: set[tuple[str, str]] = set()
         for rp in rule_pats:
             daily = rp.finding_count >= SPLIT_AT and rp.finding_count != rp.clustered_count
@@ -349,6 +395,7 @@ class Patterns:
             if procedure_id:
                 q = q.where(Pattern.procedure_id == procedure_id)
             rule_pats = list(db.exec(q))
+        self.name(workspace, [rp.id for rp in rule_pats], ai)  # those named without a model get the model's name
         for rp in rule_pats:
             if self.recluster(workspace, rp.procedure_id, rp.rule_id, ai, force=True):
                 out.reclustered.append(rp.rule_id)
@@ -538,16 +585,25 @@ class Patterns:
                     db.delete(t)
 
 
-def _rule_pattern(db: Session, ws: str, procedure_id: str, lineage_id: str, view: FindingView | None, now: datetime) -> Pattern:
-    """The rule pattern of a lineage (created, named from the finding's rule, if new)."""
+def _rule_pattern(db: Session, ws: str, procedure_id: str, lineage_id: str, view: FindingView | None, now: datetime, created: list[str] | None = None) -> Pattern:
+    """The rule pattern of a lineage (created if new, named from the finding's rule's text; its id is added to
+    `created`, for `Patterns.name`)."""
     p = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == lineage_id, Pattern.kind == "rule")).first()
     if p is None:
-        kind, index, text = (view.kind, view.index, view.rule_text) if view else ("step", 0, "")
-        p = Pattern(id=_id(), workspace_id=ws, procedure_id=procedure_id, rule_id=lineage_id, kind="rule", name=rule_pattern_name(kind, index),
+        text = view.rule_text if view else ""
+        p = Pattern(id=_id(), workspace_id=ws, procedure_id=procedure_id, rule_id=lineage_id, kind="rule", name=rule_phrase(text)[:256],
                     description=text, created_at=now, updated_at=now)
         db.add(p)
         db.flush()
+        if created is not None:
+            created.append(p.id)
     return p
+
+
+def named_by_model(p: Pattern, texts: list[str]) -> bool:
+    """Whether a rule pattern's name came from a model: not an index name, and not one of its rule's texts trimmed
+    (what it gets without a model)."""
+    return not INDEX_NAME.match(p.name) and p.name not in {rule_phrase(t) for t in [*texts, p.description or ""]}
 
 
 def refresh_counts(db: Session, rule_pat: Pattern) -> None:

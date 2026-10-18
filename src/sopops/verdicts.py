@@ -435,9 +435,7 @@ class Verdicts:
             select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
             .where(self._members(p)).order_by(F.suppressed, S.started_at.desc()).limit(EXAMPLES)
         ).all()
-        text = db.exec(select(R.kind, R.index, R.rule_text).join(S, S.id == R.session_id)  # the wording its rule has now
-                       .where(R.workspace_id == ws, R.procedure_id == p.procedure_id, lineage.in_lineage(R.rule_id, ws, p.procedure_id, p.rule_id))
-                       .order_by(S.started_at.desc()).limit(1)).first()
+        text = lineage.latest(db, ws, p.procedure_id, p.rule_id)  # the wording its rule has now
         theme = db.get(Theme, p.theme_id) if p.theme_id else None
         name = db.exec(select(ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws, ProcedureCheck.procedure_id == p.procedure_id).limit(1)).first()
         sugg = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc()).limit(1)).first()
@@ -445,7 +443,8 @@ class Verdicts:
         new = db.exec(select(func.count(F.id)).where(self._members(p), F.suppressed.is_(False), *([F.created_at > v[0].created_at] if v else []))).one()
         return {
             "pattern_id": p.id, "procedure_id": p.procedure_id, "rule_id": p.rule_id, "parent_id": p.parent_id, "kind": p.kind, "name": p.name,
-            "description": p.description, "theme_id": p.theme_id, "theme_name": theme.name if theme else None, "status": p.status,
+            "description": (text[2] if text else None) or p.description if p.kind == "rule" else p.description,  # a rule pattern: the rule as it reads now
+            "theme_id": p.theme_id, "theme_name": theme.name if theme else None, "status": p.status,
             "findings": p.finding_count, "sessions": p.session_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen),
             "clustered_at": _utc(p.clustered_at), "procedure_name": name or p.procedure_id, "rule": {"kind": text[0], "index": text[1], "text": text[2]} if text else {"kind": None, "index": None, "text": None},
             "rule_text": text[2] if text else None, "examples": [_example(f, r, at) for f, r, at in rows], "verdict": verdict_out(*v) if v else None,

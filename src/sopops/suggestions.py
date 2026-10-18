@@ -79,7 +79,7 @@ class Suggestions:
         return {
             **suggestion_summary(s, p.name if p else None), "path": s.path, "base_version": s.base_version, "old_text": s.old_text, "new_text": s.new_text,
             "plan": s.plan, "note": s.note, "reviewer": s.reviewer, "attempts": s.attempts, "model": s.model, "prompt_version": s.prompt_version,
-            "pattern": {"pattern_id": p.id, "kind": p.kind, "name": p.name, "description": p.description, "procedure_id": p.procedure_id, "rule_id": p.rule_id} if p else None,
+            "pattern": {"pattern_id": p.id, "kind": p.kind, "name": p.name, "description": _description(db, p), "procedure_id": p.procedure_id, "rule_id": p.rule_id} if p else None,
             "verdict": verdict_out(v) if v else None,
         }
 
@@ -203,7 +203,7 @@ class Suggestions:
 
         got = SuggestEdits(ai, validate)(
             procedure_id=s.procedure_id, procedure_file=old, rule=f"{KIND_LABEL.get(rule['kind'], rule['kind'])} {rule['index']}: {rule['text']}",
-            pattern=f"{p.name}. {p.description or ''}".strip(), verdict=v.verdict, note=v.note or "",
+            pattern=p.name if p.kind == "rule" else f"{p.name}. {p.description or ''}".strip(), verdict=v.verdict, note=v.note or "",
             examples=[ExampleIn(status=e["status"], reason=e["reason"] or "", quotes=[str(x.get("quote")) for x in e["evidence"] if x.get("quote")][:3])
                       for e in examples],
         )
@@ -270,3 +270,11 @@ def _utc(at: datetime | None) -> datetime | None:
 
 def _eol(text: str) -> str:
     return text.rstrip("\n") + "\n"
+
+
+def _description(db: Session, p: Pattern) -> str | None:
+    """A rule pattern's description is its rule as it reads now; a failure mode's is the model's."""
+    if p.kind != "rule":
+        return p.description
+    now = lineage.latest(db, p.workspace_id, p.procedure_id, p.rule_id)
+    return now[2] if now else p.description

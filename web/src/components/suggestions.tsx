@@ -141,7 +141,7 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
           {d.suppressed > 0 && ` (${d.suppressed} hidden from Insights by the verdict)`}
         </p>
       )}
-      {(s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-[13px]">{s.pattern?.description ?? d?.description}</p>}
+      {(s.pattern?.kind ?? d?.kind) !== "rule" && (s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-[13px]">{s.pattern?.description ?? d?.description}</p>}
       {d?.rule.text && (
         <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> {d.rule.text}

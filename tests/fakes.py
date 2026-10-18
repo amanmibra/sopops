@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
+from sopops.ai.fakes import default_reply
 from sopops.ai.signatures import ClusterFindings, GroupThemes
 
 
@@ -35,6 +36,8 @@ def pattern_reply(role, signature, inputs):
         for i, (kind, keys) in enumerate(sorted(groups.items(), key=lambda kv: order.index(kv[0]))):
             themes.append({"key": existing[i] if i < len(existing) else "new", "name": f"{kind} problems", "description": f"{kind} rules.", "patterns": keys})
         return {"themes": themes}
+    if (reply := default_reply(signature, inputs)) is not None:  # naming a rule pattern
+        return reply
     raise AssertionError(f"not a pattern signature: {signature.__name__}")
 
 

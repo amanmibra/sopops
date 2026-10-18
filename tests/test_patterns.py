@@ -9,15 +9,20 @@ import pytest
 from conftest import SOPC_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 from sqlmodel import Session, select
 
 from sopops import Sopc, Store, create_app
 from sopops.ai.fakes import FakeModels, FakeSystemOne
 from sopops.ai.lm import set_ai
-from sopops.ai.signatures import CheckRules, ClusterFindings, GroupThemes, field_name
+from sopops.ai.programs import rule_phrase
+from sopops.ai.signatures import CheckRules, ClusterFindings, GroupThemes, NameRulePattern, field_name
+from sopops.cli import main as cli
 from sopops.jobs import Jobs
 from sopops.orm import Finding, Pattern, Theme
 from sopops.patterns import OTHER_MIN_NEW, RECLUSTER_NEW, SPLIT_AT, jaccard, reason_due
+
+NEVER_1 = 'Never say an item is "allergen-free" or "safe"'  # the rule pattern's name: the rule's text, without a model
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 ALLERGEN = "allergen-check"
@@ -103,7 +108,7 @@ def by_name(store):
 def test_findings_join_their_rule_pattern_until_the_rule_is_split(env):
     ids = [env.send("A") for _ in range(SPLIT_AT - 1)]
     rule = [p for p in patterns(env.store) if p.kind == "rule"]
-    assert [(p.name, p.finding_count, p.session_count) for p in rule] == [("Never rule 1 broken", SPLIT_AT - 1, SPLIT_AT - 1)]
+    assert [(p.name, p.finding_count, p.session_count) for p in rule] == [(NEVER_1, SPLIT_AT - 1, SPLIT_AT - 1)]
     assert set(finding_patterns(env.store).values()) == {rule[0].id}
     assert env.model.cluster_calls == 0
     assert rule[0].first_seen is not None and rule[0].last_seen > rule[0].first_seen
@@ -120,7 +125,7 @@ def test_split_assign_and_stable_ids_across_reclustering(env):
     env.send("B")  # the 8th finding on the rule: split
     assert env.model.cluster_calls == 1
     pats = by_name(env.store)
-    a, b, other, rule = pats["Mode A"], pats["Mode B"], pats["Other"], pats["Never rule 1 broken"]
+    a, b, other, rule = pats["Mode A"], pats["Mode B"], pats["Other"], pats[NEVER_1]
     assert (a.kind, b.kind, other.kind) == ("sub", "sub", "other")
     assert a.parent_id == b.parent_id == other.parent_id == rule.id
     assert (a.finding_count, b.finding_count, other.finding_count, rule.finding_count) == (4, 4, 0, 8)
@@ -259,3 +264,57 @@ def test_recluster_cli(env, capsys):
     cli(["recluster", "--database-url", url, "--workspace", "demo", "--force"])
     assert "1 rules reclustered" in capsys.readouterr().out and env.model.cluster_calls == 2
     assert {"Mode A", "Mode B"} <= set(by_name(env.store))
+
+
+def test_rule_phrase_trims_a_rule_to_a_short_name():
+    assert rule_phrase("Never tell the caller a delivery time") == "Never tell the caller a delivery time"
+    assert rule_phrase("Read the whole order back (items, sizes) before confirming") == "Read the whole order back"
+    assert rule_phrase("Check each item against {{menu_allergen_link}}; never guess.") == "Check each item against menu_allergen_link"
+    assert rule_phrase("Never volunteer prices or descriptions of menu items unless the caller asks") == "Never volunteer prices or descriptions of menu items…"
+    assert rule_phrase("") == "Rule"
+
+
+def test_a_rule_pattern_is_named_once_by_the_reasoning_model(env, monkeypatch):
+    model_call = env.model.__call__
+    asked = []
+
+    def named(role, signature, inputs):
+        if signature is NameRulePattern:
+            asked.append(inputs)
+            return {"name": "Called a dish safe."}
+        return model_call(role, signature, inputs)
+
+    monkeypatch.setattr(env.fake, "responder", named)
+    env.send("A")
+    env.send("A")
+    (rule,) = [p for p in patterns(env.store) if p.kind == "rule"]
+    assert rule.name == "Called a dish safe"
+    assert [(a["kind"], a["rule"], a["procedure"]) for a in asked] == [("never", NEVER_1, "Allergen check")]  # once, when it was made
+    got = env.client.get(f"{WS}/patterns", params={"window": "365d"}).json()["items"][0]
+    assert (got["name"], got["description"], got["rule"]["text"]) == ("Called a dish safe", NEVER_1, NEVER_1)
+
+    asked.clear()
+    monkeypatch.setattr(env.fake, "responder", lambda role, signature, inputs: {"name": "Step 1"} if signature is NameRulePattern else model_call(role, signature, inputs))
+    assert env.store.patterns.name("demo", force=True, ai=env.fake) == 1  # a rule number won't do: the rule's text
+    (rule,) = [p for p in patterns(env.store) if p.kind == "rule"]
+    assert rule.name == NEVER_1
+
+
+def test_index_names_are_renamed_by_the_migration_then_the_backfill(env, monkeypatch, capsys):
+    env.send("A")
+    with Session(env.store.engine) as db, db.begin():  # as a database from before 0015 has it
+        db.exec(text("UPDATE patterns SET name = 'Never rule 1 broken' WHERE kind = 'rule'"))
+        db.exec(text("UPDATE alembic_version SET version_num = '0014'"))
+    url = env.store.engine.url.render_as_string(hide_password=False)
+    again = Store(url, Sopc(SOPC_BIN))
+    (rule,) = [p for p in patterns(again) if p.kind == "rule"]
+    assert rule.name == NEVER_1  # from the rule's text, no model
+
+    set_ai(FakeModels(lambda role, signature, inputs: {"name": "Called a dish safe"}, models={"reasoning": "fake/reasoning"}))
+    cli(["patterns", "rename", "--database-url", url, "--workspace", "demo"])
+    assert "demo: 1 rule patterns renamed" in capsys.readouterr().out
+    (rule,) = [p for p in patterns(again) if p.kind == "rule"]
+    assert rule.name == "Called a dish safe"
+    cli(["patterns", "rename", "--database-url", url, "--workspace", "demo"])
+    assert "demo: 0 rule patterns renamed" in capsys.readouterr().out  # a model's name is kept
+

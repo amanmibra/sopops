@@ -1,8 +1,9 @@
 """The decisions of routing and of one procedure's check as `dspy.Module`s, and `calibrate`, which fits their
 thresholds to a workspace's labeled sessions and stores them (`calibration`); the pipeline reads them from then on,
 for every question whose wording is unchanged. Labeled sessions come from reviewers' verdicts and overrides
-(`sopops.verdicts.Verdicts.calibration_examples`). `SuggestEdits` is the one generative program: a procedure edit
-proposed by the reasoning model and checked, with one retry.
+(`sopops.verdicts.Verdicts.calibration_examples`). Two generative programs: `SuggestEdits`, a procedure edit proposed
+by the reasoning model and checked, with one retry; and `NamePattern`, a rule pattern's short name (with `rule_phrase`,
+the rule's own text trimmed, when there's no model or its answer won't do).
 
 The programs run the decisions only (no review by the reasoning model, no evidence): what the thresholds decide.
 
@@ -23,6 +24,7 @@ from __future__ import annotations
 
 import math
 import random
+import re
 from collections.abc import Callable, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -35,7 +37,7 @@ from ..pipeline.procedures import Procedure
 from ..pipeline.rollup import FINDING_STATUSES, Judged, rollup
 from . import calibration, decide
 from .lm import AI
-from .signatures import ExampleIn, RuleChecks, SuggestEdit
+from .signatures import ExampleIn, NameRulePattern, RuleChecks, SuggestEdit
 
 FOLDS = 5
 MAX_CANDIDATES = 40
@@ -136,6 +138,43 @@ class SuggestEdits(dspy.Module):
                 break
         assert reply is not None
         return dspy.Prediction(block_id=reply.block_id.strip(), new_text=text, rationale=reply.rationale.strip(), attempts=attempt, error=error or None)
+
+
+NAME_WORDS = 8
+NAME_CHARS = 60
+
+
+def rule_phrase(text: str, words: int = NAME_WORDS, chars: int = NAME_CHARS) -> str:
+    """A rule's text as a short name, without a model: its first clause (up to a sentence end, a semicolon, a dash or a
+    parenthesis), at most `words` words and `chars` characters (cut at a word, with an ellipsis), no closing period."""
+    t = " ".join(re.sub(r"\{\{\s*(\w+)\s*\}\}", r"\1", text or "").split())
+    t = re.split(r"(?<=[.!?])\s|;|\s[-–—]\s|\s\(", t, maxsplit=1)[0].strip().rstrip(".:,!?").strip()
+    cut = t.split()
+    out = " ".join(cut[:words])
+    if len(out) > chars:
+        out = out[:chars].rsplit(" ", 1)[0]
+    if out != t:
+        out = out.rstrip(".,;:") + "…"
+    return (out[:1].upper() + out[1:]) or "Rule"
+
+
+class NamePattern(dspy.Module):
+    """A rule pattern's name from the reasoning model (`NameRulePattern`): what the agent did wrong in a few plain
+    words. A reply that's empty, too long or a rule number falls back to `rule_phrase`. `forward` gives `name` and
+    `model` (None for the fallback)."""
+
+    def __init__(self, ai: AI):
+        super().__init__()
+        self.ai = ai
+
+    def forward(self, kind: str, rule: str, procedure: str) -> dspy.Prediction:
+        reply = self.ai.predict("reasoning", NameRulePattern, kind=kind, rule=rule, procedure=procedure)
+        name = " ".join(str(reply.name or "").split()).rstrip(".").strip()
+        if len(name) > 1 and name[0] in "\"'“" and name[-1] in "\"'”":  # the whole name in quotes
+            name = name[1:-1].strip()
+        if not name or len(name) > NAME_CHARS or len(name.split()) > NAME_WORDS or re.match(r"(?i)^(step|never rule|warning sign|rule) \d+\b", name):
+            return dspy.Prediction(name=rule_phrase(rule), model=None)
+        return dspy.Prediction(name=name[:1].upper() + name[1:], model=self.ai.model("reasoning"))
 
 
 def _agent_spoke(turns: list[dict[str, Any]]) -> bool:

@@ -188,7 +188,7 @@ def test_a_suppressing_verdict_judged_the_old_wording(env):
     until a verdict confirms it."""
     for _ in range(2):
         env.send("A")
-    never = next(p for p in rule_patterns(env) if p.name == "Never rule 1 broken")
+    never = next(p for p in rule_patterns(env) if p.name == SAFE)
     verdict(env, never.id, "acceptable")
     env.store.edit("demo", {PATH: env.files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, even if they insist\n")})
     release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
@@ -203,7 +203,7 @@ def test_a_suppressing_verdict_judged_the_old_wording(env):
 def test_link_and_unlink_by_hand_and_rebuild(env, capsys):
     for _ in range(2):
         env.send("A")
-    never = next(p for p in rule_patterns(env) if p.name == "Never rule 1 broken")
+    never = next(p for p in rule_patterns(env) if p.name == SAFE)
     verdict(env, never.id, "real")
     env.store.edit("demo", {PATH: env.files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, even if they insist\n")})
     release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
@@ -251,7 +251,7 @@ def test_link_and_unlink_by_hand_and_rebuild(env, capsys):
 def test_calibration_labels_follow_the_rule(env, monkeypatch):
     for _ in range(3):
         env.send("A")
-    never = next(p for p in rule_patterns(env) if p.name == "Never rule 1 broken")
+    never = next(p for p in rule_patterns(env) if p.name == SAFE)
     env.store.edit("demo", {PATH: env.files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, even if they insist\n")})
     release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
     new_id = never_rows(env, [env.send("A", release=release) for _ in range(3)][-1])["rule_id"]
