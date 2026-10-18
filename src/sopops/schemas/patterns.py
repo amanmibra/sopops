@@ -1,0 +1,96 @@
+"""Patterns and themes."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import Field
+
+from .base import BaseModel
+from .checks import RuleKind
+
+
+PatternKind = Literal["rule", "sub", "other"]
+
+
+Interval = tuple[int, int]
+
+
+class FiltersOut(BaseModel):
+    start: datetime
+    end: datetime
+    agent: str | None
+    procedure: str | None
+    releases: list[int]
+    channel: str | None
+
+
+class ExampleOut(BaseModel):
+    session_id: str
+    turn: int | None
+    quote: str
+    status: str
+
+
+class PatternOut(BaseModel):
+    pattern_id: str
+    procedure_id: str
+    rule_id: str
+    parent_id: str | None
+    kind: PatternKind = Field(description="`rule`: every finding on a rule; `sub`: a named failure mode of it; `other`: findings that fit none.")
+    name: str
+    description: str | None
+    theme_id: str | None
+    status: Literal["active", "retired"]
+    findings: int = Field(description="Findings in the window.")
+    sessions: int = Field(description="Sessions with a finding in the window.")
+    total_findings: int = Field(description="All time.")
+    first_seen: datetime | None
+    last_seen: datetime | None
+    theme_name: str | None = None
+    examples: list[ExampleOut] = Field(default_factory=list)
+    session_ids: list[str] = Field(default_factory=list, description="In the report: the most recent sessions (up to 12).")
+    need_attention_pct: int | None = Field(None, description="In the report: sessions in it that need attention / all that do.")
+
+
+class RuleRef(BaseModel):
+    kind: RuleKind | None
+    index: int | None
+    text: str | None
+
+
+class RulePatternOut(PatternOut):
+    sub_patterns: list[PatternOut]
+    rule: RuleRef | None = None
+
+
+class PatternsResponse(BaseModel):
+    items: list[RulePatternOut]
+
+
+class PatternDetail(PatternOut):
+    rule: RuleRef
+    sub_patterns: list[PatternOut]
+
+
+class ReclusterRequest(BaseModel):
+    procedure: str | None = Field(None, description="Only this procedure's rules.")
+    rule: str | None = Field(None, description="Only this rule (with `procedure`).")
+    force: bool = Field(False, description="Recluster even if no trigger fired (a rule still needs 8 findings).")
+
+
+class ReclusterResponse(BaseModel):
+    assigned: int
+    reclustered: list[str] = Field(description="Rule ids.")
+    themed: list[str] = Field(description="Procedure ids whose themes were regrouped.")
+
+
+class ThemeOut(BaseModel):
+    theme_id: str | None = Field(description="Null for patterns not grouped into a theme yet.")
+    name: str
+    description: str | None
+    findings: int
+    sessions: int
+    patterns: list[RulePatternOut]
+    need_attention_pct: int | None = Field(None, description="In the report: sessions with a finding in the theme that need attention / all that do.")

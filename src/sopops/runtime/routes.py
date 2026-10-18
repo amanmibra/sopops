@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 
 from ..store import Conflict, Store
 from .crypto import SecretKeyMissing
-from .schemas import (
+from ..schemas.runtime import (
     AgentDeliveryOut, DeliveryIn, KeyTestIn, KeyTestOut, PlatformCredentials, PushPlatform, PushResultOut, RetryIn,
     SecretIn, SecretKind, SecretSaved, ServedIn, ServedOut,
 )
