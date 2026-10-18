@@ -29,7 +29,7 @@ function SignIn() {
   if (!auth || done) return null;
   return (
     <Card title="Sign in to sopops">
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">Use the account your team uses for sopops. New here? Ask an owner for an invite link.</p>
+      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">Use the account or email your team uses for sopops. New here? Ask an owner to add you.</p>
       {error && (
         <Banner tone="err" className="mb-4">
           {error.charAt(0).toUpperCase() + error.slice(1)}.

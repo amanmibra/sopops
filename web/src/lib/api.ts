@@ -56,7 +56,7 @@ export async function call<T>(p: Promise<{ data?: T; error?: unknown; response?:
 /** The session ended (expired, or signed out elsewhere): to the sign-in page, then back here. */
 export function toSignIn() {
   const here = window.location.pathname + window.location.search;
-  if (window.location.pathname !== "/sign-in") window.location.assign(`/sign-in?next=${encodeURIComponent(here)}`);
+  if (!window.location.pathname.startsWith("/sign-in")) window.location.assign(`/sign-in?next=${encodeURIComponent(here)}`);
 }
 
 /** An issue made here rather than by sopc (a message to show the same way). */

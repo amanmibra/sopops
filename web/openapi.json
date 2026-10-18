@@ -808,6 +808,96 @@
         }
       }
     },
+    "/v1/auth/email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Email Link",
+        "description": "Email a sign-in link. The answer is the same whether or not the address gets one (this sopops doesn't take\nits domain, or it asked too often: 5 links per address and 20 per client per 15 minutes).",
+        "operationId": "request_email_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailLinkSent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Email sign-in isn't set up."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/email/confirm": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Confirm Email Link",
+        "description": "Sign in with an emailed link's token: the link is used up, and a login session starts.",
+        "operationId": "confirm_email_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailLinkConfirmIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, used or expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/logout": {
       "post": {
         "tags": [
@@ -1040,6 +1130,50 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Add Members",
+        "description": "Add people by email, as admins or members (owners can add owners). Someone with an account joins now; anyone\nelse gets an invite (emailed when sopops sends email) and joins when they sign in with that email, any way.",
+        "operationId": "add_members",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPeopleIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PersonAdded"
+                  },
+                  "type": "array",
+                  "title": "Response Add Members"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/v1/org/members/{user_id}": {
@@ -1159,7 +1293,7 @@
           "auth"
         ],
         "summary": "Create Invite",
-        "description": "Invite someone by email. Nothing is sent: copy the link to them. It works for 7 days, once.",
+        "description": "Invite someone by email. With SMTP set up it's emailed to them; either way the link comes back to copy. It\nworks for 7 days, once, and replaces their open invite.",
         "operationId": "create_invite",
         "requestBody": {
           "content": {
@@ -1173,6 +1307,49 @@
         },
         "responses": {
           "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/invites/{id}/resend": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Resend Invite",
+        "description": "A new link for an open invite, good for 7 more days (the old link stops working), emailed again when sopops\nsends email.",
+        "operationId": "resend_invite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -10709,6 +10886,35 @@
   },
   "components": {
     "schemas": {
+      "AddPeopleIn": {
+        "properties": {
+          "emails": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Emails",
+            "description": "Email addresses."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "default": "member"
+          }
+        },
+        "type": "object",
+        "required": [
+          "emails"
+        ],
+        "title": "AddPeopleIn"
+      },
       "AgentConfig": {
         "properties": {
           "version": {
@@ -13450,6 +13656,62 @@
         ],
         "title": "ElevenLabsCapture"
       },
+      "EmailLinkConfirmIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the sign-in link (the part after #)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "EmailLinkConfirmIn"
+      },
+      "EmailLinkIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "A path on this site to open after signing in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "EmailLinkIn"
+      },
+      "EmailLinkSent": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The same whatever the address: it doesn't say whether one was sent."
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "EmailLinkSent"
+      },
       "EventOut": {
         "properties": {
           "id": {
@@ -14791,6 +15053,11 @@
             "type": "string",
             "title": "Link",
             "description": "The invite link, shown once. Whoever signs in with the invited email and opens it joins."
+          },
+          "emailed": {
+            "type": "boolean",
+            "title": "Emailed",
+            "description": "sopops emailed the link to them."
           }
         },
         "type": "object",
@@ -14800,7 +15067,8 @@
           "role",
           "created_at",
           "expires_at",
-          "link"
+          "link",
+          "emailed"
         ],
         "title": "InviteCreated"
       },
@@ -16463,6 +16731,11 @@
             ],
             "title": "Role",
             "description": "Your role in it."
+          },
+          "sends_email": {
+            "type": "boolean",
+            "title": "Sends Email",
+            "description": "Whether sopops emails invites (SMTP is set up). If not, send the links yourself."
           }
         },
         "type": "object",
@@ -16471,7 +16744,8 @@
           "name",
           "slug",
           "allowed_domains",
-          "role"
+          "role",
+          "sends_email"
         ],
         "title": "OrgOut"
       },
@@ -17316,6 +17590,54 @@
           "clustered_at"
         ],
         "title": "PatternsResponse"
+      },
+      "PersonAdded": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "added",
+              "invited",
+              "already"
+            ],
+            "title": "Status",
+            "description": "`added`: they have an account and joined now. `invited`: they join when they sign in with this email. `already`: a member."
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
+          },
+          "invite": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InviteCreated"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For `invited`: the invite, its link (shown once) and whether it was emailed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "status",
+          "user_id",
+          "invite"
+        ],
+        "title": "PersonAdded"
       },
       "PlatformAgent": {
         "properties": {
@@ -18708,17 +19030,23 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "`github`, `google`, or a plugin's."
+            "description": "`github`, `google`, `email`, or a plugin's."
           },
           "label": {
             "type": "string",
             "title": "Label"
+          },
+          "redirects": {
+            "type": "boolean",
+            "title": "Redirects",
+            "description": "Signing in goes through `/v1/auth/login/<id>`. False for `email`: post the address to `/v1/auth/email`."
           }
         },
         "type": "object",
         "required": [
           "id",
-          "label"
+          "label",
+          "redirects"
         ],
         "title": "ProviderOut"
       },
@@ -23359,6 +23687,68 @@
           "changed"
         ],
         "title": "SettingsSaved"
+      },
+      "SignedIn": {
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Whether this sopops needs people to sign in. False: no sign-in at all."
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderOut"
+            },
+            "type": "array",
+            "title": "Providers",
+            "description": "What people can sign in with."
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who's signed in, if anyone."
+          },
+          "org": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrgSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The org you're working in; none until someone adds you to one."
+          },
+          "orgs": {
+            "items": {
+              "$ref": "#/components/schemas/OrgSummary"
+            },
+            "type": "array",
+            "title": "Orgs",
+            "description": "Every org you're in."
+          },
+          "next": {
+            "type": "string",
+            "title": "Next",
+            "description": "The page to open now, a path on this site."
+          }
+        },
+        "type": "object",
+        "required": [
+          "required",
+          "providers",
+          "user",
+          "org",
+          "orgs",
+          "next"
+        ],
+        "title": "SignedIn"
       },
       "SinceWritten": {
         "properties": {

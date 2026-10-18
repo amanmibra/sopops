@@ -11,14 +11,14 @@ function Members() {
   if (!auth.required)
     return (
       <SectionHead title="Choose who can use sopops">
-        People don't sign in on this sopops, so there are no members to manage. To have people sign in with GitHub or Google, set up a login provider (see
-        "Sign in" in the README) and restart sopops.
+        People don't sign in on this sopops, so there are no members to manage. To have people sign in with GitHub, Google or an email link, set up a login
+        provider or SMTP (see "Sign in" in the README) and restart sopops.
       </SectionHead>
     );
   return (
     <>
       <SectionHead title="Choose who can use sopops">
-        Everyone here can use every workspace in {auth.org?.name}. Owners and admins invite people, change roles and let email domains join.
+        Everyone here can use every workspace in {auth.org?.name}. Owners and admins add people, change roles and let email domains join.
       </SectionHead>
       <MembersPanel auth={auth} />
     </>

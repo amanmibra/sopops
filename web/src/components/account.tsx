@@ -1,17 +1,19 @@
-// Signing in: the gate every page goes through, the sign-in buttons, the "ask an owner" page, and the user menu in the
-// top bar (avatar, name, org, sign out).
+// Signing in: the gate every page goes through, the sign-in buttons and the email form, the "ask an owner" page, and the
+// user menu in the top bar (avatar, name, org, sign out).
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
-import { Check, LogOut } from "lucide-react";
-import type { ReactNode } from "react";
+import { Check, LogOut, Mail } from "lucide-react";
+import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AuthState, type UserOut, call, sdk } from "@/lib/api";
 import { signInHref, useAuth, useSignOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
-import { ErrorBanner } from "./bits";
+import { Banner, ErrorBanner } from "./bits";
 import { GitHubIcon, GoogleIcon } from "./brand-icon";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +23,8 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 
-/** Pages anyone can open: signing in, and an invite link. */
-const OPEN_PAGES = ["/sign-in", "/invite"];
+/** Pages anyone can open: signing in, an emailed sign-in link, and an invite link. */
+const OPEN_PAGES = ["/sign-in", "/sign-in/email", "/invite"];
 
 /**
  * With sign-in on: send people who aren't signed in to the sign-in page, and people in no org to "ask an owner".
@@ -62,17 +64,22 @@ export function Card({ title, children }: { title: ReactNode; children: ReactNod
 
 const PROVIDER_ICON: Record<string, ReactNode> = { github: <GitHubIcon size={18} />, google: <GoogleIcon size={18} /> };
 
-/** "Continue with GitHub", "Continue with Google": full-page links, since the provider's page comes next. */
+/**
+ * "Continue with GitHub", "Continue with Google": full-page links, since the provider's page comes next. Then, with email
+ * sign-in on, a box for an address and "Email me a sign-in link".
+ */
 export function SignInButtons({ auth, next }: { auth: AuthState; next: string }) {
   if (!auth.providers.length)
     return (
       <p className="text-muted-foreground text-[13px]">
-        No way to sign in is set up on this sopops yet. Ask whoever runs it to set up GitHub or Google sign-in.
+        No way to sign in is set up on this sopops yet. Ask whoever runs it to set up GitHub, Google or email sign-in.
       </p>
     );
+  const redirects = auth.providers.filter((p) => p.redirects);
+  const byEmail = auth.providers.some((p) => p.id === "email");
   return (
     <div className="grid gap-2.5">
-      {auth.providers.map((p) => (
+      {redirects.map((p) => (
         <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2.5 text-[14px]">
           <a href={signInHref(p.id, next)}>
             {PROVIDER_ICON[p.id]}
@@ -80,7 +87,63 @@ export function SignInButtons({ auth, next }: { auth: AuthState; next: string })
           </a>
         </Button>
       ))}
+      {byEmail && redirects.length > 0 && (
+        <div className="text-muted-foreground my-1 flex items-center gap-3 text-[12px]">
+          <span className="h-px flex-1 bg-current opacity-25" /> or <span className="h-px flex-1 bg-current opacity-25" />
+        </div>
+      )}
+      {byEmail && <EmailSignIn next={next} />}
     </div>
+  );
+}
+
+/** Ask for a sign-in link by email. The answer never says whether the address has an account. */
+function EmailSignIn({ next }: { next: string }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // An invite's token waits in this tab, and the link may open in another: signing in accepts the invite anyway.
+  const after = next === "/invite" ? "/" : next;
+  const send = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const got = await call(sdk.requestEmailLink({ body: { email: email.trim(), next: after } }));
+      setSent(got.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (sent)
+    return (
+      <Banner tone="ok">
+        <b>Check your email.</b> {sent} Didn't get it? Check spam, or{" "}
+        <button type="button" className="underline underline-offset-2" onClick={() => setSent(null)}>
+          try again
+        </button>
+        .
+      </Banner>
+    );
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+    >
+      <Label htmlFor="sign-in-email" className="text-[13px]">
+        Email
+      </Label>
+      <Input id="sign-in-email" type="email" required autoComplete="email" className="h-10" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+      {error && <Banner tone="err">{error}</Banner>}
+      <Button type="submit" className="h-10 gap-2.5 text-[14px]" disabled={busy || !email.trim()}>
+        <Mail className="size-[18px]" /> Email me a sign-in link
+      </Button>
+    </form>
   );
 }
 
@@ -110,7 +173,7 @@ function NoOrg({ auth }: { auth: AuthState }) {
         You're signed in as <b>{auth.user?.email}</b>, but you're not in an org on this sopops yet.
       </p>
       <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
-        Ask an owner or admin to invite this email address from Settings, Members. Open the link they send you and you're in.
+        Ask an owner or admin to add this email address in Settings, Members. Then sign in again, or open the link they send you, and you're in.
       </p>
       <Button variant="outline" onClick={() => void signOut()}>
         <LogOut /> Sign out

@@ -5,6 +5,22 @@ export type ClientOptions = {
 };
 
 /**
+ * AddPeopleIn
+ */
+export type AddPeopleIn = {
+    /**
+     * Emails
+     *
+     * Email addresses.
+     */
+    emails: Array<string>;
+    /**
+     * Role
+     */
+    role?: 'owner' | 'admin' | 'member';
+};
+
+/**
  * AgentConfig
  */
 export type AgentConfig = {
@@ -1567,6 +1583,46 @@ export type ElevenLabsCapture = {
 };
 
 /**
+ * EmailLinkConfirmIn
+ */
+export type EmailLinkConfirmIn = {
+    /**
+     * Token
+     *
+     * From the sign-in link (the part after #).
+     */
+    token: string;
+};
+
+/**
+ * EmailLinkIn
+ */
+export type EmailLinkIn = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Next
+     *
+     * A path on this site to open after signing in.
+     */
+    next?: string | null;
+};
+
+/**
+ * EmailLinkSent
+ */
+export type EmailLinkSent = {
+    /**
+     * Message
+     *
+     * The same whatever the address: it doesn't say whether one was sent.
+     */
+    message: string;
+};
+
+/**
  * EventOut
  */
 export type EventOut = {
@@ -2301,6 +2357,12 @@ export type InviteCreated = {
      * The invite link, shown once. Whoever signs in with the invited email and opens it joins.
      */
     link: string;
+    /**
+     * Emailed
+     *
+     * sopops emailed the link to them.
+     */
+    emailed: boolean;
 };
 
 /**
@@ -3353,6 +3415,12 @@ export type OrgOut = {
      * Your role in it.
      */
     role: 'owner' | 'admin' | 'member';
+    /**
+     * Sends Email
+     *
+     * Whether sopops emails invites (SMTP is set up). If not, send the links yourself.
+     */
+    sends_email: boolean;
 };
 
 /**
@@ -3786,6 +3854,30 @@ export type PatternsResponse = {
      * The workspace's last clustering of any rule.
      */
     clustered_at: string | null;
+};
+
+/**
+ * PersonAdded
+ */
+export type PersonAdded = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Status
+     *
+     * `added`: they have an account and joined now. `invited`: they join when they sign in with this email. `already`: a member.
+     */
+    status: 'added' | 'invited' | 'already';
+    /**
+     * User Id
+     */
+    user_id: string | null;
+    /**
+     * For `invited`: the invite, its link (shown once) and whether it was emailed.
+     */
+    invite: InviteCreated | null;
 };
 
 /**
@@ -4595,13 +4687,19 @@ export type ProviderOut = {
     /**
      * Id
      *
-     * `github`, `google`, or a plugin's.
+     * `github`, `google`, `email`, or a plugin's.
      */
     id: string;
     /**
      * Label
      */
     label: string;
+    /**
+     * Redirects
+     *
+     * Signing in goes through `/v1/auth/login/<id>`. False for `email`: post the address to `/v1/auth/email`.
+     */
+    redirects: boolean;
 };
 
 /**
@@ -7228,6 +7326,44 @@ export type SettingsSaved = {
 };
 
 /**
+ * SignedIn
+ */
+export type SignedIn = {
+    /**
+     * Required
+     *
+     * Whether this sopops needs people to sign in. False: no sign-in at all.
+     */
+    required: boolean;
+    /**
+     * Providers
+     *
+     * What people can sign in with.
+     */
+    providers: Array<ProviderOut>;
+    /**
+     * Who's signed in, if anyone.
+     */
+    user: UserOut | null;
+    /**
+     * The org you're working in; none until someone adds you to one.
+     */
+    org: OrgSummary | null;
+    /**
+     * Orgs
+     *
+     * Every org you're in.
+     */
+    orgs: Array<OrgSummary>;
+    /**
+     * Next
+     *
+     * The page to open now, a path on this site.
+     */
+    next: string;
+};
+
+/**
  * SinceWritten
  */
 export type SinceWritten = {
@@ -9336,6 +9472,64 @@ export type SignInErrors = {
 
 export type SignInError = SignInErrors[keyof SignInErrors];
 
+export type RequestEmailLinkData = {
+    body: EmailLinkIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/email';
+};
+
+export type RequestEmailLinkErrors = {
+    /**
+     * Email sign-in isn't set up.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestEmailLinkError = RequestEmailLinkErrors[keyof RequestEmailLinkErrors];
+
+export type RequestEmailLinkResponses = {
+    /**
+     * Successful Response
+     */
+    202: EmailLinkSent;
+};
+
+export type RequestEmailLinkResponse = RequestEmailLinkResponses[keyof RequestEmailLinkResponses];
+
+export type ConfirmEmailLinkData = {
+    body: EmailLinkConfirmIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/email/confirm';
+};
+
+export type ConfirmEmailLinkErrors = {
+    /**
+     * Unknown, used or expired.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ConfirmEmailLinkError = ConfirmEmailLinkErrors[keyof ConfirmEmailLinkErrors];
+
+export type ConfirmEmailLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type ConfirmEmailLinkResponse = ConfirmEmailLinkResponses[keyof ConfirmEmailLinkResponses];
+
 export type SignOutData = {
     body?: never;
     path?: never;
@@ -9494,6 +9688,33 @@ export type ListMembersResponses = {
 
 export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
 
+export type AddMembersData = {
+    body: AddPeopleIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/members';
+};
+
+export type AddMembersErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AddMembersError = AddMembersErrors[keyof AddMembersErrors];
+
+export type AddMembersResponses = {
+    /**
+     * Response Add Members
+     *
+     * Successful Response
+     */
+    200: Array<PersonAdded>;
+};
+
+export type AddMembersResponse = AddMembersResponses[keyof AddMembersResponses];
+
 export type RemoveMemberData = {
     body?: never;
     path: {
@@ -9596,6 +9817,36 @@ export type CreateInviteResponses = {
 };
 
 export type CreateInviteResponse = CreateInviteResponses[keyof CreateInviteResponses];
+
+export type ResendInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/org/invites/{id}/resend';
+};
+
+export type ResendInviteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResendInviteError = ResendInviteErrors[keyof ResendInviteErrors];
+
+export type ResendInviteResponses = {
+    /**
+     * Successful Response
+     */
+    200: InviteCreated;
+};
+
+export type ResendInviteResponse = ResendInviteResponses[keyof ResendInviteResponses];
 
 export type RevokeInviteData = {
     body?: never;

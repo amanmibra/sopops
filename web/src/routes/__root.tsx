@@ -17,10 +17,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   ),
 });
 
-/** Every page: behind the sign-in gate (when sign-in is on), with the top bar except on the sign-in and invite pages. */
+/** Every page: behind the sign-in gate (when sign-in is on), with the top bar except on the sign-in, email link and invite pages. */
 function Root() {
   const { pathname } = useLocation();
-  const bare = pathname === "/sign-in" || pathname === "/invite";
+  const bare = pathname === "/sign-in" || pathname === "/sign-in/email" || pathname === "/invite";
   return (
     <TooltipProvider>
       <AuthGate>

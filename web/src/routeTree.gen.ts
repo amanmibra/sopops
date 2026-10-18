@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InviteRouteImport } from './routes/invite'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignInEmailRouteImport } from './routes/sign-in_.email'
 import { Route as WWsRouteImport } from './routes/w.$ws'
 import { Route as WWsIndexRouteImport } from './routes/w.$ws.index'
 import { Route as WWsChangesRouteImport } from './routes/w.$ws.changes'
@@ -68,6 +69,11 @@ const InviteRoute = InviteRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInEmailRoute = SignInEmailRouteImport.update({
+  id: '/sign-in_/email',
+  path: '/sign-in/email',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WWsRoute = WWsRouteImport.update({
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
   '/sign-in': typeof SignInRoute
+  '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
@@ -335,6 +342,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
   '/sign-in': typeof SignInRoute
+  '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
@@ -381,6 +389,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
   '/sign-in': typeof SignInRoute
+  '/sign-in_/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
@@ -430,6 +439,7 @@ export interface FileRouteTypes {
     | '/'
     | '/invite'
     | '/sign-in'
+    | '/sign-in/email'
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
@@ -477,6 +487,7 @@ export interface FileRouteTypes {
     | '/'
     | '/invite'
     | '/sign-in'
+    | '/sign-in/email'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
     | '/w/$ws/overview'
@@ -522,6 +533,7 @@ export interface FileRouteTypes {
     | '/'
     | '/invite'
     | '/sign-in'
+    | '/sign-in_/email'
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
@@ -570,6 +582,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InviteRoute: typeof InviteRoute
   SignInRoute: typeof SignInRoute
+  SignInEmailRoute: typeof SignInEmailRoute
   WWsRoute: typeof WWsRouteWithChildren
 }
 
@@ -594,6 +607,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in_/email': {
+      id: '/sign-in_/email'
+      path: '/sign-in/email'
+      fullPath: '/sign-in/email'
+      preLoaderRoute: typeof SignInEmailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/w/$ws': {
@@ -998,6 +1018,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InviteRoute: InviteRoute,
   SignInRoute: SignInRoute,
+  SignInEmailRoute: SignInEmailRoute,
   WWsRoute: WWsRouteWithChildren,
 }
 export const routeTree = rootRouteImport
