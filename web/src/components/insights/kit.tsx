@@ -447,11 +447,16 @@ export function ChartTip({
 export const AXIS = { tick: { fontSize: 11, fill: "var(--muted-foreground)" }, tickLine: false, axisLine: false } as const;
 
 /** A rate with its n beside it, always. Thin rates are dimmed and say so. */
-export function RateN({ rate, n, thin, tone, className }: { rate: number | null | undefined; n: number; thin?: boolean; tone?: string | null; className?: string }) {
+export function RateN({ rate, n, thin, tone, suppressed, className }: { rate: number | null | undefined; n: number; thin?: boolean; tone?: string | null; suppressed?: number; className?: string }) {
   return (
     <span className={cn("tabular-nums whitespace-nowrap", className)}>
       <b className={cn("font-semibold", tone === "bad" && "text-err", tone === "warn" && "text-warn", thin && "text-muted-foreground")}>{fmtPct(rate)}</b>{" "}
       <span className="text-muted-foreground text-[11.5px]">of {n}</span>
+      {!!suppressed && (
+        <Hint tip="Findings hidden by a verdict (acceptable, or the checker was wrong) or marked incorrect; they don't count here." focusable={false}>
+          <span className="text-muted-foreground ml-1 text-[11px]">{suppressed} suppressed</span>
+        </Hint>
+      )}
       {thin && n > 0 && (
         <Hint tip={`Only ${n} results, too few to judge. The rate gets no color and no flag until there are more.`} focusable={false}>
           <span className="text-muted-foreground ml-1 rounded border px-1 text-[10px] uppercase">too few</span>

@@ -172,6 +172,8 @@ export type SessionFilters = {
   theme?: string;
   finding?: boolean;
   eligible?: boolean;
+  /** How the drill-down filters treat suppressed findings: false leaves them out (as Insights' numbers do). */
+  suppressed?: boolean;
 };
 
 function sessionQuery(f: SessionFilters) {
@@ -192,6 +194,7 @@ function sessionQuery(f: SessionFilters) {
     theme: f.theme,
     finding: f.finding,
     eligible: f.eligible,
+    suppressed: f.suppressed,
   };
 }
 

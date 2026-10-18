@@ -29,6 +29,7 @@ export const Route = createFileRoute("/w/$ws/sessions/")({
       theme: str(s.theme),
       finding: typeof s.finding === "boolean" ? s.finding : undefined,
       eligible: typeof s.eligible === "boolean" ? s.eligible : undefined,
+      suppressed: typeof s.suppressed === "boolean" ? s.suppressed : undefined,
     };
   },
   component: Sessions,

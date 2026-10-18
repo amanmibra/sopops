@@ -4,6 +4,7 @@ import { useLocation, useParams } from "@tanstack/react-router";
 import { Monitor, Moon, Plus, Sun } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { q } from "@/lib/api";
+import { rq } from "@/lib/review";
 import { KIND, type Kind, type ListKind, WORKSPACE_ID } from "@/lib/kinds";
 import { prefs } from "@/lib/prefs";
 import { useTheme } from "@/lib/theme";
@@ -13,6 +14,7 @@ import { Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Logo } from "./logo";
 import { PublishButton } from "./publish";
+import { useNeedsReview } from "./review";
 import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
@@ -150,9 +152,20 @@ function RailLink({ href, children, extra, change }: { href: string; children: R
   );
 }
 
+function CountBadge({ n, title }: { n: number | null; title: string }) {
+  if (!n) return null;
+  return (
+    <span className="bg-warn-soft text-warn shrink-0 rounded-full px-1.5 text-[11px] font-medium tabular-nums" title={title} aria-label={`${n} ${title.toLowerCase()}`}>
+      {n}
+    </span>
+  );
+}
+
 export function Rail() {
   const { ws, cfg, legacy, draft, href, changeOf } = useWs();
   const go = useGo();
+  const needsReview = useNeedsReview(ws);
+  const proposed = useQuery({ ...rq.suggestions(ws, "proposed"), retry: false, enabled: !legacy }).data?.items.length ?? null;
   const group = (kind: ListKind, items: { id: string; label: string }[]) => (
     <div className="mb-[18px]" key={kind}>
       <div className="flex items-center justify-between px-2 pb-1">
@@ -191,6 +204,12 @@ export function Rail() {
             <RailLink href={wsHref(ws, "overview")}>Overview</RailLink>
             <RailLink href={wsHref(ws, "sessions")}>Sessions</RailLink>
             <RailLink href={wsHref(ws, "insights")}>Insights</RailLink>
+            <RailLink href={wsHref(ws, "patterns")} extra={<CountBadge n={needsReview} title="Patterns needing a verdict" />}>
+              Patterns
+            </RailLink>
+            <RailLink href={wsHref(ws, "suggestions")} extra={<CountBadge n={proposed} title="Suggestions waiting for a decision" />}>
+              Suggestions
+            </RailLink>
             <RailLink href={wsHref(ws, "report")}>Report</RailLink>
           </div>
           {group("agent", cfg.agents.map((a) => ({ id: a.id, label: a.id })))}

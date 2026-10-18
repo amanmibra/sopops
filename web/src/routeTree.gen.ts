@@ -23,6 +23,8 @@ import { Route as WWsImportIdRouteImport } from './routes/w.$ws.import.$id'
 import { Route as WWsInsightsIndexRouteImport } from './routes/w.$ws.insights.index'
 import { Route as WWsInsightsReleasesRouteImport } from './routes/w.$ws.insights.releases'
 import { Route as WWsInstructionsIndexRouteImport } from './routes/w.$ws.instructions.index'
+import { Route as WWsPatternsIndexRouteImport } from './routes/w.$ws.patterns.index'
+import { Route as WWsPatternsIdRouteImport } from './routes/w.$ws.patterns.$id'
 import { Route as WWsProceduresIndexRouteImport } from './routes/w.$ws.procedures.index'
 import { Route as WWsReleasesIndexRouteImport } from './routes/w.$ws.releases.index'
 import { Route as WWsReleasesNumberRouteImport } from './routes/w.$ws.releases.$number'
@@ -30,6 +32,8 @@ import { Route as WWsSessionsIndexRouteImport } from './routes/w.$ws.sessions.in
 import { Route as WWsSessionsIdRouteImport } from './routes/w.$ws.sessions.$id'
 import { Route as WWsSettingsIndexRouteImport } from './routes/w.$ws.settings.index'
 import { Route as WWsSettingsHistoryRouteImport } from './routes/w.$ws.settings.history'
+import { Route as WWsSuggestionsIndexRouteImport } from './routes/w.$ws.suggestions.index'
+import { Route as WWsSuggestionsIdRouteImport } from './routes/w.$ws.suggestions.$id'
 import { Route as WWsAgentsIdIndexRouteImport } from './routes/w.$ws.agents.$id.index'
 import { Route as WWsAgentsIdHistoryRouteImport } from './routes/w.$ws.agents.$id.history'
 import { Route as WWsAgentsIdPromptRouteImport } from './routes/w.$ws.agents.$id.prompt'
@@ -112,6 +116,16 @@ const WWsInstructionsIndexRoute = WWsInstructionsIndexRouteImport.update({
   path: '/instructions/',
   getParentRoute: () => WWsRoute,
 } as any)
+const WWsPatternsIndexRoute = WWsPatternsIndexRouteImport.update({
+  id: '/patterns/',
+  path: '/patterns/',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsPatternsIdRoute = WWsPatternsIdRouteImport.update({
+  id: '/patterns/$id',
+  path: '/patterns/$id',
+  getParentRoute: () => WWsRoute,
+} as any)
 const WWsProceduresIndexRoute = WWsProceduresIndexRouteImport.update({
   id: '/procedures/',
   path: '/procedures/',
@@ -145,6 +159,16 @@ const WWsSettingsIndexRoute = WWsSettingsIndexRouteImport.update({
 const WWsSettingsHistoryRoute = WWsSettingsHistoryRouteImport.update({
   id: '/settings/history',
   path: '/settings/history',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsSuggestionsIndexRoute = WWsSuggestionsIndexRouteImport.update({
+  id: '/suggestions/',
+  path: '/suggestions/',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsSuggestionsIdRoute = WWsSuggestionsIdRouteImport.update({
+  id: '/suggestions/$id',
+  path: '/suggestions/$id',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsAgentsIdIndexRoute = WWsAgentsIdIndexRouteImport.update({
@@ -216,18 +240,22 @@ export interface FileRoutesByFullPath {
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
   '/w/$ws/import/': typeof WWsImportIndexRoute
   '/w/$ws/insights/': typeof WWsInsightsIndexRoute
   '/w/$ws/instructions/': typeof WWsInstructionsIndexRoute
+  '/w/$ws/patterns/': typeof WWsPatternsIndexRoute
   '/w/$ws/procedures/': typeof WWsProceduresIndexRoute
   '/w/$ws/releases/': typeof WWsReleasesIndexRoute
   '/w/$ws/sessions/': typeof WWsSessionsIndexRoute
   '/w/$ws/settings/': typeof WWsSettingsIndexRoute
+  '/w/$ws/suggestions/': typeof WWsSuggestionsIndexRoute
   '/w/$ws/agents/$id/history': typeof WWsAgentsIdHistoryRoute
   '/w/$ws/agents/$id/prompt': typeof WWsAgentsIdPromptRoute
   '/w/$ws/groups/$id/history': typeof WWsGroupsIdHistoryRoute
@@ -249,18 +277,22 @@ export interface FileRoutesByTo {
   '/w/$ws': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
   '/w/$ws/groups': typeof WWsGroupsIndexRoute
   '/w/$ws/import': typeof WWsImportIndexRoute
   '/w/$ws/insights': typeof WWsInsightsIndexRoute
   '/w/$ws/instructions': typeof WWsInstructionsIndexRoute
+  '/w/$ws/patterns': typeof WWsPatternsIndexRoute
   '/w/$ws/procedures': typeof WWsProceduresIndexRoute
   '/w/$ws/releases': typeof WWsReleasesIndexRoute
   '/w/$ws/sessions': typeof WWsSessionsIndexRoute
   '/w/$ws/settings': typeof WWsSettingsIndexRoute
+  '/w/$ws/suggestions': typeof WWsSuggestionsIndexRoute
   '/w/$ws/agents/$id/history': typeof WWsAgentsIdHistoryRoute
   '/w/$ws/agents/$id/prompt': typeof WWsAgentsIdPromptRoute
   '/w/$ws/groups/$id/history': typeof WWsGroupsIdHistoryRoute
@@ -284,18 +316,22 @@ export interface FileRoutesById {
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
   '/w/$ws/import/': typeof WWsImportIndexRoute
   '/w/$ws/insights/': typeof WWsInsightsIndexRoute
   '/w/$ws/instructions/': typeof WWsInstructionsIndexRoute
+  '/w/$ws/patterns/': typeof WWsPatternsIndexRoute
   '/w/$ws/procedures/': typeof WWsProceduresIndexRoute
   '/w/$ws/releases/': typeof WWsReleasesIndexRoute
   '/w/$ws/sessions/': typeof WWsSessionsIndexRoute
   '/w/$ws/settings/': typeof WWsSettingsIndexRoute
+  '/w/$ws/suggestions/': typeof WWsSuggestionsIndexRoute
   '/w/$ws/agents/$id/history': typeof WWsAgentsIdHistoryRoute
   '/w/$ws/agents/$id/prompt': typeof WWsAgentsIdPromptRoute
   '/w/$ws/groups/$id/history': typeof WWsGroupsIdHistoryRoute
@@ -320,18 +356,22 @@ export interface FileRouteTypes {
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
     | '/w/$ws/settings/history'
+    | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
     | '/w/$ws/import/'
     | '/w/$ws/insights/'
     | '/w/$ws/instructions/'
+    | '/w/$ws/patterns/'
     | '/w/$ws/procedures/'
     | '/w/$ws/releases/'
     | '/w/$ws/sessions/'
     | '/w/$ws/settings/'
+    | '/w/$ws/suggestions/'
     | '/w/$ws/agents/$id/history'
     | '/w/$ws/agents/$id/prompt'
     | '/w/$ws/groups/$id/history'
@@ -353,18 +393,22 @@ export interface FileRouteTypes {
     | '/w/$ws'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
     | '/w/$ws/settings/history'
+    | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents'
     | '/w/$ws/groups'
     | '/w/$ws/import'
     | '/w/$ws/insights'
     | '/w/$ws/instructions'
+    | '/w/$ws/patterns'
     | '/w/$ws/procedures'
     | '/w/$ws/releases'
     | '/w/$ws/sessions'
     | '/w/$ws/settings'
+    | '/w/$ws/suggestions'
     | '/w/$ws/agents/$id/history'
     | '/w/$ws/agents/$id/prompt'
     | '/w/$ws/groups/$id/history'
@@ -387,18 +431,22 @@ export interface FileRouteTypes {
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
     | '/w/$ws/settings/history'
+    | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
     | '/w/$ws/import/'
     | '/w/$ws/insights/'
     | '/w/$ws/instructions/'
+    | '/w/$ws/patterns/'
     | '/w/$ws/procedures/'
     | '/w/$ws/releases/'
     | '/w/$ws/sessions/'
     | '/w/$ws/settings/'
+    | '/w/$ws/suggestions/'
     | '/w/$ws/agents/$id/history'
     | '/w/$ws/agents/$id/prompt'
     | '/w/$ws/groups/$id/history'
@@ -517,6 +565,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WWsInstructionsIndexRouteImport
       parentRoute: typeof WWsRoute
     }
+    '/w/$ws/patterns/': {
+      id: '/w/$ws/patterns/'
+      path: '/patterns'
+      fullPath: '/w/$ws/patterns/'
+      preLoaderRoute: typeof WWsPatternsIndexRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/patterns/$id': {
+      id: '/w/$ws/patterns/$id'
+      path: '/patterns/$id'
+      fullPath: '/w/$ws/patterns/$id'
+      preLoaderRoute: typeof WWsPatternsIdRouteImport
+      parentRoute: typeof WWsRoute
+    }
     '/w/$ws/procedures/': {
       id: '/w/$ws/procedures/'
       path: '/procedures'
@@ -564,6 +626,20 @@ declare module '@tanstack/react-router' {
       path: '/settings/history'
       fullPath: '/w/$ws/settings/history'
       preLoaderRoute: typeof WWsSettingsHistoryRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/suggestions/': {
+      id: '/w/$ws/suggestions/'
+      path: '/suggestions'
+      fullPath: '/w/$ws/suggestions/'
+      preLoaderRoute: typeof WWsSuggestionsIndexRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/suggestions/$id': {
+      id: '/w/$ws/suggestions/$id'
+      path: '/suggestions/$id'
+      fullPath: '/w/$ws/suggestions/$id'
+      preLoaderRoute: typeof WWsSuggestionsIdRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/agents/$id/': {
@@ -654,18 +730,22 @@ interface WWsRouteChildren {
   WWsIndexRoute: typeof WWsIndexRoute
   WWsImportIdRoute: typeof WWsImportIdRoute
   WWsInsightsReleasesRoute: typeof WWsInsightsReleasesRoute
+  WWsPatternsIdRoute: typeof WWsPatternsIdRoute
   WWsReleasesNumberRoute: typeof WWsReleasesNumberRoute
   WWsSessionsIdRoute: typeof WWsSessionsIdRoute
   WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
+  WWsSuggestionsIdRoute: typeof WWsSuggestionsIdRoute
   WWsAgentsIndexRoute: typeof WWsAgentsIndexRoute
   WWsGroupsIndexRoute: typeof WWsGroupsIndexRoute
   WWsImportIndexRoute: typeof WWsImportIndexRoute
   WWsInsightsIndexRoute: typeof WWsInsightsIndexRoute
   WWsInstructionsIndexRoute: typeof WWsInstructionsIndexRoute
+  WWsPatternsIndexRoute: typeof WWsPatternsIndexRoute
   WWsProceduresIndexRoute: typeof WWsProceduresIndexRoute
   WWsReleasesIndexRoute: typeof WWsReleasesIndexRoute
   WWsSessionsIndexRoute: typeof WWsSessionsIndexRoute
   WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
+  WWsSuggestionsIndexRoute: typeof WWsSuggestionsIndexRoute
   WWsAgentsIdHistoryRoute: typeof WWsAgentsIdHistoryRoute
   WWsAgentsIdPromptRoute: typeof WWsAgentsIdPromptRoute
   WWsGroupsIdHistoryRoute: typeof WWsGroupsIdHistoryRoute
@@ -687,18 +767,22 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsIndexRoute: WWsIndexRoute,
   WWsImportIdRoute: WWsImportIdRoute,
   WWsInsightsReleasesRoute: WWsInsightsReleasesRoute,
+  WWsPatternsIdRoute: WWsPatternsIdRoute,
   WWsReleasesNumberRoute: WWsReleasesNumberRoute,
   WWsSessionsIdRoute: WWsSessionsIdRoute,
   WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
+  WWsSuggestionsIdRoute: WWsSuggestionsIdRoute,
   WWsAgentsIndexRoute: WWsAgentsIndexRoute,
   WWsGroupsIndexRoute: WWsGroupsIndexRoute,
   WWsImportIndexRoute: WWsImportIndexRoute,
   WWsInsightsIndexRoute: WWsInsightsIndexRoute,
   WWsInstructionsIndexRoute: WWsInstructionsIndexRoute,
+  WWsPatternsIndexRoute: WWsPatternsIndexRoute,
   WWsProceduresIndexRoute: WWsProceduresIndexRoute,
   WWsReleasesIndexRoute: WWsReleasesIndexRoute,
   WWsSessionsIndexRoute: WWsSessionsIndexRoute,
   WWsSettingsIndexRoute: WWsSettingsIndexRoute,
+  WWsSuggestionsIndexRoute: WWsSuggestionsIndexRoute,
   WWsAgentsIdHistoryRoute: WWsAgentsIdHistoryRoute,
   WWsAgentsIdPromptRoute: WWsAgentsIdPromptRoute,
   WWsGroupsIdHistoryRoute: WWsGroupsIdHistoryRoute,

@@ -2,12 +2,15 @@
 // findings with evidence, and its wordings.
 import { useQuery } from "@tanstack/react-query";
 import { Ban, Flag, Layers, ListX } from "lucide-react";
-import type { InsightFilters, RateOut } from "@/lib/api";
+import type { InsightFilters, PatternOut, RateOut } from "@/lib/api";
 import { q } from "@/lib/api";
 import { fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { when } from "@/lib/kinds";
+import { rq } from "@/lib/review";
+import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { HrefLink } from "../href-link";
+import { VerdictChip, usePatternVerdicts } from "../review";
 import { RateByGroup, ReleaseTimeline } from "./charts";
 import { Kpi, KpiGrid, StatusBar, WidgetCard } from "./kit";
 import { LIVE, scopeOf } from "./overview";
@@ -22,7 +25,11 @@ const mergeCounts = (rs: RateOut[]) => rs.reduce<Record<string, number>>((acc, r
 export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { procedureId: string; ruleId: string; filters: InsightFilters; onFilters: (f: InsightFilters) => void }) {
   const { ws, cfg } = useWs();
   const res = useQuery({ ...q.insightsRule(ws, procedureId, ruleId, filters), ...LIVE });
+  const queue = useQuery({ ...rq.review(ws), retry: false });
   const d = res.data;
+  const verdicts = usePatternVerdicts(ws, d?.patterns.flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings)]) ?? []);
+  const reviewOf = (p: PatternOut) => ({ verdict: verdicts.get(p.pattern_id) ?? null, suppressed: p.suppressed, queued: !!queue.data?.items.some((i) => i.pattern_id === p.pattern_id) });
+  const suppressed = d?.patterns.reduce((n, p) => n + p.suppressed, 0);
   const procName = cfg.procedures.find((p) => p.id === procedureId)?.name ?? procedureId;
   const scope = d ? scopeOf(d.filters) : undefined;
   const shared = { loading: res.isPending, error: d ? undefined : res.error, onRetry: () => void res.refetch() };
@@ -49,7 +56,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
                 icon={Flag}
                 accent="procedure"
                 value={fmtPct(d.overall.pass_rate)}
-                sub={`of ${d.overall.n} results${d.overall.interval ? ` · 95% range ${d.overall.interval[0]} to ${d.overall.interval[1]}%` : ""}${d.overall.thin ? ` · too few (needs ${d.thresholds.min_n})` : ""}`}
+                sub={`of ${d.overall.n} results${d.overall.interval ? ` · 95% range ${d.overall.interval[0]} to ${d.overall.interval[1]}%` : ""}${d.overall.thin ? ` · too few (needs ${d.thresholds.min_n})` : ""}${suppressed ? ` · ${suppressed} suppressed` : ""}`}
                 help="Passed results out of passed and failed ones; not reached and not applicable never count. The 95% range is where the true rate most likely sits, given how many results there are."
               />
             )}
@@ -141,16 +148,30 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
               flush
             >
               <ul className="divide-y">
-                {d?.patterns.flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings)]).map((p) => (
-                  <li key={p.pattern_id} className="flex items-baseline justify-between gap-3 px-4 py-2 text-[13px]">
-                    <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className={p.kind === "rule" ? "font-semibold" : p.kind === "other" ? "text-muted-foreground pl-4" : "pl-4"}>
-                      {p.name}
-                    </HrefLink>
-                    <span className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
-                      {p.sessions} sessions · {p.findings} findings
-                    </span>
-                  </li>
-                ))}
+                {d?.patterns.flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings)]).map((p) => {
+                  const r = reviewOf(p);
+                  return (
+                    <li key={p.pattern_id} className={cn("grid gap-0.5 px-4 py-2 text-[13px]", p.kind !== "rule" && "pl-8")}>
+                      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                        <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn("min-w-0", p.kind === "rule" ? "font-semibold" : p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, history and suggestions">
+                          {p.name}
+                        </HrefLink>
+                        <VerdictChip v={r.verdict} />
+                      </div>
+                      <div className="text-muted-foreground flex flex-wrap gap-x-2 text-xs tabular-nums">
+                        <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-inherit">
+                          {p.sessions} sessions · {p.findings} findings
+                        </HrefLink>
+                        {!!r.suppressed && <span>{r.suppressed} suppressed</span>}
+                        {!r.verdict && r.queued && (
+                          <HrefLink href={`${wsHref(ws, "patterns")}?procedure=${encodeURIComponent(procedureId)}`} className="font-medium">
+                            Review
+                          </HrefLink>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </WidgetCard>
             {d && d.wordings.length > 1 && (

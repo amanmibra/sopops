@@ -1,7 +1,7 @@
 // Sessions: the live list with filters, and one session's transcript.
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Maximize2, Radio, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, q } from "@/lib/api";
 import { STATUS_MARK, ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
@@ -57,7 +57,7 @@ const agentName = (s: SessionSummary) => s.agent_id ?? s.agent_ref ?? "Unknown a
 
 const ANY = "any";
 
-function FilterSelect<T extends string>({
+export function FilterSelect<T extends string>({
   label,
   value,
   options,
@@ -426,13 +426,25 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
 
 const json = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v, null, 2));
 
-export function SessionView({ id }: { id: string }) {
+/** Where to open a session: a rule's finding, and the turn to scroll to. */
+export type SessionAt = { procedure?: string; rule?: string; turn?: number; finding?: string };
+
+export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
   const { ws, releases } = useWs();
   useSessionStream(ws);
   const res = useQuery(q.session(ws, id));
-  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [activeKey, setActiveKey] = useState<string | null>(at?.procedure && at.rule ? `${at.procedure}/${at.rule}` : null);
   const [scrollTo, setScrollTo] = useState<number | null>(null);
   const marks = useMemo(() => turnMarks(res.data?.checks ?? []), [res.data]);
+  // Opened at a finding: once the session loads, scroll to its turn (or the rule's first evidence).
+  const opened = useRef(false);
+  useEffect(() => {
+    if (opened.current || !res.data || !at?.procedure || !at.rule) return;
+    opened.current = true;
+    const rule = res.data.checks.find((c) => c.procedure_id === at.procedure)?.rules.find((r) => r.rule_id === at.rule);
+    const turn = at.turn ?? rule?.evidence.find((e) => e.turn != null)?.turn;
+    if (turn != null) setScrollTo(turn);
+  }, [res.data, at]);
   useEffect(() => {
     if (scrollTo == null) return;
     document.getElementById(`turn-${scrollTo}`)?.scrollIntoView({ behavior: "smooth", block: "center" });

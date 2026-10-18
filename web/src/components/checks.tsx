@@ -4,8 +4,9 @@ import { useState } from "react";
 import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api";
 import { sessionsHref } from "@/lib/insights";
 import { cn } from "@/lib/utils";
-import { useWs } from "@/lib/workspace";
+import { useWs, wsHref } from "@/lib/workspace";
 import { Note, Tag } from "./bits";
+import { FindingOverrideControl } from "./finding-override";
 import { HrefLink } from "./href-link";
 
 export type Result = NonNullable<SessionSummary["result"]>;
@@ -62,7 +63,7 @@ export function turnMarks(checks: ProcedureCheckOut[]): TurnMarks {
         const key = ruleKey(c.procedure_id, r);
         const found = list.find((m) => m.key === key);
         if (found) found.quotes.push(e.quote);
-        else list.push({ key, label: `${c.procedure_name ?? c.procedure_id}: ${ruleLabel(r)}`, status: r.status, finding: r.finding, quotes: [e.quote] });
+        else list.push({ key, label: `${c.procedure_name ?? c.procedure_id}: ${ruleLabel(r)}`, status: r.status, finding: r.finding && !r.suppressed, quotes: [e.quote] });
         marks.set(e.turn, list);
       }
     }
@@ -103,15 +104,23 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
   const { ws } = useWs();
   return (
-    <li className={cn("rounded-md border border-transparent px-2 py-1.5", active && "border-border bg-muted", rule.finding && !active && "bg-err-soft/40")}>
-      <button type="button" className="grid w-full grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
-        <span className="pt-px">
-          <Tag className={s.tone}>{s.label}</Tag>
-        </span>
-        <span className="text-[13px]">
-          <span className="text-muted-foreground">{ruleLabel(rule)}.</span> {rule.text}
-        </span>
-      </button>
+    <li className={cn("rounded-md border border-transparent px-2 py-1.5", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
+      <div className="flex items-start gap-1">
+        <button type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
+          <span className="pt-px">
+            <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
+          </span>
+          <span className="text-[13px]">
+            <span className="text-muted-foreground">{ruleLabel(rule)}.</span> {rule.text}
+          </span>
+        </button>
+        {rule.finding && rule.finding_id && <FindingOverrideControl findingId={rule.finding_id} override={rule.override} />}
+      </div>
+      {rule.suppressed && (
+        <p className="text-muted-foreground mt-0.5 ml-[96px] text-xs">
+          Suppressed: {rule.override === false ? "a reviewer marked this finding incorrect" : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.
+        </p>
+      )}
       {active && (
         <div className="mt-1.5 ml-[96px] grid gap-1.5 text-[13px]">
           {rule.reason && <p className="text-muted-foreground">{rule.reason}</p>}
@@ -130,8 +139,12 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
           {rule.pattern_id && (
             <span className="text-[13px]">
               Pattern:{" "}
-              <HrefLink href={sessionsHref(ws, { pattern: rule.pattern_id })} title="Every session in this pattern">
+              <HrefLink href={wsHref(ws, "patterns", rule.pattern_id)} title="This pattern: its verdict, examples and suggestions">
                 {rule.pattern_name ?? "this pattern"}
+              </HrefLink>{" "}
+              ·{" "}
+              <HrefLink href={sessionsHref(ws, { pattern: rule.pattern_id })} title="Every session in this pattern">
+                sessions
               </HrefLink>
             </span>
           )}
@@ -151,7 +164,19 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
       <button type="button" className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
         {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
         <span className="flex-1 font-semibold">{check.procedure_name ?? check.procedure_id}</span>
-        {state ? <Tag>{state}</Tag> : <ResultTag result={check.result} />}
+        {state ? (
+          <Tag>{state}</Tag>
+        ) : (
+          <span className="flex items-center gap-1.5">
+            {check.checked_result && check.checked_result !== check.result && (
+              <span className="opacity-60" title="The checker's own result, before suppressed findings were left out">
+                <ResultTag result={check.checked_result} />
+              </span>
+            )}
+            {check.checked_result && check.checked_result !== check.result && <span className="text-muted-foreground text-xs">→</span>}
+            <ResultTag result={check.result} />
+          </span>
+        )}
       </button>
       {open && (
         <div className="mt-2 pl-6">

@@ -78,7 +78,7 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
         value={fmtPct(c.pass_rate)}
         delta={{ value: tiles.delta_points.pass_rate, unit: "pts", good: "up" }}
         prior={was(fmtPct(p.pass_rate))}
-        sub={`of ${n(c.measurable_checks)} checks · single rules pass ${fmtPct(c.rule_pass_rate)} of ${n(c.rule_n)}`}
+        sub={`of ${n(c.measurable_checks)} checks · single rules pass ${fmtPct(c.rule_pass_rate)} of ${n(c.rule_n)}${c.suppressed ? ` · ${n(c.suppressed)} suppressed` : ""}`}
         help={`Followed checks out of measurable checks. ${CHECK_DEF} The second line counts single step and never rule results instead; warning signs never count.`}
       />
       <Kpi
@@ -233,7 +233,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                     <OutcomeBar followed={r.followed} partial={r.partial} deviated={r.deviated} />
                   </td>
                   <td className={cn(td, "text-right")}>
-                    <RateN rate={r.pass_rate} n={r.measurable} thin={thin} />
+                    <RateN rate={r.pass_rate} n={r.measurable} thin={thin} suppressed={r.suppressed} />
                     <div className="text-xs">
                       {r.delta_points != null && r.prior_measurable > 0 ? (
                         <Hint tip={`Change in percentage points. The period before: ${fmtPct(r.prior_pass_rate)} of ${r.prior_measurable} checks.`} focusable={false}>

@@ -126,3 +126,45 @@ export function DiffView({
     </div>
   );
 }
+
+/** A unified diff given as text (as the server makes them): its hunks, with line numbers. */
+export function PatchView({ patch, empty = "No differences." }: { patch: string; empty?: string }) {
+  const rows: ReactNode[] = [];
+  let o = 0,
+    n = 0;
+  patch.split("\n").forEach((l, i) => {
+    if (l.startsWith("---") || l.startsWith("+++") || (l === "" && i === patch.split("\n").length - 1)) return;
+    const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/.exec(l);
+    if (h) {
+      o = Number(h[1]);
+      n = Number(h[2]);
+      rows.push(
+        <div key={i} className="dv-fold cursor-default hover:no-underline" role="row">
+          {l}
+        </div>,
+      );
+      return;
+    }
+    const sign = l[0];
+    const text = l.slice(1) || " ";
+    const cls = sign === "+" ? "add" : sign === "-" ? "del" : "eq";
+    rows.push(
+      <div key={i} role="row" className={`dl ${cls}`}>
+        <span className="ln">{sign === "+" ? "" : o}</span>
+        <span className="ln">{sign === "-" ? "" : n}</span>
+        <span className="sg" aria-hidden="true">
+          {sign === "+" ? "+" : sign === "-" ? "−" : " "}
+        </span>
+        <span className="tx">{text}</span>
+      </div>,
+    );
+    if (sign !== "+") o++;
+    if (sign !== "-") n++;
+  });
+  if (!rows.length) return <p className="text-muted-foreground my-2 text-[13px]">{empty}</p>;
+  return (
+    <div className="dv unified my-2" role="table" aria-label="Differences">
+      {rows}
+    </div>
+  );
+}

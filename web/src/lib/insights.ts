@@ -82,9 +82,10 @@ export function scopeFilters(scope: Scope | undefined): SessionFilters {
   };
 }
 
-/** A link to the sessions list with these filters (drop empty ones). */
+/** A link to the sessions list with these filters (drop empty ones). Suppressed findings are left out unless the
+ * filters say otherwise, so the list's counts match Insights'. */
 export function sessionsHref(ws: string, filters: SessionFilters, scope?: Scope): string {
-  const all: Record<string, unknown> = { ...scopeFilters(scope), ...filters };
+  const all: Record<string, unknown> = { suppressed: false, ...scopeFilters(scope), ...filters };
   for (const k of Object.keys(all)) if (all[k] == null || all[k] === "" || (Array.isArray(all[k]) && !(all[k] as unknown[]).length)) delete all[k];
   return wsHref(ws, "sessions") + defaultStringifySearch(all);
 }

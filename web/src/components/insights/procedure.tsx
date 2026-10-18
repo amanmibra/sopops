@@ -108,7 +108,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
                   </span>
                 </Hint>
               ) : (
-                <RateN rate={r.fail_rate} n={r.n} thin={r.n < t.min_n} tone={r.tone} />
+                <RateN rate={r.fail_rate} n={r.n} thin={r.n < t.min_n} tone={r.tone} suppressed={r.suppressed} />
               )}
             </span>
             {d.release_split && (
@@ -222,13 +222,13 @@ function PatternLine({ p, depth, scope }: { p: PatternOut; depth: number; scope?
   const { ws } = useWs();
   return (
     <div className={cn("flex items-baseline gap-2 py-0.5", depth && "pl-5 text-[13px]")}>
-      <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className={cn(depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")}>
+      <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn(depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, examples and suggestions">
         {p.name}
       </HrefLink>
       {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-1.5 text-[11px]">retired</span>}
-      <span className="text-muted-foreground text-xs tabular-nums">
+      <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-muted-foreground text-xs tabular-nums" title="Its sessions">
         {p.sessions} sessions · {p.findings} findings
-      </span>
+      </HrefLink>
       {depth > 0 && p.description && <span className="text-muted-foreground hidden truncate text-xs lg:inline">{p.description}</span>}
     </div>
   );
