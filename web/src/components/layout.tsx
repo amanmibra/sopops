@@ -2,7 +2,7 @@
 // workspace's side rail, which lists the pages of the mode you're in.
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
-import { Monitor, Moon, Plus, Settings, Sun } from "lucide-react";
+import { BookText, ClipboardCheck, Monitor, Moon, Plus, Settings, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type AuthState, q } from "@/lib/api";
 import { rq } from "@/lib/review";
@@ -22,7 +22,6 @@ import { Button } from "./ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
-import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 
 /** The mode of the page you're on (Settings and the workspace root keep the one you came from). */
@@ -53,33 +52,35 @@ function ModeSwitch({ ws, mode }: { ws: string; mode: Mode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [ws, go]);
   return (
-    <ToggleGroup
-      type="single"
-      variant="outline"
-      size="sm"
-      value={mode}
-      onValueChange={(v) => v && go(modeHref(ws, v as Mode))}
-      aria-label="Mode"
-      className="bg-card max-md:w-full"
-    >
-      {MODES.map((m) => (
-        <Tooltip key={m.mode}>
-          <TooltipTrigger asChild>
-            <ToggleGroupItem
-              value={m.mode}
-              className="text-muted-foreground aria-checked:bg-brand-soft aria-checked:text-foreground aria-checked:hover:bg-brand-soft px-3.5 font-normal aria-checked:font-semibold max-md:flex-1"
-            >
-              {m.label}
-            </ToggleGroupItem>
-          </TooltipTrigger>
-          <TooltipContent sideOffset={6}>
-            {m.tip} <span className="opacity-70">(g {m.mode === "qa" ? "q" : "i"})</span>
-          </TooltipContent>
-        </Tooltip>
-      ))}
-    </ToggleGroup>
+    <nav aria-label="Mode" className="flex items-center gap-1 max-md:w-full">
+      {MODES.map((m) => {
+        const Icon = MODE_ICON[m.mode];
+        const here = m.mode === mode;
+        return (
+          <Tooltip key={m.mode}>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                aria-current={here ? "page" : undefined}
+                onClick={() => go(modeHref(ws, m.mode))}
+                className={cn("text-muted-foreground gap-1.5 px-3 font-normal max-md:flex-1", here && "bg-brand-soft text-foreground hover:bg-brand-soft font-semibold")}
+              >
+                <Icon className="size-4" />
+                {m.label}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent sideOffset={6}>
+              {m.tip} <span className="opacity-70">(g {m.mode === "qa" ? "q" : "i"})</span>
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </nav>
   );
 }
+
+const MODE_ICON: Record<Mode, typeof ClipboardCheck> = { qa: ClipboardCheck, instructions: BookText };
 
 /** Workspace-wide settings (tokens, GitHub repository, platforms, defaults), behind a gear. */
 function SettingsLink({ ws, mode }: { ws: string; mode: Mode }) {
@@ -169,11 +170,8 @@ export function TopBar({ auth }: { auth: AuthState }) {
 }
 
 function WsTopBar({ ws, auth }: { ws: string; auth: AuthState }) {
-  const { pathname } = useLocation();
   const mode = useMode(ws);
   const legacy = useQuery(q.config(ws)).data?.legacy;
-  // Publishing is about instructions; Settings edits are drafts too, so it's there as well.
-  const publish = mode === "instructions" || routeIsSettings(pathname);
   return (
     <Bar
       ws={ws}
@@ -181,7 +179,7 @@ function WsTopBar({ ws, auth }: { ws: string; auth: AuthState }) {
       mode={!legacy && <ModeSwitch ws={ws} mode={mode} />}
       end={
         <>
-          {publish && <PublishButton ws={ws} />}
+          <PublishButton ws={ws} />
           <SettingsLink ws={ws} mode={mode} />
         </>
       }
