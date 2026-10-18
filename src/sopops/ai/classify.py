@@ -51,7 +51,7 @@ from .signatures import CHECK_RULES_VERSION, CheckRules, RuleChecks, SplitRule
 log = logging.getLogger("sopops.ai.classify")
 
 PROMPT_VERSION = "jev-check-1"
-ROUTE_VERSION = "jev-route-1"
+ROUTE_VERSION = "jev-route-2"
 MAX_STATE_TOKENS = 28_000  # below the documented 32k (state plus the longest question)
 MAX_REQUEST_TOKENS = 60_000  # below the documented 64k
 MAX_OPTIONS = 255  # a Choice's limit
@@ -278,11 +278,11 @@ def situation_question(key: str) -> Noul:
 def responded_question(key: str) -> Noul:
     return Noul(
         instructions={
-            "question": f"In `transcript.utterances`, did the agent respond at least once to the user's request for what `procedures.{key}` is for (confirm it, ask about it, answer it, or act on it)?",
-            "agent": AGENT,
+            "question": f"In `transcript.utterances`, did the agent act on the user's request for what `procedures.{key}` covers: "
+            "confirm it, ask a question about it, answer it, or start doing it?"
         },
-        true="At least one agent utterance responds to that request.",
-        false="The user never made that request, or the conversation ends before the agent replies to it.",
+        true="At least one agent utterance does this.",
+        false="No agent utterance does this.",
     )
 
 
