@@ -47,5 +47,7 @@ class Suggestion(SQLModel, table=True):
     merged_into_version: int | None = Field(default=None, description="The file's version the edit was merged into when applied, when the "
                                             "procedure had changed since it was written (`sopops.merge`).")
     rewrite_of: str | None = Field(default=None, max_length=36, description="The suggestion this one rewrites against the current text.")
+    applied_version: int | None = Field(default=None, description="The file version the draft edit wrote when applied. A release with this "
+                                        "version of the file or a later one has the edit, even after later edits built on it.")
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

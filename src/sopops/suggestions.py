@@ -346,8 +346,9 @@ class Suggestions:
                                             "Merged with changes made to the file since it was written." if merged else None, "Suggested by sopops.") if x)
             url = github.open_pull_request(self.store, ws, {s.path: text}, f"{s.procedure_id}: {name}", body)
             return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer, pr_opened_at=_now(), merged_into_version=merged)
-        self.store.edit(ws, {s.path: text}, author=reviewer or "sopops", note=f"Suggestion for “{name}”" + (" (merged with changes made since)" if merged else ""))
-        return self._save(s, status="applied", reviewer=reviewer or s.reviewer, applied_at=_now(), merged_into_version=merged)
+        written = self.store.edit(ws, {s.path: text}, author=reviewer or "sopops", note=f"Suggestion for “{name}”" + (" (merged with changes made since)" if merged else ""))
+        version = next((w["version"] for w in written if w["path"] == s.path), None)
+        return self._save(s, status="applied", reviewer=reviewer or s.reviewer, applied_at=_now(), merged_into_version=merged, applied_version=version)
 
     def dismiss(self, ws: str, suggestion_id: str, note: str | None = None, reviewer: str | None = None) -> dict[str, Any]:
         with self._db() as db:

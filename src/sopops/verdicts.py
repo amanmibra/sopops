@@ -111,14 +111,19 @@ def suggestion_summary(s: Suggestion, pattern_name: str | None = None, released:
 
 
 def release_with(db: Session, ws: str, s: Suggestion) -> Release | None:
-    """The first release since the suggestion whose file is its suggested text (None until there is one, and for a
-    suggestion that wasn't applied)."""
+    """The first release since the suggestion that has its edit (None until there is one, and for a suggestion that
+    wasn't applied)."""
     if s.status not in lineage.FIX_STATUSES or not s.path or s.new_text is None:
         return None
-    # its edit may have gone out merged with others (`sopops.merge.contains`)
+    # a draft edit is in every release with the version it wrote or a later one, even once later edits reworded the
+    # same lines; a pull request's edit may have gone out merged with others (`sopops.merge.contains`)
     for rel in db.exec(select(Release).where(Release.workspace == ws, Release.created_at >= s.created_at).order_by(Release.number)):
         version = rel.files.get(s.path)
         if version is None:
+            continue
+        if s.applied_version is not None:
+            if version >= s.applied_version:
+                return rel
             continue
         content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == s.path, FileVersion.version == version)).first()
         if content == s.new_text or (content is not None and s.old_text is not None and merge.contains(s.old_text, s.new_text, content)):

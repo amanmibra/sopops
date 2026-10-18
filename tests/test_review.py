@@ -550,6 +550,11 @@ def test_conflicting_suggestions_are_refused_and_rewritten_against_the_current_t
     assert env.client.post(f"{WS}/suggestions/{new['suggestion_id']}/apply").json()["status"] == "applied"
     final = env.client.get(f"{WS}/files/{PATH}").json()["content"]
     assert "lookup_allergens\n" in final and "and who it is for" in final
+    # a later edit rewords the line the first one changed: the release still has the first edit, built on
+    env.store.edit("demo", {PATH: final.replace("unless you have just checked the item", "unless you have checked the item just now")})
+    release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
+    assert {x["suggestion_id"]: x["released_in"] for x in env.client.get(f"{WS}/suggestions").json()["items"] if x["status"] == "applied"} == {
+        c["suggestion_id"]: release, new["suggestion_id"]: release}
 
 
 def test_a_merge_that_doesnt_compile_is_a_conflict(env):
