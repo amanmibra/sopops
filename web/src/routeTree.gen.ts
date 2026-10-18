@@ -10,6 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as InviteRouteImport } from './routes/invite'
+import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as WWsRouteImport } from './routes/w.$ws'
 import { Route as WWsIndexRouteImport } from './routes/w.$ws.index'
 import { Route as WWsChangesRouteImport } from './routes/w.$ws.changes'
@@ -37,6 +39,7 @@ import { Route as WWsSettingsChecksRouteImport } from './routes/w.$ws.settings.c
 import { Route as WWsSettingsDefaultsRouteImport } from './routes/w.$ws.settings.defaults'
 import { Route as WWsSettingsGithubRouteImport } from './routes/w.$ws.settings.github'
 import { Route as WWsSettingsHistoryRouteImport } from './routes/w.$ws.settings.history'
+import { Route as WWsSettingsMembersRouteImport } from './routes/w.$ws.settings.members'
 import { Route as WWsSettingsPlatformsRouteImport } from './routes/w.$ws.settings.platforms'
 import { Route as WWsSuggestionsIndexRouteImport } from './routes/w.$ws.suggestions.index'
 import { Route as WWsSuggestionsIdRouteImport } from './routes/w.$ws.suggestions.$id'
@@ -55,6 +58,16 @@ import { Route as WWsInsightsProceduresIdRulesRuleIdRouteImport } from './routes
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InviteRoute = InviteRouteImport.update({
+  id: '/invite',
+  path: '/invite',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignInRoute = SignInRouteImport.update({
+  id: '/sign-in',
+  path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WWsRoute = WWsRouteImport.update({
@@ -192,6 +205,11 @@ const WWsSettingsHistoryRoute = WWsSettingsHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => WWsSettingsRoute,
 } as any)
+const WWsSettingsMembersRoute = WWsSettingsMembersRouteImport.update({
+  id: '/members',
+  path: '/members',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
 const WWsSettingsPlatformsRoute = WWsSettingsPlatformsRouteImport.update({
   id: '/platforms',
   path: '/platforms',
@@ -268,6 +286,8 @@ const WWsInsightsProceduresIdRulesRuleIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/invite': typeof InviteRoute
+  '/sign-in': typeof SignInRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
@@ -285,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
@@ -312,6 +333,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/invite': typeof InviteRoute
+  '/sign-in': typeof SignInRoute
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
@@ -327,6 +350,7 @@ export interface FileRoutesByTo {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
@@ -355,6 +379,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/invite': typeof InviteRoute
+  '/sign-in': typeof SignInRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
@@ -372,6 +398,7 @@ export interface FileRoutesById {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
@@ -401,6 +428,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/invite'
+    | '/sign-in'
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
@@ -418,6 +447,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
@@ -445,6 +475,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/invite'
+    | '/sign-in'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
     | '/w/$ws/overview'
@@ -460,6 +492,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents'
@@ -487,6 +520,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/invite'
+    | '/sign-in'
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
@@ -504,6 +539,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
@@ -532,6 +568,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  InviteRoute: typeof InviteRoute
+  SignInRoute: typeof SignInRoute
   WWsRoute: typeof WWsRouteWithChildren
 }
 
@@ -542,6 +580,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invite': {
+      id: '/invite'
+      path: '/invite'
+      fullPath: '/invite'
+      preLoaderRoute: typeof InviteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/w/$ws': {
@@ -733,6 +785,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WWsSettingsHistoryRouteImport
       parentRoute: typeof WWsSettingsRoute
     }
+    '/w/$ws/settings/members': {
+      id: '/w/$ws/settings/members'
+      path: '/members'
+      fullPath: '/w/$ws/settings/members'
+      preLoaderRoute: typeof WWsSettingsMembersRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
     '/w/$ws/settings/platforms': {
       id: '/w/$ws/settings/platforms'
       path: '/platforms'
@@ -840,6 +899,7 @@ interface WWsSettingsRouteChildren {
   WWsSettingsDefaultsRoute: typeof WWsSettingsDefaultsRoute
   WWsSettingsGithubRoute: typeof WWsSettingsGithubRoute
   WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
+  WWsSettingsMembersRoute: typeof WWsSettingsMembersRoute
   WWsSettingsPlatformsRoute: typeof WWsSettingsPlatformsRoute
   WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
 }
@@ -850,6 +910,7 @@ const WWsSettingsRouteChildren: WWsSettingsRouteChildren = {
   WWsSettingsDefaultsRoute: WWsSettingsDefaultsRoute,
   WWsSettingsGithubRoute: WWsSettingsGithubRoute,
   WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
+  WWsSettingsMembersRoute: WWsSettingsMembersRoute,
   WWsSettingsPlatformsRoute: WWsSettingsPlatformsRoute,
   WWsSettingsIndexRoute: WWsSettingsIndexRoute,
 }
@@ -935,6 +996,8 @@ const WWsRouteWithChildren = WWsRoute._addFileChildren(WWsRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  InviteRoute: InviteRoute,
+  SignInRoute: SignInRoute,
   WWsRoute: WWsRouteWithChildren,
 }
 export const routeTree = rootRouteImport

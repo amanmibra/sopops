@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApiError, type IssueOut, call, localIssue, refresh, sdk } from "@/lib/api";
+import { signedIn } from "@/lib/auth";
 
 type Saving = Promise<{ data?: { changed: unknown[] }; error?: unknown; response?: Response }>;
 import { ITEM_ID, KIND, type Kind, type ListKind, plural } from "@/lib/kinds";
@@ -304,7 +305,8 @@ export function useDirty(initial = false) {
 }
 export type Dirty = ReturnType<typeof useDirty>;
 
-export const author = () => prefs.get("author")?.trim() || null;
+/** Who to record with a change. Signed in, nobody: the server records the user. */
+export const author = () => (signedIn() ? null : prefs.get("author")?.trim() || null);
 
 const DELETED: Record<ListKind, string> = {
   instruction: "and took it out of every agent and group that listed it",

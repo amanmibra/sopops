@@ -164,9 +164,10 @@ def router(accounts: Accounts) -> APIRouter:
         return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
 
     @r.post("/v1/auth/invites/lookup", response_model=InviteInfo, responses={404: {"description": "Unknown, used, withdrawn or expired."}})
-    def lookup_invite(req: InviteTokenIn) -> dict:
-        """What an invite link is for: the org, and the email it's for."""
-        return accounts.invite_info(req.token)
+    def lookup_invite(req: InviteTokenIn, request: Request) -> dict:
+        """What an invite link is for: the org, and the email it's for. Once used, it answers only whoever used it."""
+        cur = accounts.current(request.cookies.get(access.SESSION_COOKIE)) if mode.required() else None
+        return accounts.invite_info(req.token, cur.user.id if cur else None)
 
     @r.post("/v1/auth/invites/accept", response_model=AuthState, responses={403: {"description": "Signed in with another email."}})
     def accept_invite(req: InviteTokenIn, request: Request) -> dict:

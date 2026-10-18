@@ -208,7 +208,7 @@ def test_an_invite_link_joins_the_org(owner, app):
 
     anon = TestClient(app)
     info = anon.post("/v1/auth/invites/lookup", json={"token": token}).json()
-    assert info["org_name"] == "Default" and info["email"] == "bob@example.com" and info["role"] == "admin"
+    assert info["org_name"] == "Default" and info["email"] == "bob@example.com" and info["role"] == "admin" and not info["accepted"]
 
     mallory = TestClient(app)
     sign_in(mallory, "github", "3", "mallory@example.com")
@@ -219,6 +219,8 @@ def test_an_invite_link_joins_the_org(owner, app):
     sign_in(bob, "google", "g-bob", "bob@example.com")  # signing in with the invited email accepts it
     assert bob.get("/v1/auth/session").json()["org"]["role"] == "admin"
     assert anon.post("/v1/auth/invites/lookup", json={"token": token}).status_code == 404  # used
+    assert bob.post("/v1/auth/invites/lookup", json={"token": token}).json()["accepted"]  # by him: the page says he's in
+    assert mallory.post("/v1/auth/invites/lookup", json={"token": token}).status_code == 404
     assert owner.get("/v1/org/invites").json() == []
 
 

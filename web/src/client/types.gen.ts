@@ -615,6 +615,38 @@ export type ApplyRequest = {
 };
 
 /**
+ * AuthState
+ */
+export type AuthState = {
+    /**
+     * Required
+     *
+     * Whether this sopops needs people to sign in. False: no sign-in at all.
+     */
+    required: boolean;
+    /**
+     * Providers
+     *
+     * What people can sign in with.
+     */
+    providers: Array<ProviderOut>;
+    /**
+     * Who's signed in, if anyone.
+     */
+    user: UserOut | null;
+    /**
+     * The org you're working in; none until someone adds you to one.
+     */
+    org: OrgSummary | null;
+    /**
+     * Orgs
+     *
+     * Every org you're in.
+     */
+    orgs: Array<OrgSummary>;
+};
+
+/**
  * BlockRequest
  */
 export type BlockRequest = {
@@ -2240,6 +2272,124 @@ export type InstructionIn = {
 };
 
 /**
+ * InviteCreated
+ */
+export type InviteCreated = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Link
+     *
+     * The invite link, shown once. Whoever signs in with the invited email and opens it joins.
+     */
+    link: string;
+};
+
+/**
+ * InviteIn
+ */
+export type InviteIn = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role
+     */
+    role?: 'owner' | 'admin' | 'member';
+};
+
+/**
+ * InviteInfo
+ */
+export type InviteInfo = {
+    /**
+     * Org Id
+     */
+    org_id: string;
+    /**
+     * Org Name
+     */
+    org_name: string;
+    /**
+     * Email
+     *
+     * Who it's for: they must sign in with this email.
+     */
+    email: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Accepted
+     *
+     * You used it already: you're in the org.
+     */
+    accepted: boolean;
+};
+
+/**
+ * InviteOut
+ */
+export type InviteOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * InviteTokenIn
+ */
+export type InviteTokenIn = {
+    /**
+     * Token
+     *
+     * From the invite link (the part after #).
+     */
+    token: string;
+};
+
+/**
  * IssueOut
  */
 export type IssueOut = {
@@ -2792,6 +2942,40 @@ export type ManifestOut = {
 };
 
 /**
+ * MemberOut
+ */
+export type MemberOut = {
+    /**
+     * User Id
+     */
+    user_id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Avatar Url
+     */
+    avatar_url: string | null;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Joined At
+     */
+    joined_at: string;
+    /**
+     * Last Login At
+     */
+    last_login_at: string | null;
+};
+
+/**
  * MergeConflict
  */
 export type MergeConflict = {
@@ -3123,6 +3307,76 @@ export type OpenPullRequestIn = {
      * The pull request's description: the agents, where each prompt was found, the blocks, drift found.
      */
     description?: string | null;
+};
+
+/**
+ * OrgIn
+ */
+export type OrgIn = {
+    /**
+     * Name
+     */
+    name?: string | null;
+    /**
+     * Allowed Domains
+     *
+     * Email domains, like example.com.
+     */
+    allowed_domains?: Array<string> | null;
+};
+
+/**
+ * OrgOut
+ */
+export type OrgOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Allowed Domains
+     *
+     * People with a verified email at these domains join as members when they sign in.
+     */
+    allowed_domains: Array<string>;
+    /**
+     * Role
+     *
+     * Your role in it.
+     */
+    role: 'owner' | 'admin' | 'member';
+};
+
+/**
+ * OrgSummary
+ */
+export type OrgSummary = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Role
+     *
+     * Your role in it.
+     */
+    role: 'owner' | 'admin' | 'member';
 };
 
 /**
@@ -4332,6 +4586,22 @@ export type ProposedStep = {
      * Required
      */
     required?: boolean;
+};
+
+/**
+ * ProviderOut
+ */
+export type ProviderOut = {
+    /**
+     * Id
+     *
+     * `github`, `google`, or a plugin's.
+     */
+    id: string;
+    /**
+     * Label
+     */
+    label: string;
 };
 
 /**
@@ -5723,6 +5993,16 @@ export type RewriteIn = {
      * Reviewer
      */
     reviewer?: string | null;
+};
+
+/**
+ * RoleIn
+ */
+export type RoleIn = {
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
 };
 
 /**
@@ -7468,6 +7748,16 @@ export type SuggestionsResponse = {
 };
 
 /**
+ * SwitchOrgIn
+ */
+export type SwitchOrgIn = {
+    /**
+     * Org Id
+     */
+    org_id: string;
+};
+
+/**
  * SyncConflictOut
  */
 export type SyncConflictOut = {
@@ -8118,6 +8408,28 @@ export type Use = {
      * The group the agent lists it through; null if the agent lists it directly.
      */
     via: string | null;
+};
+
+/**
+ * UserOut
+ */
+export type UserOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Avatar Url
+     */
+    avatar_url: string | null;
 };
 
 /**
@@ -8977,6 +9289,343 @@ export type VapiAssistantRequestResponses = {
 };
 
 export type VapiAssistantRequestResponse = VapiAssistantRequestResponses[keyof VapiAssistantRequestResponses];
+
+export type AuthSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/session';
+};
+
+export type AuthSessionResponses = {
+    /**
+     * Successful Response
+     */
+    200: AuthState;
+};
+
+export type AuthSessionResponse = AuthSessionResponses[keyof AuthSessionResponses];
+
+export type SignInData = {
+    body?: never;
+    path: {
+        /**
+         * Provider
+         */
+        provider: string;
+    };
+    query?: {
+        /**
+         * Next
+         */
+        next?: string | null;
+    };
+    url: '/v1/auth/login/{provider}';
+};
+
+export type SignInErrors = {
+    /**
+     * No such provider here.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SignInError = SignInErrors[keyof SignInErrors];
+
+export type SignOutData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/logout';
+};
+
+export type SignOutResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type SignOutResponse = SignOutResponses[keyof SignOutResponses];
+
+export type SwitchOrgData = {
+    body: SwitchOrgIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/org';
+};
+
+export type SwitchOrgErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SwitchOrgError = SwitchOrgErrors[keyof SwitchOrgErrors];
+
+export type SwitchOrgResponses = {
+    /**
+     * Successful Response
+     */
+    200: AuthState;
+};
+
+export type SwitchOrgResponse = SwitchOrgResponses[keyof SwitchOrgResponses];
+
+export type LookupInviteData = {
+    body: InviteTokenIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/invites/lookup';
+};
+
+export type LookupInviteErrors = {
+    /**
+     * Unknown, used, withdrawn or expired.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LookupInviteError = LookupInviteErrors[keyof LookupInviteErrors];
+
+export type LookupInviteResponses = {
+    /**
+     * Successful Response
+     */
+    200: InviteInfo;
+};
+
+export type LookupInviteResponse = LookupInviteResponses[keyof LookupInviteResponses];
+
+export type AcceptInviteData = {
+    body: InviteTokenIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/invites/accept';
+};
+
+export type AcceptInviteErrors = {
+    /**
+     * Signed in with another email.
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AcceptInviteError = AcceptInviteErrors[keyof AcceptInviteErrors];
+
+export type AcceptInviteResponses = {
+    /**
+     * Successful Response
+     */
+    200: AuthState;
+};
+
+export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
+
+export type GetOrgData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org';
+};
+
+export type GetOrgResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrgOut;
+};
+
+export type GetOrgResponse = GetOrgResponses[keyof GetOrgResponses];
+
+export type UpdateOrgData = {
+    body: OrgIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org';
+};
+
+export type UpdateOrgErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateOrgError = UpdateOrgErrors[keyof UpdateOrgErrors];
+
+export type UpdateOrgResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrgOut;
+};
+
+export type UpdateOrgResponse = UpdateOrgResponses[keyof UpdateOrgResponses];
+
+export type ListMembersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org/members';
+};
+
+export type ListMembersResponses = {
+    /**
+     * Response List Members
+     *
+     * Successful Response
+     */
+    200: Array<MemberOut>;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type RemoveMemberData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/v1/org/members/{user_id}';
+};
+
+export type RemoveMemberErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RemoveMemberError = RemoveMemberErrors[keyof RemoveMemberErrors];
+
+export type RemoveMemberResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RemoveMemberResponse = RemoveMemberResponses[keyof RemoveMemberResponses];
+
+export type SetMemberRoleData = {
+    body: RoleIn;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/v1/org/members/{user_id}';
+};
+
+export type SetMemberRoleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetMemberRoleError = SetMemberRoleErrors[keyof SetMemberRoleErrors];
+
+export type SetMemberRoleResponses = {
+    /**
+     * Successful Response
+     */
+    200: MemberOut;
+};
+
+export type SetMemberRoleResponse = SetMemberRoleResponses[keyof SetMemberRoleResponses];
+
+export type ListInvitesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org/invites';
+};
+
+export type ListInvitesResponses = {
+    /**
+     * Response List Invites
+     *
+     * Successful Response
+     */
+    200: Array<InviteOut>;
+};
+
+export type ListInvitesResponse = ListInvitesResponses[keyof ListInvitesResponses];
+
+export type CreateInviteData = {
+    body: InviteIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/invites';
+};
+
+export type CreateInviteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateInviteError = CreateInviteErrors[keyof CreateInviteErrors];
+
+export type CreateInviteResponses = {
+    /**
+     * Successful Response
+     */
+    201: InviteCreated;
+};
+
+export type CreateInviteResponse = CreateInviteResponses[keyof CreateInviteResponses];
+
+export type RevokeInviteData = {
+    body?: never;
+    path: {
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/org/invites/{id}';
+};
+
+export type RevokeInviteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RevokeInviteError = RevokeInviteErrors[keyof RevokeInviteErrors];
+
+export type RevokeInviteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type RevokeInviteResponse = RevokeInviteResponses[keyof RevokeInviteResponses];
 
 export type ValidateData = {
     body: FilesRequest;

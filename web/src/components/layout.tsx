@@ -1,10 +1,10 @@
-// The frame: the top bar (workspace, QA or Instructions, author, unpublished changes, settings, theme) and the
+// The frame: the top bar (workspace, QA or Instructions, author or user menu, unpublished changes, settings, theme) and the
 // workspace's side rail, which lists the pages of the mode you're in.
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
 import { Monitor, Moon, Plus, Settings, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
-import { q } from "@/lib/api";
+import { type AuthState, q } from "@/lib/api";
 import { rq } from "@/lib/review";
 import { KIND, type ListKind, WORKSPACE_ID } from "@/lib/kinds";
 import { MODES, type Mode, currentMode, modeHref } from "@/lib/mode";
@@ -12,6 +12,7 @@ import { prefs } from "@/lib/prefs";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
+import { UserMenu } from "./account";
 import { Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Logo } from "./logo";
@@ -162,12 +163,12 @@ function NewWorkspace({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function TopBar() {
+export function TopBar({ auth }: { auth: AuthState }) {
   const { ws } = useParams({ strict: false }) as { ws?: string };
-  return ws ? <WsTopBar ws={ws} /> : <Bar />;
+  return ws ? <WsTopBar ws={ws} auth={auth} /> : <Bar auth={auth} />;
 }
 
-function WsTopBar({ ws }: { ws: string }) {
+function WsTopBar({ ws, auth }: { ws: string; auth: AuthState }) {
   const { pathname } = useLocation();
   const mode = useMode(ws);
   const legacy = useQuery(q.config(ws)).data?.legacy;
@@ -176,6 +177,7 @@ function WsTopBar({ ws }: { ws: string }) {
   return (
     <Bar
       ws={ws}
+      auth={auth}
       mode={!legacy && <ModeSwitch ws={ws} mode={mode} />}
       end={
         <>
@@ -187,7 +189,8 @@ function WsTopBar({ ws }: { ws: string }) {
   );
 }
 
-function Bar({ ws, mode, end }: { ws?: string; mode?: ReactNode; end?: ReactNode }) {
+/** The workspace picker lists the org's workspaces (the server only returns those). */
+function Bar({ ws, auth, mode, end }: { ws?: string; auth: AuthState; mode?: ReactNode; end?: ReactNode }) {
   const go = useGo();
   const workspaces = useQuery(q.workspaces());
   const [adding, setAdding] = useState(false);
@@ -225,18 +228,21 @@ function Bar({ ws, mode, end }: { ws?: string; mode?: ReactNode; end?: ReactNode
       )}
       {mode && <div className="max-md:order-last max-md:w-full md:ml-2">{mode}</div>}
       <span className="flex-1" />
-      <Input
-        className="h-8 w-24 md:w-36"
-        placeholder="Your name"
-        aria-label="Your name, recorded with changes"
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-          prefs.set("author", e.target.value.trim());
-        }}
-      />
+      {!auth.user && (
+        <Input
+          className="h-8 w-24 md:w-36"
+          placeholder="Your name"
+          aria-label="Your name, recorded with changes"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            prefs.set("author", e.target.value.trim());
+          }}
+        />
+      )}
       {end}
       <ThemeMenu />
+      <UserMenu auth={auth} />
     </header>
   );
 }

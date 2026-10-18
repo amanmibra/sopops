@@ -6,6 +6,19 @@ import type { ConfigResponse, IssueOut, RuleResultOut, SessionSummary } from "@/
 
 client.setConfig({ baseUrl: "" });
 
+/** Signed in, requests that change things carry the CSRF token: the sopops_csrf cookie's value, as a header. */
+const CSRF_COOKIE = "sopops_csrf";
+client.interceptors.request.use((request) => {
+  if (!["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+    const csrf = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${CSRF_COOKIE}=`))
+      ?.slice(CSRF_COOKIE.length + 1);
+    if (csrf) request.headers.set("X-CSRF-Token", decodeURIComponent(csrf));
+  }
+  return request;
+});
+
 export { sdk };
 export type * from "@/client/types.gen";
 
@@ -35,8 +48,15 @@ function errorMessage(status: number, data: unknown): string {
 export async function call<T>(p: Promise<{ data?: T; error?: unknown; response?: Response }>): Promise<T> {
   const r = await p;
   const status = r.response?.status ?? 0;
+  if (status === 401 && (r.error as { detail?: string } | undefined)?.detail === "sign in first") toSignIn();
   if (r.error !== undefined || !r.response?.ok) throw new ApiError(errorMessage(status, r.error), status, r.error ?? null);
   return r.data as T;
+}
+
+/** The session ended (expired, or signed out elsewhere): to the sign-in page, then back here. */
+export function toSignIn() {
+  const here = window.location.pathname + window.location.search;
+  if (window.location.pathname !== "/sign-in") window.location.assign(`/sign-in?next=${encodeURIComponent(here)}`);
 }
 
 /** An issue made here rather than by sopc (a message to show the same way). */
@@ -70,6 +90,7 @@ export const EMPTY_CONFIG = (workspace: string): ConfigResponse => ({
 const path = (workspace: string) => ({ path: { workspace } });
 
 export const q = {
+  auth: () => queryOptions({ queryKey: ["auth"], queryFn: () => call(sdk.authSession()), staleTime: 60_000 }),
   workspaces: () => queryOptions({ queryKey: ["workspaces"], queryFn: () => call(sdk.listWorkspaces()) }),
   config: (ws: string) =>
     queryOptions({

@@ -18,6 +18,7 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string 
       { section: "platforms", label: "Agents and platforms" },
       { section: "github", label: "GitHub" },
       { section: "access", label: "Access" },
+      { section: "members", label: "Members" },
     ],
   },
   {

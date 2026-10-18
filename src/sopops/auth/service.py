@@ -287,18 +287,23 @@ class Accounts:
                 inv.revoked_at = _now()
                 db.add(inv)
 
-    def invite_info(self, token: str) -> dict:
-        """What an invite link is for, to show before accepting. NotFound for an unknown, used or expired one."""
+    def invite_info(self, token: str, user_id: str | None = None) -> dict:
+        """What an invite link is for, to show before accepting. NotFound for an unknown, withdrawn or expired one, or
+        one used by someone other than `user_id` (`accepted` says it was used by them)."""
         with self._db() as db:
             inv = db.exec(select(Invite).where(Invite.token_hash == _hash(token))).first()
-            if inv is None or inv.revoked_at is not None or inv.accepted_at is not None or _utc(inv.expires_at) <= _now():
+            mine = inv is not None and inv.accepted_at is not None and user_id is not None and inv.accepted_by == user_id
+            if inv is None or inv.revoked_at is not None or (inv.accepted_at is not None and not mine) or (not mine and _utc(inv.expires_at) <= _now()):
                 raise NotFound("this invite link has expired, was used, or was withdrawn. Ask for a new one")
             org = db.get(Org, inv.org_id)
-        return {"org_id": inv.org_id, "org_name": org.name if org else "", "email": inv.email, "role": inv.role, "expires_at": _utc(inv.expires_at)}
+        return {"org_id": inv.org_id, "org_name": org.name if org else "", "email": inv.email, "role": inv.role, "expires_at": _utc(inv.expires_at),
+                "accepted": mine}
 
     def accept(self, token: str, cur: Current) -> str:
         """Join the invite's org as the signed-in user, whose email must be the invite's. Returns the org id."""
-        info = self.invite_info(token)
+        info = self.invite_info(token, cur.user.id)
+        if info["accepted"]:
+            return info["org_id"]
         if cur.user.email != info["email"]:
             raise Forbidden(f"this invite is for {info['email']}, and you're signed in as {cur.user.email}")
         now = _now()

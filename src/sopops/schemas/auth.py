@@ -97,3 +97,4 @@ class InviteInfo(BaseModel):
     email: str = Field(description="Who it's for: they must sign in with this email.")
     role: Role
     expires_at: datetime
+    accepted: bool = Field(description="You used it already: you're in the org.")

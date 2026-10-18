@@ -731,6 +731,506 @@
         }
       }
     },
+    "/v1/auth/session": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Session",
+        "description": "Whether sign-in is on, how to sign in, and who's signed in. Signed in, it also renews the cookies for\nanother 30 days (sessions slide).",
+        "operationId": "auth_session",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthState"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/login/{provider}": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign In",
+        "description": "Start signing in: redirects to the provider.",
+        "operationId": "sign_in",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          },
+          {
+            "name": "next",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Next"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "No such provider here."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign Out",
+        "description": "Sign out: the login session ends at once.",
+        "operationId": "sign_out",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        }
+      }
+    },
+    "/v1/auth/org": {
+      "put": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Switch Org",
+        "description": "Work in another org you're in.",
+        "operationId": "switch_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SwitchOrgIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/invites/lookup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Lookup Invite",
+        "description": "What an invite link is for: the org, and the email it's for. Once used, it answers only whoever used it.",
+        "operationId": "lookup_invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, used, withdrawn or expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/invites/accept": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Accept Invite",
+        "description": "Join the invite's org. You must be signed in with the email it's for.",
+        "operationId": "accept_invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthState"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in with another email."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Org",
+        "description": "The org you're working in.",
+        "operationId": "get_org",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgOut"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Update Org",
+        "description": "Rename the org, or set the email domains whose people join as members when they sign in. Owners and admins.",
+        "operationId": "update_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/members": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Members",
+        "operationId": "list_members",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MemberOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Members"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/members/{user_id}": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Member Role",
+        "description": "Change someone's role. Only an owner makes or changes an owner, and the org keeps at least one.",
+        "operationId": "set_member_role",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoleIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Remove Member",
+        "description": "Remove someone from the org. They can still sign in, but see nothing of it.",
+        "operationId": "remove_member",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/invites": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "List Invites",
+        "description": "Invites not yet used, withdrawn or expired.",
+        "operationId": "list_invites",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Invites"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Invite",
+        "description": "Invite someone by email. Nothing is sent: copy the link to them. It works for 7 days, once.",
+        "operationId": "create_invite",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/invites/{id}": {
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Revoke Invite",
+        "description": "Withdraw an invite: its link stops working.",
+        "operationId": "revoke_invite",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/validate": {
       "post": {
         "tags": [
@@ -903,6 +1403,7 @@
           "workspaces"
         ],
         "summary": "List Workspaces",
+        "description": "The workspaces of the org you're working in (every workspace, with sign-in off).",
         "operationId": "list_workspaces",
         "responses": {
           "200": {
@@ -11220,6 +11721,62 @@
         "type": "object",
         "title": "ApplyRequest"
       },
+      "AuthState": {
+        "properties": {
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Whether this sopops needs people to sign in. False: no sign-in at all."
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderOut"
+            },
+            "type": "array",
+            "title": "Providers",
+            "description": "What people can sign in with."
+          },
+          "user": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UserOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Who's signed in, if anyone."
+          },
+          "org": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OrgSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The org you're working in; none until someone adds you to one."
+          },
+          "orgs": {
+            "items": {
+              "$ref": "#/components/schemas/OrgSummary"
+            },
+            "type": "array",
+            "title": "Orgs",
+            "description": "Every org you're in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "required",
+          "providers",
+          "user",
+          "org",
+          "orgs"
+        ],
+        "title": "AuthState"
+      },
       "BlockRequest": {
         "properties": {
           "author": {
@@ -14201,6 +14758,177 @@
         ],
         "title": "InstructionIn"
       },
+      "InviteCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "description": "The invite link, shown once. Whoever signs in with the invited email and opens it joins."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "created_at",
+          "expires_at",
+          "link"
+        ],
+        "title": "InviteCreated"
+      },
+      "InviteIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "default": "member"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "InviteIn"
+      },
+      "InviteInfo": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id"
+          },
+          "org_name": {
+            "type": "string",
+            "title": "Org Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "description": "Who it's for: they must sign in with this email."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "accepted": {
+            "type": "boolean",
+            "title": "Accepted",
+            "description": "You used it already: you're in the org."
+          }
+        },
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_name",
+          "email",
+          "role",
+          "expires_at",
+          "accepted"
+        ],
+        "title": "InviteInfo"
+      },
+      "InviteOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "InviteOut"
+      },
+      "InviteTokenIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the invite link (the part after #)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "InviteTokenIn"
+      },
       "IssueOut": {
         "properties": {
           "code": {
@@ -15125,6 +15853,70 @@
         ],
         "title": "ManifestOut"
       },
+      "MemberOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "joined_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Joined At"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "email",
+          "name",
+          "avatar_url",
+          "role",
+          "joined_at",
+          "last_login_at"
+        ],
+        "title": "MemberOut"
+      },
       "MergeConflict": {
         "properties": {
           "line": {
@@ -15605,6 +16397,117 @@
         },
         "type": "object",
         "title": "OpenPullRequestIn"
+      },
+      "OrgIn": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "allowed_domains": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array",
+                "maxItems": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Allowed Domains",
+            "description": "Email domains, like example.com."
+          }
+        },
+        "type": "object",
+        "title": "OrgIn"
+      },
+      "OrgOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "allowed_domains": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Domains",
+            "description": "People with a verified email at these domains join as members when they sign in."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "description": "Your role in it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "allowed_domains",
+          "role"
+        ],
+        "title": "OrgOut"
+      },
+      "OrgSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "description": "Your role in it."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug",
+          "role"
+        ],
+        "title": "OrgSummary"
       },
       "OriginalsIn": {
         "properties": {
@@ -17799,6 +18702,25 @@
           "text"
         ],
         "title": "ProposedStep"
+      },
+      "ProviderOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "`github`, `google`, or a plugin's."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "ProviderOut"
       },
       "PublishRequest": {
         "properties": {
@@ -20104,6 +21026,24 @@
         },
         "type": "object",
         "title": "RewriteIn"
+      },
+      "RoleIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "RoleIn"
       },
       "RolePrice": {
         "properties": {
@@ -23422,6 +24362,19 @@
         ],
         "title": "SuggestionsResponse"
       },
+      "SwitchOrgIn": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "org_id"
+        ],
+        "title": "SwitchOrgIn"
+      },
       "SyncConflictOut": {
         "properties": {
           "path": {
@@ -24461,6 +25414,41 @@
           "via"
         ],
         "title": "Use"
+      },
+      "UserOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "name",
+          "avatar_url"
+        ],
+        "title": "UserOut"
       },
       "ValidateResponse": {
         "properties": {
