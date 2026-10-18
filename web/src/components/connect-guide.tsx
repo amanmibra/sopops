@@ -25,12 +25,10 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
     after: {
       need: "none",
       how: <>Add your LiveKit project key and a webhook in LiveKit Cloud. sopops joins each call and records it.</>,
-      next: <>Until then, <code>attach()</code> sends each call when it ends.</>,
     },
     live: {
       need: "none",
       how: <>sopops hears each turn as it happens. Tool calls still need <code>attach()</code>.</>,
-      next: <>Until then, <code>attach()</code> with streaming on.</>,
     },
   },
   {
@@ -42,17 +40,15 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
     after: {
       need: "none",
       how: <>Add a post-call webhook in ElevenLabs, and sopops gets each call when it ends.</>,
-      next: <>Until then, post each call to the API.</>,
     },
     live: {
       need: "enterprise",
       how: (
         <>
-          On an ElevenLabs Enterprise plan, sopops listens to each call as it happens. On other ElevenLabs plans, the TypeScript SDK streams calls your app
-          starts, and phone calls arrive when they end.
+          On an ElevenLabs Enterprise plan, sopops listens to each phone call that the call-start webhook serves, as it happens. On other ElevenLabs
+          plans, the TypeScript SDK streams calls your app starts, and phone calls arrive when they end.
         </>
       ),
-      next: <>Until then, the TypeScript SDK on any plan.</>,
     },
   },
   {
@@ -61,12 +57,10 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
     after: {
       need: "none",
       how: <>Vapi sends each call to that same Server URL when it ends.</>,
-      next: <>Until then, post each call to the API.</>,
     },
     live: {
       need: "none",
       how: <>Turn on live updates in the assistant's settings on Vapi.</>,
-      next: <>Until then, calls arrive only when posted.</>,
     },
   },
 ];

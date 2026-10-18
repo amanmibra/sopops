@@ -569,7 +569,7 @@
           "runtime"
         ],
         "summary": "Elevenlabs Conversation Init",
-        "description": "ElevenLabs' conversation-initiation webhook: returns the compiled prompt as\n`conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.\nThe agent must allow overriding its system prompt (Security \u2192 Overrides).",
+        "description": "ElevenLabs' conversation-initiation webhook: returns the compiled prompt as\n`conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.\nThe agent must allow overriding its system prompt (Security \u2192 Overrides). With Enterprise live monitoring on\n(Settings \u2192 Platforms), the conversation is then followed on ElevenLabs' monitor socket.",
         "operationId": "elevenlabs_conversation_init",
         "parameters": [
           {
@@ -653,7 +653,7 @@
           "runtime"
         ],
         "summary": "Vapi Assistant Request",
-        "description": "Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry\nthe compiled prompt: `model` with the system message replaced (read from the assistant with the stored API\nkey), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.\n`metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.\nOther server messages get an empty 200.",
+        "description": "Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry\nthe compiled prompt: `model` with the system message replaced (read from the assistant with the stored API\nkey), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.\n`metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.\n\nIt also brings sessions back: `end-of-call-report` is stored as a finished session, and `conversation-update`\nand final `transcript` messages stream into it while the call runs (turn them on under Server Messages).\nThese and other server messages get an empty 200.",
         "operationId": "vapi_assistant_request",
         "parameters": [
           {
@@ -4942,6 +4942,410 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Get Capture",
+        "description": "How sessions reach sopops with no code in the agent: LiveKit, the ElevenLabs post-call webhook and live\nmonitoring, and Vapi's server messages. Secrets are never returned.",
+        "operationId": "get_capture",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/livekit": {
+      "put": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Set Livekit",
+        "description": "Connect a LiveKit Cloud project: its URL, an API key and its secret (encrypted with SOPOPS_SECRET_KEY),\nand the agent mapping. Then add the webhook in LiveKit Cloud. 503 without SOPOPS_SECRET_KEY.",
+        "operationId": "set_livekit",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveKitIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveKitCapture"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Delete Livekit",
+        "description": "Disconnect the LiveKit project: its key, secret and settings are removed, and its webhooks refused.",
+        "operationId": "delete_livekit",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/livekit/test": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Test Livekit",
+        "description": "List the project's rooms with the stored key (read-only).",
+        "operationId": "test_livekit",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CaptureTestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/elevenlabs/post-call-secret": {
+      "put": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Set Post Call Secret",
+        "description": "Store the HMAC secret ElevenLabs shows for the post-call webhook (encrypted). 503 without SOPOPS_SECRET_KEY.",
+        "operationId": "set_post_call_secret",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostCallSecretIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecretInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Delete Post Call Secret",
+        "operationId": "delete_post_call_secret",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/elevenlabs/live": {
+      "put": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Set Elevenlabs Live",
+        "description": "Turn Enterprise live monitoring on or off. When on, each call the conversation-initiation webhook serves is\nfollowed on ElevenLabs' monitor socket while it runs. Where that isn't available, sessions come from the\npost-call webhook, and the state says why.",
+        "operationId": "set_elevenlabs_live",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LiveIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ElevenLabsCapture"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/livekit/webhook": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Livekit Webhook",
+        "description": "LiveKit Cloud's webhook (Settings \u2192 Webhooks, signed with the connected API key). An agent joining a room\nstarts recording it; the room finishing ends the recording. Other events are acknowledged.",
+        "operationId": "livekit_webhook",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed with this workspace's secret."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/elevenlabs/post-call": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Elevenlabs Post Call",
+        "description": "ElevenLabs' post-call webhook (transcription), signed with the secret stored here. Each conversation\nbecomes a session keyed by its conversation id: the same session a live monitor streamed, which this replaces.\nOther webhook types (audio, failed calls) are acknowledged.",
+        "operationId": "elevenlabs_post_call",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookReceipt"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed with this workspace's secret."
           },
           "422": {
             "description": "Validation Error",
@@ -11307,6 +11711,44 @@
         ],
         "title": "Capabilities"
       },
+      "CaptureOut": {
+        "properties": {
+          "livekit": {
+            "$ref": "#/components/schemas/LiveKitCapture"
+          },
+          "elevenlabs": {
+            "$ref": "#/components/schemas/ElevenLabsCapture"
+          },
+          "vapi": {
+            "$ref": "#/components/schemas/VapiCapture"
+          }
+        },
+        "type": "object",
+        "required": [
+          "livekit",
+          "elevenlabs",
+          "vapi"
+        ],
+        "title": "CaptureOut"
+      },
+      "CaptureTestOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "message"
+        ],
+        "title": "CaptureTestOut"
+      },
       "Changed": {
         "properties": {
           "original": {
@@ -12365,6 +12807,91 @@
           "changes"
         ],
         "title": "EditRequest"
+      },
+      "ElevenLabsCapture": {
+        "properties": {
+          "post_call_secret": {
+            "$ref": "#/components/schemas/SecretInfo"
+          },
+          "post_call_path": {
+            "type": "string",
+            "title": "Post Call Path",
+            "description": "Where ElevenLabs sends the post-call webhook, under this server's address."
+          },
+          "last_post_call_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Post Call At"
+          },
+          "api_key_set": {
+            "type": "boolean",
+            "title": "Api Key Set",
+            "description": "Live monitoring uses the ElevenLabs API key (Platforms)."
+          },
+          "live": {
+            "type": "boolean",
+            "title": "Live",
+            "description": "Enterprise live monitoring is on."
+          },
+          "live_state": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "on",
+                  "unavailable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live State",
+            "description": "How the last monitor went; null before the first."
+          },
+          "live_detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Detail"
+          },
+          "live_checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Checked At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "post_call_secret",
+          "post_call_path",
+          "last_post_call_at",
+          "api_key_set",
+          "live",
+          "live_state",
+          "live_detail",
+          "live_checked_at"
+        ],
+        "title": "ElevenLabsCapture"
       },
       "EventOut": {
         "properties": {
@@ -14393,6 +14920,143 @@
         ],
         "title": "LintSource"
       },
+      "LiveIn": {
+        "properties": {
+          "on": {
+            "type": "boolean",
+            "title": "On"
+          }
+        },
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "title": "LiveIn"
+      },
+      "LiveKitCapture": {
+        "properties": {
+          "connected": {
+            "type": "boolean",
+            "title": "Connected",
+            "description": "A project URL, API key and secret are stored."
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "api_key": {
+            "$ref": "#/components/schemas/SecretInfo"
+          },
+          "api_secret": {
+            "$ref": "#/components/schemas/SecretInfo"
+          },
+          "agent_map": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Agent Map"
+          },
+          "webhook_path": {
+            "type": "string",
+            "title": "Webhook Path",
+            "description": "Where LiveKit Cloud sends webhooks, under this server's address."
+          },
+          "last_event_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Event At",
+            "description": "The last signed webhook from LiveKit."
+          },
+          "recorder_installed": {
+            "type": "boolean",
+            "title": "Recorder Installed",
+            "description": "This server can join rooms (`pip install 'sopops[livekit]'`)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "connected",
+          "url",
+          "api_key",
+          "api_secret",
+          "agent_map",
+          "webhook_path",
+          "last_event_at",
+          "recorder_installed"
+        ],
+        "title": "LiveKitCapture"
+      },
+      "LiveKitIn": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Url",
+            "description": "The LiveKit Cloud project URL (`wss://<project>.livekit.cloud`)."
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "Needed to connect; left out, the stored one is kept."
+          },
+          "api_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Secret",
+            "description": "Needed to connect; left out, the stored one is kept."
+          },
+          "agent_map": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Map",
+            "description": "A LiveKit agent name (or `*` for any) to a sopc agent, for rooms whose agent name and metadata don't name one. Left out: kept."
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "LiveKitIn"
+      },
       "ManifestIn": {
         "properties": {
           "public_url": {
@@ -15847,6 +16511,22 @@
           "agent_ids"
         ],
         "title": "PlatformImport"
+      },
+      "PostCallSecretIn": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Value",
+            "description": "The HMAC secret ElevenLabs shows when the post-call webhook is made."
+          }
+        },
+        "type": "object",
+        "required": [
+          "value"
+        ],
+        "title": "PostCallSecretIn"
       },
       "PreviewBlock": {
         "properties": {
@@ -23843,6 +24523,29 @@
         ],
         "title": "ValidationError"
       },
+      "VapiCapture": {
+        "properties": {
+          "server_url_path": {
+            "type": "string",
+            "title": "Server Url Path",
+            "description": "The Server URL, under this server's address; the same as for assistant-request."
+          },
+          "server_messages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Server Messages",
+            "description": "Server messages to turn on in Vapi."
+          }
+        },
+        "type": "object",
+        "required": [
+          "server_url_path",
+          "server_messages"
+        ],
+        "title": "VapiCapture"
+      },
       "VariableEdit": {
         "properties": {
           "name": {
@@ -24258,6 +24961,30 @@
           "unheeded"
         ],
         "title": "WarningImpact"
+      },
+      "WebhookReceipt": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "WebhookReceipt"
       },
       "Wording": {
         "properties": {

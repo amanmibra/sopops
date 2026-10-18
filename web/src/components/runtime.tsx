@@ -8,6 +8,7 @@ import { platformName, when } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { PlatformIcon, PlatformLabel } from "./brand-icon";
+import { LiveKitCapture, SessionsBack } from "./capture";
 import { ConnectGuide } from "./connect-guide";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -154,6 +155,7 @@ function PlatformsPanel() {
         API keys and webhook secrets for each platform. They're stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       {creds.isError && <ErrorBanner error={creds.error} />}
+      <LiveKitCapture />
       {creds.data?.map((c) => <PlatformRow key={c.platform} creds={c} />)}
     </Panel>
   );
@@ -296,6 +298,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
             ))}
           </ol>
         </div>
+        <SessionsBack platform={creds.platform} />
       </div>
     </div>
   );

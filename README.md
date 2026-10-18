@@ -89,9 +89,9 @@ Each agent gets its prompt one of two ways, set per agent under the gear icon �
 
 | Platform | Prompt | Sessions back |
 |---|---|---|
-| **LiveKit** | Pull with the Python SDK's `attach` (or `fetchInstructions` in TypeScript) | `attach` posts `session.history` at shutdown, and can stream it live; `recordSession` in TypeScript |
-| **ElevenLabs** | Push (`conversation_config.agent.prompt.prompt`), the conversation-initiation webhook for phone calls, or client overrides from the TypeScript SDK | Posted (and optionally streamed) by the TypeScript SDK's `elevenLabsSession`; phone calls: send transcripts in the canonical format |
-| **Vapi** | Push (the system message in `model.messages`), or the assistant-request webhook | Send transcripts in the canonical format |
+| **LiveKit** | Pull with the Python SDK's `attach` (or `fetchInstructions` in TypeScript) | No code: connect the LiveKit Cloud project and add its webhook, and sopops joins each call and records it live (no tool calls). Or `attach`, which posts `session.history` with tool calls at shutdown and can stream it; `recordSession` in TypeScript |
+| **ElevenLabs** | Push (`conversation_config.agent.prompt.prompt`), the conversation-initiation webhook for phone calls, or client overrides from the TypeScript SDK | No code: the post-call webhook, with tool calls; on Enterprise, phone calls also stream live from the monitor socket. Or the TypeScript SDK's `elevenLabsSession` (posted, optionally streamed) |
+| **Vapi** | Push (the system message in `model.messages`), or the assistant-request webhook | No code: the same Server URL takes `end-of-call-report` (with tool calls), and `conversation-update` and `transcript` live |
 | **Retell** | Later: agents can be marked Retell, nothing is delivered yet | |
 | **Anything else** | `GET …/agents/<agent>` with a runtime token, or either SDK | `POST …/sessions`, or `sopops import FILE.jsonl` |
 
@@ -123,6 +123,14 @@ const ins = await sopops.fetchInstructions("front-desk", { fallback: "You are a 
 ```
 
 **Webhooks.** ElevenLabs phone calls: the conversation-initiation webhook at `…/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-Sopops-Secret` (and the agent's system-prompt override allowed). Vapi: the phone number's Server URL at `…/runtime/vapi/assistant-request?agent=<id>`, with the secret as a Bearer Token credential.
+
+**Sessions with no code.** Set up under the gear icon → Agents and platforms → Platforms. Each one feeds the same ingest and streaming as the SDKs, and a session that streamed and then arrives whole (a post-call webhook, an end-of-call report) stays one session: the full post wins.
+
+- *LiveKit.* Connect the project (URL, an API key and its secret; `pip install 'sopops[livekit]'` where sopops and its worker run), then in LiveKit Cloud → Settings → Webhooks add `…/capture/livekit/webhook`, signed with that key. When an agent joins a room, sopops joins it hidden and subscribe-only, reads the transcript the agent publishes on `lk.transcription`, and streams it into a session keyed by the job id (as `attach` keys it), closed when the call ends. The agent is the name it was dispatched with, else `{"sopops": {"agent": "<id>"}}` in job or room metadata, else the mapping in Settings. Tool calls aren't in the room, so they aren't recorded this way.
+- *ElevenLabs.* Add a post-call webhook (transcripts) at `…/capture/elevenlabs/post-call` and paste its HMAC secret into Settings. On Enterprise, turn on live monitoring (and Monitoring in the agent's Advanced settings): each call the conversation-initiation webhook serves is followed on the monitor socket with the API key. Where that's refused, it falls back to the post-call webhook, and Settings says why.
+- *Vapi.* On the assistant, under Server Messages, turn on `end-of-call-report`, `conversation-update` and `transcript` beside `assistant-request`. Same auth as the prompt.
+
+Webhooks need sopops reachable from the internet: for local testing, a tunnel such as `cloudflared tunnel --url http://127.0.0.1:8484`, and open the UI through the tunnel's address so Settings shows the right webhook URLs.
 
 **Tokens.** The gear icon → Tokens, each with the scopes it needs: `runtime` (prompt fetches, call-start webhooks) and `ingest` (sessions). Shown once, stored hashed, can expire or be revoked. Once a workspace has a runtime token, prompt fetches need one; without one it serves prompts openly, for local use. Platform keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned.
 
@@ -190,6 +198,8 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks are refused for a workspace with no webhook secret or runtime token, instead of answered openly. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
+| `SOPOPS_POSTCALL_GRACE_SECONDS` | `120` | After ElevenLabs' monitor socket ends, how long its session waits for the post-call webhook (when one is set up) before it closes and is checked. |
+| `SOPOPS_LIVEKIT_ANY_HOST` | `false` | Allow a self-hosted LiveKit server's URL, not only LiveKit Cloud's. |
 | `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@main` | What the onboarding command's `uvx --from` installs. |
 | `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3` (and `SOPOPS_GITHUB_URL`, `https://HOST`, for its install pages). |
 | `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `…_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET`, `SOPOPS_GITHUB_APP_SLUG` | unset | The GitHub App sopops signs in as: its id, its private key (PEM, or a file), the webhook secret, and its name in `github.com/apps/<slug>`. Without them, Settings offers to create one (stored encrypted with `SOPOPS_SECRET_KEY`). |

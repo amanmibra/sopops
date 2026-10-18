@@ -888,6 +888,29 @@ export type Capabilities = {
 };
 
 /**
+ * CaptureOut
+ */
+export type CaptureOut = {
+    livekit: LiveKitCapture;
+    elevenlabs: ElevenLabsCapture;
+    vapi: VapiCapture;
+};
+
+/**
+ * CaptureTestOut
+ */
+export type CaptureTestOut = {
+    /**
+     * Ok
+     */
+    ok: boolean;
+    /**
+     * Message
+     */
+    message: string;
+};
+
+/**
  * Changed
  */
 export type Changed = {
@@ -1466,6 +1489,49 @@ export type EditRequest = {
      * Note
      */
     note?: string | null;
+};
+
+/**
+ * ElevenLabsCapture
+ */
+export type ElevenLabsCapture = {
+    post_call_secret: SecretInfo;
+    /**
+     * Post Call Path
+     *
+     * Where ElevenLabs sends the post-call webhook, under this server's address.
+     */
+    post_call_path: string;
+    /**
+     * Last Post Call At
+     */
+    last_post_call_at: string | null;
+    /**
+     * Api Key Set
+     *
+     * Live monitoring uses the ElevenLabs API key (Platforms).
+     */
+    api_key_set: boolean;
+    /**
+     * Live
+     *
+     * Enterprise live monitoring is on.
+     */
+    live: boolean;
+    /**
+     * Live State
+     *
+     * How the last monitor went; null before the first.
+     */
+    live_state: 'on' | 'unavailable' | null;
+    /**
+     * Live Detail
+     */
+    live_detail: string | null;
+    /**
+     * Live Checked At
+     */
+    live_checked_at: string | null;
 };
 
 /**
@@ -2594,6 +2660,90 @@ export type LintSource = {
 };
 
 /**
+ * LiveIn
+ */
+export type LiveIn = {
+    /**
+     * On
+     */
+    on: boolean;
+};
+
+/**
+ * LiveKitCapture
+ */
+export type LiveKitCapture = {
+    /**
+     * Connected
+     *
+     * A project URL, API key and secret are stored.
+     */
+    connected: boolean;
+    /**
+     * Url
+     */
+    url: string | null;
+    api_key: SecretInfo;
+    api_secret: SecretInfo;
+    /**
+     * Agent Map
+     */
+    agent_map: {
+        [key: string]: string;
+    };
+    /**
+     * Webhook Path
+     *
+     * Where LiveKit Cloud sends webhooks, under this server's address.
+     */
+    webhook_path: string;
+    /**
+     * Last Event At
+     *
+     * The last signed webhook from LiveKit.
+     */
+    last_event_at: string | null;
+    /**
+     * Recorder Installed
+     *
+     * This server can join rooms (`pip install 'sopops[livekit]'`).
+     */
+    recorder_installed: boolean;
+};
+
+/**
+ * LiveKitIn
+ */
+export type LiveKitIn = {
+    /**
+     * Url
+     *
+     * The LiveKit Cloud project URL (`wss://<project>.livekit.cloud`).
+     */
+    url: string;
+    /**
+     * Api Key
+     *
+     * Needed to connect; left out, the stored one is kept.
+     */
+    api_key?: string | null;
+    /**
+     * Api Secret
+     *
+     * Needed to connect; left out, the stored one is kept.
+     */
+    api_secret?: string | null;
+    /**
+     * Agent Map
+     *
+     * A LiveKit agent name (or `*` for any) to a sopc agent, for rooms whose agent name and metadata don't name one. Left out: kept.
+     */
+    agent_map?: {
+        [key: string]: string;
+    } | null;
+};
+
+/**
  * ManifestIn
  */
 export type ManifestIn = {
@@ -3444,6 +3594,18 @@ export type PlatformImport = {
      * Agent Ids
      */
     agent_ids: Array<string>;
+};
+
+/**
+ * PostCallSecretIn
+ */
+export type PostCallSecretIn = {
+    /**
+     * Value
+     *
+     * The HMAC secret ElevenLabs shows when the post-call webhook is made.
+     */
+    value: string;
 };
 
 /**
@@ -8001,6 +8163,24 @@ export type ValidationError = {
 };
 
 /**
+ * VapiCapture
+ */
+export type VapiCapture = {
+    /**
+     * Server Url Path
+     *
+     * The Server URL, under this server's address; the same as for assistant-request.
+     */
+    server_url_path: string;
+    /**
+     * Server Messages
+     *
+     * Server messages to turn on in Vapi.
+     */
+    server_messages: Array<string>;
+};
+
+/**
  * VariableEdit
  */
 export type VariableEdit = {
@@ -8238,6 +8418,20 @@ export type WarningImpact = {
      * Unheeded
      */
     unheeded: number;
+};
+
+/**
+ * WebhookReceipt
+ */
+export type WebhookReceipt = {
+    /**
+     * Status
+     */
+    status: string;
+    /**
+     * Session Id
+     */
+    session_id?: string | null;
 };
 
 /**
@@ -11221,6 +11415,284 @@ export type GetSessionResponses = {
 };
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type GetCaptureData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture';
+};
+
+export type GetCaptureErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetCaptureError = GetCaptureErrors[keyof GetCaptureErrors];
+
+export type GetCaptureResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaptureOut;
+};
+
+export type GetCaptureResponse = GetCaptureResponses[keyof GetCaptureResponses];
+
+export type DeleteLivekitData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/livekit';
+};
+
+export type DeleteLivekitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteLivekitError = DeleteLivekitErrors[keyof DeleteLivekitErrors];
+
+export type DeleteLivekitResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteLivekitResponse = DeleteLivekitResponses[keyof DeleteLivekitResponses];
+
+export type SetLivekitData = {
+    body: LiveKitIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/livekit';
+};
+
+export type SetLivekitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetLivekitError = SetLivekitErrors[keyof SetLivekitErrors];
+
+export type SetLivekitResponses = {
+    /**
+     * Successful Response
+     */
+    200: LiveKitCapture;
+};
+
+export type SetLivekitResponse = SetLivekitResponses[keyof SetLivekitResponses];
+
+export type TestLivekitData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/livekit/test';
+};
+
+export type TestLivekitErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TestLivekitError = TestLivekitErrors[keyof TestLivekitErrors];
+
+export type TestLivekitResponses = {
+    /**
+     * Successful Response
+     */
+    200: CaptureTestOut;
+};
+
+export type TestLivekitResponse = TestLivekitResponses[keyof TestLivekitResponses];
+
+export type DeletePostCallSecretData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/elevenlabs/post-call-secret';
+};
+
+export type DeletePostCallSecretErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeletePostCallSecretError = DeletePostCallSecretErrors[keyof DeletePostCallSecretErrors];
+
+export type DeletePostCallSecretResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeletePostCallSecretResponse = DeletePostCallSecretResponses[keyof DeletePostCallSecretResponses];
+
+export type SetPostCallSecretData = {
+    body: PostCallSecretIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/elevenlabs/post-call-secret';
+};
+
+export type SetPostCallSecretErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetPostCallSecretError = SetPostCallSecretErrors[keyof SetPostCallSecretErrors];
+
+export type SetPostCallSecretResponses = {
+    /**
+     * Successful Response
+     */
+    200: SecretInfo;
+};
+
+export type SetPostCallSecretResponse = SetPostCallSecretResponses[keyof SetPostCallSecretResponses];
+
+export type SetElevenlabsLiveData = {
+    body: LiveIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/elevenlabs/live';
+};
+
+export type SetElevenlabsLiveErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetElevenlabsLiveError = SetElevenlabsLiveErrors[keyof SetElevenlabsLiveErrors];
+
+export type SetElevenlabsLiveResponses = {
+    /**
+     * Successful Response
+     */
+    200: ElevenLabsCapture;
+};
+
+export type SetElevenlabsLiveResponse = SetElevenlabsLiveResponses[keyof SetElevenlabsLiveResponses];
+
+export type LivekitWebhookData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/livekit/webhook';
+};
+
+export type LivekitWebhookErrors = {
+    /**
+     * Not signed with this workspace's secret.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LivekitWebhookError = LivekitWebhookErrors[keyof LivekitWebhookErrors];
+
+export type LivekitWebhookResponses = {
+    /**
+     * Successful Response
+     */
+    200: WebhookReceipt;
+};
+
+export type LivekitWebhookResponse = LivekitWebhookResponses[keyof LivekitWebhookResponses];
+
+export type ElevenlabsPostCallData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/elevenlabs/post-call';
+};
+
+export type ElevenlabsPostCallErrors = {
+    /**
+     * Not signed with this workspace's secret.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ElevenlabsPostCallError = ElevenlabsPostCallErrors[keyof ElevenlabsPostCallErrors];
+
+export type ElevenlabsPostCallResponses = {
+    /**
+     * Successful Response
+     */
+    200: WebhookReceipt;
+};
+
+export type ElevenlabsPostCallResponse = ElevenlabsPostCallResponses[keyof ElevenlabsPostCallResponses];
 
 export type ListTokensData = {
     body?: never;
