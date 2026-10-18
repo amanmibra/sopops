@@ -14,6 +14,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__
 from .api import (
+    capture,
     config,
     errors,
     files,
@@ -90,6 +91,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         releases.router(store, rt),
         serving.router(store, rt),
         sessions.router(store, jobs),
+        capture.router(store, jobs),
         tokens.router(store),
         patterns.router(store, jobs),
         review.router(store, jobs),

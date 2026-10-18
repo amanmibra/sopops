@@ -14,6 +14,7 @@ dependencies = [
     "cryptography>=50.0.2",
     "pyjwt[crypto]>=2.10",  # signs the GitHub App's JWT (RS256)
     "mcp>=2.3,<3",
+    "websockets>=14",  # ElevenLabs' monitor socket (Enterprise live monitoring)
     # Model calls as typed DSPy signatures (src/sopops/ai); pinned, upgrade deliberately. DSPy uses LiteLLM as its
     # fallback client: pinned below with hashes in uv.lock (1.82.7 and 1.82.8 on PyPI were compromised, March 2026).
     "dspy==3.4.1",
@@ -25,6 +26,11 @@ postgres = [
 ]
 hatchet = [
     "hatchet-sdk==1.42.1",
+]
+# LiveKit with no code in the agent: join a room as a hidden participant and read its transcript (sopops.capture).
+livekit = [
+    "livekit>=1.0",
+    "livekit-api>=1.0",
 ]
 # TypeSafe's Jev (system-1 classifier) as the first pass of routing, checks and pattern assignment.
 jev = [

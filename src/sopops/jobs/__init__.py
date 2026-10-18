@@ -3,14 +3,22 @@ inline.
 
 Inline means a FastAPI background task after the response (the API) or right away (the import CLI), in this process.
 That's how local development and the tests run, with no Hatchet at all.
+
+The live recorders (a LiveKit room, an ElevenLabs monitor socket; `sopops.capture`) run for as long as the call: on
+Hatchet in the worker, else as tasks on this process's event loop, one per room or conversation.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
-from typing import TYPE_CHECKING
+import threading
+from typing import TYPE_CHECKING, Any, Coroutine
 
+from ..capture import LiveConversationRef, LiveRoomRef
+from ..capture.elevenlabs import watch_conversation
+from ..capture.livekit import watch_room
 from ..pipeline.process import process_session, session_event
 from ..pipeline.types import CalibrateRef, SessionRef, SuggestRef
 
@@ -33,6 +41,7 @@ class Jobs:
         self.store = store
         self.ai = ai
         self.use_hatchet = hatchet_configured() if use_hatchet is None else use_hatchet
+        self._live: dict[tuple[str, str, str], tuple[Any, asyncio.Event | None]] = {}  # inline recorders, by call
 
     @property
     def mode(self) -> str:
@@ -94,3 +103,74 @@ class Jobs:
             process_session(self.store, ref, self.ai)
         except Exception:  # the session is marked failed with the reason; nothing else to do here
             log.exception("process_session failed for %s", ref.session_id)
+
+    # --- live recorders (sopops.capture) ---------------------------------------------------------
+
+    def watch_livekit_room(self, ref: LiveRoomRef) -> str:
+        """Record a LiveKit room until its call ends (`capture.livekit.watch_room`), once per room. Returns where:
+        hatchet, inline, or already (a recorder is in the room)."""
+        if self.use_hatchet:
+            try:
+                from .hatchet import trigger_livekit_room
+
+                trigger_livekit_room(ref)
+                return "hatchet"
+            except Exception:
+                log.exception("couldn't queue the LiveKit recorder on Hatchet; running it here")
+        key = ("livekit", ref.workspace_id, ref.room)
+        if self._running(key):
+            return "already"
+        stop = asyncio.Event()
+        self._live[key] = (self._spawn(watch_room(self.store, ref, self.process_session, stop=stop), key), stop)
+        return "inline"
+
+    def end_livekit_room(self, workspace: str, room: str) -> bool:
+        """The room finished: stop its recorder here, if there is one (it closes the session). On Hatchet the
+        recorder sees the room close by itself."""
+        live = self._live.get(("livekit", workspace, room))
+        if live is None or live[1] is None or _done(live[0]):
+            return False
+        live[1].set()
+        return True
+
+    def watch_elevenlabs(self, ref: LiveConversationRef) -> str:
+        """Follow an ElevenLabs conversation on its monitor socket (`capture.elevenlabs.watch_conversation`)."""
+        if self.use_hatchet:
+            try:
+                from .hatchet import trigger_elevenlabs_monitor
+
+                trigger_elevenlabs_monitor(ref)
+                return "hatchet"
+            except Exception:
+                log.exception("couldn't queue the ElevenLabs monitor on Hatchet; running it here")
+        key = ("elevenlabs", ref.workspace_id, ref.conversation_id)
+        if self._running(key):
+            return "already"
+        self._live[key] = (self._spawn(watch_conversation(self.store, ref, self.process_session), key), None)
+        return "inline"
+
+    def _running(self, key: tuple[str, str, str]) -> bool:
+        live = self._live.get(key)
+        return live is not None and not _done(live[0])
+
+    def _spawn(self, work: Coroutine[Any, Any, dict], key: tuple[str, str, str]) -> Any:
+        """On this process's event loop (a webhook handler's), else on a thread of its own."""
+
+        async def run() -> None:
+            try:
+                await work
+            except Exception:
+                log.exception("live recorder %s failed", key[0])
+            finally:
+                self._live.pop(key, None)
+
+        try:
+            return asyncio.get_running_loop().create_task(run(), name=f"sopops-{key[0]}-{key[2]}")
+        except RuntimeError:
+            thread = threading.Thread(target=asyncio.run, args=(run(),), name=f"sopops-{key[0]}-{key[2]}", daemon=True)
+            thread.start()
+            return thread
+
+
+def _done(handle: Any) -> bool:
+    return handle.done() if isinstance(handle, asyncio.Task) else not handle.is_alive()

@@ -197,6 +197,27 @@ class Sessions:
                 db.add(row)
             return ref, accepted, len(events) - accepted
 
+    def replace_streamed(self, workspace: str, platform: str, external_id: str, turns: list[dict], tool_calls: list[dict]) -> tuple[SessionRef, bool]:
+        """Set an open session's turns and tool calls to the whole conversation so far, for a platform that sends it
+        whole on every update (Vapi's `conversation-update`). Each item gets its position as `seq`. A session that
+        isn't open is left as is. Returns the session and whether anything changed."""
+        ws = workspace_id(workspace)
+        with self._db() as db, db.begin():
+            row = self._row(db, ws, platform, external_id)
+            if row is None:
+                raise NotFound(f"no session '{platform}/{external_id}': open it first")
+            ref = SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash)
+            if row.status != "open":
+                return ref, False
+            n = len(turns)
+            new_turns = [{**t, "seq": i} for i, t in enumerate(turns)]
+            new_calls = [{**c, "seq": n + i} for i, c in enumerate(tool_calls)]
+            if new_turns == row.turns and new_calls == row.tool_calls:
+                return ref, False
+            row.turns, row.tool_calls, row.updated_at = new_turns, new_calls, _now()
+            db.add(row)
+            return ref, True
+
     def close(self, workspace: str, platform: str, external_id: str, ended_at: datetime | None = None, partial: bool = False,
               reason: str | None = None) -> Ingested:
         """Close an open session so it's checked, with what streamed in. A session that isn't open is left as is."""

@@ -11,6 +11,8 @@ at a time per workspace (`sopops_patterns`), and so do reclustering and themes (
 plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC). Suggested edits are generated
 by `sopops_suggest`, rate-limited by the reasoning model like a check, and calibration runs in `sopops_calibrate`. Pull
 requests (suggestions', onboarding's, the sync pull request) and connected repositories are checked on GitHub by `sopops_pr_status` (SOPOPS_PR_STATUS_CRON, default every 15 minutes).
+The live recorders run as long as their call: `sopops_livekit_room` (one per room) and `sopops_elevenlabs_monitor`
+(one per conversation); each closes its session and queues `process_session`.
 """
 
 from __future__ import annotations
@@ -31,6 +33,9 @@ from sqlmodel import Session, select
 
 from .. import repo_sync
 from ..ai import lm as ai_lm
+from ..capture import LiveConversationRef, LiveRoomRef
+from ..capture.elevenlabs import watch_conversation
+from ..capture.livekit import watch_room
 from ..db import database_url
 from ..onboarding import pulls
 from ..orm import Finding
@@ -79,6 +84,15 @@ recluster_wf = hatchet.workflow(name="sopops_recluster", input_validator=Reclust
 suggest_wf = hatchet.workflow(name="sopops_suggest", input_validator=SuggestRef)
 pr_status_wf = hatchet.workflow(name="sopops_pr_status", on_crons=[os.environ.get("SOPOPS_PR_STATUS_CRON", "*/15 * * * *")])
 calibrate_wf = hatchet.workflow(name="sopops_calibrate", input_validator=CalibrateRef, concurrency=_per_workspace)
+# one recorder per room, and per conversation, while it runs
+livekit_room_wf = hatchet.workflow(
+    name="sopops_livekit_room", input_validator=LiveRoomRef,
+    idempotency=StatusBasedIdempotencyConfig(key_expression="input.workspace_id + ':' + input.room", fallback_ttl=timedelta(hours=5)),
+)
+elevenlabs_monitor_wf = hatchet.workflow(
+    name="sopops_elevenlabs_monitor", input_validator=LiveConversationRef,
+    idempotency=StatusBasedIdempotencyConfig(key_expression="input.workspace_id + ':' + input.conversation_id", fallback_ttl=timedelta(hours=5)),
+)
 recluster_daily_wf = hatchet.workflow(name="sopops_recluster_daily", on_crons=[os.environ.get("SOPOPS_RECLUSTER_CRON", "0 6 * * *")])
 
 _store = None
@@ -201,6 +215,30 @@ def pr_status(input, ctx: Context) -> dict:
     return {"suggestions": store.suggestions.sync_prs(), "onboarding": pulls.sync(store), "repos": repo_sync.poll(store)}
 
 
+@livekit_room_wf.task(execution_timeout=timedelta(hours=4, minutes=15), retries=0)
+async def livekit_room(input: LiveRoomRef, ctx: Context) -> dict:
+    return await watch_room(_get_store(), input, trigger_process_session)
+
+
+@elevenlabs_monitor_wf.task(execution_timeout=timedelta(hours=4, minutes=15), retries=0)
+async def elevenlabs_monitor(input: LiveConversationRef, ctx: Context) -> dict:
+    return await watch_conversation(_get_store(), input, trigger_process_session)
+
+
+def trigger_livekit_room(ref: LiveRoomRef) -> None:
+    try:
+        livekit_room_wf.run(ref, wait_for_result=False)
+    except IdempotencyCollisionError:
+        pass  # a recorder is already in this room
+
+
+def trigger_elevenlabs_monitor(ref: LiveConversationRef) -> None:
+    try:
+        elevenlabs_monitor_wf.run(ref, wait_for_result=False)
+    except IdempotencyCollisionError:
+        pass
+
+
 def run_calibrate(ref: CalibrateRef) -> dict:
     return calibrate_wf.run(ref)["calibrate_one"]
 
@@ -218,6 +256,6 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 def start_worker() -> None:
     worker = hatchet.worker(
-        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf, calibrate_wf, pr_status_wf]
+        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf, calibrate_wf, pr_status_wf, livekit_room_wf, elevenlabs_monitor_wf]
     )
     worker.start()

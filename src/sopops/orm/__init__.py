@@ -9,6 +9,7 @@ from sqlmodel import SQLModel
 
 from .agent_delivery import AgentDelivery
 from .calibrations import Calibration
+from .capture_settings import CaptureSetting
 from .columns import JSONDoc
 from .fetches import Fetch
 from .file_versions import FileVersion
@@ -41,4 +42,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "CaptureSetting", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "Verdict", "Workspace", "metadata"]

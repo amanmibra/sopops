@@ -2,7 +2,8 @@
 
 Under /v1/workspaces/<ws>: `runtime/delivery` (each agent's mode), `runtime/platforms` (API keys and webhook
 secrets, write-only), `releases/<n>/pushes` (push results, retry), and the platforms' call-start webhooks
-`runtime/elevenlabs/conversation-init` and `runtime/vapi/assistant-request`.
+`runtime/elevenlabs/conversation-init` and `runtime/vapi/assistant-request`. The Vapi Server URL also takes the
+messages that bring sessions (`capture.vapi_message`), and the ElevenLabs one starts live monitoring when it's on.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from ..capture import Capture, LiveConversationRef
 from ..errors import Conflict
 from ..runtime.crypto import SecretKeyMissing
 from ..runtime.service import AssistantCache, BadRequest, Runtime
@@ -44,12 +46,14 @@ from ..schemas.runtime import (
     ServedOut,
 )
 from ..store import Store
+from .capture import vapi_message
 
 WS = "/v1/workspaces/{workspace}"
 
 
 def register(app: FastAPI, store: Store) -> Runtime:
     runtime = Runtime(store)
+    capture = Capture(store)
     assistants = AssistantCache()
     app.state.runtime = runtime
     r = APIRouter()
@@ -157,15 +161,20 @@ def register(app: FastAPI, store: Store) -> Runtime:
     ) -> dict:
         """ElevenLabs' conversation-initiation webhook: returns the compiled prompt as
         `conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.
-        The agent must allow overriding its system prompt (Security → Overrides)."""
+        The agent must allow overriding its system prompt (Security → Overrides). With Enterprise live monitoring on
+        (Settings → Platforms), the conversation is then followed on ElevenLabs' monitor socket."""
         body = await verified(request, workspace, "elevenlabs")
 
-        def serve() -> dict:
+        def serve() -> tuple[dict, bool]:
             served = runtime.resolve(workspace, "elevenlabs", agent or body.get("agent_id"), release)
             runtime.record_serve(workspace, "elevenlabs", [body.get("conversation_id"), body.get("call_sid")], served)
-            return served
+            setting = capture.setting(workspace, "elevenlabs")
+            return served, bool(setting and setting.live)
 
-        served = await run_in_threadpool(serve)
+        served, live = await run_in_threadpool(serve)
+        if live and isinstance(body.get("conversation_id"), str) and body["conversation_id"]:
+            request.app.state.jobs.watch_elevenlabs(LiveConversationRef(
+                workspace_id=workspace, conversation_id=body["conversation_id"], agent=served["agent"], release=served["release"]))
         return {
             "type": "conversation_initiation_client_data",
             "dynamic_variables": {"sopops_release": served["release"], "sopops_agent": served["agent"]},
@@ -181,6 +190,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
     async def vapi_assistant_request(
         workspace: str,
         request: Request,
+        background: BackgroundTasks,
         agent: str | None = Query(None, description="The agent; default: the only Vapi agent in the release."),
         release: int | None = Query(None, description="Pin a release; default: the live one."),
     ) -> dict:
@@ -188,10 +198,15 @@ def register(app: FastAPI, store: Store) -> Runtime:
         the compiled prompt: `model` with the system message replaced (read from the assistant with the stored API
         key), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.
         `metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.
-        Other server messages get an empty 200."""
+
+        It also brings sessions back: `end-of-call-report` is stored as a finished session, and `conversation-update`
+        and final `transcript` messages stream into it while the call runs (turn them on under Server Messages).
+        These and other server messages get an empty 200."""
         body = await verified(request, workspace, "vapi")
         message = body.get("message") or {}
         if message.get("type") != "assistant-request":
+            if isinstance(message, dict):
+                await run_in_threadpool(vapi_message, store, request.app.state.jobs, workspace, message, background)
             return {}
         call_id = (message.get("call") or {}).get("id")
 
