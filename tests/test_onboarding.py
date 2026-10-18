@@ -16,7 +16,7 @@ from sopops.ai.lm import Usage
 from sopops.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
 from sopops.onboarding import kickoff, platforms
 from sopops.onboarding import text as tx
-from sopops.onboarding.fidelity import check, parse_compare
+from sopops.onboarding.fidelity import check
 from sopops.onboarding.pipeline import extract
 from sopops.onboarding.review import resolve
 from sopops.onboarding.rules import RulesModels
@@ -64,21 +64,20 @@ def test_templates_values_drift_and_too_different():
     assert tx.template(["Ask for the address.\nCheck the zone.", "Ask for the address.\nAsk for a gate code.\nCheck the zone."]) is None
 
 
-def test_parse_compare():
-    out = (
-        "a: 96% of 27 sentences kept (LOST OR CHANGED TEXT)\n"
-        "  - missing:  Gone sentence.\n"
-        "  ! changed:  Never upsell more than twice per call.\n"
-        "              now: Never upsell more than once per call.   ('twice' → 'once')\n"
-        "  ~ reworded: Split one.\n"
-        "  + added:    New line.\n"
-        "b: 100% of 3 sentences kept (ok)\n"
-    )
-    r = parse_compare(out)
-    assert r["a"]["total"] == 27 and r["a"]["missing"] == ["Gone sentence."]
-    assert r["a"]["changed"] == [("Never upsell more than twice per call.", "Never upsell more than once per call.")]
-    assert r["a"]["reworded"] == ["Split one."] and r["a"]["added"] == ["New line."]
-    assert r["b"] == {"total": 3, "missing": [], "changed": [], "reworded": [], "added": []}
+def test_sopc_compare_and_overlap_as_json():
+    sopc = Sopc(SOPC_BIN)
+    originals = {"luigis": "You are the host for Luigi's.\n\nNever upsell more than twice per call.", "tonys": "You are the host for Tony's.\n\nNever upsell more than once per call."}
+    files = {
+        "sopc.yaml": "version: 1\n",
+        "agents/luigis.yaml": "livekit: luigis\ncontext: |\n  You are the host for Luigi's.\n\n  Never upsell more than once per call.\n",
+    }
+    report = sopc.compare(files, originals)
+    luigis = next(a for a in report["agents"] if a["agent"] == "luigis")
+    assert not luigis["ok"] and luigis["changed"][0]["changed_words"] == {"original": "twice", "compiled": "once"}
+    overlap = sopc.overlap(originals)
+    drift = [n for n in overlap["near_copies"] if n["kind"] == "rule_word"]
+    assert len(drift) == 1 and set(drift[0]["agents_by_variant"]) == {"Never upsell more than twice per call.", "Never upsell more than once per call."}
+    assert all(len(g["id"]) == 12 for g in overlap["near_copies"] + overlap["variables"])
 
 
 # --- the pipeline ---------------------------------------------------------------------------

@@ -175,6 +175,32 @@ class Sopc:
                 raise Invalid(issues)
             return json.loads(self._run(root, "lint", "--json").stdout or "[]")
 
+    def compare(self, files: Files, originals: dict[str, str]) -> dict:
+        """`sopc compare --json`: each compiled agent against its original prompt, sentence by sentence:
+        `{summary, agents: [{agent, ok, sentences_total, kept, score, lost, changed, reworded, added}], no_original}`.
+        A changed rule word (a count, a negation, a modal) always fails."""
+        with self._written(files) as (root, bad):
+            if bad:
+                raise Invalid(bad)
+            proc = self._run(root, "compare", "--originals", "-", "--json", check=False, stdin=json.dumps(originals))
+        return self._json(proc, "compare", ok=(0, 1))
+
+    def overlap(self, prompts: dict[str, str]) -> dict:
+        """`sopc overlap --json` on agents' original prompts: `shared` text, `near_copies` (values, or `rule_word` drift),
+        `variables`, `missing`, `unique` spans per agent, with stable ids on every group."""
+        with tempfile.TemporaryDirectory(prefix="sopops-") as tmp:
+            proc = self._run(Path(tmp), "overlap", "-", "--json", check=False, stdin=json.dumps(prompts))
+        return self._json(proc, "overlap")
+
+    def _json(self, proc: subprocess.CompletedProcess, command: str, ok: tuple[int, ...] = (0,)) -> dict:
+        try:
+            if proc.returncode not in ok:
+                raise ValueError
+            return json.loads(proc.stdout)
+        except ValueError:
+            raise SopcUnavailable(f"sopc {command} --json failed (exit {proc.returncode}): {(proc.stderr or proc.stdout).strip()[:500]}. "
+                                  "sopops needs sopc v0.0.17 or later; set SOPC_BIN to it.") from None
+
     def _compile(self, files: Files) -> Compiled:
         with self._prepared(files) as (root, issues):
             if not _ok(issues):
@@ -225,13 +251,14 @@ class Sopc:
                 "sopops needs a sopc release with `validate --json` (after v0.0.7); set SOPC_BIN to it."
             ) from None
 
-    def _run(self, root: Path, *args: str, check: bool = True, merge_output: bool = False) -> subprocess.CompletedProcess:
+    def _run(self, root: Path, *args: str, check: bool = True, merge_output: bool = False, stdin: str | None = None) -> subprocess.CompletedProcess:
         if not self.binary:
             raise SopcUnavailable("sopc not found; install it or set SOPC_BIN")
         try:
             proc = subprocess.run(
                 [self.binary, "-C", ".", *args],
                 cwd=root,
+                input=stdin,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT if merge_output else subprocess.PIPE,
                 text=True,

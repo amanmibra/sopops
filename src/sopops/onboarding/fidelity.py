@@ -3,14 +3,11 @@ the original, sentence by sentence (`sopc compare`), so dropped or changed text 
 
 from __future__ import annotations
 
-import re
-import tempfile
 from difflib import SequenceMatcher
-from pathlib import Path
 from typing import Callable
 
 from .. import forms
-from ..sopc import Files, Invalid, Issue, Sopc, SopcUnavailable
+from ..sopc import Files, Invalid, Issue, Sopc
 from . import text as tx
 from .types import AgentFidelity, Changed, Proposal, ProposalContent, ProposalIssue
 
@@ -100,16 +97,14 @@ def check(proposal: Proposal, sopc: Sopc) -> Proposal:
         return out
     prompts = {a: c["prompt"] for a, c in compiled.agents.items()}
     originals = {a: t for a, t in proposal.originals.items() if a in prompts}
-    report = compare(sopc, files, originals)
+    report = {r["agent"]: r for r in sopc.compare(files, originals)["agents"]} if originals else {}
     for agent in [a.id for a in proposal.agents if a.id in originals]:
-        r = report.get(agent) or {"total": 0, "missing": [], "changed": [], "reworded": [], "added": []}
-        total = r["total"]
-        lost = len(r["missing"]) + len(r["changed"])
+        r = report.get(agent) or {"ok": True, "score": 1.0, "sentences_total": 0, "lost": [], "changed": [], "reworded": [], "added": []}
         out.fidelity.append(AgentFidelity(
-            agent=agent, ok=lost == 0, score=round((total - lost) / total, 4) if total else 1.0,
-            similarity=round(similarity(originals[agent], prompts[agent]), 4), sentences=total,
-            missing=r["missing"], changed=[Changed(original=o, now=n) for o, n in r["changed"]], reworded=r["reworded"], added=r["added"],
-            compiled=prompts[agent],
+            agent=agent, ok=r["ok"], score=round(float(r["score"]), 4), similarity=round(similarity(originals[agent], prompts[agent]), 4),
+            sentences=r["sentences_total"], missing=[x["text"] for x in r["lost"]],
+            changed=[Changed(original=x["original"], now=x["compiled"]) for x in r["changed"]],
+            reworded=[x["original"] for x in r["reworded"]], added=[x["text"] for x in r["added"]], compiled=prompts[agent],
         ))
     return out
 
@@ -117,46 +112,3 @@ def check(proposal: Proposal, sopc: Sopc) -> Proposal:
 def similarity(a: str, b: str) -> float:
     wa, wb = tx.words(a), tx.words(b)
     return SequenceMatcher(None, wa, wb, autojunk=False).ratio() if wa or wb else 1.0
-
-
-_HEAD = re.compile(r"^(\S+): \d+% of (\d+) sentences kept")
-_NOW = re.compile(r"^\s+now: (.*?)(?:   \(.*\))?$")
-
-
-def compare(sopc: Sopc, files: Files, originals: dict[str, str]) -> dict[str, dict]:
-    """`sopc compare --originals` on the files: {agent: {total, missing, changed: [(original, now)], reworded, added}}."""
-    if not originals:
-        return {}
-    with sopc._written(files) as (root, bad), tempfile.TemporaryDirectory(prefix="sopops-originals-") as tmp:
-        if bad:
-            raise Invalid(bad)
-        for agent, text in originals.items():
-            (Path(tmp) / f"{agent}.md").write_text(text)
-        proc = sopc._run(root, "compare", "--originals", tmp, check=False)
-    if proc.returncode not in (0, 1) or not _HEAD.search(proc.stdout.splitlines()[0] if proc.stdout else ""):
-        raise SopcUnavailable(f"sopc compare failed (exit {proc.returncode}): {(proc.stderr or proc.stdout).strip()[:500]}")
-    return parse_compare(proc.stdout)
-
-
-def parse_compare(out: str) -> dict[str, dict]:
-    report: dict[str, dict] = {}
-    cur: dict | None = None
-    pending: str | None = None
-    for line in out.splitlines():
-        head = _HEAD.match(line)
-        if head:
-            cur = report[head.group(1)] = {"total": int(head.group(2)), "missing": [], "changed": [], "reworded": [], "added": []}
-            continue
-        if cur is None:
-            continue
-        for marker, key in (("  - missing:  ", "missing"), ("  ~ reworded: ", "reworded"), ("  + added:    ", "added")):
-            if line.startswith(marker):
-                cur[key].append(line[len(marker):])
-                break
-        else:
-            if line.startswith("  ! changed:  "):
-                pending = line[len("  ! changed:  "):]
-            elif pending is not None and (m := _NOW.match(line)):
-                cur["changed"].append((pending, m.group(1)))
-                pending = None
-    return report
