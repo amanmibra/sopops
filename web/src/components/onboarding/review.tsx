@@ -48,7 +48,7 @@ export function ImportView({ id }: { id: string }) {
       <PageTitle aside={<Tag tone={d.status === "failed" ? "removed" : d.status === "ready" ? "live" : undefined}>{STATUS[d.status]}</Tag>}>Import agents</PageTitle>
       <Sub>
         {d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
-        {d.agents.length ? `${plural(d.agents.length, "agent", "agents")}: ${d.agents.join(", ")}.` : ""}
+        {d.agents.length ? `${plural(d.agents.length, "agent", "agents")}: ${d.agents.length > 8 ? `${d.agents.slice(0, 8).join(", ")} and ${d.agents.length - 8} more` : d.agents.join(", ")}.` : ""}
         {d.mode === "repo" && d.repo ? ` Repo mode: ${d.repo}.` : ""}
       </Sub>
       {d.source === "agent" && !TERMINAL.includes(d.status) && <TokenPanel imp={d} kickoff={kickoff?.kickoff} token={kickoff?.token} />}

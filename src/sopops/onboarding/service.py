@@ -128,7 +128,7 @@ class Onboarding:
         with self._db() as db:
             db.add(rec)
             db.commit()
-        self.event(rec.id, "start", f"Importing {len(sources)} agent{'s' if len(sources) != 1 else ''}: {', '.join(names)}")
+        self.event(rec.id, "start", f"Importing {len(sources)} agent{'s' if len(sources) != 1 else ''}: {', '.join(names[:8])}{f' and {len(names) - 8} more' if len(names) > 8 else ''}")
         if run:
             threading.Thread(target=self.run, args=(rec.id, sources), daemon=True, name=f"import-{rec.id[:8]}").start()
         return self.get(workspace, rec.id)

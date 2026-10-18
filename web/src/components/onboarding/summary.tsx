@@ -156,7 +156,7 @@ function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; disabled: 
         <table className="min-w-full border-collapse text-[13px]">
           <thead>
             <tr>
-              <th className="bg-card sticky top-0 left-0 z-20 border-b px-2 py-2 text-left">Variable</th>
+              <th className="bg-card sticky top-0 left-0 z-20 min-w-[200px] border-b px-2 py-2 text-left">Variable</th>
               {slice.map((a) => (
                 <th key={a} className="bg-card sticky top-0 z-10 border-b px-2 py-2 text-left whitespace-nowrap">
                   {a}
