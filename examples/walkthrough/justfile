@@ -1,0 +1,69 @@
+# The walkthrough, one recipe per step. Run from this folder (`just <step>`) or the repo root (`just examples/walkthrough/<step>`).
+# MODELS=fake (default) or real, e.g. `MODELS=real just all`. `just serve` in one terminal, the steps in another; or `just all` for everything.
+
+models := env("MODELS", "fake")
+py := "uv run --project ../.. --all-extras python"
+
+# list the steps
+default:
+    @just --list --unsorted
+
+# everything, from a fresh database; sopops stays up afterwards
+all:
+    {{py}} run_all.py --models {{models}}
+
+# 1. sopops on 127.0.0.1:8585 with the walkthrough's database
+serve:
+    {{py}} serve.py --models {{models}}
+
+# 1. the same, from an empty database
+fresh:
+    {{py}} serve.py --models {{models}} --fresh
+
+# 2. no coding agent: push the prepared proposal, resolve, apply, publish release 1
+onboard:
+    {{py}} onboard.py
+
+# 2a. just push the proposal, to review it in the UI
+onboard-push:
+    {{py}} onboard.py push
+
+# 2b. resolve the drift, apply and publish release 1
+onboard-publish:
+    {{py}} onboard.py publish
+
+# 4. 200 backfill calls, 100 new ones, and the ground truth
+generate *args:
+    {{py}} generate.py {{args}}
+
+# 5. send the backfill
+backfill:
+    {{py}} backfill.py
+
+# 6. verdicts on the patterns, suggestions applied, release 2
+review:
+    {{py}} review.py
+
+# 6a. just the verdicts (and wait for the suggestions)
+review-verdicts:
+    {{py}} review.py verdicts
+
+# 6b. apply the suggestions as drafts
+review-apply:
+    {{py}} review.py apply
+
+# 6c. publish release 2
+review-publish:
+    {{py}} review.py publish
+
+# 7. the new calls through the LiveKit adapter, as if live
+replay *args:
+    {{py}} replay.py {{args}}
+
+# 8. the checklist
+verify:
+    {{py}} verify.py --models {{models}}
+
+# remove out/ (the database, generated calls, tokens)
+clean:
+    rm -rf out

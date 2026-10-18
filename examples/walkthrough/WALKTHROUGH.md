@@ -17,20 +17,20 @@ walkthrough/
   review.py              step 6: verdicts, suggestions, release 2
   replay.py              step 7: new calls through the LiveKit adapter, as if live
   verify.py              step 8: the pass/fail checklist
-  run_all.py, Makefile   every step, or one at a time
+  run_all.py, justfile   every step, or one at a time
 ```
 
 ## Quick start
 
-From the repo root, with [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later on `PATH` (or `SOPC_BIN`) and the UI built once (`pnpm -C web install && pnpm -C web build`):
+From the repo root, with [just](https://github.com/casey/just) (`brew install just`, `cargo install just` or `uv tool install rust-just`), [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later on `PATH` (or `SOPC_BIN`) and the UI built once (`pnpm -C web install && pnpm -C web build`):
 
 ```sh
-make -C examples/walkthrough all          # fake mode: no keys, no cost, about a minute
+just examples/walkthrough/all          # fake mode: no keys, no cost, about a minute
 ```
 
-It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 8, prints the checklist, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`make -C examples/walkthrough clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
+It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 8, prints the checklist, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
 
-To go step by step instead, run `make -C examples/walkthrough fresh` in one terminal and each step's `make` target in another.
+To go step by step instead, run `just examples/walkthrough/fresh` in one terminal and each step's `just` recipe in another.
 
 ## Fake mode and real mode
 
@@ -44,7 +44,7 @@ To go step by step instead, run `make -C examples/walkthrough fresh` in one term
 
 Fake mode checks every rule with the scripted reviewer (`SOPOPS_CHECK_MODE=review`), names each failure mode after the checker's reason, and is naive on purpose about one thing: it flags the word "safe" even when the agent says it *can't* promise a dish is safe. That pattern is there for a `checker_wrong` verdict. A real reviewer should mostly not flag those calls, and verify.py checks that in real mode.
 
-**Real mode.** Bring your own keys, in the environment of the terminal that runs `make serve` or `make all`:
+**Real mode.** Bring your own keys, in the environment of the terminal that runs `just serve` or `just all`:
 
 ```sh
 export SOPOPS_MODEL_FAST=anthropic/claude-haiku-4-5         # decisions (routing, rule checks, assignment)
@@ -52,7 +52,7 @@ export SOPOPS_MODEL_REASONING=anthropic/claude-sonnet-5-5   # the reviewer: flag
 export ANTHROPIC_API_KEY=...                                # or the provider your model strings name
 # optional: TypeSafe's Jev answers the decisions instead of the fast model
 export TYPESAFE_API_KEY=...                                 # SOPOPS_JEV=off to keep it off
-make -C examples/walkthrough all MODELS=real
+MODELS=real just examples/walkthrough/all
 ```
 
 Any [model string DSPy knows](../../README.md#models) works, or a local model behind an OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`). Estimated cost for the 300 calls: about 2M input tokens of decisions on the fast model and about 200 reviewer calls of 4k tokens each, plus a few clustering, theme and suggestion calls. At $1/$5 per million tokens for the fast model and $3/$15 for the reviewer that's roughly **$5 to $10**. With Jev answering the decisions (about $0.04 per million input tokens) it's roughly **$4**, nearly all of it the reviewer. A real run also takes longer: give it 10 to 20 minutes.
@@ -64,7 +64,7 @@ Each step: the command (from the repo root), where to look in the UI, and what y
 ### 1. Start sopops
 
 ```sh
-make -C examples/walkthrough fresh        # or: uv run python examples/walkthrough/serve.py --fresh
+just examples/walkthrough/fresh        # or: uv run python examples/walkthrough/serve.py --fresh
 ```
 
 Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`, made by the first write.
@@ -87,13 +87,13 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8585 --env SOPOPS_TOKEN=
 **Without a coding agent.** Push the prepared proposal over the same API, with the originals built by `prompts.py` itself:
 
 ```sh
-make -C examples/walkthrough onboard-push     # uv run python examples/walkthrough/onboard.py push
+just examples/walkthrough/onboard-push     # uv run python examples/walkthrough/onboard.py push
 ```
 
 Look at the import page (the command prints its URL, `/w/walkthrough/import/<id>`): progress messages, 4 agents at 100% fidelity, one disagreement (the allergen never rule: Bayleaf and Juniper against both Copper Woks), duplicates and variables. Pick Bayleaf's wording and **Apply**, then publish in **Unpublished changes** (`/w/walkthrough/changes`). Or let the script do what the reviewer would:
 
 ```sh
-make -C examples/walkthrough onboard-publish  # resolve the drift, apply, publish release 1
+just examples/walkthrough/onboard-publish  # resolve the drift, apply, publish release 1
 ```
 
 Expected: release 1 at `/w/walkthrough/releases`, and each agent's prompt at `/w/walkthrough/agents/<agent>/prompt`, the same text `prompts.py` built (fidelity 100%).
@@ -130,7 +130,7 @@ and `sopops-client[livekit]` in `pyproject.toml`. To run it against a real LiveK
 ### 4. Generate the calls
 
 ```sh
-make -C examples/walkthrough generate     # --seed 7 --backfill 200 --new 100
+just examples/walkthrough/generate     # --seed 7 --backfill 200 --new 100
 ```
 
 Writes `out/backfill.jsonl` (200 calls over the 14 days before today, on release 1's prompts), `out/new.jsonl` (100 calls for after the fix) and `out/ground_truth.json`. Each call is a LiveKit job: its `ChatContext` items (messages, `function_call`, `function_call_output`). What's planted, per rule:
@@ -150,7 +150,7 @@ About half the calls have nothing planted. The new calls have far fewer "safe" c
 ### 5. Backfill
 
 ```sh
-make -C examples/walkthrough backfill
+just examples/walkthrough/backfill
 ```
 
 Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline.
@@ -162,21 +162,21 @@ Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each conv
 
 ### 6. Review: verdicts, suggestions, release 2
 
-**Patterns → Needs review** (`/w/walkthrough/patterns`) is the queue: each pattern with example calls and four verdicts (keys `1` to `4`, `j`/`k` to move). Give them, or run `make -C examples/walkthrough review-verdicts`, which gives exactly these:
+**Patterns → Needs review** (`/w/walkthrough/patterns`) is the queue: each pattern with example calls and four verdicts (keys `1` to `4`, `j`/`k` to move). Give them, or run `just examples/walkthrough/review-verdicts`, which gives exactly these:
 
 - "Told the caller a dish is safe for their allergy": **Real mistake**, with a suggestion.
 - "Gave the caller a delivery time": **Acceptable**, with a suggestion. Its 61 findings are suppressed at once: they stop counting in Insights.
 - "Used the word safe while declining to promise it" (fake mode): **Checker is wrong**. Suppressed, and kept as negative calibration labels.
 - The other patterns: **Real mistake**, no suggestion asked for.
 
-**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, with the prompt diff of every agent it changes. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`make -C examples/walkthrough review-apply`), or, with a GitHub repository connected in **Settings**, open each as a pull request instead.
+**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, with the prompt diff of every agent it changes. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected in **Settings**, open each as a pull request instead.
 
-**Unpublished changes** (`/w/walkthrough/changes`) shows the two procedure edits and every agent's prompt diff. Publish them as release 2 (`make -C examples/walkthrough review-publish`). `make -C examples/walkthrough review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
+**Unpublished changes** (`/w/walkthrough/changes`) shows the two procedure edits and every agent's prompt diff. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
 
 ### 7. Replay new calls, as if live
 
 ```sh
-make -C examples/walkthrough replay       # --rate 2 calls/s, each call 30x faster than real time
+just examples/walkthrough/replay       # --rate 2 calls/s, each call 30x faster than real time
 ```
 
 Each of the 100 new calls runs through `attach` exactly as `agent/after/agent.py` would: it fetches the live release (2), opens the session, streams each turn and tool call as LiveKit emits it, and posts the full call at shutdown. Watch **Sessions** while it runs: calls appear while they're still going, then get checked, all on release 2.
@@ -184,7 +184,7 @@ Each of the 100 new calls runs through `attach` exactly as `agent/after/agent.py
 ### 8. Verify
 
 ```sh
-make -C examples/walkthrough verify
+just examples/walkthrough/verify
 ```
 
 Expected in fake mode, all PASS:

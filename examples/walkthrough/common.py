@@ -48,7 +48,7 @@ def wait_until_up(seconds: float = 30.0) -> None:
         except httpx.HTTPError:
             pass
         if time.monotonic() > deadline:
-            sys.exit(f"sopops isn't answering at {URL}: start it with `make -C examples/walkthrough serve`")
+            sys.exit(f"sopops isn't answering at {URL}: start it with `just examples/walkthrough/serve`")
         time.sleep(0.3)
 
 
@@ -62,7 +62,7 @@ def save(name: str, data: Any) -> Path:
 def load(name: str) -> Any:
     path = OUT / name
     if not path.exists():
-        sys.exit(f"{path} is missing: run the earlier steps first (make -C examples/walkthrough all)")
+        sys.exit(f"{path} is missing: run the earlier steps first (just examples/walkthrough/all)")
     return json.loads(path.read_text())
 
 

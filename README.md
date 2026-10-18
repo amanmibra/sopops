@@ -46,7 +46,7 @@ SOPC_BIN=/path/to/sopc uv run sopops       # http://127.0.0.1:8484, SQLite in ./
 
 Open http://127.0.0.1:8484, create a workspace, and import your agents or add a shared instruction, a procedure and an agent. The API docs are at `/docs`. To check sessions, set a model ([Models](#models)).
 
-**See the whole loop first:** [the walkthrough](examples/walkthrough/WALKTHROUGH.md) onboards a sample LiveKit agent repo, sends 300 synthetic calls with planted failures, reviews the patterns, publishes the fix and checks the result against the ground truth. `make -C examples/walkthrough all` runs it in about a minute with fake models (no keys, no cost), or with yours.
+**See the whole loop first:** [the walkthrough](examples/walkthrough/WALKTHROUGH.md) onboards a sample LiveKit agent repo, sends 300 synthetic calls with planted failures, reviews the patterns, publishes the fix and checks the result against the ground truth. `just examples/walkthrough/all` runs it in about a minute with fake models (no keys, no cost), or with yours.
 
 ## How it works
 
