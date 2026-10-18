@@ -2,7 +2,7 @@
 
 Every endpoint. Paths below are under `/v1/workspaces/<ws>` unless they start with `/v1/`. The OpenAPI spec at `/openapi.json` has every field; `/docs` lets you try them.
 
-There is no authentication yet beyond the workspace token (session ingest, and prompt fetches once the workspace has one): keep sopops on a private network.
+With no login provider set up there's no sign-in: only the workspace tokens (session ingest, onboarding, and prompt fetches once the workspace has a runtime token) guard anything, so keep sopops on a private network. With GitHub or Google sign-in set up, every other endpoint needs a login session ([Sign-in and the org](#sign-in-and-the-org)).
 
 Each operation's `operationId` is its route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients have readable function names; the web UI's typed client (`web/src/client`) is generated this way. Paths outside `/v1` (and `/docs`, `/openapi.json`) serve the web UI.
 
@@ -138,6 +138,48 @@ Nothing is stored.
 | `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, compiled prompts, and duplicate or conflicting instructions. |
 | `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
 
+## Sign-in and the org
+
+Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`_SECRET`, `SOPOPS_GOOGLE_CLIENT_ID`/`_SECRET`; see the README's "Sign in"), and `SOPOPS_AUTH_REQUIRED=true|false` forces it either way. With it on, each endpoint is one of these (the table is `ROUTES` in `src/sopops/auth/access.py`, and a test checks every route is in it):
+
+| Kind | Needs | Endpoints |
+|---|---|---|
+| open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/invites/lookup`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
+| token | the endpoint's own token, no login | `POST …/sessions` (and `…/open`, `…/events`, `…/close`): `ingest`. `POST …/runtime/served`: `runtime`. `/v1/onboarding/{session,progress,proposal,pull-request,pull-request/open,fidelity}`: `onboarding:write` |
+| webhook | the sender's signature or secret, no login | `POST /v1/github/webhook`, `…/capture/livekit/webhook`, `…/capture/elevenlabs/post-call`, `…/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` |
+| token or session | a `runtime` token, or a login session | `GET …/agents/<agent>`, `…/prompt`, `…/sops/<id>`. With sign-in on these always need one, even before the workspace has a runtime token |
+| signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept` |
+| admin | a login session as an owner or admin | `PATCH /v1/org`, `PATCH/DELETE /v1/org/members/<user_id>`, `GET/POST /v1/org/invites`, `DELETE /v1/org/invites/<id>`, `POST /v1/github/app/manifest` and its callback |
+| session | a login session as a member of the workspace's org | everything else |
+
+Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `403`. A workspace in an org you're not in answers `404`. A new workspace goes into the org you're working in.
+
+**Sessions.** The `sopops_session` cookie: HttpOnly, SameSite=Lax, Secure on https, a random token stored hashed. It lasts 30 days from the last use (`GET /v1/auth/session` renews the cookie) and ends at sign-out.
+
+**CSRF.** With the session cookie, `POST`, `PUT`, `PATCH` and `DELETE` must send `X-CSRF-Token` with the `sopops_csrf` cookie's value (an HMAC of the session token, readable by the page, not by other sites); without it, `403`. Token and webhook endpoints take no cookie and need none.
+
+**Authors.** Signed in, the user is recorded wherever an author is (file versions, releases, verdicts, overrides, suggestions, imports, tokens): their name in the text field (`author`, `reviewer`, `created_by`), whatever the request sent, and their id in `author_id`.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/auth/session` | `{required, providers: [{id, label}], user, org, orgs}`: whether sign-in is on, how to sign in, who's signed in and the org they're working in (`org` is null with no membership). |
+| `GET /v1/auth/login/<provider>?next=/path` | Redirects to GitHub or Google with `state` and a PKCE challenge (kept in a 10-minute HttpOnly cookie). `404` for a provider that isn't set up. |
+| `GET /v1/auth/callback/<provider>` | Where the provider sends the browser back. Checks `state`, signs in and redirects to `next`; on failure, to `/sign-in?error=…`. Refused: no verified email, or a domain outside `SOPOPS_ALLOWED_EMAIL_DOMAINS`. |
+| `POST /v1/auth/logout` | Ends the session (`204`) and clears the cookies. |
+| `PUT /v1/auth/org` | `{org_id}`: work in another org you're in. |
+| `POST /v1/auth/invites/lookup` | `{token}` → `{org_id, org_name, email, role, expires_at, accepted}`. `404` once it's expired, withdrawn or used by someone else. |
+| `POST /v1/auth/invites/accept` | `{token}`: join, when you're signed in with the invite's email (else `403`). |
+| `GET /v1/org` | The org you're working in: `{id, name, slug, allowed_domains, role}`. |
+| `PATCH /v1/org` | `{name?, allowed_domains?}`. People with a verified email at an allowed domain join as members when they sign in. |
+| `GET /v1/org/members` | `[{user_id, email, name, avatar_url, role, joined_at, last_login_at}]`. |
+| `PATCH /v1/org/members/<user_id>` | `{role}`: `owner`, `admin` or `member`. Only an owner makes or changes an owner; the last owner can't step down (`409`). |
+| `DELETE /v1/org/members/<user_id>` | Remove them. They can still sign in, but see nothing of the org. |
+| `GET /v1/org/invites` | Open invites: `[{id, email, role, created_at, expires_at}]`. |
+| `POST /v1/org/invites` | `{email, role?}` → `201` with `link`, `<SOPOPS_PUBLIC_URL>/invite#<token>`, shown once. Nothing is emailed. It works once, for 7 days, for whoever signs in with that email (signing in accepts it). |
+| `DELETE /v1/org/invites/<id>` | Withdraw it. |
+
+Who joins: the first person to sign in on a fresh install owns the existing org; then invites and allowed domains. With sign-in off, `/v1/org/*` answers `409` (there are no members).
+
 ## Tokens
 
 One kind of workspace token, with scopes. Tokens are stored as a sha256 hash and shown once, when made; send them as `Authorization: Bearer <token>`. A missing, unknown, expired or revoked token (or one for another workspace) gets `401`; a valid token without the scope gets `403`.
@@ -154,7 +196,7 @@ One kind of workspace token, with scopes. Tokens are stored as a sha256 hash and
 | `POST …/tokens` | `{name?, scopes?: ["ingest", "runtime"], expires_in_days?}` (default: both scopes, never expires). `201` with the token, shown once. |
 | `DELETE …/tokens/<id>` | Revoke it: it stops working at once; the row is kept with `revoked_at`. |
 
-Prompt fetches stay open while the workspace has no unrevoked `runtime` token, for local use; an expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.
+Prompt fetches stay open while the workspace has no unrevoked `runtime` token, for local use, unless sign-in is on; an expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.
 
 ## Sessions
 

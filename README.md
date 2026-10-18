@@ -195,6 +195,11 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_MODEL_PRICES` | unset | Model prices for spend estimates, JSON in USD per million tokens: `{"openai/gpt-5-mini": [0.25, 2]}`; adds to or overrides the built-in table (Jev, current Claude models). |
 | `SOPOPS_DSPY_CACHE_DIR` | unset | A disk cache for model responses (transcripts are written there); in memory otherwise. |
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform keys, webhook secrets and GitHub tokens; needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
+| `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | unset | Sign in with GitHub ([Sign in](#sign-in)). |
+| `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | unset | Sign in with Google. |
+| `SOPOPS_AUTH_REQUIRED` | on when a login provider is set up | `true` or `false` forces sign-in on or off. |
+| `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated: only people with a verified email at these domains can sign in at all. |
+| `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach sopops: the base of sign-in callback URLs and invite links. |
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks are refused for a workspace with no webhook secret or runtime token, instead of answered openly. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
@@ -206,6 +211,35 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |
 | `SOPOPS_RATE_LIMIT_PER_MINUTE`, `SOPOPS_WORKSPACE_CONCURRENCY`, `SOPOPS_WORKER_SLOTS`, `SOPOPS_RECLUSTER_CRON`, `SOPOPS_PR_STATUS_CRON` | `60`, `4`, `20`, `0 6 * * *`, `*/15 * * * *` | Hatchet only: model calls per minute per model, runs per workspace at once, worker slots, the daily recluster, checking pull requests and syncing connected repositories (without Hatchet, run `sopops recluster` and `sopops pr-status` from cron). |
 | `SOPOPS_WEB_DIR` | the built UI | Serve the UI from another folder. |
+
+## Sign in
+
+With no login provider set up, sopops has no sign-in: that's how local use and demos work. Set up GitHub, Google or both and people sign in to use the UI and the API; agents, webhooks and coding agents keep using their workspace tokens and webhook secrets, with no login.
+
+**Who gets in.** The first person to sign in on a fresh install becomes owner of the existing org, which owns every workspace there is. After that, people join with an invite link (Settings → Members makes one; sopops doesn't send email, so you send the link) or, if the org allows their email domain, just by signing in. Someone who signs in with no invite sees "Ask an owner to invite you". Only verified email addresses count, and signing in with GitHub and with Google using the same verified email is the same person.
+
+**Roles.** Owners and admins manage members, invites and the org's email domains; members do everything else. Only an owner makes or removes owners, and an org always keeps one.
+
+**GitHub.** Make an OAuth app: GitHub → Settings → Developer settings → OAuth Apps → New OAuth App (or the same under an organization's settings).
+
+- Homepage URL: where people reach sopops, e.g. `https://sopops.example.com`.
+- Authorization callback URL: `https://sopops.example.com/v1/auth/callback/github` (locally, `http://127.0.0.1:8484/v1/auth/callback/github`).
+- Make a client secret, then set `SOPOPS_GITHUB_OAUTH_CLIENT_ID` and `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET`.
+
+A GitHub App's client id and a client secret made for it work in the same two variables, if you'd rather not make a second app: add the same callback URL to the App's "Callback URL" list. sopops asks for `read:user` and `user:email` and uses the account's primary email, only if GitHub has verified it. GitHub Enterprise Server: also set `SOPOPS_GITHUB_URL` and `SOPOPS_GITHUB_API_URL` ([Configuration](#configuration)).
+
+**Google.** In Google Cloud: APIs & Services → OAuth consent screen (set it up, with the `openid`, `email` and `profile` scopes), then Credentials → Create credentials → OAuth client ID → Web application.
+
+- Authorized redirect URI: `https://sopops.example.com/v1/auth/callback/google` (locally, `http://127.0.0.1:8484/v1/auth/callback/google`).
+- Set `SOPOPS_GOOGLE_CLIENT_ID` and `SOPOPS_GOOGLE_CLIENT_SECRET`.
+
+Only addresses Google marks `email_verified` count.
+
+**Behind a proxy**, set `SOPOPS_PUBLIC_URL` to the address people use (`https://sopops.example.com`), so the callback URLs and invite links match what you registered. Cookies are marked Secure when the request is https (with uvicorn behind a proxy, pass `--proxy-headers` and `--forwarded-allow-ips` so it sees `X-Forwarded-Proto`).
+
+**How it works.** Sign-in uses OAuth with `state` and PKCE. A login session is a random token in an HttpOnly, SameSite=Lax cookie, stored hashed; it lasts 30 days from the last visit and ends when you sign out. Requests that change something with the cookie also send `X-CSRF-Token`, the value of the `sopops_csrf` cookie (the web UI does this), which another site can't read. With sign-in on, prompt fetches need the workspace's runtime token (or someone signed in), even for a workspace that has none yet, so make one in Settings → Access first. Every route's rule is in one table, `src/sopops/auth/access.py`.
+
+**More login providers.** Providers register into `sopops.auth.providers`; a package can add one (SAML, say) through the `sopops.login_providers` entry point group.
 
 ## Git or database
 
@@ -270,22 +304,24 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `POST …/publish`, `GET …/files?content=true` | Replace every file and release, for CI; export as sopc files. |
 | `GET/POST/DELETE …/repo`, `POST …/repo/{pull,sync,send}`, `…/repo/conflict` | The workspace's GitHub repository (token write-only; `null` when none); pull or sync its sopc project into drafts, send drafts back as a pull request, settle sync conflicts. |
 | `/v1/github/*` | The GitHub App: its status, install, create (manifest flow), webhooks. |
+| `/v1/auth/*`, `/v1/org/*` | Signing in with GitHub or Google, signing out; the org's members, roles, invites and allowed email domains. |
 | `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
 
 ## Status
 
-v0. **There is no authentication yet** except workspace tokens, which guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches. Anyone who can reach sopops can read and change everything else, so run it on a private network only.
+v0. With no login provider set up there is no sign-in: workspace tokens guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches, and anyone who can reach sopops can read and change everything else, so run it on a private network only. Set up GitHub or Google sign-in ([Sign in](#sign-in)) to put the rest behind a login.
 
 | Built | Planned |
 |---|---|
-| Blocks, agents, drafts, releases, rollback; sopc-exact compiling; git or database | Sign-in for the UI and tokens for the rest of the API (hosted auth) |
+| Blocks, agents, drafts, releases, rollback; sopc-exact compiling; git or database | SAML SSO and SCIM; email sending for invites and magic links |
 | Import with a coding agent (sopops-mcp) or sopops's own model | Experiments: A/B tests as a feature (today: pin a release per call and compare releases) |
 | Pull and push delivery: LiveKit, ElevenLabs, Vapi; Python and TypeScript SDKs | Retell delivery; ElevenLabs and Vapi post-call webhooks; an OpenTelemetry receiver |
 | Sessions: ingest, streaming, backfill import; checks per rule with quotes | Runtime enforcement: checking rules while a session is still going, and guidance back to the agent (the SDKs' `on_guidance` is reserved for it) |
 | Patterns, themes, review verdicts and states, suppression, calibration from review labels, regression export; all of it following a rule across its wordings | A Slack digest of new patterns and suggestions |
 | Suggested edits as drafts or GitHub pull requests; two-way sync with a repo's sopc project through a GitHub App or a token | |
+| Sign-in with GitHub and Google; orgs, members, roles and invite links | |
 | Insights, release compare, the report | Renaming agents and blocks; a webhook on publish; more framework adapters (Pipecat) |
 
 ## Development
