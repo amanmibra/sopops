@@ -126,11 +126,13 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         theme: str | None = Query(None, description="With a finding in a pattern of this theme."),
         finding: bool | None = Query(None, description="With (true) or without (false) any finding."),
         eligible: bool | None = Query(None, description="Only sessions Insights rates (checked or partial, with a result); false: the others."),
+        suppressed: bool | None = Query(None, description="How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them "
+                                        "out (what Insights counts), true matches only them; unset, both."),
     ) -> dict:
         """Sessions, newest first by start time. The drill-down filters are what Insights links to."""
         return store.sessions.list(
             workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit,
-            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding, eligible=eligible,
+            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding, eligible=eligible, suppressed=suppressed,
         )
 
     @r.get(

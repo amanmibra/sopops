@@ -8,8 +8,8 @@ Two kinds, by output type:
   `check_signature`, `evidence_signature`, `assign_signature`. Each output's question goes in the predictor's `fields`
   (`instructions` and `criteria`), which is also where calibrated thresholds live.
 - **Generative signatures** run on the reasoning model (or the fast one, as noted): `SplitRule`, `CheckRules`,
-  `LocateEvidence` (fast), `ClusterFindings`, `GroupThemes`, `SegmentPrompt`, `StructureProcedure`, `NameVariables`
-  (fast).
+  `LocateEvidence` (fast), `ClusterFindings`, `GroupThemes`, `SuggestEdit`, `SegmentPrompt`, `StructureProcedure`,
+  `NameVariables` (fast).
 
 `VERSIONS` names the instructions each stored result was made with; bump one whenever its text changes.
 """
@@ -35,6 +35,7 @@ VERSIONS = {
     "assign": "assign-2",
     "cluster": "cluster-2",
     "themes": "themes-2",
+    "suggest": "suggest-1",
     "segment": "segment-2",
     "procedure": "procedure-2",
     "variables": "variables-2",
@@ -398,6 +399,46 @@ class GroupThemes(dspy.Signature):
     patterns: list[PatternIn] = dspy.InputField()
     existing_themes: list[ThemeIn] = dspy.InputField()
     themes: list[ThemeGroup] = dspy.OutputField(desc="In conversation order")
+
+
+# --- suggestions -------------------------------------------------------------------------------------------------------
+
+
+class ExampleIn(BaseModel):
+    status: str = Field(description="The rule's status in that conversation.")
+    reason: str = Field(description="The checker's reason.")
+    quotes: list[str] = Field(description="What was said.")
+
+
+class SuggestEdit(dspy.Signature):
+    """You maintain the instructions of AI agents (voice calls and text chats). Instructions are kept as sopc files; a procedure (SOP) file has a name, a goal (`description`), when it applies (`scope`), guidance, ordered steps (`procedureSteps`), things never to do (`forbiddenActions`) and warning signs (`warningSigns`). QA found a pattern: the same thing keeps happening on one rule of a procedure, and a reviewer gave it a verdict. Propose the smallest edit to the procedure file that settles it.
+
+    By verdict:
+    - `real`: the agent makes a real mistake. Change the instructions so the agent stops making it: make the rule clearer or more specific, add a step, or add guidance that names the situation in the examples. Don't weaken the rule.
+    - `acceptable`: what the agent did is fine in this situation. Add the exception to the rule (or to the guidance next to it), naming the situation precisely, so the same behavior in that situation no longer breaks it. Keep the rule for every other situation.
+    - `sop_wrong`: the rule itself is wrong or outdated. Edit the rule so it says what the agent should do now; the reviewer's note says why, when there is one.
+
+    Rules:
+    - Return the whole file in `new_text`, in the same format (YAML or Markdown) and layout as `procedure_file`. Change only what the verdict needs; keep every other line, every `{{placeholder}}`, and every `tool:` and `required:` exactly as written.
+    - Keep the rule at its position in its list, so the other rules keep their numbers. Don't add a list item unless the fix needs one.
+    - Don't mention QA, patterns, reviewers or this edit in the file. Write instructions, in the file's language.
+    - `block_id`: the id of the block you edited, `procedure_id`.
+    - `rationale`: one or two sentences for the reviewer, in English: what you changed and why it settles the pattern.
+    - If `previous_error` isn't empty, your last proposal (`previous_text`) didn't compile; fix that problem.
+    """
+
+    procedure_id: str = dspy.InputField()
+    procedure_file: str = dspy.InputField(desc="The procedure's file as it is now")
+    rule: str = dspy.InputField(desc="The rule the pattern is about, with its kind and number")
+    pattern: str = dspy.InputField(desc="The pattern's name and description")
+    verdict: Literal["real", "acceptable", "sop_wrong"] = dspy.InputField()
+    note: str = dspy.InputField(desc="The reviewer's note; may be empty")
+    examples: list[ExampleIn] = dspy.InputField(desc="Up to 5 conversations in the pattern")
+    previous_text: str = dspy.InputField(desc="Your last proposal, if it didn't compile; else empty")
+    previous_error: str = dspy.InputField(desc="Why it didn't compile; else empty")
+    block_id: str = dspy.OutputField()
+    new_text: str = dspy.OutputField(desc="The whole procedure file, edited")
+    rationale: str = dspy.OutputField()
 
 
 # --- onboarding ------------------------------------------------------------------------------------------------------

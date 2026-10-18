@@ -366,6 +366,34 @@ export type AgentOut = {
 };
 
 /**
+ * AgentPromptChange
+ */
+export type AgentPromptChange = {
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Added
+     *
+     * Prompt lines added.
+     */
+    added: number;
+    /**
+     * Removed
+     *
+     * Prompt lines removed.
+     */
+    removed: number;
+    /**
+     * Diff
+     *
+     * A unified diff of the agent's compiled prompt, now against suggested.
+     */
+    diff: string;
+};
+
+/**
  * AgentRate
  */
 export type AgentRate = {
@@ -527,6 +555,16 @@ export type AgentsResponse = {
      * Agents
      */
     agents: Array<AgentSummary>;
+};
+
+/**
+ * ApplyIn
+ */
+export type ApplyIn = {
+    /**
+     * Reviewer
+     */
+    reviewer?: string | null;
 };
 
 /**
@@ -1014,6 +1052,20 @@ export type Disagreement = {
      * keep, or all:<agent>.
      */
     decision: string | null;
+};
+
+/**
+ * DismissIn
+ */
+export type DismissIn = {
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer?: string | null;
 };
 
 /**
@@ -1982,6 +2034,12 @@ export type LadderRow = {
      */
     findings: number;
     /**
+     * Suppressed
+     *
+     * Suppressed findings on the rule in the window (not in `findings` or the rates).
+     */
+    suppressed: number;
+    /**
      * Pattern Id
      */
     pattern_id: string | null;
@@ -2284,6 +2342,74 @@ export type NewProcedure = {
 };
 
 /**
+ * OverrideIn
+ */
+export type OverrideIn = {
+    /**
+     * Correct
+     *
+     * Whether the checker got this finding right. False suppresses it and makes it a negative calibration label.
+     */
+    correct: boolean;
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer?: string | null;
+};
+
+/**
+ * OverrideOut
+ */
+export type OverrideOut = {
+    /**
+     * Override Id
+     */
+    override_id: string;
+    /**
+     * Finding Id
+     */
+    finding_id: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Correct
+     */
+    correct: boolean;
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Suppressed
+     *
+     * Whether the finding is suppressed now (an `acceptable` pattern suppresses it either way).
+     */
+    suppressed: boolean | null;
+};
+
+/**
  * OverviewResponse
  */
 export type OverviewResponse = {
@@ -2370,6 +2496,12 @@ export type PatternDetail = {
      */
     total_findings: number;
     /**
+     * Suppressed
+     *
+     * Suppressed findings in the window (not in `findings` or `sessions`).
+     */
+    suppressed: number;
+    /**
      * First Seen
      */
     first_seen: string | null;
@@ -2402,6 +2534,28 @@ export type PatternDetail = {
      * Sub Patterns
      */
     sub_patterns: Array<PatternOut>;
+    /**
+     * Its current verdict (its rule pattern's, when it has none of its own).
+     */
+    verdict: VerdictOut | null;
+    /**
+     * Verdict History
+     *
+     * Its own verdicts, newest first.
+     */
+    verdict_history: Array<VerdictOut>;
+    /**
+     * Suppressed Count
+     *
+     * Suppressed findings, all time.
+     */
+    suppressed_count: number;
+    /**
+     * Suggestions
+     *
+     * Newest first.
+     */
+    suggestions: Array<SuggestionSummary>;
 };
 
 /**
@@ -2464,6 +2618,12 @@ export type PatternOut = {
      * All time.
      */
     total_findings: number;
+    /**
+     * Suppressed
+     *
+     * Suppressed findings in the window (not in `findings` or `sessions`).
+     */
+    suppressed: number;
     /**
      * First Seen
      */
@@ -2699,9 +2859,15 @@ export type ProcedureCheckOut = {
     /**
      * Result
      *
-     * Null unless checked.
+     * Null unless checked. Suppressed findings are left out.
      */
     result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
+    /**
+     * Checked Result
+     *
+     * The checker's own result, with every finding.
+     */
+    checked_result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
     /**
      * Goal Reached
      */
@@ -3921,6 +4087,12 @@ export type ReportHeadline = {
      */
     never_sessions: number;
     /**
+     * Suppressed
+     *
+     * Findings a verdict or override suppressed: left out of every number above.
+     */
+    suppressed: number;
+    /**
      * Multi Problem Sessions
      */
     multi_problem_sessions: number;
@@ -4023,6 +4195,146 @@ export type ReviewCounts = {
 };
 
 /**
+ * ReviewExample
+ */
+export type ReviewExample = {
+    /**
+     * Finding Id
+     */
+    finding_id: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Status
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Excerpt
+     *
+     * The first quote from the transcript.
+     */
+    excerpt: string | null;
+    /**
+     * Reason
+     *
+     * The checker's reason.
+     */
+    reason: string | null;
+    /**
+     * Evidence
+     */
+    evidence: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Suppressed
+     */
+    suppressed: boolean;
+};
+
+/**
+ * ReviewItem
+ */
+export type ReviewItem = {
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Parent Id
+     */
+    parent_id: string | null;
+    /**
+     * Kind
+     */
+    kind: 'rule' | 'sub' | 'other';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Theme Id
+     */
+    theme_id: string | null;
+    /**
+     * Theme Name
+     */
+    theme_name: string | null;
+    /**
+     * Status
+     */
+    status: 'active' | 'retired';
+    /**
+     * Findings
+     *
+     * All time.
+     */
+    findings: number;
+    /**
+     * Sessions
+     *
+     * All time.
+     */
+    sessions: number;
+    /**
+     * First Seen
+     */
+    first_seen: string | null;
+    /**
+     * Last Seen
+     */
+    last_seen: string | null;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    rule: RuleRef;
+    /**
+     * Rule Text
+     */
+    rule_text: string | null;
+    /**
+     * Examples
+     *
+     * Up to 5, newest first (suppressed ones last).
+     */
+    examples: Array<ReviewExample>;
+    verdict: VerdictOut | null;
+    /**
+     * New Findings
+     *
+     * Findings that aren't suppressed since the verdict (all of them without one).
+     */
+    new_findings: number;
+    /**
+     * Suppressed Count
+     */
+    suppressed_count: number;
+    /**
+     * The latest suggestion for the pattern.
+     */
+    suggestion: SuggestionSummary | null;
+};
+
+/**
  * ReviewOut
  */
 export type ReviewOut = {
@@ -4047,6 +4359,22 @@ export type ReviewOut = {
      * Fidelity
      */
     fidelity: Array<AgentFidelity>;
+};
+
+/**
+ * ReviewResponse
+ */
+export type ReviewResponse = {
+    /**
+     * Items
+     */
+    items: Array<ReviewItem>;
+    /**
+     * Total
+     *
+     * Patterns needing a verdict (items is at most `limit` of them).
+     */
+    total: number;
 };
 
 /**
@@ -4181,6 +4509,12 @@ export type RulePatternOut = {
      */
     total_findings: number;
     /**
+     * Suppressed
+     *
+     * Suppressed findings in the window (not in `findings` or `sessions`).
+     */
+    suppressed: number;
+    /**
      * First Seen
      */
     first_seen: string | null;
@@ -4285,6 +4619,24 @@ export type RuleResultOut = {
      * Pattern Name
      */
     pattern_name: string | null;
+    /**
+     * Finding Id
+     *
+     * For a finding: its id (to override it).
+     */
+    finding_id: string | null;
+    /**
+     * Suppressed
+     *
+     * A finding a verdict or override says isn't a problem; the result leaves it out.
+     */
+    suppressed: boolean;
+    /**
+     * Override
+     *
+     * A reviewer's call on the finding: true (the checker was right), false, or none.
+     */
+    override: boolean | null;
 };
 
 /**
@@ -4359,6 +4711,12 @@ export type ScoreboardRow = {
      * Patterns (each finding's most specific one) with findings in the window.
      */
     open_patterns: number;
+    /**
+     * Suppressed
+     *
+     * Suppressed findings in the window (not in any other count).
+     */
+    suppressed: number;
     /**
      * Rules
      */
@@ -5218,6 +5576,228 @@ export type StepOutput = {
 };
 
 /**
+ * SuggestionDetail
+ */
+export type SuggestionDetail = {
+    /**
+     * Suggestion Id
+     */
+    suggestion_id: string;
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Pattern Name
+     */
+    pattern_name: string | null;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Block Id
+     *
+     * The block the edit is to: the procedure.
+     */
+    block_id: string;
+    /**
+     * Status
+     *
+     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`.
+     */
+    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed';
+    /**
+     * Rationale
+     */
+    rationale: string | null;
+    /**
+     * Error
+     *
+     * Why it failed: sopc's issues with the last proposal, or the model's error.
+     */
+    error: string | null;
+    /**
+     * Pr Url
+     */
+    pr_url: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Path
+     *
+     * The procedure's file.
+     */
+    path: string | null;
+    /**
+     * Base Version
+     *
+     * The file's version it was made from; applying needs head to still be it.
+     */
+    base_version: number | null;
+    /**
+     * Old Text
+     */
+    old_text: string | null;
+    /**
+     * New Text
+     */
+    new_text: string | null;
+    plan: SuggestionPlan | null;
+    /**
+     * Note
+     *
+     * Why it was dismissed.
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Attempts
+     *
+     * Model proposals made (a proposal that doesn't compile is sent back once).
+     */
+    attempts: number;
+    /**
+     * Model
+     */
+    model: string | null;
+    /**
+     * Prompt Version
+     */
+    prompt_version: string | null;
+    pattern: SuggestionPattern | null;
+    /**
+     * The verdict it was made for.
+     */
+    verdict: VerdictOut | null;
+};
+
+/**
+ * SuggestionPattern
+ */
+export type SuggestionPattern = {
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Kind
+     */
+    kind: 'rule' | 'sub' | 'other';
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Description
+     */
+    description: string | null;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+};
+
+/**
+ * SuggestionPlan
+ */
+export type SuggestionPlan = {
+    /**
+     * Agents
+     *
+     * Agents whose prompt changes.
+     */
+    agents: Array<AgentPromptChange>;
+};
+
+/**
+ * SuggestionSummary
+ */
+export type SuggestionSummary = {
+    /**
+     * Suggestion Id
+     */
+    suggestion_id: string;
+    /**
+     * Pattern Id
+     */
+    pattern_id: string;
+    /**
+     * Pattern Name
+     */
+    pattern_name: string | null;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Block Id
+     *
+     * The block the edit is to: the procedure.
+     */
+    block_id: string;
+    /**
+     * Status
+     *
+     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`.
+     */
+    status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed';
+    /**
+     * Rationale
+     */
+    rationale: string | null;
+    /**
+     * Error
+     *
+     * Why it failed: sopc's issues with the last proposal, or the model's error.
+     */
+    error: string | null;
+    /**
+     * Pr Url
+     */
+    pr_url: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+};
+
+/**
+ * SuggestionsResponse
+ */
+export type SuggestionsResponse = {
+    /**
+     * Items
+     */
+    items: Array<SuggestionSummary>;
+};
+
+/**
  * ThemeOut
  */
 export type ThemeOut = {
@@ -5431,6 +6011,12 @@ export type TilesValues = {
      * Sessions that broke a never rule.
      */
     never_sessions: number;
+    /**
+     * Suppressed
+     *
+     * Findings a verdict or override suppressed: left out of every number above.
+     */
+    suppressed: number;
 };
 
 /**
@@ -5843,6 +6429,132 @@ export type Variant = {
      * Block
      */
     block?: string | null;
+};
+
+/**
+ * VerdictIn
+ */
+export type VerdictIn = {
+    /**
+     * Verdict
+     *
+     * `real`: a real agent mistake (keeps counting). `acceptable`: fine in this situation (its findings are suppressed). `sop_wrong`: the instruction is wrong or outdated. `checker_wrong`: sopops misjudged (suppressed, and a negative calibration label).
+     */
+    verdict: 'real' | 'acceptable' | 'sop_wrong' | 'checker_wrong';
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reviewer
+     *
+     * Who gave it (free text until there's auth).
+     */
+    reviewer?: string | null;
+    /**
+     * Suggest
+     *
+     * Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).
+     */
+    suggest?: boolean;
+};
+
+/**
+ * VerdictOut
+ */
+export type VerdictOut = {
+    /**
+     * Verdict Id
+     */
+    verdict_id: string;
+    /**
+     * Pattern Id
+     *
+     * The pattern it was given on: the rule pattern's, when `inherited`.
+     */
+    pattern_id: string;
+    /**
+     * Verdict
+     */
+    verdict: 'real' | 'acceptable' | 'sop_wrong' | 'checker_wrong';
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Carried From
+     *
+     * The retired pattern a recluster carried it over from.
+     */
+    carried_from: string | null;
+    /**
+     * Inherited
+     *
+     * A sub-pattern with no verdict of its own has its rule pattern's.
+     */
+    inherited: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * VerdictSaved
+ */
+export type VerdictSaved = {
+    /**
+     * Verdict Id
+     */
+    verdict_id: string;
+    /**
+     * Pattern Id
+     *
+     * The pattern it was given on: the rule pattern's, when `inherited`.
+     */
+    pattern_id: string;
+    /**
+     * Verdict
+     */
+    verdict: 'real' | 'acceptable' | 'sop_wrong' | 'checker_wrong';
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Carried From
+     *
+     * The retired pattern a recluster carried it over from.
+     */
+    carried_from: string | null;
+    /**
+     * Inherited
+     *
+     * A sub-pattern with no verdict of its own has its rule pattern's.
+     */
+    inherited: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Suppressed Count
+     *
+     * The pattern's suppressed findings now.
+     */
+    suppressed_count: number;
+    /**
+     * The suggestion queued for it, when `suggest` and the verdict calls for one.
+     */
+    suggestion: SuggestionSummary | null;
 };
 
 /**
@@ -8564,6 +9276,12 @@ export type ListSessionsData = {
          * Only sessions Insights rates (checked or partial, with a result); false: the others.
          */
         eligible?: boolean | null;
+        /**
+         * Suppressed
+         *
+         * How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them out (what Insights counts), true matches only them; unset, both.
+         */
+        suppressed?: boolean | null;
     };
     url: '/v1/workspaces/{workspace}/sessions';
 };
@@ -9099,6 +9817,318 @@ export type ReclusterPatternsResponses = {
 };
 
 export type ReclusterPatternsResponse = ReclusterPatternsResponses[keyof ReclusterPatternsResponses];
+
+export type ReviewQueueData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/v1/workspaces/{workspace}/review';
+};
+
+export type ReviewQueueErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReviewQueueError = ReviewQueueErrors[keyof ReviewQueueErrors];
+
+export type ReviewQueueResponses = {
+    /**
+     * Successful Response
+     */
+    200: ReviewResponse;
+};
+
+export type ReviewQueueResponse = ReviewQueueResponses[keyof ReviewQueueResponses];
+
+export type SetVerdictData = {
+    body: VerdictIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Pattern Id
+         */
+        pattern_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/verdict';
+};
+
+export type SetVerdictErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetVerdictError = SetVerdictErrors[keyof SetVerdictErrors];
+
+export type SetVerdictResponses = {
+    /**
+     * Successful Response
+     */
+    200: VerdictSaved;
+};
+
+export type SetVerdictResponse = SetVerdictResponses[keyof SetVerdictResponses];
+
+export type OverrideFindingData = {
+    body: OverrideIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Finding Id
+         */
+        finding_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/findings/{finding_id}/override';
+};
+
+export type OverrideFindingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OverrideFindingError = OverrideFindingErrors[keyof OverrideFindingErrors];
+
+export type OverrideFindingResponses = {
+    /**
+     * Successful Response
+     */
+    200: OverrideOut;
+};
+
+export type OverrideFindingResponse = OverrideFindingResponses[keyof OverrideFindingResponses];
+
+export type ExportRegressionData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Pattern Id
+         */
+        pattern_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/regression';
+};
+
+export type ExportRegressionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportRegressionError = ExportRegressionErrors[keyof ExportRegressionErrors];
+
+export type ExportRegressionResponses = {
+    /**
+     * One JSON object per line.
+     */
+    200: unknown;
+};
+
+export type ListSuggestionsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Status
+         */
+        status?: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'failed' | null;
+    };
+    url: '/v1/workspaces/{workspace}/suggestions';
+};
+
+export type ListSuggestionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListSuggestionsError = ListSuggestionsErrors[keyof ListSuggestionsErrors];
+
+export type ListSuggestionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionsResponse;
+};
+
+export type ListSuggestionsResponse = ListSuggestionsResponses[keyof ListSuggestionsResponses];
+
+export type GetSuggestionData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Suggestion Id
+         */
+        suggestion_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}';
+};
+
+export type GetSuggestionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSuggestionError = GetSuggestionErrors[keyof GetSuggestionErrors];
+
+export type GetSuggestionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionDetail;
+};
+
+export type GetSuggestionResponse = GetSuggestionResponses[keyof GetSuggestionResponses];
+
+export type SuggestEditData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Pattern Id
+         */
+        pattern_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest';
+};
+
+export type SuggestEditErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SuggestEditError = SuggestEditErrors[keyof SuggestEditErrors];
+
+export type SuggestEditResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionDetail;
+};
+
+export type SuggestEditResponse = SuggestEditResponses[keyof SuggestEditResponses];
+
+export type ApplySuggestionData = {
+    /**
+     * Req
+     */
+    body?: ApplyIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Suggestion Id
+         */
+        suggestion_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}/apply';
+};
+
+export type ApplySuggestionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ApplySuggestionError = ApplySuggestionErrors[keyof ApplySuggestionErrors];
+
+export type ApplySuggestionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionDetail;
+};
+
+export type ApplySuggestionResponse = ApplySuggestionResponses[keyof ApplySuggestionResponses];
+
+export type DismissSuggestionData = {
+    /**
+     * Req
+     */
+    body?: DismissIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Suggestion Id
+         */
+        suggestion_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}/dismiss';
+};
+
+export type DismissSuggestionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DismissSuggestionError = DismissSuggestionErrors[keyof DismissSuggestionErrors];
+
+export type DismissSuggestionResponses = {
+    /**
+     * Successful Response
+     */
+    200: SuggestionDetail;
+};
+
+export type DismissSuggestionResponse = DismissSuggestionResponses[keyof DismissSuggestionResponses];
 
 export type InsightsOverviewData = {
     body?: never;

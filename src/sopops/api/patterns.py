@@ -34,11 +34,12 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.get("/v1/workspaces/{workspace}/patterns/{pattern_id}", response_model=PatternDetail, dependencies=OPEN, tags=["patterns"])
     def get_pattern(workspace: str, pattern_id: str, f: Filters = Depends(pattern_filters)) -> dict:
-        """One pattern: the rule it's about, example phrasings and its sessions in the window."""
+        """One pattern: the rule it's about, example phrasings and its sessions in the window, its verdict (with its
+        history), suppressed findings and suggestions."""
         out = store.insights.pattern(f, pattern_id)
         if out is None:
             raise NotFound(f"no pattern '{pattern_id}'")
-        return out
+        return {**out, **store.verdicts.for_pattern(f.workspace, pattern_id)}
 
     @r.post("/v1/workspaces/{workspace}/patterns/recluster", response_model=ReclusterResponse, dependencies=OPEN, tags=["patterns"])
     def recluster_patterns(workspace: str, req: ReclusterRequest | None = None) -> dict:

@@ -9,6 +9,8 @@ from pydantic import Field
 
 from .base import BaseModel
 from .checks import RuleKind
+from .suggestions import SuggestionSummary
+from .verdicts import VerdictOut
 
 PatternKind = Literal["rule", "sub", "other"]
 
@@ -45,6 +47,7 @@ class PatternOut(BaseModel):
     findings: int = Field(description="Findings in the window.")
     sessions: int = Field(description="Sessions with a finding in the window.")
     total_findings: int = Field(description="All time.")
+    suppressed: int = Field(0, description="Suppressed findings in the window (not in `findings` or `sessions`).")
     first_seen: datetime | None
     last_seen: datetime | None
     theme_name: str | None = None
@@ -71,6 +74,10 @@ class PatternsResponse(BaseModel):
 class PatternDetail(PatternOut):
     rule: RuleRef
     sub_patterns: list[PatternOut]
+    verdict: VerdictOut | None = Field(None, description="Its current verdict (its rule pattern's, when it has none of its own).")
+    verdict_history: list[VerdictOut] = Field(default_factory=list, description="Its own verdicts, newest first.")
+    suppressed_count: int = Field(0, description="Suppressed findings, all time.")
+    suggestions: list[SuggestionSummary] = Field(default_factory=list, description="Newest first.")
 
 
 class ReclusterRequest(BaseModel):

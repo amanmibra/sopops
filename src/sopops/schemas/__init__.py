@@ -163,6 +163,12 @@ from .releases import (
     ReleaseResponse,
     ReleaseSummary,
 )
+from .review import (
+    ReviewExample,
+    ReviewItem,
+    ReviewResponse,
+    VerdictSaved,
+)
 from .runtime import (
     AgentDeliveryOut,
     DeliveryIn,
@@ -199,7 +205,25 @@ from .sessions import (
     ToolCallIn,
     TurnIn,
 )
+from .suggestions import (
+    AgentPromptChange,
+    ApplyIn,
+    DismissIn,
+    SuggestionDetail,
+    SuggestionPattern,
+    SuggestionPlan,
+    SuggestionStatus,
+    SuggestionSummary,
+    SuggestionsResponse,
+)
 from .tokens import TokenCreated, TokenIn, TokenOut, TokenScope
+from .verdicts import (
+    OverrideIn,
+    OverrideOut,
+    VerdictIn,
+    VerdictKind,
+    VerdictOut,
+)
 
 __all__ = [
     "AgentConfig",
@@ -209,14 +233,28 @@ __all__ = [
     "AgentImportRequest",
     "AgentIn",
     "AgentOut",
+    "AgentPromptChange",
     "AgentRate",
     "AgentGap",
     "AgentRow",
+    "ApplyIn",
     "Callout",
     "CalloutDrill",
+    "DismissIn",
+    "OverrideIn",
+    "OverrideOut",
     "Problem",
     "ReleasePoint",
+    "ReviewExample",
+    "ReviewItem",
+    "ReviewResponse",
     "SparkPoint",
+    "SuggestionDetail",
+    "SuggestionPattern",
+    "SuggestionPlan",
+    "SuggestionStatus",
+    "SuggestionSummary",
+    "SuggestionsResponse",
     "Thresholds",
     "AgentSaved",
     "AgentSummary",
@@ -380,6 +418,10 @@ __all__ = [
     "ValidateResponse",
     "VariableEdit",
     "VariableRow",
+    "VerdictIn",
+    "VerdictKind",
+    "VerdictOut",
+    "VerdictSaved",
     "WarningImpact",
     "Wording",
     "WordingGroup",

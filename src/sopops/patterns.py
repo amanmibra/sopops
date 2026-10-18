@@ -9,7 +9,10 @@
   (`recluster_due`) and on demand (`sopops recluster`, `POST .../patterns/recluster`).
 - Reclustering keeps ids and names stable: each new cluster is matched to the old sub-pattern it shares the most
   findings with (Jaccard over finding ids, at least `MATCH_JACCARD`), and keeps that pattern's id and name, so
-  verdicts on it keep applying. Old sub-patterns that match nothing are retired, not deleted.
+  verdicts on it keep applying. Old sub-patterns that match nothing are retired, not deleted; a retired one's verdict
+  carries over to the cluster that took most of its findings (at least `MATCH_JACCARD`), unless that has its own.
+- After every assignment and recluster, `sopops.verdicts` brings the rules' suppressed findings in line with the
+  verdicts (findings moved between patterns can change).
 - **Themes** group a procedure's rule patterns by the phase of the session where they happen; a model names and
   orders them, reusing existing theme names where they still fit (by key, else by member overlap).
 
@@ -41,6 +44,7 @@ from .ai.signatures import (
     ThemeIn,
 )
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
+from .verdicts import carry_over
 
 if TYPE_CHECKING:
     from .ai.lm import AI
@@ -250,6 +254,7 @@ class Patterns:
             db.flush()
             for p in rule_pats.values():
                 self._refresh_counts(db, p)
+        self.store.verdicts.refresh(ws, rules=list(rule_pats))
         return len(findings)
 
     def _choose(self, ai: AI, views: list[FindingView], options: dict[str, list[Pattern]]) -> dict[str, str]:
@@ -415,6 +420,7 @@ class Patterns:
                     db.add(f)
             if moved:
                 self._assign(ws, moved, ai)
+        self.store.verdicts.refresh(ws, rules=[(procedure_id, rule_id)])
         return True
 
     def _apply_clusters(self, ws: str, rule_pattern_id: str, clusters: list[tuple[str, str, set[str]]], seen: list[str], model: str | None, version: str) -> None:
@@ -440,6 +446,7 @@ class Patterns:
                     continue
                 match[i], _ = by_id[pid], used.add(pid)
             target: dict[str, str] = {}
+            successor: dict[int, str] = {}
             for i, (name, desc, fids) in enumerate(clusters):
                 p = match.get(i)
                 if p is None:
@@ -447,12 +454,18 @@ class Patterns:
                                 description=desc, theme_id=rp.theme_id, created_at=now, updated_at=now)
                 p.status, p.model, p.prompt_version, p.updated_at = "active", model, version, now  # a matched pattern keeps its id and name
                 db.add(p)
+                successor[i] = p.id
                 for fid in fids:
                     target[fid] = p.id
+            carried = []
             for p in old_subs:
                 if p.id not in used:
                     p.status, p.updated_at = "retired", now
                     db.add(p)
+                    best = max(((jaccard(c[2], members[p.id]), i) for i, c in enumerate(clusters)), default=(0.0, -1))
+                    if best[0] >= MATCH_JACCARD:
+                        carried.append((p.id, successor[best[1]]))
+            carry_over(db, ws, carried, now)
             other = next((p for p in old if p.kind == "other"), None)
             if other is None:
                 other = Pattern(id=_id(), workspace_id=ws, procedure_id=rp.procedure_id, rule_id=rp.rule_id, parent_id=rp.id, kind="other",

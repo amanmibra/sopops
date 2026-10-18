@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, AppendSessionEventsData, AppendSessionEventsErrors, AppendSessionEventsResponses, ApplyImportData, ApplyImportErrors, ApplyImportResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateImportData, CreateImportErrors, CreateImportResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, CreateTokenData, CreateTokenErrors, CreateTokenResponses, DecideImportGroupData, DecideImportGroupErrors, DecideImportGroupResponses, DeletePlatformSecretData, DeletePlatformSecretErrors, DeletePlatformSecretResponses, DiscardImportData, DiscardImportErrors, DiscardImportResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, EditImportVariableData, EditImportVariableErrors, EditImportVariableResponses, ElevenlabsConversationInitData, ElevenlabsConversationInitErrors, ElevenlabsConversationInitResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetImportData, GetImportErrors, GetImportResponses, GetImportReviewData, GetImportReviewErrors, GetImportReviewResponses, GetPatternData, GetPatternErrors, GetPatternResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, ImportEventsData, ImportEventsErrors, ImportEventsResponses, ImportStreamData, ImportStreamErrors, ImportStreamResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, InsightsCompareData, InsightsCompareErrors, InsightsCompareResponses, InsightsOverviewData, InsightsOverviewErrors, InsightsOverviewResponses, InsightsProcedureData, InsightsProcedureErrors, InsightsProcedureResponses, InsightsReportData, InsightsReportErrors, InsightsReportResponses, InsightsRuleData, InsightsRuleErrors, InsightsRuleResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListDeliveryData, ListDeliveryErrors, ListDeliveryResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListImportsData, ListImportsErrors, ListImportsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListPlatformAgentsData, ListPlatformAgentsErrors, ListPlatformAgentsResponses, ListPlatformsData, ListPlatformsErrors, ListPlatformsResponses, ListPushesData, ListPushesErrors, ListPushesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListTokensData, ListTokensErrors, ListTokensResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, OnboardingCapabilitiesData, OnboardingCapabilitiesResponses, OnboardingCheckData, OnboardingCheckErrors, OnboardingCheckResponses, OnboardingProgressData, OnboardingProgressErrors, OnboardingProgressResponses, OnboardingPushData, OnboardingPushErrors, OnboardingPushResponses, OnboardingSessionData, OnboardingSessionErrors, OnboardingSessionResponses, OpenSessionData, OpenSessionErrors, OpenSessionResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, ReclusterPatternsData, ReclusterPatternsErrors, ReclusterPatternsResponses, RecordServedData, RecordServedErrors, RecordServedResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, ResolveImportFindingData, ResolveImportFindingErrors, ResolveImportFindingResponses, RetryPushesData, RetryPushesErrors, RetryPushesResponses, RevokeImportTokenData, RevokeImportTokenErrors, RevokeImportTokenResponses, RevokeTokenData, RevokeTokenErrors, RevokeTokenResponses, SetDeliveryData, SetDeliveryErrors, SetDeliveryResponses, SetPlatformSecretData, SetPlatformSecretErrors, SetPlatformSecretResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, StartAgentImportData, StartAgentImportErrors, StartAgentImportResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, TestPlatformKeyData, TestPlatformKeyErrors, TestPlatformKeyResponses, UpdateImportProposalData, UpdateImportProposalErrors, UpdateImportProposalResponses, ValidateData, ValidateErrors, ValidateResponses, VapiAssistantRequestData, VapiAssistantRequestErrors, VapiAssistantRequestResponses } from './types.gen';
+import type { ActivateData, ActivateErrors, ActivateResponses, AddBlockData, AddBlockErrors, AddBlockResponses, AppendSessionEventsData, AppendSessionEventsErrors, AppendSessionEventsResponses, ApplyImportData, ApplyImportErrors, ApplyImportResponses, ApplySuggestionData, ApplySuggestionErrors, ApplySuggestionResponses, CloseSessionData, CloseSessionErrors, CloseSessionResponses, ConfigAgentHistoryData, ConfigAgentHistoryErrors, ConfigAgentHistoryResponses, ConfigAgentVersionData, ConfigAgentVersionErrors, ConfigAgentVersionResponses, ConfigCreateAgentData, ConfigCreateAgentErrors, ConfigCreateAgentResponses, ConfigCreateGroupData, ConfigCreateGroupErrors, ConfigCreateGroupResponses, ConfigCreateInstructionData, ConfigCreateInstructionErrors, ConfigCreateInstructionResponses, ConfigCreateProcedureData, ConfigCreateProcedureErrors, ConfigCreateProcedureResponses, ConfigDeleteAgentData, ConfigDeleteAgentErrors, ConfigDeleteAgentResponses, ConfigDeleteGroupData, ConfigDeleteGroupErrors, ConfigDeleteGroupResponses, ConfigDeleteInstructionData, ConfigDeleteInstructionErrors, ConfigDeleteInstructionResponses, ConfigDeleteProcedureData, ConfigDeleteProcedureErrors, ConfigDeleteProcedureResponses, ConfigGetAgentData, ConfigGetAgentErrors, ConfigGetAgentResponses, ConfigGetGroupData, ConfigGetGroupErrors, ConfigGetGroupResponses, ConfigGetInstructionData, ConfigGetInstructionErrors, ConfigGetInstructionResponses, ConfigGetProcedureData, ConfigGetProcedureErrors, ConfigGetProcedureResponses, ConfigGroupHistoryData, ConfigGroupHistoryErrors, ConfigGroupHistoryResponses, ConfigGroupVersionData, ConfigGroupVersionErrors, ConfigGroupVersionResponses, ConfigInstructionHistoryData, ConfigInstructionHistoryErrors, ConfigInstructionHistoryResponses, ConfigInstructionVersionData, ConfigInstructionVersionErrors, ConfigInstructionVersionResponses, ConfigListAgentsData, ConfigListAgentsErrors, ConfigListAgentsResponses, ConfigListGroupsData, ConfigListGroupsErrors, ConfigListGroupsResponses, ConfigListInstructionsData, ConfigListInstructionsErrors, ConfigListInstructionsResponses, ConfigListProceduresData, ConfigListProceduresErrors, ConfigListProceduresResponses, ConfigProcedureHistoryData, ConfigProcedureHistoryErrors, ConfigProcedureHistoryResponses, ConfigProcedureVersionData, ConfigProcedureVersionErrors, ConfigProcedureVersionResponses, ConfigPutAgentData, ConfigPutAgentErrors, ConfigPutAgentResponses, ConfigPutGroupData, ConfigPutGroupErrors, ConfigPutGroupResponses, ConfigPutInstructionData, ConfigPutInstructionErrors, ConfigPutInstructionResponses, ConfigPutProcedureData, ConfigPutProcedureErrors, ConfigPutProcedureResponses, CreateImportData, CreateImportErrors, CreateImportResponses, CreateReleaseData, CreateReleaseErrors, CreateReleaseResponses, CreateTokenData, CreateTokenErrors, CreateTokenResponses, DecideImportGroupData, DecideImportGroupErrors, DecideImportGroupResponses, DeletePlatformSecretData, DeletePlatformSecretErrors, DeletePlatformSecretResponses, DiscardImportData, DiscardImportErrors, DiscardImportResponses, DismissSuggestionData, DismissSuggestionErrors, DismissSuggestionResponses, DraftData, DraftErrors, DraftResponses, EditFilesData, EditFilesErrors, EditFilesResponses, EditImportVariableData, EditImportVariableErrors, EditImportVariableResponses, ElevenlabsConversationInitData, ElevenlabsConversationInitErrors, ElevenlabsConversationInitResponses, ExportRegressionData, ExportRegressionErrors, ExportRegressionResponses, FileHistoryData, FileHistoryErrors, FileHistoryResponses, GetAgentData, GetAgentErrors, GetAgentResponses, GetConfigData, GetConfigErrors, GetConfigResponses, GetFileData, GetFileErrors, GetFileResponses, GetImportData, GetImportErrors, GetImportResponses, GetImportReviewData, GetImportReviewErrors, GetImportReviewResponses, GetPatternData, GetPatternErrors, GetPatternResponses, GetPromptData, GetPromptErrors, GetPromptResponses, GetReleaseData, GetReleaseErrors, GetReleaseResponses, GetSessionData, GetSessionErrors, GetSessionResponses, GetSettingsData, GetSettingsErrors, GetSettingsResponses, GetSopData, GetSopErrors, GetSopResponses, GetSuggestionData, GetSuggestionErrors, GetSuggestionResponses, ImportEventsData, ImportEventsErrors, ImportEventsResponses, ImportStreamData, ImportStreamErrors, ImportStreamResponses, IngestSessionData, IngestSessionErrors, IngestSessionResponses, InsightsCompareData, InsightsCompareErrors, InsightsCompareResponses, InsightsOverviewData, InsightsOverviewErrors, InsightsOverviewResponses, InsightsProcedureData, InsightsProcedureErrors, InsightsProcedureResponses, InsightsReportData, InsightsReportErrors, InsightsReportResponses, InsightsRuleData, InsightsRuleErrors, InsightsRuleResponses, LintData, LintErrors, LintResponses, ListAgentsData, ListAgentsErrors, ListAgentsResponses, ListDeliveryData, ListDeliveryErrors, ListDeliveryResponses, ListFetchesData, ListFetchesErrors, ListFetchesResponses, ListFilesData, ListFilesErrors, ListFilesResponses, ListImportsData, ListImportsErrors, ListImportsResponses, ListPatternsData, ListPatternsErrors, ListPatternsResponses, ListPlatformAgentsData, ListPlatformAgentsErrors, ListPlatformAgentsResponses, ListPlatformsData, ListPlatformsErrors, ListPlatformsResponses, ListPushesData, ListPushesErrors, ListPushesResponses, ListReleasesData, ListReleasesErrors, ListReleasesResponses, ListSessionsData, ListSessionsErrors, ListSessionsResponses, ListSuggestionsData, ListSuggestionsErrors, ListSuggestionsResponses, ListTokensData, ListTokensErrors, ListTokensResponses, ListWorkspacesData, ListWorkspacesResponses, MigrateData, MigrateErrors, MigrateFilesData, MigrateFilesErrors, MigrateFilesResponses, MigrateResponses, OnboardingCapabilitiesData, OnboardingCapabilitiesResponses, OnboardingCheckData, OnboardingCheckErrors, OnboardingCheckResponses, OnboardingProgressData, OnboardingProgressErrors, OnboardingProgressResponses, OnboardingPushData, OnboardingPushErrors, OnboardingPushResponses, OnboardingSessionData, OnboardingSessionErrors, OnboardingSessionResponses, OpenSessionData, OpenSessionErrors, OpenSessionResponses, OverrideFindingData, OverrideFindingErrors, OverrideFindingResponses, PreviewAgentData, PreviewAgentErrors, PreviewAgentResponses, PublishData, PublishErrors, PublishResponses, PutSettingsData, PutSettingsErrors, PutSettingsResponses, ReclusterPatternsData, ReclusterPatternsErrors, ReclusterPatternsResponses, RecordServedData, RecordServedErrors, RecordServedResponses, RemoveBlockData, RemoveBlockErrors, RemoveBlockResponses, RenderData, RenderErrors, RenderResponses, ReplaceFilesData, ReplaceFilesErrors, ReplaceFilesResponses, ResolveImportFindingData, ResolveImportFindingErrors, ResolveImportFindingResponses, RetryPushesData, RetryPushesErrors, RetryPushesResponses, ReviewQueueData, ReviewQueueErrors, ReviewQueueResponses, RevokeImportTokenData, RevokeImportTokenErrors, RevokeImportTokenResponses, RevokeTokenData, RevokeTokenErrors, RevokeTokenResponses, SetDeliveryData, SetDeliveryErrors, SetDeliveryResponses, SetPlatformSecretData, SetPlatformSecretErrors, SetPlatformSecretResponses, SettingsHistoryData, SettingsHistoryErrors, SettingsHistoryResponses, SettingsVersionData, SettingsVersionErrors, SettingsVersionResponses, SetVerdictData, SetVerdictErrors, SetVerdictResponses, StartAgentImportData, StartAgentImportErrors, StartAgentImportResponses, StreamSessionsData, StreamSessionsErrors, StreamSessionsResponses, SuggestEditData, SuggestEditErrors, SuggestEditResponses, TestPlatformKeyData, TestPlatformKeyErrors, TestPlatformKeyResponses, UpdateImportProposalData, UpdateImportProposalErrors, UpdateImportProposalResponses, ValidateData, ValidateErrors, ValidateResponses, VapiAssistantRequestData, VapiAssistantRequestErrors, VapiAssistantRequestResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -806,7 +806,8 @@ export const listPatterns = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Get Pattern
  *
- * One pattern: the rule it's about, example phrasings and its sessions in the window.
+ * One pattern: the rule it's about, example phrasings and its sessions in the window, its verdict (with its
+ * history), suppressed findings and suggestions.
  */
 export const getPattern = <ThrowOnError extends boolean = false>(options: Options<GetPatternData, ThrowOnError>): RequestResult<GetPatternResponses, GetPatternErrors, ThrowOnError> => (options.client ?? client).get<GetPatternResponses, GetPatternErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns/{pattern_id}', ...options });
 
@@ -818,6 +819,104 @@ export const getPattern = <ThrowOnError extends boolean = false>(options: Option
  */
 export const reclusterPatterns = <ThrowOnError extends boolean = false>(options: Options<ReclusterPatternsData, ThrowOnError>): RequestResult<ReclusterPatternsResponses, ReclusterPatternsErrors, ThrowOnError> => (options.client ?? client).post<ReclusterPatternsResponses, ReclusterPatternsErrors, ThrowOnError>({
     url: '/v1/workspaces/{workspace}/patterns/recluster',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Review Queue
+ *
+ * Patterns that need a verdict: no verdict yet, or findings that aren't suppressed since it. Each active leaf
+ * pattern (a rule pattern that isn't split, else its failure modes), most sessions first.
+ */
+export const reviewQueue = <ThrowOnError extends boolean = false>(options: Options<ReviewQueueData, ThrowOnError>): RequestResult<ReviewQueueResponses, ReviewQueueErrors, ThrowOnError> => (options.client ?? client).get<ReviewQueueResponses, ReviewQueueErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/review', ...options });
+
+/**
+ * Set Verdict
+ *
+ * Give a pattern a verdict (the history is kept; the latest counts). `acceptable` and `checker_wrong` suppress
+ * its findings, now and later. With `suggest`, a verdict that calls for an edit queues a suggestion.
+ */
+export const setVerdict = <ThrowOnError extends boolean = false>(options: Options<SetVerdictData, ThrowOnError>): RequestResult<SetVerdictResponses, SetVerdictErrors, ThrowOnError> => (options.client ?? client).post<SetVerdictResponses, SetVerdictErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/verdict',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Override Finding
+ *
+ * Say whether the checker got one finding right. A wrong one is suppressed and a negative calibration label;
+ * it's kept by session and rule, so it outlives a re-check.
+ */
+export const overrideFinding = <ThrowOnError extends boolean = false>(options: Options<OverrideFindingData, ThrowOnError>): RequestResult<OverrideFindingResponses, OverrideFindingErrors, ThrowOnError> => (options.client ?? client).post<OverrideFindingResponses, OverrideFindingErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/findings/{finding_id}/override',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Export Regression
+ *
+ * The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript
+ * (`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):
+ * replay the conversation against the fixed prompt; the agent should pass the rule (`expected_status`).
+ * `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this
+ * transcript; the rule should come out `expected_status`. Needs a verdict.
+ */
+export const exportRegression = <ThrowOnError extends boolean = false>(options: Options<ExportRegressionData, ThrowOnError>): RequestResult<ExportRegressionResponses, ExportRegressionErrors, ThrowOnError> => (options.client ?? client).get<ExportRegressionResponses, ExportRegressionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/regression', ...options });
+
+/**
+ * List Suggestions
+ *
+ * Newest first.
+ */
+export const listSuggestions = <ThrowOnError extends boolean = false>(options: Options<ListSuggestionsData, ThrowOnError>): RequestResult<ListSuggestionsResponses, ListSuggestionsErrors, ThrowOnError> => (options.client ?? client).get<ListSuggestionsResponses, ListSuggestionsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/suggestions', ...options });
+
+/**
+ * Get Suggestion
+ *
+ * The file before and after, the rationale, and the plan: each agent whose prompt changes, with a diff.
+ */
+export const getSuggestion = <ThrowOnError extends boolean = false>(options: Options<GetSuggestionData, ThrowOnError>): RequestResult<GetSuggestionResponses, GetSuggestionErrors, ThrowOnError> => (options.client ?? client).get<GetSuggestionResponses, GetSuggestionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}', ...options });
+
+/**
+ * Suggest Edit
+ *
+ * (Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong). It comes back
+ * `generating`; the model and sopc run as a job.
+ */
+export const suggestEdit = <ThrowOnError extends boolean = false>(options: Options<SuggestEditData, ThrowOnError>): RequestResult<SuggestEditResponses, SuggestEditErrors, ThrowOnError> => (options.client ?? client).post<SuggestEditResponses, SuggestEditErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest', ...options });
+
+/**
+ * Apply Suggestion
+ *
+ * A pull request when the workspace has a repo connection (`pr_open`), else a draft edit of the procedure
+ * (`applied`; it shows in Unpublished changes). 409 unless it's proposed and the procedure is unchanged since.
+ */
+export const applySuggestion = <ThrowOnError extends boolean = false>(options: Options<ApplySuggestionData, ThrowOnError>): RequestResult<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError> => (options.client ?? client).post<ApplySuggestionResponses, ApplySuggestionErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}/apply',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Dismiss Suggestion
+ */
+export const dismissSuggestion = <ThrowOnError extends boolean = false>(options: Options<DismissSuggestionData, ThrowOnError>): RequestResult<DismissSuggestionResponses, DismissSuggestionErrors, ThrowOnError> => (options.client ?? client).post<DismissSuggestionResponses, DismissSuggestionErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}/dismiss',
     ...options,
     headers: {
         'Content-Type': 'application/json',

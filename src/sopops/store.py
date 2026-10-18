@@ -25,7 +25,9 @@ from .orm import Fetch, FileVersion, Release, Workspace
 from .patterns import Patterns
 from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
+from .suggestions import Suggestions
 from .tokens import Tokens
+from .verdicts import Verdicts
 
 # Which folder each lock.json block kind lives in.
 _KIND_DIRS = {"agent": "agents", "instruction": "instructions", "sop": "procedures", "base": "bases"}  # base: sopc v0.0.8
@@ -41,6 +43,8 @@ class Store:
         self.tokens = Tokens(self)
         self.checks = Checks(self)
         self.patterns = Patterns(self)
+        self.verdicts = Verdicts(self)
+        self.suggestions = Suggestions(self)
         self.insights = Insights(self)
         if migrate:
             upgrade(self.engine)

@@ -138,7 +138,7 @@ A session is one conversation an agent had: a voice call or a text chat. Session
 | Endpoint | What it does |
 |---|---|
 | `POST …/sessions` | Ingest one session (below), with `Authorization: Bearer <token>` (scope `ingest`). An upsert on `(platform, external_id)`: `201 {id, created: true, updated: false, status, warnings}` for a new session; `200` with `updated: true` if its content changed; `200` with both false for an identical re-send, which changes nothing. A new or changed session runs `process_session`. `401` without a valid token for the workspace, `403` for one without the `ingest` scope. |
-| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result). |
+| `GET …/sessions` | Newest first by start time: `{items, next_cursor}`. Each has `status` and `result` (the worst procedure result, once checked). Filters: `agent` (sopc id, or the agent as sent), `channel`, `status`, `result`, `platform`, `since`, `until` (ISO 8601, on `started_at`), `release`, plus `cursor` (the previous page's `next_cursor`) and `limit` (default 50, max 200). Drill-down filters (what [Insights](#insights) links to): `procedure` (the router considered it), `procedure_result`, `rule` with optional `rule_status` (repeatable), `pattern` (a rule pattern includes its sub-patterns), `theme`, `finding` (true: with any finding; false: with none), `eligible` (the sessions Insights rates: checked or partial, with a result), `suppressed` (false: the finding filters leave suppressed findings out, as Insights does; true: only them). |
 | `GET …/sessions/<id>` | One session with `turns`, `tool_calls`, `metadata` and `checks` ([SOP checks](#sop-checks)). |
 | `GET …/sessions/stream` | Server-sent events: `event: session` with `data: {type: created \| updated, workspace, id, status}` each time a session is ingested or processed. A comment every 15s keeps it open. |
 
@@ -223,10 +223,11 @@ Each session is checked against the procedures its agent lists (directly or thro
 | `excluded_reason` | Applied, but the session ended before the procedure started or finished, so it isn't checked. |
 | `route_reason` | The router's one-sentence reason. |
 | `result` | `deviated`, `partial`, `followed` or `not_measurable`; null unless checked. |
+| `checked_result` | The checker's own result. `result` leaves out [suppressed](#review-and-suggestions) findings; they differ only when one is suppressed. |
 | `goal_reached`, `goal_reason` | Whether the procedure's goal was reached (null: unclear). |
 | `steps_applicable`, `steps_done`, `nevers_violated` | Counts. Done includes out of order. |
 | `model`, `prompt_version` | What produced it. |
-| `rules` | `[{rule_id, kind, index, text, status, evidence: [{turn, quote, source}], reason, finding}]`, steps then nevers then warning signs. `turn` indexes `turns`; `source` is `transcript` or `tool_calls`. |
+| `rules` | `[{rule_id, kind, index, text, status, evidence: [{turn, quote, source}], reason, finding, finding_id, pattern_id, suppressed, override}]`, steps then nevers then warning signs. `turn` indexes `turns`; `source` is `transcript` or `tool_calls`. |
 
 **Rule statuses.**
 
@@ -261,7 +262,7 @@ Findings are grouped so the same mistake shows up once, with its count, instead 
 
 - **Rule pattern** (`kind: rule`): every finding on one rule. Created with the rule's first finding; named from the rule ("Step 6 missed", "Never rule 2 broken", "Warning sign 4 not acted on").
 - **Failure modes** (`kind: sub`): once a rule has 8 findings, the reasoning model splits its findings into at most 5 named ways the agent failed it, plus an `other` sub-pattern (`kind: other`) for findings that fit none. New findings on a split rule are assigned to one of its failure modes, or to `other`, by a decision (Jev, or the fast model).
-- **Reclustering**: a rule is split again when 25 findings arrived since its last clustering, or when `other` holds more than 25% of its findings (with at least 5 new since), plus a daily cron. New clusters are matched to the old ones by member overlap (Jaccard over finding ids, at least 0.3), so a matched failure mode keeps its id and name (and later, its verdicts). A failure mode that matches nothing is `retired`, not deleted.
+- **Reclustering**: a rule is split again when 25 findings arrived since its last clustering, or when `other` holds more than 25% of its findings (with at least 5 new since), plus a daily cron. New clusters are matched to the old ones by member overlap (Jaccard over finding ids, at least 0.3), so a matched failure mode keeps its id, name and verdicts. A failure mode that matches nothing is `retired`, not deleted; its verdict carries over to the new cluster that took most of its findings (Jaccard at least 0.3), unless that one has its own.
 - **Themes**: the reasoning model groups a procedure's rule patterns by the phase of the session where they happen (opening, taking the order, closing...), in session order. Existing theme names and ids are kept whenever they still fit.
 
 A finding's `pattern_id` is its most specific pattern. The pipeline assigns findings right after a session is checked (inline, or the Hatchet `sopops_patterns` workflow, one run at a time per workspace); due reclustering runs right after (inline) or in `sopops_recluster`. The daily cron is `sopops_recluster_daily` (`SOPOPS_RECLUSTER_CRON`, default `0 6 * * *`); without Hatchet, run `sopops recluster` from cron.
@@ -273,6 +274,38 @@ A finding's `pattern_id` is its most specific pattern. The pipeline assigns find
 | `POST …/patterns/recluster` | `{procedure?, rule?, force?}`: assign unassigned findings, recluster what's due (every rule with 8+ findings with `force`), regroup themes. Calls the models, synchronously. `{assigned, reclustered, themed}`. |
 
 `sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force]` does the same from the command line.
+
+## Review and suggestions
+
+A reviewer gives a pattern (a rule pattern or a failure mode) a **verdict**, with an optional note and a free-text `reviewer`:
+
+| Verdict | Means | Its findings | Suggestion |
+|---|---|---|---|
+| `real` | A real agent mistake. | Keep counting. | Change the instructions to prevent it. |
+| `acceptable` | Fine in this situation. | Suppressed, now and later. | Add the exception to the rule. |
+| `sop_wrong` | The instruction is wrong or outdated. | Keep counting. | Edit the rule. |
+| `checker_wrong` | sopops misjudged. | Suppressed, and negative calibration labels. | None. |
+
+Verdicts are appended, never edited: the latest is the pattern's verdict, the rest its `verdict_history`. A failure mode without one has its rule pattern's (`inherited: true`). An **override** says whether the checker got one finding right (`correct`); a wrong one is suppressed and a negative label, a right one overrides a `checker_wrong` pattern for that finding, and `acceptable` suppresses either way. Overrides are kept by session and rule, so they outlive a re-check.
+
+**Suppressed** findings are kept, flagged (`suppressed` on a session's rule results) and left out of every Insights count and rate. A procedure check's `result` is rolled up again with its suppressed rules read as passed (`checked_result` keeps the checker's own), and the session's result is the worst of its checks, so a session whose only deviation is suppressed counts as followed. Insights shows the suppressed counts on their own (`suppressed` on tiles, scoreboard rows, ladder rows and patterns).
+
+**Calibration labels** come from the same calls, per workspace and only from the database: `Verdicts.calibration_examples(workspace, procedure)` gives the labeled sessions (every session with a reviewed finding on the procedure) that `sopops.ai.programs.calibrate` takes for `check:<procedure>`.
+
+A **suggestion** is an edit to the pattern's procedure, made by the reasoning model (`SuggestEdit`) from the procedure's file at head, the rule, the pattern, the verdict and note, and up to 5 of its findings. It must compile with the rest of head; one that doesn't is sent back once with sopc's issues, then `failed`. `plan.agents` lists every agent whose prompt changes, with a diff. It's generated as a job (inline after the response, or the Hatchet `sopops_suggest` workflow). Status: `generating`, then `proposed` or `failed`; a proposal becomes `applied`, `pr_open` or `dismissed`. **Apply** opens a pull request when the workspace has a GitHub repo connection (`pr_open`, `pr_url`), else saves the file as a draft (`applied`), which shows in Unpublished changes and goes out with the next publish; either way only while the file is unchanged since (else `409`).
+
+| Endpoint | What it does |
+|---|---|
+| `GET …/review` | `{items, total}`: patterns that need a verdict (no verdict, or findings that aren't suppressed since it), most sessions first. Each active leaf pattern (a rule pattern that isn't split, else its failure modes and `other`), with its theme, procedure name, rule text, 5 example findings (`finding_id`, `session_id`, `started_at`, `excerpt`, `evidence`), its `verdict` (or null), `new_findings`, `suppressed_count` and its latest `suggestion` (or null). `limit` (default 50). |
+| `POST …/patterns/<id>/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
+| `POST …/findings/<id>/override` | `{correct, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. |
+| `GET …/patterns/<id>` | Also has `verdict`, `verdict_history`, `suppressed_count` (all time) and `suggestions`. |
+| `GET …/patterns/<id>/regression` | JSON Lines, one per finding in the pattern: `session_id`, `external_id`, `transcript_ref` (the session's URL), `procedure_id`, `rule_id`, `rule_kind`, `rule_text`, `verdict`, `observed_status`, `expected_status`, `expect`. `expect: agent` (a real mistake): replay the conversation against the fixed prompt, and the rule should now pass. `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check the same transcript, and the rule should come out `expected_status` (`done`, `ok`, or `present` for a warning sign). `409` without a verdict. |
+| `POST …/patterns/<id>/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
+| `GET …/suggestions?status=` | Newest first. |
+| `GET …/suggestions/<id>` | `old_text`, `new_text`, `rationale`, `plan` (`agents`: `agent`, `added`, `removed`, `diff`), `pattern`, `verdict`, `status`, `pr_url`, `error`. |
+| `POST …/suggestions/<id>/apply` | `{reviewer?}`. A pull request or a draft edit (above). |
+| `POST …/suggestions/<id>/dismiss` | `{note?, reviewer?}`. |
 
 ## Insights
 
@@ -286,6 +319,7 @@ Every number comes from one module (`sopops.insights`) with one set of definitio
 | Pass rate (procedure) | Checks followed / measurable checks (deviated, partial or followed); `not_measurable` checks are never rated. |
 | Pass rate (rule) | Steps: done / (done + skipped + out of order). Never rules: ok / (ok + violated). `n` is that denominator; `not_reached` and `not_applicable` are shown as a share, never counted. Warning signs are never in a pass rate: they are present (`present` or `unheeded`) or absent. |
 | Percentages | Whole numbers, rounded half up, with their `n`; null (shown "—") when the denominator is 0. Rate deltas are in points; count deltas in %. |
+| Suppressed findings | A verdict or override says they aren't a problem ([Review](#review-and-suggestions)): left out of every count and rate, with procedure and session results rolled up without them; counted on their own as `suppressed`. |
 | Comparisons | 95% Wilson interval per rate. A side with n < 10 is `thin` and never flagged; `regressed` / `improved` need a change of 5 points or more and intervals that don't overlap. Releases are compared by the release each session ran, never by date. |
 
 All take the window filters plus `agent`, `procedure`, `release` (repeatable) and `channel`.

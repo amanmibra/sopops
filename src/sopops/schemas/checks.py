@@ -38,6 +38,9 @@ class RuleResultOut(BaseModel):
     finding: bool = Field(description="A deviation: skipped, violated, out_of_order or unheeded.")
     pattern_id: str | None = Field(None, description="For a finding: the pattern it joined (its most specific one).")
     pattern_name: str | None = None
+    finding_id: str | None = Field(None, description="For a finding: its id (to override it).")
+    suppressed: bool = Field(False, description="A finding a verdict or override says isn't a problem; the result leaves it out.")
+    override: bool | None = Field(None, description="A reviewer's call on the finding: true (the checker was right), false, or none.")
 
 
 class ProcedureCheckOut(BaseModel):
@@ -48,7 +51,8 @@ class ProcedureCheckOut(BaseModel):
     applicable: bool = Field(description="The procedure applied to the session (false: the router found it didn't).")
     excluded_reason: str | None = Field(description="Applied, but the session ended before the procedure started or finished, so it isn't checked.")
     route_reason: str | None
-    result: CheckResultValue | None = Field(description="Null unless checked.")
+    result: CheckResultValue | None = Field(description="Null unless checked. Suppressed findings are left out.")
+    checked_result: CheckResultValue | None = Field(None, description="The checker's own result, with every finding.")
     goal_reached: bool | None
     goal_reason: str | None
     steps_applicable: int | None

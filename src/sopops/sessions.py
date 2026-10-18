@@ -280,11 +280,16 @@ class Sessions:
         theme: str | None = None,
         finding: bool | None = None,
         eligible: bool | None = None,
+        suppressed: bool | None = None,
     ) -> dict:
         """Newest first (by start time). `agent` matches the sopc agent or the agent as sent. The drill-down filters
         (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
-        check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it."""
+        check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it. `suppressed`
+        false leaves suppressed findings (and their rule results) out of those filters, true matches only them."""
         S = SessionRecord
+        found = select(Finding.session_id).where(Finding.workspace_id == workspace_id(workspace))
+        if suppressed is not None:
+            found = found.where(Finding.suppressed.is_(suppressed))
         q = select(S).where(S.workspace_id == workspace_id(workspace))
         if release is not None:
             q = q.where(S.release_id == release)
@@ -303,16 +308,19 @@ class Sessions:
                 rr = rr.where(RuleResult.procedure_id == procedure)
             if rule_status:
                 rr = rr.where(RuleResult.status.in_(rule_status))
+            if suppressed is not None:
+                hidden = RuleResult.id.in_(select(Finding.rule_result_id).where(Finding.suppressed.is_(True)))
+                rr = rr.where(hidden if suppressed else ~hidden)
             q = q.where(S.id.in_(rr))
         if pattern or theme:
             pats = select(Pattern.id).where(Pattern.workspace_id == workspace_id(workspace))
             pats = pats.where(or_(Pattern.id == pattern, Pattern.parent_id == pattern)) if pattern else pats.where(Pattern.theme_id == theme)
-            q = q.where(S.id.in_(select(Finding.session_id).where(Finding.pattern_id.in_(pats))))
+            q = q.where(S.id.in_(found.where(Finding.pattern_id.in_(pats))))
         if eligible is not None:  # Insights' eligible sessions: checked (or partial) with a result
             ok = and_(S.status.in_(("checked", "partial")), S.result.is_not(None))
             q = q.where(ok if eligible else ~ok)
         if finding is not None:
-            has = S.id.in_(select(Finding.session_id).where(Finding.workspace_id == workspace_id(workspace)))
+            has = S.id.in_(found)
             q = q.where(has if finding else ~has)
         if agent:
             q = q.where(or_(S.agent_id == agent, S.agent_ref == agent))

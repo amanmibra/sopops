@@ -21,10 +21,12 @@ from .api import (
     onboarding,
     patterns,
     releases,
+    review,
     runtime,
     serving,
     sessions,
     stateless,
+    suggestions,
     tokens,
     ui,
 )
@@ -86,6 +88,8 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         sessions.router(store, jobs),
         tokens.router(store),
         patterns.router(store, jobs),
+        review.router(store, jobs),
+        suggestions.router(store, jobs),
         insights.router(store),
     ):
         app.include_router(r)

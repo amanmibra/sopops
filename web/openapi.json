@@ -4570,6 +4570,24 @@
               "title": "Eligible"
             },
             "description": "Only sessions Insights rates (checked or partial, with a result); false: the others."
+          },
+          {
+            "name": "suppressed",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them out (what Insights counts), true matches only them; unset, both.",
+              "title": "Suppressed"
+            },
+            "description": "How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them out (what Insights counts), true matches only them; unset, both."
           }
         ],
         "responses": {
@@ -5295,7 +5313,7 @@
           "patterns"
         ],
         "summary": "Get Pattern",
-        "description": "One pattern: the rule it's about, example phrasings and its sessions in the window.",
+        "description": "One pattern: the rule it's about, example phrasings and its sessions in the window, its verdict (with its\nhistory), suppressed findings and suggestions.",
         "operationId": "get_pattern",
         "parameters": [
           {
@@ -5491,6 +5509,541 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReclusterResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/review": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Review Queue",
+        "description": "Patterns that need a verdict: no verdict yet, or findings that aren't suppressed since it. Each active leaf\npattern (a rule pattern that isn't split, else its failure modes), most sessions first.",
+        "operationId": "review_queue",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns/{pattern_id}/verdict": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Set Verdict",
+        "description": "Give a pattern a verdict (the history is kept; the latest counts). `acceptable` and `checker_wrong` suppress\nits findings, now and later. With `suggest`, a verdict that calls for an edit queues a suggestion.",
+        "operationId": "set_verdict",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "pattern_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pattern Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerdictIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerdictSaved"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/findings/{finding_id}/override": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Override Finding",
+        "description": "Say whether the checker got one finding right. A wrong one is suppressed and a negative calibration label;\nit's kept by session and rule, so it outlives a re-check.",
+        "operationId": "override_finding",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "finding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Finding Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverrideIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverrideOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns/{pattern_id}/regression": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Export Regression",
+        "description": "The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript\n(`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):\nreplay the conversation against the fixed prompt; the agent should pass the rule (`expected_status`).\n`expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this\ntranscript; the rule should come out `expected_status`. Needs a verdict.",
+        "operationId": "export_regression",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "pattern_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pattern Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One JSON object per line.",
+            "content": {
+              "application/x-ndjson": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/suggestions": {
+      "get": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "List Suggestions",
+        "description": "Newest first.",
+        "operationId": "list_suggestions",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "generating",
+                    "proposed",
+                    "applied",
+                    "dismissed",
+                    "pr_open",
+                    "failed"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/suggestions/{suggestion_id}": {
+      "get": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "Get Suggestion",
+        "description": "The file before and after, the rationale, and the plan: each agent whose prompt changes, with a diff.",
+        "operationId": "get_suggestion",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "suggestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Suggestion Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "Suggest Edit",
+        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong). It comes back\n`generating`; the model and sopc run as a job.",
+        "operationId": "suggest_edit",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "pattern_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Pattern Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/suggestions/{suggestion_id}/apply": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "Apply Suggestion",
+        "description": "A pull request when the workspace has a repo connection (`pr_open`), else a draft edit of the procedure\n(`applied`; it shows in Unpublished changes). 409 unless it's proposed and the procedure is unchanged since.",
+        "operationId": "apply_suggestion",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "suggestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Suggestion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplyIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/suggestions/{suggestion_id}/dismiss": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "summary": "Dismiss Suggestion",
+        "operationId": "dismiss_suggestion",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "suggestion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Suggestion Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/DismissIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionDetail"
                 }
               }
             }
@@ -8176,6 +8729,37 @@
         ],
         "title": "AgentOut"
       },
+      "AgentPromptChange": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added",
+            "description": "Prompt lines added."
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed",
+            "description": "Prompt lines removed."
+          },
+          "diff": {
+            "type": "string",
+            "title": "Diff",
+            "description": "A unified diff of the agent's compiled prompt, now against suggested."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "added",
+          "removed",
+          "diff"
+        ],
+        "title": "AgentPromptChange"
+      },
       "AgentRate": {
         "properties": {
           "n": {
@@ -8469,6 +9053,23 @@
           "agents"
         ],
         "title": "AgentsResponse"
+      },
+      "ApplyIn": {
+        "properties": {
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          }
+        },
+        "type": "object",
+        "title": "ApplyIn"
       },
       "ApplyOut": {
         "properties": {
@@ -9378,6 +9979,34 @@
           "decision"
         ],
         "title": "Disagreement"
+      },
+      "DismissIn": {
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          }
+        },
+        "type": "object",
+        "title": "DismissIn"
       },
       "DraftAgent": {
         "properties": {
@@ -11109,6 +11738,12 @@
             "type": "integer",
             "title": "Findings"
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Suppressed findings on the rule in the window (not in `findings` or the rates).",
+            "default": 0
+          },
           "pattern_id": {
             "anyOf": [
               {
@@ -11178,6 +11813,7 @@
           "not_counted",
           "not_counted_pct",
           "findings",
+          "suppressed",
           "pattern_id",
           "patterns",
           "reached_pct",
@@ -11609,6 +12245,123 @@
         ],
         "title": "NewProcedure"
       },
+      "OverrideIn": {
+        "properties": {
+          "correct": {
+            "type": "boolean",
+            "title": "Correct",
+            "description": "Whether the checker got this finding right. False suppresses it and makes it a negative calibration label."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "correct"
+        ],
+        "title": "OverrideIn"
+      },
+      "OverrideOut": {
+        "properties": {
+          "override_id": {
+            "type": "string",
+            "title": "Override Id"
+          },
+          "finding_id": {
+            "type": "string",
+            "title": "Finding Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "correct": {
+            "type": "boolean",
+            "title": "Correct"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "suppressed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppressed",
+            "description": "Whether the finding is suppressed now (an `acceptable` pattern suppresses it either way)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "override_id",
+          "finding_id",
+          "session_id",
+          "procedure_id",
+          "rule_id",
+          "correct",
+          "note",
+          "reviewer",
+          "created_at",
+          "suppressed"
+        ],
+        "title": "OverrideOut"
+      },
       "OverviewResponse": {
         "properties": {
           "filters": {
@@ -11749,6 +12502,12 @@
             "title": "Total Findings",
             "description": "All time."
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Suppressed findings in the window (not in `findings` or `sessions`).",
+            "default": 0
+          },
           "first_seen": {
             "anyOf": [
               {
@@ -11820,6 +12579,39 @@
             },
             "type": "array",
             "title": "Sub Patterns"
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Its current verdict (its rule pattern's, when it has none of its own)."
+          },
+          "verdict_history": {
+            "items": {
+              "$ref": "#/components/schemas/VerdictOut"
+            },
+            "type": "array",
+            "title": "Verdict History",
+            "description": "Its own verdicts, newest first."
+          },
+          "suppressed_count": {
+            "type": "integer",
+            "title": "Suppressed Count",
+            "description": "Suppressed findings, all time.",
+            "default": 0
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionSummary"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "description": "Newest first."
           }
         },
         "type": "object",
@@ -11836,6 +12628,7 @@
           "findings",
           "sessions",
           "total_findings",
+          "suppressed",
           "first_seen",
           "last_seen",
           "theme_name",
@@ -11843,7 +12636,11 @@
           "session_ids",
           "need_attention_pct",
           "rule",
-          "sub_patterns"
+          "sub_patterns",
+          "verdict",
+          "verdict_history",
+          "suppressed_count",
+          "suggestions"
         ],
         "title": "PatternDetail"
       },
@@ -11931,6 +12728,12 @@
             "title": "Total Findings",
             "description": "All time."
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Suppressed findings in the window (not in `findings` or `sessions`).",
+            "default": 0
+          },
           "first_seen": {
             "anyOf": [
               {
@@ -12008,6 +12811,7 @@
           "findings",
           "sessions",
           "total_findings",
+          "suppressed",
           "first_seen",
           "last_seen",
           "theme_name",
@@ -12385,7 +13189,25 @@
               }
             ],
             "title": "Result",
-            "description": "Null unless checked."
+            "description": "Null unless checked. Suppressed findings are left out."
+          },
+          "checked_result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deviated",
+                  "partial",
+                  "followed",
+                  "not_measurable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked Result",
+            "description": "The checker's own result, with every finding."
           },
           "goal_reached": {
             "anyOf": [
@@ -12487,6 +13309,7 @@
           "excluded_reason",
           "route_reason",
           "result",
+          "checked_result",
           "goal_reached",
           "goal_reason",
           "steps_applicable",
@@ -14406,6 +15229,12 @@
             "title": "Never Sessions",
             "description": "Sessions that broke a never rule."
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Findings a verdict or override suppressed: left out of every number above.",
+            "default": 0
+          },
           "multi_problem_sessions": {
             "type": "integer",
             "title": "Multi Problem Sessions"
@@ -14433,6 +15262,7 @@
           "rule_pass_rate",
           "never_violations",
           "never_sessions",
+          "suppressed",
           "multi_problem_sessions"
         ],
         "title": "ReportHeadline"
@@ -14569,6 +15399,284 @@
         ],
         "title": "ReviewCounts"
       },
+      "ReviewExample": {
+        "properties": {
+          "finding_id": {
+            "type": "string",
+            "title": "Finding Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excerpt",
+            "description": "The first quote from the transcript."
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "The checker's reason."
+          },
+          "evidence": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "suppressed": {
+            "type": "boolean",
+            "title": "Suppressed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "finding_id",
+          "session_id",
+          "started_at",
+          "status",
+          "excerpt",
+          "reason",
+          "evidence",
+          "suppressed"
+        ],
+        "title": "ReviewExample"
+      },
+      "ReviewItem": {
+        "properties": {
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "sub",
+              "other"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "theme_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Id"
+          },
+          "theme_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Theme Name"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "retired"
+            ],
+            "title": "Status"
+          },
+          "findings": {
+            "type": "integer",
+            "title": "Findings",
+            "description": "All time."
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "All time."
+          },
+          "first_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Seen"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Seen"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/RuleRef"
+          },
+          "rule_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Text"
+          },
+          "examples": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewExample"
+            },
+            "type": "array",
+            "title": "Examples",
+            "description": "Up to 5, newest first (suppressed ones last)."
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "new_findings": {
+            "type": "integer",
+            "title": "New Findings",
+            "description": "Findings that aren't suppressed since the verdict (all of them without one)."
+          },
+          "suppressed_count": {
+            "type": "integer",
+            "title": "Suppressed Count"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest suggestion for the pattern."
+          }
+        },
+        "type": "object",
+        "required": [
+          "pattern_id",
+          "procedure_id",
+          "rule_id",
+          "parent_id",
+          "kind",
+          "name",
+          "description",
+          "theme_id",
+          "theme_name",
+          "status",
+          "findings",
+          "sessions",
+          "first_seen",
+          "last_seen",
+          "procedure_name",
+          "rule",
+          "rule_text",
+          "examples",
+          "verdict",
+          "new_findings",
+          "suppressed_count",
+          "suggestion"
+        ],
+        "title": "ReviewItem"
+      },
       "ReviewOut": {
         "properties": {
           "counts": {
@@ -14620,6 +15728,28 @@
           "fidelity"
         ],
         "title": "ReviewOut"
+      },
+      "ReviewResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Patterns needing a verdict (items is at most `limit` of them)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ReviewResponse"
       },
       "RuleDot": {
         "properties": {
@@ -14842,6 +15972,12 @@
             "title": "Total Findings",
             "description": "All time."
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Suppressed findings in the window (not in `findings` or `sessions`).",
+            "default": 0
+          },
           "first_seen": {
             "anyOf": [
               {
@@ -14936,6 +16072,7 @@
           "findings",
           "sessions",
           "total_findings",
+          "suppressed",
           "first_seen",
           "last_seen",
           "theme_name",
@@ -15082,6 +16219,36 @@
               }
             ],
             "title": "Pattern Name"
+          },
+          "finding_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finding Id",
+            "description": "For a finding: its id (to override it)."
+          },
+          "suppressed": {
+            "type": "boolean",
+            "title": "Suppressed",
+            "description": "A finding a verdict or override says isn't a problem; the result leaves it out.",
+            "default": false
+          },
+          "override": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Override",
+            "description": "A reviewer's call on the finding: true (the checker was right), false, or none."
           }
         },
         "type": "object",
@@ -15095,7 +16262,10 @@
           "reason",
           "finding",
           "pattern_id",
-          "pattern_name"
+          "pattern_name",
+          "finding_id",
+          "suppressed",
+          "override"
         ],
         "title": "RuleResultOut"
       },
@@ -15191,6 +16361,12 @@
             "title": "Open Patterns",
             "description": "Patterns (each finding's most specific one) with findings in the window."
           },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Suppressed findings in the window (not in any other count).",
+            "default": 0
+          },
           "rules": {
             "type": "integer",
             "title": "Rules"
@@ -15227,6 +16403,7 @@
           "top_failing_rules",
           "never_violations",
           "open_patterns",
+          "suppressed",
           "rules",
           "spark",
           "callouts"
@@ -16774,6 +17951,446 @@
         ],
         "title": "Step"
       },
+      "SuggestionDetail": {
+        "properties": {
+          "suggestion_id": {
+            "type": "string",
+            "title": "Suggestion Id"
+          },
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "pattern_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Name"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "block_id": {
+            "type": "string",
+            "title": "Block Id",
+            "description": "The block the edit is to: the procedure."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "generating",
+              "proposed",
+              "applied",
+              "dismissed",
+              "pr_open",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`."
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why it failed: sopc's issues with the last proposal, or the model's error."
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path",
+            "description": "The procedure's file."
+          },
+          "base_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Version",
+            "description": "The file's version it was made from; applying needs head to still be it."
+          },
+          "old_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Text"
+          },
+          "new_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Text"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionPlan"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Why it was dismissed."
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts",
+            "description": "Model proposals made (a proposal that doesn't compile is sent back once)."
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionPattern"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "verdict": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/VerdictOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The verdict it was made for."
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestion_id",
+          "pattern_id",
+          "pattern_name",
+          "procedure_id",
+          "rule_id",
+          "block_id",
+          "status",
+          "rationale",
+          "error",
+          "pr_url",
+          "created_at",
+          "updated_at",
+          "path",
+          "base_version",
+          "old_text",
+          "new_text",
+          "plan",
+          "note",
+          "reviewer",
+          "attempts",
+          "model",
+          "prompt_version",
+          "pattern",
+          "verdict"
+        ],
+        "title": "SuggestionDetail"
+      },
+      "SuggestionPattern": {
+        "properties": {
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rule",
+              "sub",
+              "other"
+            ],
+            "title": "Kind"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pattern_id",
+          "kind",
+          "name",
+          "description",
+          "procedure_id",
+          "rule_id"
+        ],
+        "title": "SuggestionPattern"
+      },
+      "SuggestionPlan": {
+        "properties": {
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentPromptChange"
+            },
+            "type": "array",
+            "title": "Agents",
+            "description": "Agents whose prompt changes."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents"
+        ],
+        "title": "SuggestionPlan"
+      },
+      "SuggestionSummary": {
+        "properties": {
+          "suggestion_id": {
+            "type": "string",
+            "title": "Suggestion Id"
+          },
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id"
+          },
+          "pattern_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern Name"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "block_id": {
+            "type": "string",
+            "title": "Block Id",
+            "description": "The block the edit is to: the procedure."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "generating",
+              "proposed",
+              "applied",
+              "dismissed",
+              "pr_open",
+              "failed"
+            ],
+            "title": "Status",
+            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request) or `dismissed`."
+          },
+          "rationale": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rationale"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why it failed: sopc's issues with the last proposal, or the model's error."
+          },
+          "pr_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Url"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "suggestion_id",
+          "pattern_id",
+          "pattern_name",
+          "procedure_id",
+          "rule_id",
+          "block_id",
+          "status",
+          "rationale",
+          "error",
+          "pr_url",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "SuggestionSummary"
+      },
+      "SuggestionsResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SuggestionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "SuggestionsResponse"
+      },
       "ThemeOut": {
         "properties": {
           "theme_id": {
@@ -17070,6 +18687,12 @@
             "type": "integer",
             "title": "Never Sessions",
             "description": "Sessions that broke a never rule."
+          },
+          "suppressed": {
+            "type": "integer",
+            "title": "Suppressed",
+            "description": "Findings a verdict or override suppressed: left out of every number above.",
+            "default": 0
           }
         },
         "type": "object",
@@ -17093,7 +18716,8 @@
           "rule_passes",
           "rule_pass_rate",
           "never_violations",
-          "never_sessions"
+          "never_sessions",
+          "suppressed"
         ],
         "title": "TilesValues"
       },
@@ -17782,6 +19406,233 @@
           "text"
         ],
         "title": "Variant"
+      },
+      "VerdictIn": {
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "real",
+              "acceptable",
+              "sop_wrong",
+              "checker_wrong"
+            ],
+            "title": "Verdict",
+            "description": "`real`: a real agent mistake (keeps counting). `acceptable`: fine in this situation (its findings are suppressed). `sop_wrong`: the instruction is wrong or outdated. `checker_wrong`: sopops misjudged (suppressed, and a negative calibration label)."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer",
+            "description": "Who gave it (free text until there's auth)."
+          },
+          "suggest": {
+            "type": "boolean",
+            "title": "Suggest",
+            "description": "Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict"
+        ],
+        "title": "VerdictIn"
+      },
+      "VerdictOut": {
+        "properties": {
+          "verdict_id": {
+            "type": "string",
+            "title": "Verdict Id"
+          },
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id",
+            "description": "The pattern it was given on: the rule pattern's, when `inherited`."
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "real",
+              "acceptable",
+              "sop_wrong",
+              "checker_wrong"
+            ],
+            "title": "Verdict"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "carried_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried From",
+            "description": "The retired pattern a recluster carried it over from."
+          },
+          "inherited": {
+            "type": "boolean",
+            "title": "Inherited",
+            "description": "A sub-pattern with no verdict of its own has its rule pattern's.",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict_id",
+          "pattern_id",
+          "verdict",
+          "note",
+          "reviewer",
+          "carried_from",
+          "inherited",
+          "created_at"
+        ],
+        "title": "VerdictOut"
+      },
+      "VerdictSaved": {
+        "properties": {
+          "verdict_id": {
+            "type": "string",
+            "title": "Verdict Id"
+          },
+          "pattern_id": {
+            "type": "string",
+            "title": "Pattern Id",
+            "description": "The pattern it was given on: the rule pattern's, when `inherited`."
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "real",
+              "acceptable",
+              "sop_wrong",
+              "checker_wrong"
+            ],
+            "title": "Verdict"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "carried_from": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Carried From",
+            "description": "The retired pattern a recluster carried it over from."
+          },
+          "inherited": {
+            "type": "boolean",
+            "title": "Inherited",
+            "description": "A sub-pattern with no verdict of its own has its rule pattern's.",
+            "default": false
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "suppressed_count": {
+            "type": "integer",
+            "title": "Suppressed Count",
+            "description": "The pattern's suppressed findings now."
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SuggestionSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The suggestion queued for it, when `suggest` and the verdict calls for one."
+          }
+        },
+        "type": "object",
+        "required": [
+          "verdict_id",
+          "pattern_id",
+          "verdict",
+          "note",
+          "reviewer",
+          "carried_from",
+          "inherited",
+          "created_at",
+          "suppressed_count",
+          "suggestion"
+        ],
+        "title": "VerdictSaved"
       },
       "WarningImpact": {
         "properties": {

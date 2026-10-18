@@ -63,6 +63,13 @@ class ReclusterRef(BaseModel):
     force: bool = False
 
 
+class SuggestRef(BaseModel):
+    workspace_id: str
+    suggestion_id: str
+    model_key: str = ""
+    rate_limit: int = 60
+
+
 EXCLUDED_REASON = {
     "ended_before_start": "The session ended before the procedure started.",
     "ended_before_finish": "The session ended before the procedure finished.",

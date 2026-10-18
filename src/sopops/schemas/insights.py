@@ -48,6 +48,7 @@ class TilesValues(BaseModel):
     rule_pass_rate: int | None = Field(description="Rule results passed / rule_n (warning signs left out).")
     never_violations: int = Field(description="Never rules broken (one session can break several).")
     never_sessions: int = Field(description="Sessions that broke a never rule.")
+    suppressed: int = Field(0, description="Findings a verdict or override suppressed: left out of every number above.")
 
 
 class Tiles(BaseModel):
@@ -113,6 +114,7 @@ class ScoreboardRow(BaseModel):
     top_failing_rules: list[FailingRule] = Field(description="The two rules failing most, among rules judged at least min_n times.")
     never_violations: int
     open_patterns: int = Field(description="Patterns (each finding's most specific one) with findings in the window.")
+    suppressed: int = Field(0, description="Suppressed findings in the window (not in any other count).")
     rules: int
     spark: list[SparkPoint] = Field(description="Pass rate per trend bucket: follows the selected window.")
     callouts: int = Field(description="How many of the overview's callouts are about this procedure.")
@@ -202,6 +204,7 @@ class LadderRow(BaseModel):
     not_counted: int
     not_counted_pct: int | None
     findings: int
+    suppressed: int = Field(0, description="Suppressed findings on the rule in the window (not in `findings` or the rates).")
     pattern_id: str | None
     patterns: int
     reached_pct: int | None = Field(description="Steps: judged sessions still going when the step was due (not reached left out).")

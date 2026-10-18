@@ -1,6 +1,8 @@
 """The decisions of routing and of one procedure's check as `dspy.Module`s, and `calibrate`, which fits their
 thresholds to a workspace's labeled sessions and stores them (`calibration`); the pipeline reads them from then on,
-for every question whose wording is unchanged.
+for every question whose wording is unchanged. Labeled sessions come from reviewers' verdicts and overrides
+(`sopops.verdicts.Verdicts.calibration_examples`). `SuggestEdits` is the one generative program: a procedure edit
+proposed by the reasoning model and checked, with one retry.
 
 The programs run the decisions only (no review by the reasoning model, no evidence): what the thresholds decide.
 
@@ -32,7 +34,8 @@ from sqlalchemy.engine import Engine
 from ..pipeline.procedures import Procedure
 from ..pipeline.rollup import FINDING_STATUSES, Judged, rollup
 from . import calibration, decide
-from .signatures import RuleChecks
+from .lm import AI
+from .signatures import ExampleIn, RuleChecks, SuggestEdit
 
 FOLDS = 5
 MAX_CANDIDATES = 40
@@ -111,6 +114,28 @@ class RouteDecisions(dspy.Module):
 
     def forward(self, turns: list[dict[str, Any]]) -> dspy.Prediction:
         return self.judge(self.answers(turns))
+
+
+class SuggestEdits(dspy.Module):
+    """A procedure edit from the reasoning model (`SuggestEdit`), checked by `validate(block_id, new_text)`, which
+    returns an error message or None. A proposal that fails is sent back once with the error. `forward` gives
+    `block_id`, `new_text`, `rationale`, `attempts`, and `error` (None when the last proposal passed)."""
+
+    def __init__(self, ai: AI, validate: Callable[[str, str], str | None], retries: int = 1):
+        super().__init__()
+        self.ai, self.validate, self.retries = ai, validate, retries
+
+    def forward(self, procedure_id: str, procedure_file: str, rule: str, pattern: str, verdict: str, note: str, examples: list[ExampleIn]) -> dspy.Prediction:
+        text, error, reply = "", "", None
+        for attempt in range(1, self.retries + 2):
+            reply = self.ai.predict("reasoning", SuggestEdit, procedure_id=procedure_id, procedure_file=procedure_file, rule=rule, pattern=pattern,
+                                    verdict=verdict, note=note, examples=examples, previous_text=text, previous_error=error)
+            text = reply.new_text
+            error = self.validate(reply.block_id.strip(), text) or ""
+            if not error:
+                break
+        assert reply is not None
+        return dspy.Prediction(block_id=reply.block_id.strip(), new_text=text, rationale=reply.rationale.strip(), attempts=attempt, error=error or None)
 
 
 def _agent_spoke(turns: list[dict[str, Any]]) -> bool:

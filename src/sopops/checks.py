@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, delete, select
 
-from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
+from .orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleResult, SessionRecord
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 from .pipeline.types import SessionRef
 
@@ -114,7 +114,8 @@ class Checks:
             if pc is None:
                 pc = ProcedureCheck(id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, procedure_name=p.name,
                                     procedure_version=p.version, release_id=p.release, applicable=True, revision=ref.revision, checked_at=now)
-            pc.result, pc.goal_reached, pc.goal_reason = roll.result, goal_reached, goal_reason
+            pc.result = pc.checked_result = roll.result  # suppressed findings are taken out after patterns (`sopops.verdicts`)
+            pc.goal_reached, pc.goal_reason = goal_reached, goal_reason
             pc.steps_applicable, pc.steps_done, pc.nevers_violated = roll.steps_applicable, roll.steps_done, roll.nevers_violated
             pc.model, pc.prompt_version, pc.checked_at = model, prompt_version, now
             db.add(pc)
@@ -152,6 +153,11 @@ class Checks:
                     select(Finding.rule_result_id, Pattern.id, Pattern.name).join(Pattern, Pattern.id == Finding.pattern_id).where(Finding.session_id == session_id)
                 )
             }
+            findings = {f.rule_result_id: f for f in db.exec(select(Finding).where(Finding.session_id == session_id))}
+            overrides = {
+                (o.procedure_id, o.rule_id): o.correct
+                for o in db.exec(select(FindingOverride).where(FindingOverride.session_id == session_id).order_by(FindingOverride.created_at))
+            }
         by_proc: dict[str, list[RuleResult]] = {}
         for r in rules:
             by_proc.setdefault(r.procedure_id, []).append(r)
@@ -161,13 +167,15 @@ class Checks:
             out.append({
                 "procedure_id": c.procedure_id, "procedure_name": c.procedure_name, "procedure_version": c.procedure_version,
                 "release_id": c.release_id, "applicable": c.applicable, "excluded_reason": c.excluded_reason, "route_reason": c.route_reason,
-                "result": c.result, "goal_reached": c.goal_reached, "goal_reason": c.goal_reason, "steps_applicable": c.steps_applicable,
+                "result": c.result, "checked_result": c.checked_result, "goal_reached": c.goal_reached, "goal_reason": c.goal_reason, "steps_applicable": c.steps_applicable,
                 "steps_done": c.steps_done, "nevers_violated": c.nevers_violated, "model": c.model, "prompt_version": c.prompt_version,
                 "checked_at": _utc(c.checked_at),
                 "rules": [
                     {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "text": r.rule_text, "status": r.status, "evidence": r.evidence,
                      "reason": r.reason, "finding": r.status in FINDING_STATUSES, "pattern_id": pats.get(r.id, (None, None))[0],
-                     "pattern_name": pats.get(r.id, (None, None))[1]}
+                     "pattern_name": pats.get(r.id, (None, None))[1], "finding_id": findings[r.id].id if r.id in findings else None,
+                     "suppressed": findings[r.id].suppressed if r.id in findings else False,
+                     "override": overrides.get((r.procedure_id, r.rule_id)) if r.id in findings else None}
                     for r in rr
                 ],
             })

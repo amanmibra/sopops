@@ -21,6 +21,9 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
   get a tone, a "most failed" mark or a callout only at n >= MIN_N (HOT_MIN_N for a hot rule).
 - **Callouts** are templated from these numbers, no model: a hot rule, a release that moved a procedure, a warning
   sign that drops the pass rate, a rising pattern.
+- **Suppressed findings** (a reviewer's verdict or override says they aren't a problem; see `sopops.verdicts`) are
+  left out of every count and rate: their rule results aren't judged, and procedure and session results are the ones
+  rolled up without them. They're counted on their own (`suppressed`).
 """
 
 from __future__ import annotations
@@ -197,6 +200,8 @@ class Filters:
 
 
 ELIGIBLE = and_(SessionRecord.status.in_(ELIGIBLE_STATUSES), SessionRecord.result.is_not(None))
+# rule results that aren't a suppressed finding
+UNSUPPRESSED = RuleResult.id.not_in(select(Finding.rule_result_id).where(Finding.suppressed.is_(True)))
 
 
 # --- the queries -------------------------------------------------------------------------------------------------------
@@ -254,9 +259,13 @@ class Insights:
             if kind == "never" and st in NEVER_FAIL:
                 nevers += n
         S, R = SessionRecord, RuleResult
-        nq = f.sessions(select(func.count(func.distinct(R.session_id))).join(S, S.id == R.session_id)).where(ELIGIBLE, R.kind == "never", R.status.in_(NEVER_FAIL))
+        nq = f.sessions(select(func.count(func.distinct(R.session_id))).join(S, S.id == R.session_id)).where(ELIGIBLE, R.kind == "never", R.status.in_(NEVER_FAIL), UNSUPPRESSED)
         if f.procedure:
             nq = nq.where(R.procedure_id == f.procedure)
+        F = Finding
+        sq = f.sessions(select(func.count(F.id)).join(S, S.id == F.session_id)).where(ELIGIBLE, F.suppressed.is_(True))
+        if f.procedure:
+            sq = sq.where(F.procedure_id == f.procedure)
         return {
             "sessions_checked": checked,
             "followed": oc.get("followed", 0),
@@ -278,6 +287,7 @@ class Insights:
             "rule_pass_rate": pct(rule_passes, rule_n),
             "never_violations": nevers,
             "never_sessions": db.exec(nq).one(),
+            "suppressed": db.exec(sq).one(),
         }
 
     def tiles(self, db: Session, f: Filters) -> dict[str, Any]:
@@ -296,7 +306,7 @@ class Insights:
         S, R = SessionRecord, RuleResult
         group = {"release": S.release_id, "agent": func.coalesce(S.agent_id, S.agent_ref)}.get(by or "")
         cols = [R.procedure_id, R.rule_id, R.kind, R.index, R.status, *([group] if group is not None else []), func.count(R.id)]
-        q = f.sessions(select(*cols).join(S, S.id == R.session_id)).where(ELIGIBLE)
+        q = f.sessions(select(*cols).join(S, S.id == R.session_id)).where(ELIGIBLE, UNSUPPRESSED)
         pid = procedure_id or f.procedure
         if pid:
             q = q.where(R.procedure_id == pid)
@@ -339,10 +349,11 @@ class Insights:
             out[(pid, rid)] = cur
         return out
 
-    def _pattern_window_counts(self, db: Session, f: Filters, procedure_id: str | None = None) -> dict[str, tuple[int, int]]:
-        """{pattern_id: (findings, sessions)} for findings of sessions in the window."""
+    def _pattern_window_counts(self, db: Session, f: Filters, procedure_id: str | None = None, suppressed: bool = False) -> dict[str, tuple[int, int]]:
+        """{pattern_id: (findings, sessions)} for findings of sessions in the window (only suppressed ones with `suppressed`)."""
         S, F = SessionRecord, Finding
-        q = f.sessions(select(F.pattern_id, func.count(F.id), func.count(func.distinct(F.session_id))).join(S, S.id == F.session_id)).where(ELIGIBLE, F.pattern_id.is_not(None))
+        q = f.sessions(select(F.pattern_id, func.count(F.id), func.count(func.distinct(F.session_id))).join(S, S.id == F.session_id))
+        q = q.where(ELIGIBLE, F.pattern_id.is_not(None), F.suppressed.is_(suppressed))
         pid = procedure_id or f.procedure
         if pid:
             q = q.where(F.procedure_id == pid)
@@ -358,6 +369,7 @@ class Insights:
             q = q.where(P.rule_id == rule_id)
         pats = list(db.exec(q))
         counts = self._pattern_window_counts(db, f, procedure_id)
+        hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         theme_names = dict(db.exec(select(Theme.id, Theme.name).where(Theme.workspace_id == f.workspace)).all())
         children: dict[str, list[Pattern]] = defaultdict(list)
         for p in pats:
@@ -372,11 +384,12 @@ class Insights:
                 n, s = counts.get(c.id, (0, 0))
                 if c.status != "active" and n == 0:
                     continue
-                subs.append({**_pattern_out(c, n, s), "theme_name": theme_names.get(c.theme_id or "")})
+                subs.append({**_pattern_out(c, n, s), "theme_name": theme_names.get(c.theme_id or ""), "suppressed": hidden.get(c.id, (0, 0))[0]})
             own = counts.get(p.id, (0, 0))
             n = own[0] + sum(x["findings"] for x in subs)
             s = own[1] + sum(x["sessions"] for x in subs)  # a session has at most one finding per rule
-            out.append({**_pattern_out(p, n, s), "theme_name": theme_names.get(p.theme_id or ""), "sub_patterns": subs})
+            gone = hidden.get(p.id, (0, 0))[0] + sum(hidden.get(c.id, (0, 0))[0] for c in children.get(p.id, []))
+            out.append({**_pattern_out(p, n, s), "theme_name": theme_names.get(p.theme_id or ""), "suppressed": gone, "sub_patterns": subs})
         return out
 
     # --- views ---
@@ -411,7 +424,7 @@ class Insights:
         S, R, PC = SessionRecord, RuleResult, ProcedureCheck
         q = f.sessions(select(R.session_id, R.procedure_id, R.kind, R.status).join(S, S.id == R.session_id)
                        .join(PC, and_(PC.session_id == R.session_id, PC.procedure_id == R.procedure_id)))
-        q = q.where(ELIGIBLE, PC.result.in_(MEASURABLE), R.status.in_(("skipped", "out_of_order", "not_reached", "unheeded", *NEVER_FAIL))).distinct()
+        q = q.where(ELIGIBLE, UNSUPPRESSED, PC.result.in_(MEASURABLE), R.status.in_(("skipped", "out_of_order", "not_reached", "unheeded", *NEVER_FAIL))).distinct()
         if f.procedure:
             q = q.where(R.procedure_id == f.procedure)
         hits: dict[str, set[tuple[str, str]]] = defaultdict(set)
@@ -592,6 +605,7 @@ class Insights:
             per_rule[(pid, rid)].append((kind, status, n))
         texts = self._rule_texts(db, f.workspace, f.procedure)
         counts = self._pattern_window_counts(db, f)
+        hidden = self._pattern_window_counts(db, f, suppressed=True)
         pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace)))
         excluded = dict(db.exec(f.sessions(select(ProcedureCheck.procedure_id, func.count(ProcedureCheck.id)).join(SessionRecord, SessionRecord.id == ProcedureCheck.session_id))
                                 .where(ProcedureCheck.excluded_reason.is_not(None)).group_by(ProcedureCheck.procedure_id)).all())
@@ -615,12 +629,13 @@ class Insights:
                                   "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])})
             worst.sort(key=lambda r: (-(r["fail_rate"] or 0), -r["n"]))
             open_patterns = sum(1 for p in pats if p.procedure_id == pid and counts.get(p.id, (0, 0))[0] > 0)  # leaves with findings in the window
+            suppressed = sum(hidden.get(p.id, (0, 0))[0] for p in pats if p.procedure_id == pid)
             out.append({
                 "procedure_id": pid, "procedure_name": names.get(pid) or (prior_by[pid][0][2] if prior_by.get(pid) else pid),
                 "checks": len(rows), "measurable": len(m), "followed": sum(c[3] == "followed" for c in m), "partial": sum(c[3] == "partial" for c in m),
                 "deviated": sum(c[3] == "deviated" for c in m), "not_measurable": len(rows) - len(m), "excluded": excluded.get(pid, 0),
                 "pass_rate": rate, "prior_pass_rate": prate, "prior_measurable": len(pm), "delta_points": delta_points(rate, prate),
-                "top_failing_rules": worst[:2], "never_violations": nevers, "open_patterns": open_patterns,
+                "top_failing_rules": worst[:2], "never_violations": nevers, "open_patterns": open_patterns, "suppressed": suppressed,
                 "rules": sum(1 for (p2, _r) in texts if p2 == pid), "spark": self._spark(f, rows), "callouts": 0,
             })
         out.sort(key=lambda r: (r["pass_rate"] if r["pass_rate"] is not None else 101, -r["deviated"]))
@@ -651,6 +666,7 @@ class Insights:
             per[rid].append((kind, status, n))
         texts = self._rule_texts(db, f.workspace, procedure_id)
         counts = self._pattern_window_counts(db, f, procedure_id)
+        hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace, Pattern.procedure_id == procedure_id)))
         rows = []
         order = {"step": 0, "never": 1, "warning": 2}
@@ -660,10 +676,11 @@ class Insights:
             rule_pat = next((p for p in mine if p.kind == "rule"), None)
             n_pat = sum(1 for p in mine if p.kind == "sub" and p.status == "active" and counts.get(p.id, (0, 0))[0] > 0)
             findings = sum(counts.get(p.id, (0, 0))[0] for p in mine)
+            suppressed = sum(hidden.get(p.id, (0, 0))[0] for p in mine)
             c = st["counts"]
             judged = st["total"] - c.get("not_applicable", 0)
             rows.append({"rule_id": rid, "kind": t["kind"], "index": t["index"], "text": t["text"], "wordings": t["wordings"], **st,
-                         "findings": findings, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat,
+                         "findings": findings, "suppressed": suppressed, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat,
                          "reached_pct": pct(judged - c.get("not_reached", 0), judged) if t["kind"] == "step" else None,
                          "tone": fail_tone(st["fail_rate"], st["n"]), "most_failed": False})
         rows.sort(key=lambda r: (order.get(r["kind"], 3), r["index"]))
@@ -702,7 +719,7 @@ class Insights:
         if not warnings:
             return []
         q = f.sessions(select(R.rule_id, R.status, PC.result, func.count(R.id)).join(S, S.id == R.session_id).join(PC, and_(PC.session_id == R.session_id, PC.procedure_id == R.procedure_id)))
-        q = q.where(ELIGIBLE, R.procedure_id == procedure_id, R.kind == "warning", PC.result.in_(MEASURABLE)).group_by(R.rule_id, R.status, PC.result)
+        q = q.where(ELIGIBLE, UNSUPPRESSED, R.procedure_id == procedure_id, R.kind == "warning", PC.result.in_(MEASURABLE)).group_by(R.rule_id, R.status, PC.result)
         c: dict[str, Counter] = defaultdict(Counter)
         for rid, status, result, n in db.exec(q).all():
             side = "present" if status in WARNING_PRESENT else "absent"
@@ -729,7 +746,7 @@ class Insights:
         S, F = SessionRecord, Finding
         sessions_of: dict[str, set[str]] = defaultdict(set)  # rule pattern id -> sessions with a finding on it
         parent = {p["pattern_id"]: p["pattern_id"] for p in pats} | {s["pattern_id"]: p["pattern_id"] for p in pats for s in p["sub_patterns"]}
-        for pat_id, sid in db.exec(f.sessions(select(F.pattern_id, F.session_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.procedure_id == procedure_id)).all():
+        for pat_id, sid in db.exec(f.sessions(select(F.pattern_id, F.session_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.procedure_id == procedure_id, F.suppressed.is_(False))).all():
             if pat_id in parent:
                 sessions_of[parent[pat_id]].add(sid)
         known = {t.id for t in themes}
@@ -777,7 +794,7 @@ class Insights:
                     by_agent[agent].append((k, s, n))
             agents = [{"agent": a, **_rate_out(self._rule_stats(v))} for a, v in sorted(by_agent.items(), key=lambda kv: str(kv[0]))]
             patterns = self._patterns(db, f, procedure_id, rule_id)
-            q = f.sessions(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.procedure_id == procedure_id, F.rule_id == rule_id)
+            q = f.sessions(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.procedure_id == procedure_id, F.rule_id == rule_id, F.suppressed.is_(False))
             recent = [
                 {"finding_id": fi.id, "session_id": fi.session_id, "started_at": _utc(at), "status": rr.status, "reason": rr.reason, "evidence": rr.evidence, "pattern_id": fi.pattern_id}
                 for fi, rr, at in db.exec(q.order_by(S.started_at.desc()).limit(5)).all()
@@ -864,7 +881,7 @@ class Insights:
         with self._db() as db:
             tiles = self._tiles(db, f)
             checks = self._checks(db, f)
-            per_session = f.sessions(select(F.session_id).join(S, S.id == F.session_id)).where(ELIGIBLE)
+            per_session = f.sessions(select(F.session_id).join(S, S.id == F.session_id)).where(ELIGIBLE, F.suppressed.is_(False))
             if f.procedure:
                 per_session = per_session.where(F.procedure_id == f.procedure)
             multi = db.exec(select(func.count()).select_from(per_session.group_by(F.session_id).having(func.count(func.distinct(F.rule_id)) > 1).subquery())).one()
@@ -883,7 +900,7 @@ class Insights:
                         ids = [x["pattern_id"] for x in leaves] + [p["pattern_id"]]
                         rows = db.exec(
                             f.sessions(select(F.pattern_id, F.session_id, R.evidence, R.status, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id))
-                            .where(ELIGIBLE, F.pattern_id.in_(ids)).order_by(S.started_at.desc())
+                            .where(ELIGIBLE, F.pattern_id.in_(ids), F.suppressed.is_(False)).order_by(S.started_at.desc())
                         ).all()
                         by_pat: dict[str, list] = defaultdict(list)
                         for pat_id, sid, ev, status, at in rows:
@@ -911,6 +928,8 @@ class Insights:
         return {"items": pats}
 
     def pattern(self, f: Filters, pattern_id: str, examples: int = 5) -> dict[str, Any] | None:
+        """Counts leave suppressed findings out; the examples and sessions keep them, so a pattern a reviewer called
+        acceptable still shows what it is."""
         S, R, F = SessionRecord, RuleResult, Finding
         with self._db() as db:
             p = db.get(Pattern, pattern_id)

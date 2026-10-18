@@ -12,6 +12,7 @@ from .calibrations import Calibration
 from .columns import JSONDoc
 from .fetches import Fetch
 from .file_versions import FileVersion
+from .finding_overrides import FindingOverride
 from .findings import Finding
 from .import_events import ImportEvent
 from .imports import ImportRecord
@@ -24,11 +25,13 @@ from .rule_checks import RuleChecks
 from .rule_results import RuleResult
 from .runtime_serves import RuntimeServe
 from .sessions import SessionRecord
+from .suggestions import Suggestion
 from .themes import Theme
 from .tokens import Token
+from .verdicts import Verdict
 from .workspaces import Workspace
 
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RuleChecks", "RuleResult", "RuntimeServe", "SessionRecord", "Theme", "Token", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RuleChecks", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]

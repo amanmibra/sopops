@@ -165,6 +165,8 @@ Every model call is a DSPy signature in [`src/sopops/ai/signatures.py`](src/sopo
 
 The **Report** reads like a hand-written call review: the headline numbers, then each theme and its patterns, every one with the rule it's about ("Your procedure says never: …"), how the agent phrased it, and the sessions.
 
+**Review** lists the patterns that need a verdict: `real` (a real agent mistake), `acceptable` (fine in this situation), `sop_wrong` (the instruction is outdated) or `checker_wrong` (sopops misjudged). Acceptable and checker-wrong findings are suppressed: kept, but out of every Insights number, so a session whose only deviation was acceptable counts as followed. Checker-wrong findings, and single findings a reviewer marks wrong, become the workspace's calibration labels. For the other verdicts the reasoning model suggests an edit to the procedure, compiled with sopc and shown as a prompt diff per agent; applying it saves a draft (or opens a pull request when the workspace is connected to GitHub). Each pattern also exports its sessions as regression cases (JSON Lines). Details: [API.md](API.md#review-and-suggestions).
+
 ## Git or database
 
 **Database.** Everything lives in sopops's database and is edited in the UI or over the `/config` API. Nobody edits YAML or Markdown, but each block is still stored as a sopc file and versioned on its own.
@@ -212,7 +214,7 @@ v0. **There is no authentication yet** except workspace tokens, which guard sess
 
 ## Roadmap
 
-- Verdicts on patterns (real, acceptable, SOP wrong, checker wrong) and a Slack digest
+- A Slack digest of new patterns and suggestions
 - ElevenLabs and Vapi post-call webhooks, and an OpenTelemetry receiver
 - GitHub: load a sopc project from a repo path, and open PRs with suggested changes
 - Sign-in for the UI, and tokens for the rest of the API
@@ -233,7 +235,7 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide` (decisions and review), `programs` and `calibration` (fitted thresholds) |
 | `pipeline/` | The session pipeline: normalize, route, check, rollup |
 | `onboarding/`, `runtime/` | Importing existing agents; delivering prompts to platforms |
-| `store.py`, `sessions.py`, `checks.py`, `patterns.py`, `insights.py`, `tokens.py` | The data layer, by area |
+| `store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `insights.py`, `tokens.py` | The data layer, by area |
 
 ```sh
 uv sync --all-extras

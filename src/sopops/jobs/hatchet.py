@@ -8,7 +8,8 @@ be rate-limited by its model key (`SOPOPS_RATE_LIMIT_PER_MINUTE` calls per minut
 `sopops_route` for routing, and one `sopops_check` per applicable procedure, fanned out by the `check` task, which
 then rolls the session up. The `patterns` task then assigns the session's findings to patterns; pattern writes run one
 at a time per workspace (`sopops_patterns`), and so do reclustering and themes (`sopops_recluster`, queued when due),
-plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC).
+plus a daily cron (`sopops_recluster_daily`, SOPOPS_RECLUSTER_CRON, default 06:00 UTC). Suggested edits are generated
+by `sopops_suggest`, rate-limited by the reasoning model like a check.
 """
 
 from __future__ import annotations
@@ -44,6 +45,7 @@ from ..pipeline.types import (
     RouteRef,
     RouteResult,
     SessionRef,
+    SuggestRef,
 )
 from ..sopc import Sopc
 from ..store import Store
@@ -70,6 +72,7 @@ check_wf = hatchet.workflow(name="sopops_check", input_validator=CheckRef)
 _per_workspace = ConcurrencyExpression(expression="input.workspace_id", max_runs=1, limit_strategy=ConcurrencyLimitStrategy.GROUP_ROUND_ROBIN)
 patterns_wf = hatchet.workflow(name="sopops_patterns", input_validator=SessionRef, concurrency=_per_workspace)
 recluster_wf = hatchet.workflow(name="sopops_recluster", input_validator=ReclusterRef, concurrency=_per_workspace)
+suggest_wf = hatchet.workflow(name="sopops_suggest", input_validator=SuggestRef)
 recluster_daily_wf = hatchet.workflow(name="sopops_recluster_daily", on_crons=[os.environ.get("SOPOPS_RECLUSTER_CRON", "0 6 * * *")])
 
 _store = None
@@ -175,6 +178,16 @@ def check_one(input: CheckRef, ctx: Context) -> CheckResult:
     return check_procedure(_get_store(), input)
 
 
+@suggest_wf.task(execution_timeout=timedelta(minutes=10), retries=0, rate_limits=[MODEL_LIMIT])
+def suggest_one(input: SuggestRef, ctx: Context) -> dict:
+    out = _get_store().suggestions.generate(input.workspace_id, input.suggestion_id)
+    return {"status": out["status"]}
+
+
+def trigger_suggest(ref: SuggestRef) -> None:
+    suggest_wf.run(SuggestRef(**{**ref.model_dump(), "model_key": _model_key("reasoning"), "rate_limit": RATE}), wait_for_result=False)
+
+
 def trigger_process_session(ref: SessionRef) -> None:
     try:
         process_session_wf.run(ref, wait_for_result=False)
@@ -184,6 +197,6 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 def start_worker() -> None:
     worker = hatchet.worker(
-        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf]
+        "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf]
     )
     worker.start()

@@ -38,6 +38,7 @@ class ProcedureCheck(SQLModel, table=True):
     excluded_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     route_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     result: str | None = Field(default=None, max_length=16)  # deviated | partial | followed | not_measurable; null until checked
+    checked_result: str | None = Field(default=None, max_length=16, description="The checker's own result; `result` leaves out suppressed findings.")
     goal_reached: bool | None = None
     goal_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     steps_applicable: int | None = None

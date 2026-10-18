@@ -1,0 +1,50 @@
+"""Verdicts on patterns and overrides on findings."""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Literal
+
+from pydantic import Field
+
+from .base import BaseModel
+
+VerdictKind = Literal["real", "acceptable", "sop_wrong", "checker_wrong"]
+
+
+class VerdictIn(BaseModel):
+    verdict: VerdictKind = Field(description="`real`: a real agent mistake (keeps counting). `acceptable`: fine in this situation (its findings are suppressed). "
+                                 "`sop_wrong`: the instruction is wrong or outdated. `checker_wrong`: sopops misjudged (suppressed, and a negative calibration label).")
+    note: str | None = None
+    reviewer: str | None = Field(None, description="Who gave it (free text until there's auth).")
+    suggest: bool = Field(True, description="Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).")
+
+
+class VerdictOut(BaseModel):
+    verdict_id: str
+    pattern_id: str = Field(description="The pattern it was given on: the rule pattern's, when `inherited`.")
+    verdict: VerdictKind
+    note: str | None
+    reviewer: str | None
+    carried_from: str | None = Field(description="The retired pattern a recluster carried it over from.")
+    inherited: bool = Field(False, description="A sub-pattern with no verdict of its own has its rule pattern's.")
+    created_at: datetime
+
+
+class OverrideIn(BaseModel):
+    correct: bool = Field(description="Whether the checker got this finding right. False suppresses it and makes it a negative calibration label.")
+    note: str | None = None
+    reviewer: str | None = None
+
+
+class OverrideOut(BaseModel):
+    override_id: str
+    finding_id: str
+    session_id: str
+    procedure_id: str
+    rule_id: str
+    correct: bool
+    note: str | None
+    reviewer: str | None
+    created_at: datetime
+    suppressed: bool | None = Field(description="Whether the finding is suppressed now (an `acceptable` pattern suppresses it either way).")

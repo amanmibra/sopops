@@ -1,4 +1,5 @@
-"""Where pipeline runs go: Hatchet when it's configured (HATCHET_CLIENT_TOKEN is set), else inline.
+"""Where pipeline runs and suggestion generation go: Hatchet when it's configured (HATCHET_CLIENT_TOKEN is set), else
+inline.
 
 Inline means a FastAPI background task after the response (the API) or right away (the import CLI), in this process.
 That's how local development and the tests run, with no Hatchet at all.
@@ -11,7 +12,7 @@ import os
 from typing import TYPE_CHECKING
 
 from ..pipeline.process import process_session, session_event
-from ..pipeline.types import SessionRef
+from ..pipeline.types import SessionRef, SuggestRef
 
 if TYPE_CHECKING:
     from fastapi import BackgroundTasks
@@ -52,6 +53,25 @@ class Jobs:
             return "background"
         self.run_inline(ref)
         return "inline"
+
+    def suggest(self, ref: SuggestRef, background: BackgroundTasks | None = None) -> str:
+        """Queue a suggestion's generation (`Suggestions.generate`). Returns where it went, like `process_session`."""
+        if self.use_hatchet:
+            try:
+                from .hatchet import trigger_suggest
+
+                trigger_suggest(ref)
+                return "hatchet"
+            except Exception:
+                log.exception("couldn't queue a suggestion on Hatchet; running it here")
+        if background is not None:
+            background.add_task(self.suggest_inline, ref)
+            return "background"
+        self.suggest_inline(ref)
+        return "inline"
+
+    def suggest_inline(self, ref: SuggestRef) -> None:
+        self.store.suggestions.generate(ref.workspace_id, ref.suggestion_id, self.ai)  # failures are stored on the suggestion
 
     def session_event(self, ref: SessionRef, events: list[dict]) -> None:
         """The pipeline's hook for events of an open session, here and now (it does nothing yet)."""
