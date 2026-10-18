@@ -1,8 +1,9 @@
-// Signing in: the gate every page goes through, the sign-in buttons and the email form, the "ask an owner" page, and the
-// user menu in the top bar (avatar, name, org, sign out).
+// Signing in: the gate every page goes through, the sign-in buttons, the password and email forms, the first account on
+// a fresh install, the "ask an owner" page, and the user menu in the top bar (avatar, name, org, change password, sign
+// out).
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
-import { Check, LogOut, Mail } from "lucide-react";
+import { Check, KeyRound, LogOut, Mail } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AuthState, type UserOut, call, sdk } from "@/lib/api";
@@ -12,19 +13,13 @@ import { Banner, ErrorBanner } from "./bits";
 import { GitHubIcon, GoogleIcon } from "./brand-icon";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
-/** Pages anyone can open: signing in, an emailed sign-in link, and an invite link. */
-const OPEN_PAGES = ["/sign-in", "/sign-in/email", "/invite"];
+/** Pages anyone can open: signing in, an emailed sign-in link, a link that sets a password, and an invite link. */
+const OPEN_PAGES = ["/sign-in", "/sign-in/email", "/set-password", "/invite"];
 
 /**
  * With sign-in on: send people who aren't signed in to the sign-in page, and people in no org to "ask an owner".
@@ -64,55 +59,224 @@ export function Card({ title, children }: { title: ReactNode; children: ReactNod
 
 const PROVIDER_ICON: Record<string, ReactNode> = { github: <GitHubIcon size={18} />, google: <GoogleIcon size={18} /> };
 
-/**
- * "Continue with GitHub", "Continue with Google": full-page links, since the provider's page comes next. Then, with email
- * sign-in on, a box for an address and "Email me a sign-in link".
- */
-export function SignInButtons({ auth, next }: { auth: AuthState; next: string }) {
-  if (!auth.providers.length)
-    return (
-      <p className="text-muted-foreground text-[13px]">
-        No way to sign in is set up on this sopops yet. Ask whoever runs it to set up GitHub, Google or email sign-in.
-      </p>
-    );
-  const redirects = auth.providers.filter((p) => p.redirects);
-  const byEmail = auth.providers.some((p) => p.id === "email");
+const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** After signing in: start over at `next`, with nothing cached from before. */
+export function useSignedIn() {
+  const qc = useQueryClient();
+  return (next: string) => {
+    qc.clear();
+    window.location.assign(next.startsWith("/sign-in") ? "/" : next);
+  };
+}
+
+function Or() {
   return (
-    <div className="grid gap-2.5">
-      {redirects.map((p) => (
-        <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2.5 text-[14px]">
-          <a href={signInHref(p.id, next)}>
-            {PROVIDER_ICON[p.id]}
-            Continue with {p.label}
-          </a>
-        </Button>
-      ))}
-      {byEmail && redirects.length > 0 && (
-        <div className="text-muted-foreground my-1 flex items-center gap-3 text-[12px]">
-          <span className="h-px flex-1 bg-current opacity-25" /> or <span className="h-px flex-1 bg-current opacity-25" />
-        </div>
-      )}
-      {byEmail && <EmailSignIn next={next} />}
+    <div className="text-muted-foreground my-1 flex items-center gap-3 text-[12px]">
+      <span className="h-px flex-1 bg-current opacity-25" /> or <span className="h-px flex-1 bg-current opacity-25" />
     </div>
   );
 }
 
-/** Ask for a sign-in link by email. The answer never says whether the address has an account. */
-function EmailSignIn({ next }: { next: string }) {
+/** "Continue with GitHub", "Continue with Google": full-page links, since the provider's page comes next. */
+export function RedirectButtons({ auth, next }: { auth: AuthState; next: string }) {
+  return (
+    <>
+      {auth.providers
+        .filter((p) => p.redirects)
+        .map((p) => (
+          <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2.5 text-[14px]">
+            <a href={signInHref(p.id, next)}>
+              {PROVIDER_ICON[p.id]}
+              Continue with {p.label}
+            </a>
+          </Button>
+        ))}
+    </>
+  );
+}
+
+type Form = "password" | "link" | "forgot" | "sign-up";
+
+/**
+ * The ways to sign in here: GitHub and Google buttons, then an email and password. With email set up, "Forgot
+ * password?" and "Email me a sign-in link instead" swap the form for one that emails a link. `password={false}` leaves
+ * the password form out (an invite for someone with no account yet, who makes one instead).
+ */
+export function SignInButtons({ auth, next, password = true }: { auth: AuthState; next: string; password?: boolean }) {
+  const byPassword = password && auth.providers.some((p) => p.id === "password");
+  const byEmail = auth.providers.some((p) => p.id === "email");
+  const [form, setForm] = useState<Form>(byPassword ? "password" : "link");
+  const redirects = auth.providers.some((p) => p.redirects);
+  if (!redirects && !byPassword && !byEmail)
+    return <p className="text-muted-foreground text-[13px]">No way to sign in is set up on this sopops yet. Ask whoever runs it.</p>;
+  // An invite's token waits in this tab, and an emailed link may open in another: signing in accepts the invite anyway.
+  const after = next === "/invite" ? "/" : next;
+  const back = byPassword ? () => setForm("password") : undefined;
+  return (
+    <div className="grid gap-2.5">
+      <RedirectButtons auth={auth} next={next} />
+      {redirects && (byPassword || byEmail) && <Or />}
+      {form === "password" && byPassword && <PasswordSignIn next={next} />}
+      {form === "link" && byEmail && <EmailSignIn next={after} onBack={back} />}
+      {(form === "forgot" || form === "sign-up") && <PasswordEmail signUp={form === "sign-up"} onBack={() => setForm("password")} />}
+      {form === "password" && byPassword && (
+        <div className="text-muted-foreground mt-1 grid gap-1 text-center text-[13px]">
+          {auth.password_email ? (
+            <TextButton onClick={() => setForm("forgot")}>Forgot password?</TextButton>
+          ) : (
+            <span>Forgot your password? Ask an owner or admin for a reset link.</span>
+          )}
+          {byEmail && <TextButton onClick={() => setForm("link")}>Email me a sign-in link instead</TextButton>}
+          {auth.sign_up && <TextButton onClick={() => setForm("sign-up")}>New here? Make an account with your work email</TextButton>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TextButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className="hover:text-foreground underline-offset-2 hover:underline" onClick={onClick}>
+      {children}
+    </button>
+  );
+}
+
+function PasswordSignIn({ next }: { next: string }) {
+  const signedIn = useSignedIn();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const got = await call(sdk.passwordLogin({ body: { email: email.trim(), password, next } }));
+      signedIn(got.next);
+    } catch (e) {
+      setError(message(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <Label htmlFor="sign-in-email" className="text-[13px]">
+        Email
+      </Label>
+      <Input
+        id="sign-in-email"
+        type="email"
+        required
+        autoComplete="username"
+        className="h-10"
+        placeholder="name@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <Label htmlFor="sign-in-password" className="mt-1 text-[13px]">
+        Password
+      </Label>
+      <Input
+        id="sign-in-password"
+        type="password"
+        required
+        autoComplete="current-password"
+        className="h-10"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
+      {error && <Banner tone="err">{error}</Banner>}
+      <Button type="submit" className="mt-1 h-10 text-[14px]" disabled={busy || !email.trim() || !password}>
+        Sign in
+      </Button>
+    </form>
+  );
+}
+
+/** Email a link that sets a password: "Forgot password?", or making an account at an allowed domain. */
+function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // An invite's token waits in this tab, and the link may open in another: signing in accepts the invite anyway.
-  const after = next === "/invite" ? "/" : next;
   const send = async () => {
     setBusy(true);
     setError(null);
     try {
-      const got = await call(sdk.requestEmailLink({ body: { email: email.trim(), next: after } }));
+      setSent((await call(sdk.requestPasswordLink({ body: { email: email.trim() } }))).message);
+    } catch (e) {
+      setError(message(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (sent)
+    return (
+      <Banner tone="ok">
+        <b>Check your email.</b> {sent} Didn't get it? Check spam, or{" "}
+        <button type="button" className="underline underline-offset-2" onClick={onBack}>
+          go back to sign in
+        </button>
+        .
+      </Banner>
+    );
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void send();
+      }}
+    >
+      <p className="text-muted-foreground text-[13px] leading-relaxed">
+        {signUp ? "We email you a link to set your password and make your account." : "We email you a link to set a new password."}
+      </p>
+      <Label htmlFor="password-email" className="text-[13px]">
+        {signUp ? "Work email" : "Email"}
+      </Label>
+      <Input
+        id="password-email"
+        type="email"
+        required
+        autoComplete="email"
+        className="h-10"
+        placeholder="name@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      {error && <Banner tone="err">{error}</Banner>}
+      <Button type="submit" className="h-10 gap-2.5 text-[14px]" disabled={busy || !email.trim()}>
+        <Mail className="size-[18px]" /> {signUp ? "Email me a link" : "Email me a reset link"}
+      </Button>
+      <TextButton onClick={onBack}>
+        <span className="text-muted-foreground text-[13px]">Back to sign in</span>
+      </TextButton>
+    </form>
+  );
+}
+
+/** Ask for a sign-in link by email. The answer never says whether the address has an account. */
+function EmailSignIn({ next, onBack }: { next: string; onBack?: () => void }) {
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const send = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const got = await call(sdk.requestEmailLink({ body: { email: email.trim(), next } }));
       setSent(got.message);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(message(e));
     } finally {
       setBusy(false);
     }
@@ -135,15 +299,120 @@ function EmailSignIn({ next }: { next: string }) {
         void send();
       }}
     >
-      <Label htmlFor="sign-in-email" className="text-[13px]">
+      <Label htmlFor="sign-in-link-email" className="text-[13px]">
         Email
       </Label>
-      <Input id="sign-in-email" type="email" required autoComplete="email" className="h-10" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Input
+        id="sign-in-link-email"
+        type="email"
+        required
+        autoComplete="email"
+        className="h-10"
+        placeholder="name@example.com"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
       {error && <Banner tone="err">{error}</Banner>}
       <Button type="submit" className="h-10 gap-2.5 text-[14px]" disabled={busy || !email.trim()}>
         <Mail className="size-[18px]" /> Email me a sign-in link
       </Button>
+      {onBack && (
+        <TextButton onClick={onBack}>
+          <span className="text-muted-foreground text-[13px]">Sign in with a password instead</span>
+        </TextButton>
+      )}
     </form>
+  );
+}
+
+/** A new password: at least 10 characters, and not the email address (the server says so if it is). */
+export function NewPassword({ id, label = "Password", value, onChange }: { id: string; label?: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="grid gap-1">
+      <Label htmlFor={id} className="text-[13px]">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type="password"
+        required
+        minLength={10}
+        maxLength={256}
+        autoComplete="new-password"
+        className="h-10"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <span className="text-muted-foreground text-[12px]">At least 10 characters.</span>
+    </div>
+  );
+}
+
+/** A fresh install with no accounts yet: make the first one, which owns the org. */
+export function FirstAccount({ auth }: { auth: AuthState }) {
+  const signedIn = useSignedIn();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await call(sdk.firstAccount({ body: { name: name.trim(), email: email.trim(), password } }));
+      signedIn("/");
+    } catch (e) {
+      setError(message(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title="Create the first account">
+      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+        Nobody has an account on this sopops yet. The first account owns it and adds everyone else.
+      </p>
+      <form
+        className="grid gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <div className="grid gap-1">
+          <Label htmlFor="first-name" className="text-[13px]">
+            Name
+          </Label>
+          <Input id="first-name" autoComplete="name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor="first-email" className="text-[13px]">
+            Email
+          </Label>
+          <Input
+            id="first-email"
+            type="email"
+            required
+            autoComplete="username"
+            className="h-10"
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </div>
+        <NewPassword id="first-password" value={password} onChange={setPassword} />
+        {error && <Banner tone="err">{error}</Banner>}
+        <Button type="submit" className="h-10 text-[14px]" disabled={busy || !email.trim() || password.length < 10}>
+          Create account and sign in
+        </Button>
+      </form>
+      {auth.providers.some((p) => p.redirects) && (
+        <div className="mt-3 grid gap-2.5">
+          <Or />
+          <RedirectButtons auth={auth} next="/" />
+        </div>
+      )}
+    </Card>
   );
 }
 
@@ -158,7 +427,11 @@ export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "na
   if (user.avatar_url)
     return <img src={user.avatar_url} alt="" style={box} referrerPolicy="no-referrer" className={cn("shrink-0 rounded-full border object-cover", className)} />;
   return (
-    <span style={box} aria-hidden className={cn("bg-brand-soft text-foreground inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", className)}>
+    <span
+      style={box}
+      aria-hidden
+      className={cn("bg-brand-soft text-foreground inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", className)}
+    >
       {initials}
     </span>
   );
@@ -186,6 +459,7 @@ function NoOrg({ auth }: { auth: AuthState }) {
 export function UserMenu({ auth }: { auth: AuthState }) {
   const qc = useQueryClient();
   const signOut = useSignOut();
+  const [changing, setChanging] = useState(false);
   const user = auth.user;
   if (!user) return null;
   const switchTo = async (orgId: string) => {
@@ -194,38 +468,106 @@ export function UserMenu({ auth }: { auth: AuthState }) {
       qc.clear();
       window.location.assign("/");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(message(e));
     }
   };
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label={`Signed in as ${user.name || user.email}`} title={user.email}>
-          <Avatar user={user} size={26} />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-60">
-        <DropdownMenuLabel className="flex items-center gap-2.5 font-normal">
-          <Avatar user={user} size={32} />
-          <span className="min-w-0">
-            <span className="block truncate font-semibold">{user.name || user.email}</span>
-            <span className="text-muted-foreground block truncate text-xs">{user.email}</span>
-          </span>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">{auth.orgs.length > 1 ? "Your orgs" : "Your org"}</DropdownMenuLabel>
-        {auth.orgs.map((o) => (
-          <DropdownMenuItem key={o.id} onSelect={() => o.id !== auth.org?.id && void switchTo(o.id)} className="gap-2">
-            <span className="flex-1 truncate">{o.name}</span>
-            <span className="text-muted-foreground text-xs">{o.role}</span>
-            {o.id === auth.org?.id ? <Check className="size-4" /> : <span className="size-4" />}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" className="rounded-full" aria-label={`Signed in as ${user.name || user.email}`} title={user.email}>
+            <Avatar user={user} size={26} />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="min-w-60">
+          <DropdownMenuLabel className="flex items-center gap-2.5 font-normal">
+            <Avatar user={user} size={32} />
+            <span className="min-w-0">
+              <span className="block truncate font-semibold">{user.name || user.email}</span>
+              <span className="text-muted-foreground block truncate text-xs">{user.email}</span>
+            </span>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">{auth.orgs.length > 1 ? "Your orgs" : "Your org"}</DropdownMenuLabel>
+          {auth.orgs.map((o) => (
+            <DropdownMenuItem key={o.id} onSelect={() => o.id !== auth.org?.id && void switchTo(o.id)} className="gap-2">
+              <span className="flex-1 truncate">{o.name}</span>
+              <span className="text-muted-foreground text-xs">{o.role}</span>
+              {o.id === auth.org?.id ? <Check className="size-4" /> : <span className="size-4" />}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          {user.has_password && (
+            <DropdownMenuItem onSelect={() => setChanging(true)}>
+              <KeyRound className="size-4" /> Change password
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onSelect={() => void signOut()}>
+            <LogOut className="size-4" /> Sign out
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => void signOut()}>
-          <LogOut className="size-4" /> Sign out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Dialog open={changing} onOpenChange={setChanging}>
+        <DialogContent className="sm:max-w-[420px]">{changing && <ChangePassword onDone={() => setChanging(false)} />}</DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+/** Change your own password. Your other sessions end; this one stays. */
+function ChangePassword({ onDone }: { onDone: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await call(sdk.changePassword({ body: { current_password: current, password } }));
+      toast.success("Password changed. You're signed out everywhere else.");
+      onDone();
+    } catch (e) {
+      setError(message(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>Change your password</DialogTitle>
+        <DialogDescription>This signs you out everywhere else.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-1">
+        <Label htmlFor="current-password" className="text-[13px]">
+          Current password
+        </Label>
+        <Input
+          id="current-password"
+          type="password"
+          required
+          autoComplete="current-password"
+          className="h-10"
+          value={current}
+          onChange={(e) => setCurrent(e.target.value)}
+        />
+      </div>
+      <NewPassword id="new-password" label="New password" value={password} onChange={setPassword} />
+      {error && <Banner tone="err">{error}</Banner>}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={busy || !current || password.length < 10}>
+          Change password
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }

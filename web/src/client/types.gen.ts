@@ -660,6 +660,24 @@ export type AuthState = {
      * Every org you're in.
      */
     orgs: Array<OrgSummary>;
+    /**
+     * First Account
+     *
+     * Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.
+     */
+    first_account: boolean;
+    /**
+     * Password Email
+     *
+     * sopops can email a link that sets a password ("Forgot password?"): SMTP is set up, or SOPOPS_EMAIL_DEV.
+     */
+    password_email: boolean;
+    /**
+     * Sign Up
+     *
+     * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
+     */
+    sign_up: boolean;
 };
 
 /**
@@ -1954,6 +1972,26 @@ export type Finding = {
 };
 
 /**
+ * FirstAccountIn
+ */
+export type FirstAccountIn = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
+};
+
+/**
  * GitHubAppOut
  */
 export type GitHubAppOut = {
@@ -2411,6 +2449,34 @@ export type InviteInfo = {
      * You used it already: you're in the org.
      */
     accepted: boolean;
+    /**
+     * Has Account
+     *
+     * The email has an account here: sign in to join. False: join by making one with a password.
+     */
+    has_account: boolean;
+};
+
+/**
+ * InviteJoinIn
+ */
+export type InviteJoinIn = {
+    /**
+     * Token
+     *
+     * From the invite link (the part after #).
+     */
+    token: string;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
 };
 
 /**
@@ -3556,6 +3622,128 @@ export type OverviewResponse = {
 };
 
 /**
+ * PasswordChangeIn
+ */
+export type PasswordChangeIn = {
+    /**
+     * Current Password
+     */
+    current_password: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
+};
+
+/**
+ * PasswordEmailIn
+ */
+export type PasswordEmailIn = {
+    /**
+     * Email
+     */
+    email: string;
+};
+
+/**
+ * PasswordLinkCreated
+ */
+export type PasswordLinkCreated = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Link
+     *
+     * Shown once. It sets their password, works once, for an hour, and ends their login sessions.
+     */
+    link: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * PasswordLinkInfo
+ */
+export type PasswordLinkInfo = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Has Account
+     *
+     * False: using the link makes the account, so ask for a name too.
+     */
+    has_account: boolean;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * PasswordLinkTokenIn
+ */
+export type PasswordLinkTokenIn = {
+    /**
+     * Token
+     *
+     * From the link (the part after #).
+     */
+    token: string;
+};
+
+/**
+ * PasswordLoginIn
+ */
+export type PasswordLoginIn = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
+    /**
+     * Next
+     *
+     * A path on this site to open after signing in.
+     */
+    next?: string | null;
+};
+
+/**
+ * PasswordSetIn
+ */
+export type PasswordSetIn = {
+    /**
+     * Token
+     *
+     * From the link (the part after #).
+     */
+    token: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
+    /**
+     * Name
+     *
+     * For a new account.
+     */
+    name?: string;
+};
+
+/**
  * PatternDetail
  */
 export type PatternDetail = {
@@ -4687,7 +4875,7 @@ export type ProviderOut = {
     /**
      * Id
      *
-     * `github`, `google`, `email`, or a plugin's.
+     * `github`, `google`, `email`, `password`, or a plugin's.
      */
     id: string;
     /**
@@ -4697,7 +4885,7 @@ export type ProviderOut = {
     /**
      * Redirects
      *
-     * Signing in goes through `/v1/auth/login/<id>`. False for `email`: post the address to `/v1/auth/email`.
+     * Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`).
      */
     redirects: boolean;
 };
@@ -7356,6 +7544,24 @@ export type SignedIn = {
      */
     orgs: Array<OrgSummary>;
     /**
+     * First Account
+     *
+     * Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.
+     */
+    first_account: boolean;
+    /**
+     * Password Email
+     *
+     * sopops can email a link that sets a password ("Forgot password?"): SMTP is set up, or SOPOPS_EMAIL_DEV.
+     */
+    password_email: boolean;
+    /**
+     * Sign Up
+     *
+     * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
+     */
+    sign_up: boolean;
+    /**
      * Next
      *
      * The page to open now, a path on this site.
@@ -8566,6 +8772,12 @@ export type UserOut = {
      * Avatar Url
      */
     avatar_url: string | null;
+    /**
+     * Has Password
+     *
+     * They can sign in with a password, so they can change it.
+     */
+    has_password: boolean;
 };
 
 /**
@@ -9530,6 +9742,217 @@ export type ConfirmEmailLinkResponses = {
 
 export type ConfirmEmailLinkResponse = ConfirmEmailLinkResponses[keyof ConfirmEmailLinkResponses];
 
+export type PasswordLoginData = {
+    body: PasswordLoginIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/login';
+};
+
+export type PasswordLoginErrors = {
+    /**
+     * Wrong email or password.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * Too many tries.
+     */
+    429: unknown;
+};
+
+export type PasswordLoginError = PasswordLoginErrors[keyof PasswordLoginErrors];
+
+export type PasswordLoginResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type PasswordLoginResponse = PasswordLoginResponses[keyof PasswordLoginResponses];
+
+export type FirstAccountData = {
+    body: FirstAccountIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/first-account';
+};
+
+export type FirstAccountErrors = {
+    /**
+     * Someone has an account already.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type FirstAccountError = FirstAccountErrors[keyof FirstAccountErrors];
+
+export type FirstAccountResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type FirstAccountResponse = FirstAccountResponses[keyof FirstAccountResponses];
+
+export type JoinWithPasswordData = {
+    body: InviteJoinIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/invites/join';
+};
+
+export type JoinWithPasswordErrors = {
+    /**
+     * Unknown, used, withdrawn or expired.
+     */
+    404: unknown;
+    /**
+     * The email has an account: sign in instead.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type JoinWithPasswordError = JoinWithPasswordErrors[keyof JoinWithPasswordErrors];
+
+export type JoinWithPasswordResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type JoinWithPasswordResponse = JoinWithPasswordResponses[keyof JoinWithPasswordResponses];
+
+export type RequestPasswordLinkData = {
+    body: PasswordEmailIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/email';
+};
+
+export type RequestPasswordLinkErrors = {
+    /**
+     * Email isn't set up.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RequestPasswordLinkError = RequestPasswordLinkErrors[keyof RequestPasswordLinkErrors];
+
+export type RequestPasswordLinkResponses = {
+    /**
+     * Successful Response
+     */
+    202: EmailLinkSent;
+};
+
+export type RequestPasswordLinkResponse = RequestPasswordLinkResponses[keyof RequestPasswordLinkResponses];
+
+export type LookupPasswordLinkData = {
+    body: PasswordLinkTokenIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/link';
+};
+
+export type LookupPasswordLinkErrors = {
+    /**
+     * Unknown, used or expired.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LookupPasswordLinkError = LookupPasswordLinkErrors[keyof LookupPasswordLinkErrors];
+
+export type LookupPasswordLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: PasswordLinkInfo;
+};
+
+export type LookupPasswordLinkResponse = LookupPasswordLinkResponses[keyof LookupPasswordLinkResponses];
+
+export type SetPasswordData = {
+    body: PasswordSetIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/set';
+};
+
+export type SetPasswordErrors = {
+    /**
+     * Unknown, used or expired.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetPasswordError = SetPasswordErrors[keyof SetPasswordErrors];
+
+export type SetPasswordResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type SetPasswordResponse = SetPasswordResponses[keyof SetPasswordResponses];
+
+export type ChangePasswordData = {
+    body: PasswordChangeIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/password/change';
+};
+
+export type ChangePasswordErrors = {
+    /**
+     * The current password is wrong.
+     */
+    401: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ChangePasswordError = ChangePasswordErrors[keyof ChangePasswordErrors];
+
+export type ChangePasswordResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ChangePasswordResponse = ChangePasswordResponses[keyof ChangePasswordResponses];
+
 export type SignOutData = {
     body?: never;
     path?: never;
@@ -9774,6 +10197,36 @@ export type SetMemberRoleResponses = {
 };
 
 export type SetMemberRoleResponse = SetMemberRoleResponses[keyof SetMemberRoleResponses];
+
+export type CreatePasswordLinkData = {
+    body?: never;
+    path: {
+        /**
+         * User Id
+         */
+        user_id: string;
+    };
+    query?: never;
+    url: '/v1/org/members/{user_id}/password-link';
+};
+
+export type CreatePasswordLinkErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePasswordLinkError = CreatePasswordLinkErrors[keyof CreatePasswordLinkErrors];
+
+export type CreatePasswordLinkResponses = {
+    /**
+     * Successful Response
+     */
+    201: PasswordLinkCreated;
+};
+
+export type CreatePasswordLinkResponse = CreatePasswordLinkResponses[keyof CreatePasswordLinkResponses];
 
 export type ListInvitesData = {
     body?: never;

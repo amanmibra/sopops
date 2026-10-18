@@ -1,9 +1,12 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Card, SignInButtons } from "@/components/account";
+import { Card, NewPassword, SignInButtons, useSignedIn } from "@/components/account";
 import { Banner } from "@/components/bits";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import type { AuthState, InviteInfo } from "@/lib/api";
 import { call, sdk } from "@/lib/api";
 import { pendingInvite, useAuth, useSignOut } from "@/lib/auth";
 
@@ -89,7 +92,9 @@ function Invite() {
           {error}
         </Banner>
       )}
-      {!auth.user ? (
+      {!auth.user && !inv.has_account && auth.providers.some((p) => p.id === "password") ? (
+        <JoinWithPassword auth={auth} inv={inv} token={token} />
+      ) : !auth.user ? (
         <>
           <p className="mb-3 text-[13px]">Sign in with {inv.email} to join.</p>
           <SignInButtons auth={auth} next="/invite" />
@@ -109,5 +114,57 @@ function Invite() {
         </>
       )}
     </Card>
+  );
+}
+
+/** No account for the invited email yet: make one with a name and password, or sign in another way with that email. */
+function JoinWithPassword({ auth, inv, token }: { auth: AuthState; inv: InviteInfo; token: string }) {
+  const signedIn = useSignedIn();
+  const [name, setName] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const others = auth.providers.some((p) => p.id !== "password");
+  const join = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await call(sdk.joinWithPassword({ body: { token, name: name.trim(), password } }));
+      pendingInvite.set(null);
+      signedIn("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <form
+        className="grid gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void join();
+        }}
+      >
+        <input type="email" hidden readOnly autoComplete="username" value={inv.email} />
+        <div className="grid gap-1">
+          <Label htmlFor="join-name" className="text-[13px]">
+            Your name
+          </Label>
+          <Input id="join-name" autoComplete="name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <NewPassword id="join-password" value={password} onChange={setPassword} />
+        {error && <Banner tone="err">{error}</Banner>}
+        <Button type="submit" className="h-10 text-[14px]" disabled={busy || password.length < 10}>
+          Join {inv.org_name}
+        </Button>
+      </form>
+      {others && (
+        <div className="mt-5 grid gap-2.5">
+          <p className="text-muted-foreground text-[13px]">Or sign in another way with {inv.email}:</p>
+          <SignInButtons auth={auth} next="/invite" password={false} />
+        </div>
+      )}
+    </>
   );
 }

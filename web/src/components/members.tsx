@@ -1,11 +1,11 @@
 // Settings → Members: the org's people and roles, adding people by email (they join now, or when they first sign in),
-// who's invited and not signed in yet, and the email domains whose people join by signing in. Owners and admins change
-// things; members see who's here.
+// reset links for passwords, who's invited and not signed in yet, and the email domains whose people join by signing in.
+// Owners and admins change things; members see who's here.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Copy, Globe, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { type AuthState, type InviteCreated, type InviteOut, type MemberOut, type PersonAdded, call, sdk } from "@/lib/api";
+import { type AuthState, type InviteCreated, type InviteOut, type MemberOut, type PasswordLinkCreated, type PersonAdded, call, sdk } from "@/lib/api";
 import { when } from "@/lib/kinds";
 import { Avatar } from "./account";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
@@ -49,6 +49,7 @@ export function MembersPanel({ auth }: { auth: AuthState }) {
 function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
   const qc = useQueryClient();
   const list = useQuery(mq.members());
+  const [reset, setReset] = useState<PasswordLinkCreated | null>(null);
   const isOwner = auth.org?.role === "owner";
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["org"] }), qc.invalidateQueries({ queryKey: ["auth"] })]);
   const setRole = async (m: MemberOut, r: Role) => {
@@ -65,6 +66,13 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
       await call(sdk.removeMember({ path: { user_id: m.user_id } }));
       await refresh();
       toast.success(`${m.name || m.email} is out of the org.`);
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const resetLink = async (m: MemberOut) => {
+    try {
+      setReset(await call(sdk.createPasswordLink({ path: { user_id: m.user_id } })));
     } catch (e) {
       fail(e);
     }
@@ -110,13 +118,28 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
               <Tag>{m.role}</Tag>
             )}
             {canChange(m) && m.user_id !== auth.user?.id && (
-              <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again to remove" onConfirm={() => void remove(m)}>
-                Remove
-              </ConfirmButton>
+              <>
+                <Button size="sm" variant="ghost" onClick={() => void resetLink(m)}>
+                  Reset password
+                </Button>
+                <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again to remove" onConfirm={() => void remove(m)}>
+                  Remove
+                </ConfirmButton>
+              </>
             )}
           </li>
         ))}
       </ul>
+      {reset && (
+        <Banner tone="ok" className="mt-3">
+          <LinkBox
+            email={reset.email}
+            link={reset.link}
+            what="the reset link"
+            note="It sets their password and signs them out everywhere. It works once, for an hour, and isn't shown again."
+          />
+        </Banner>
+      )}
       <ul className="text-muted-foreground mt-3 grid gap-0.5 text-[13px]">
         {ROLES.map((r) => (
           <li key={r.role}>
@@ -128,15 +151,17 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
   );
 }
 
-/** Links shown once: to copy when sopops doesn't email them (or the email didn't go). */
-function LinkBox({ email, link }: { email: string; link: string }) {
-  const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Copied."));
+/** Links shown once: to copy when sopops doesn't email them (or the email didn't go), and password reset links. */
+function LinkBox({ email, link, what = "the invite link", note = "It isn't shown again." }: { email: string; link: string; what?: string; note?: string }) {
+  const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Copied."), fail);
   return (
     <div className="mt-1.5">
-      <div className="text-[13px]">Send this link to {email}. It isn't shown again.</div>
+      <div className="text-[13px]">
+        Send this link to {email}. {note}
+      </div>
       <div className="bg-card mt-1 flex items-center gap-2 rounded-md border px-2.5 py-1.5">
         <code className="flex-1 font-mono text-[13px] break-all">{link}</code>
-        <Button size="icon-sm" variant="ghost" aria-label={`Copy the invite link for ${email}`} onClick={() => void copy()}>
+        <Button size="icon-sm" variant="ghost" aria-label={`Copy ${what} for ${email}`} onClick={() => void copy()}>
           <Copy />
         </Button>
       </div>
@@ -178,9 +203,9 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
       }
     >
       <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
-        Anyone who already has an account joins {orgName} right away. Everyone else joins the moment they sign in with that email, with GitHub, Google or
-        an email link.{" "}
-        {sendsEmail ? "sopops emails them an invite." : "sopops doesn't send email here, so you get a link to send them yourself."}
+        Anyone who already has an account joins {orgName} right away. Everyone else gets an invite link. They open it and set a password, or sign in another way
+        with that email, and they're in.{" "}
+        {sendsEmail ? "sopops emails them the link." : "sopops doesn't send email here, so you get the link to send them yourself."}
       </p>
       <form
         className="grid gap-3"
@@ -234,7 +259,7 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
                 {p.status === "invited" && p.invite && (
                   <>
                     <b>{p.email}</b> is invited as {asRole(p.invite.role)}.{" "}
-                    {p.invite.emailed ? "We emailed them." : sendsEmail ? "The email didn't go." : "They join when they sign in."}
+                    {p.invite.emailed ? "We emailed them the link." : sendsEmail ? "The email didn't go." : "They join when they open the link."}
                     {!p.invite.emailed && <LinkBox email={p.email} link={p.invite.link} />}
                   </>
                 )}
@@ -247,7 +272,10 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
   );
 }
 
-/** Invited, not signed in yet: send the invite again (a new link) or cancel it. */
+/**
+ * Invited, not signed in yet: send the invite again or cancel it. Without email, "Copy link" copies a new link instead:
+ * links are stored hashed, so the old one can't be shown again, and it stops working.
+ */
 function Pending({ sendsEmail }: { sendsEmail: boolean }) {
   const qc = useQueryClient();
   const list = useQuery(mq.invites());
@@ -264,6 +292,17 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
         setFresh(got);
         if (sendsEmail) toast.error(`The email to ${i.email} didn't go. Copy the new link instead.`);
       }
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const copyLink = async (i: InviteOut) => {
+    try {
+      const got = await call(sdk.resendInvite({ path: { id: i.id } }));
+      await refresh();
+      setFresh(got);
+      await navigator.clipboard.writeText(got.link);
+      toast.success(`Copied a new link for ${i.email}. The old link no longer works.`);
     } catch (e) {
       fail(e);
     }
@@ -302,9 +341,15 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
                   </td>
                   <td className="text-muted-foreground border-b py-1.5 pr-2">invited {when(i.created_at)}</td>
                   <td className="border-b py-1.5 text-right whitespace-nowrap">
-                    <Button size="sm" variant="ghost" onClick={() => void resend(i)}>
-                      Resend
-                    </Button>
+                    {sendsEmail ? (
+                      <Button size="sm" variant="ghost" onClick={() => void resend(i)}>
+                        Resend
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => void copyLink(i)}>
+                        <Copy /> Copy link
+                      </Button>
+                    )}
                     <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again to cancel" onConfirm={() => void cancel(i)}>
                       Cancel
                     </ConfirmButton>
@@ -356,13 +401,20 @@ function Domains({ domains, orgName }: { domains: string[]; orgName: string }) {
       }
     >
       <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
-        Anyone who signs in with a verified email at one of these domains joins {orgName} as a member, with no invite. Leave it empty to let people in by
-        invite only.
+        Anyone who signs in with a verified email at one of these domains joins {orgName} as a member, with no invite. Leave it empty to let people in by invite
+        only.
       </p>
       <Label htmlFor="org-domains" className="mb-1 text-[13px]">
         Email domains, one per line
       </Label>
-      <Textarea id="org-domains" className="mb-3 max-w-[360px] font-mono text-[13px]" rows={3} placeholder="example.com" value={text} onChange={(e) => setText(e.target.value)} />
+      <Textarea
+        id="org-domains"
+        className="mb-3 max-w-[360px] font-mono text-[13px]"
+        rows={3}
+        placeholder="example.com"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
       <Button size="sm" disabled={busy || !changed} onClick={() => void save()}>
         Save domains
       </Button>

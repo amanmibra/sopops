@@ -898,6 +898,320 @@
         }
       }
     },
+    "/v1/auth/password/login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Password Login",
+        "description": "Sign in with an email and password. The answer is the same for an unknown address and a wrong password. 10\nfailed tries per address and 30 per client in 15 minutes, then 429.",
+        "operationId": "password_login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLoginIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong email or password."
+          },
+          "429": {
+            "description": "Too many tries."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/first-account": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "First Account",
+        "description": "On a fresh install, with nobody signed up yet: make the first account, which owns the org, and sign in.",
+        "operationId": "first_account",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FirstAccountIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Someone has an account already."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/invites/join": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Join With Password",
+        "description": "Accept an invite by making an account with a name and password, for an email that has no account yet.",
+        "operationId": "join_with_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteJoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, used, withdrawn or expired."
+          },
+          "409": {
+            "description": "The email has an account: sign in instead."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/email": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Request Password Link",
+        "description": "Email a link that sets a password: \"Forgot password?\", or making an account at SOPOPS_ALLOWED_EMAIL_DOMAINS.\nThe answer is the same whether or not the address gets one.",
+        "operationId": "request_password_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordEmailIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EmailLinkSent"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Email isn't set up."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/link": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Lookup Password Link",
+        "description": "What a password link is for: the email, and whether using it makes the account.",
+        "operationId": "lookup_password_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordLinkTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLinkInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, used or expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/set": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Password",
+        "description": "Set the password with a link (used up here), making the account if it's new. Every login session the user\nhad ends, and this browser signs in.",
+        "operationId": "set_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordSetIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, used or expired."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/password/change": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Change Password",
+        "description": "Change your password. The current one must match. Your other login sessions end; this one stays.",
+        "operationId": "change_password",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "The current password is wrong."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/logout": {
       "post": {
         "tags": [
@@ -1249,6 +1563,49 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/members/{user_id}/password-link": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Password Link",
+        "description": "A link that sets a member's password, to send them yourself. It works once, for an hour, and ends their\nlogin sessions. Only an owner makes one for an owner.",
+        "operationId": "create_password_link",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "User Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PasswordLinkCreated"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -11971,6 +12328,24 @@
             "type": "array",
             "title": "Orgs",
             "description": "Every org you're in."
+          },
+          "first_account": {
+            "type": "boolean",
+            "title": "First Account",
+            "description": "Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.",
+            "default": false
+          },
+          "password_email": {
+            "type": "boolean",
+            "title": "Password Email",
+            "description": "sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.",
+            "default": false
+          },
+          "sign_up": {
+            "type": "boolean",
+            "title": "Sign Up",
+            "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
+            "default": false
           }
         },
         "type": "object",
@@ -11979,7 +12354,10 @@
           "providers",
           "user",
           "org",
-          "orgs"
+          "orgs",
+          "first_account",
+          "password_email",
+          "sign_up"
         ],
         "title": "AuthState"
       },
@@ -14286,6 +14664,33 @@
         "title": "Finding",
         "description": "Something the reviewer should know or decide.\n\n- `duplicate`: the same text in several agents, now one block.\n- `values`: near-copies that differ only by a value (a name, a link, a number), now one block with a variable.\n- `drift`: agents that say different things about the same topic. Kept as each agent had it (a variable, or a block\n  per version) until someone picks one."
       },
+      "FirstAccountIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "default": ""
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "FirstAccountIn"
+      },
       "GitHubAppOut": {
         "properties": {
           "configured": {
@@ -15129,6 +15534,12 @@
             "type": "boolean",
             "title": "Accepted",
             "description": "You used it already: you're in the org."
+          },
+          "has_account": {
+            "type": "boolean",
+            "title": "Has Account",
+            "description": "The email has an account here: sign in to join. False: join by making one with a password.",
+            "default": false
           }
         },
         "type": "object",
@@ -15138,9 +15549,38 @@
           "email",
           "role",
           "expires_at",
-          "accepted"
+          "accepted",
+          "has_account"
         ],
         "title": "InviteInfo"
+      },
+      "InviteJoinIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the invite link (the part after #)."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "default": ""
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "InviteJoinIn"
       },
       "InviteOut": {
         "properties": {
@@ -16972,6 +17412,168 @@
           "callouts"
         ],
         "title": "OverviewResponse"
+      },
+      "PasswordChangeIn": {
+        "properties": {
+          "current_password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Current Password"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          }
+        },
+        "type": "object",
+        "required": [
+          "current_password",
+          "password"
+        ],
+        "title": "PasswordChangeIn"
+      },
+      "PasswordEmailIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "PasswordEmailIn"
+      },
+      "PasswordLinkCreated": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "description": "Shown once. It sets their password, works once, for an hour, and ends their login sessions."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "link",
+          "expires_at"
+        ],
+        "title": "PasswordLinkCreated"
+      },
+      "PasswordLinkInfo": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "has_account": {
+            "type": "boolean",
+            "title": "Has Account",
+            "description": "False: using the link makes the account, so ask for a name too."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "has_account",
+          "expires_at"
+        ],
+        "title": "PasswordLinkInfo"
+      },
+      "PasswordLinkTokenIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the link (the part after #)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "PasswordLinkTokenIn"
+      },
+      "PasswordLoginIn": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next",
+            "description": "A path on this site to open after signing in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "PasswordLoginIn"
+      },
+      "PasswordSetIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the link (the part after #)."
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "description": "For a new account.",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "password"
+        ],
+        "title": "PasswordSetIn"
       },
       "PatternDetail": {
         "properties": {
@@ -19030,7 +19632,7 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "`github`, `google`, `email`, or a plugin's."
+            "description": "`github`, `google`, `email`, `password`, or a plugin's."
           },
           "label": {
             "type": "string",
@@ -19039,7 +19641,7 @@
           "redirects": {
             "type": "boolean",
             "title": "Redirects",
-            "description": "Signing in goes through `/v1/auth/login/<id>`. False for `email`: post the address to `/v1/auth/email`."
+            "description": "Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`)."
           }
         },
         "type": "object",
@@ -23733,6 +24335,24 @@
             "title": "Orgs",
             "description": "Every org you're in."
           },
+          "first_account": {
+            "type": "boolean",
+            "title": "First Account",
+            "description": "Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.",
+            "default": false
+          },
+          "password_email": {
+            "type": "boolean",
+            "title": "Password Email",
+            "description": "sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.",
+            "default": false
+          },
+          "sign_up": {
+            "type": "boolean",
+            "title": "Sign Up",
+            "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
+            "default": false
+          },
           "next": {
             "type": "string",
             "title": "Next",
@@ -23746,6 +24366,9 @@
           "user",
           "org",
           "orgs",
+          "first_account",
+          "password_email",
+          "sign_up",
           "next"
         ],
         "title": "SignedIn"
@@ -25829,6 +26452,11 @@
               }
             ],
             "title": "Avatar Url"
+          },
+          "has_password": {
+            "type": "boolean",
+            "title": "Has Password",
+            "description": "They can sign in with a password, so they can change it."
           }
         },
         "type": "object",
@@ -25836,7 +26464,8 @@
           "id",
           "email",
           "name",
-          "avatar_url"
+          "avatar_url",
+          "has_password"
         ],
         "title": "UserOut"
       },
