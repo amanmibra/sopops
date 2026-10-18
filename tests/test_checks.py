@@ -1,5 +1,5 @@
-"""SOP checks with a fake model: route, check, rule statuses, rollup, the deterministic tool check, exclusion,
-idempotent re-runs, the API, and LiteLLM's JSON-mode fallback."""
+"""SOP checks with fake models: route, check (the reasoning model judging every rule), rule statuses, rollup, the
+deterministic tool check, exclusion, idempotent re-runs and the API. The decision-first check is in test_decisions."""
 
 import re
 from datetime import datetime, timedelta, timezone
@@ -7,17 +7,19 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import SOPC_BIN, WS, fresh_db_url
-from fakes import PATTERN_SCHEMAS, pattern_reply
+from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
 from sopops import Sopc, Store, create_app
+from sopops.ai.fakes import FakeModels, FakeSystemOne
+from sopops.ai.signatures import CheckRules, field_name
 from sopops.jobs import Jobs
-from sopops.llm import FakeLLM, LiteLLM, text_of
 from sopops.orm import Finding, ProcedureCheck, RuleResult
-from sopops.pipeline import SessionRef, process_session
+from sopops.pipeline.process import process_session
 from sopops.pipeline.rollup import Judged, mark_out_of_order, rollup
 from sopops.pipeline.transcript import verify_evidence
+from sopops.pipeline.types import SessionRef
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 ALLERGEN, DELIVERY, LARGE = "allergen-check", "delivery-handling", "large-orders"
@@ -47,28 +49,43 @@ def session(external_id="s1", tool_calls=None, turns=TURNS, **kw):
     }
 
 
+ROUTE_ANSWERS = {"applied": (0.95, 0.95), "not_applicable": (0.03, 0.03), "ended_before_finish": (0.95, 0.04)}
+
+
 class Scenario:
-    """A fake model: route decisions per procedure, and per procedure the rule judgments and goal."""
+    """Fake models: route decisions per procedure, and per procedure the rule judgments and goal (the reasoning model
+    judges every rule: the tests here set SOPOPS_CHECK_MODE=review). Pattern calls get the pattern fakes."""
 
     def __init__(self, route, checks):
         self.route, self.checks = route, checks
 
-    def __call__(self, role, messages, schema):
-        if schema.__name__ in PATTERN_SCHEMAS:
-            return pattern_reply(role, messages, schema)
-        if role == "fast":
-            ids = re.findall(r'<procedure id="([^"]+)">', text_of(messages))
-            answers = {"applied": ("yes", "yes"), "not_applicable": ("no", "no"), "ended_before_start": ("none_yet", "no"), "ended_before_finish": ("yes", "no")}
-            return {"procedures": [dict(zip(("request", "agent_responded"), answers[self.route.get(pid, "not_applicable")]), procedure=pid, reason="fake") for pid in ids]}
-        pid = re.search(r'<procedure id="([^"]+)">', text_of(messages)).group(1)
+    def __call__(self, role, signature, inputs):
+        if signature is not CheckRules:
+            return pattern_reply(role, signature, inputs)
+        pid = re.search(r'<procedure id="([^"]+)">', inputs["procedure"]).group(1)
         spec = self.checks[pid]
-        keys = re.findall(r"^- ((?:step|never|warning)_\d+): ", text_of(messages), re.M)
         rules = []
-        for key in keys:
+        for key in inputs["rules_to_check"]:
             default = {"step": "done", "never": "ok", "warning": "absent"}[key.split("_")[0]]
             status, ev = spec.get(key, (default, []))
             rules.append({"rule": key, "reason": f"fake {key}", "status": status, "evidence": [{"turn": t, "quote": q} for t, q in ev]})
         return {"rules": rules, "goal_reason": "fake", "goal_reached": spec.get("goal", "yes")}
+
+    def decide(self, state, questions):
+        if "findings" in state["inputs"]:
+            return pattern_answer(state, questions)
+        out = {}
+        for pid in (ALLERGEN, DELIVERY, LARGE, "reservations"):
+            situation, responded = ROUTE_ANSWERS[self.route.get(pid, "not_applicable")]
+            out[f"{field_name('p_' + pid)}_situation"], out[f"{field_name('p_' + pid)}_responded"] = situation, responded
+        return {k: out[k] for k in questions}
+
+
+def fake_models(scenario):
+    """Generative calls go to the scenario; decisions to its `decide` (whichever scenario the test sets later)."""
+    fake = FakeModels(scenario)
+    fake.decider = FakeSystemOne(lambda state, qs: fake.responder.decide(state, qs))
+    return fake
 
 
 BASE = Scenario(
@@ -90,10 +107,11 @@ BASE = Scenario(
 
 
 @pytest.fixture
-def env(tmp_path, files):
+def env(tmp_path, files, monkeypatch):
+    monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
     store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
-    fake = FakeLLM(BASE)
-    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, llm=fake)))
+    fake = fake_models(BASE)
+    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
     client.put(f"{WS}/files", json={"files": files})
     client.post(f"{WS}/releases", json={})
     token = client.post(f"{WS}/tokens").json()["token"]
@@ -123,7 +141,7 @@ def test_route_and_check_statuses_and_rollup(env):
 
     allergen = checks[ALLERGEN]
     assert allergen["result"] == "deviated" and allergen["goal_reached"] is True
-    assert allergen["prompt_version"] == "check-4" and allergen["model"] == "fake/reasoning"
+    assert allergen["prompt_version"] == "check-5" and allergen["model"] == "fake/reasoning"
     r = rules_by_key(allergen)
     assert [r[k]["status"] for k in ("step_1", "step_2", "step_3", "never_1", "never_2", "warning_1")] == ["done", "done", "done", "violated", "ok", "absent"]
     assert r["step_3"]["evidence"][0]["source"] == "tool_calls" and r["step_3"]["evidence"][0]["quote"].startswith("lookup_allergens(")
@@ -140,11 +158,10 @@ def test_route_and_check_statuses_and_rollup(env):
     with Session(env.store.engine) as db:
         findings = sorted((f.procedure_id, f.status) for f in db.exec(select(Finding)))
     assert findings == [(ALLERGEN, "violated"), (DELIVERY, "out_of_order")]
-    # one route call, one check per applicable procedure; the transcript block is cached for the checks
-    assert [c[0] for c in env.fake.calls if c[2].__name__ not in PATTERN_SCHEMAS] == ["fast", "reasoning", "reasoning"]
-    check_msgs = env.fake.calls[1][1]
-    assert check_msgs[1]["content"][0]["cache_control"] == {"type": "ephemeral"} and "<transcript>" in check_msgs[1]["content"][0]["text"]
-    assert "allergen" in check_msgs[1]["content"][1]["text"] and "tonys.com/allergens" in check_msgs[1]["content"][1]["text"]  # variables filled
+    # one route decision, one check per applicable procedure
+    assert [c[0] for c in env.fake.calls if c[1].__name__ in ("RouteSession", "CheckRules")] == ["decide", "reasoning", "reasoning"]
+    check = next(c[2] for c in env.fake.calls if c[1] is CheckRules)
+    assert "<transcript>" in check["transcript"] and "tonys.com/allergens" in check["procedure"]  # variables filled
 
 
 def test_required_tool_step_is_checked_against_tool_calls(env):
@@ -178,14 +195,15 @@ def test_leniency_for_a_skipped_step_that_isnt_required(env, goal, expected):
 
 
 def test_a_session_that_ended_early_is_excluded(env):
-    env.fake.responder = Scenario({ALLERGEN: "ended_before_finish", DELIVERY: "ended_before_start"}, {})
+    env.fake.responder = Scenario({ALLERGEN: "ended_before_finish"}, {})
     s = env.send(session("hung-up"))
     assert s["status"] == "excluded" and s["result"] is None
-    assert s["status_reason"] in ("The session ended before the procedure finished.", "The session ended before the procedure started.")
+    assert s["status_reason"] == "The session ended before the procedure finished."
     checks = checks_by_id(s)
     assert checks[ALLERGEN]["applicable"] and checks[ALLERGEN]["excluded_reason"] == "The session ended before the procedure finished."
-    assert checks[DELIVERY]["excluded_reason"] == "The session ended before the procedure started."
-    assert [c[0] for c in env.fake.calls] == ["fast"]  # nothing checked
+    assert [c[0] for c in env.fake.calls] == ["decide"]  # nothing checked
+    silent = env.send(session("silent", turns=[("agent", "Tony's Pizza, how can I help?")]))
+    assert silent["status_reason"] == "The session ended before the procedure started."
 
 
 def test_no_procedure_applied(env):
@@ -236,33 +254,30 @@ def test_list_shows_and_filters_by_result(env):
     assert env.client.get(f"{WS}/sessions", params={"result": "nope"}).status_code == 422
 
 
-def test_check_replies_must_cover_every_rule_once_with_fitting_statuses(env):
-    from pydantic import ValidationError
+class Partial(Scenario):
+    """Leaves out step_2 and gives never_1 a status that doesn't fit a never rule."""
 
-    from sopops.pipeline.judge import check_schema, route_schema
-    from sopops.pipeline.procedures import candidates
+    def __call__(self, role, signature, inputs):
+        reply = super().__call__(role, signature, inputs)
+        if signature is CheckRules:
+            reply["rules"] = [r if r["rule"] != "never_1" else {**r, "status": "done"} for r in reply["rules"] if r["rule"] != "step_2"]
+        return reply
 
-    s = env.send(session())
-    rec = env.store.sessions.load("demo", s["id"])
-    procs = {p.id: p for p in candidates(env.store, rec).procedures}
-    schema = check_schema(procs[DELIVERY])
-    ok = [{"rule": k, "reason": "r", "evidence": [], "status": "done"} for k in ("step_1", "step_2", "step_3")]
-    schema.model_validate({"rules": ok, "goal_reason": "g", "goal_reached": "yes"})
-    with pytest.raises(ValidationError, match="missing: step_3"):
-        schema.model_validate({"rules": ok[:2], "goal_reason": "g", "goal_reached": "yes"})
-    with pytest.raises(ValidationError, match="don't fit"):
-        schema.model_validate({"rules": [*ok[:2], {**ok[2], "status": "violated"}], "goal_reason": "g", "goal_reached": "yes"})
-    with pytest.raises(ValidationError):
-        route_schema(list(procs.values())).model_validate({"procedures": [{"procedure": "nope", "reason": "r", "request": "yes", "agent_responded": "yes"}]})
+
+def test_a_review_that_leaves_out_rules_or_misfits_a_status_keeps_the_defaults(env):
+    env.fake.responder = Partial(BASE.route, BASE.checks)
+    r = rules_by_key(checks_by_id(env.send(session("partial-reply")))[ALLERGEN])
+    assert r["step_2"]["status"] == "not_applicable" and r["step_2"]["reason"] == "Not judged."
+    assert r["never_1"]["status"] == "ok"  # "done" doesn't fit a never rule
 
 
 def test_model_failure_marks_the_session_failed(env):
-    def boom(role, messages, schema):
+    def boom(state, questions):
         raise RuntimeError("provider is down")
 
-    env.fake.responder = boom
+    env.fake.decider.responder = boom
     s = env.send(session("down"))
-    assert s["status"] == "failed" and s["status_reason"] == "route: provider is down"
+    assert s["status"] == "failed" and s["status_reason"].startswith("route: ") and "provider is down" in s["status_reason"]
 
 
 # --- pure pieces --------------------------------------------------------------------
@@ -293,49 +308,3 @@ def test_evidence_is_checked_against_the_transcript():
     turns = [{"role": "agent", "text": "Hello there."}, {"role": "agent", "text": "Your total is $12, ready at six."}]
     got = verify_evidence([{"turn": 0, "quote": "your total is $12"}, {"turn": 1, "quote": "I never said this"}, {"turn": 9, "quote": "Hello"}], turns)
     assert got == [{"turn": 1, "quote": "your total is $12", "source": "transcript"}, {"turn": 0, "quote": "Hello", "source": "transcript"}]
-
-
-def test_litellm_json_mode_validates_and_retries_once(monkeypatch):
-    import litellm
-    from pydantic import BaseModel
-
-    class Out(BaseModel):
-        answer: int
-
-    replies = iter(["not json", '```json\n{"answer": 42}\n```'])
-    seen = []
-
-    def completion(**kw):
-        seen.append(kw)
-        msg = SimpleNamespace(content=next(replies))
-        return SimpleNamespace(choices=[SimpleNamespace(message=msg)], usage=SimpleNamespace(prompt_tokens=10, completion_tokens=2, prompt_tokens_details=None))
-
-    monkeypatch.setattr(litellm, "completion", completion)
-    monkeypatch.setattr(litellm, "supports_response_schema", lambda model: False)
-    monkeypatch.setattr(litellm, "completion_cost", lambda completion_response: 0.001)
-    llm = LiteLLM({"fast": "openai/local-model"})
-    assert llm.complete("fast", [{"role": "user", "content": "?"}], Out) == Out(answer=42)
-    assert seen[0]["response_format"] == {"type": "json_object"} and "JSON schema" in seen[0]["messages"][-1]["content"]
-    assert "doesn't match" in seen[1]["messages"][-1]["content"]
-    assert llm.usage.calls == 2 and llm.usage.retries == 1 and llm.usage.input_tokens == 20
-    with pytest.raises(Exception, match="no model"):
-        llm.complete("reasoning", [], Out)
-
-
-def test_litellm_uses_native_structured_output_when_supported(monkeypatch):
-    import litellm
-    from pydantic import BaseModel
-
-    class Out(BaseModel):
-        answer: int
-
-    seen = []
-
-    def completion(**kw):
-        seen.append(kw)
-        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content='{"answer": 1}'))], usage=None)
-
-    monkeypatch.setattr(litellm, "completion", completion)
-    monkeypatch.setattr(litellm, "supports_response_schema", lambda model: True)
-    LiteLLM({"reasoning": "anthropic/x"}).complete("reasoning", [{"role": "user", "content": "?"}], Out)
-    assert seen[0]["response_format"] is Out and len(seen[0]["messages"]) == 1

@@ -2,36 +2,33 @@
 rounded half up, deltas in points, the prior window, release comparison with minimum n, warning signs kept out of
 pass rates, drill-down filters, and the report."""
 
-import re
+import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
 from conftest import SOPC_BIN, WS, fresh_db_url
-from fakes import PATTERN_SCHEMAS, pattern_reply
+from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 
 from sopops import Sopc, Store, create_app
+from sopops.ai.fakes import FakeModels, FakeSystemOne
+from sopops.ai.signatures import CheckRules, field_name
 from sopops.insights import Filters, compare_flag, delta_points, pct, wilson
 from sopops.jobs import Jobs
-from sopops.llm import FakeLLM, text_of
 
 T0 = datetime(2026, 10, 1, 12, 0, tzinfo=timezone.utc)
 ALLERGEN = "allergen-check"
 
 
-def model(role, messages, schema):
+def model(role, signature, inputs):
     """The user's turn carries directives: DEV (never rule 1 violated), WARN (warning sign 1 present), EXCL (the
-    session ended before the procedure started)."""
-    text = text_of(messages)
-    if schema.__name__ in PATTERN_SCHEMAS:
-        return pattern_reply(role, messages, schema)
-    if role == "fast":
-        ids = re.findall(r'<procedure id="([^"]+)">', text)
-        mine = ("none_yet", "no") if "EXCL" in text else ("yes", "yes")
-        return {"procedures": [{"procedure": p, "reason": "r", "request": mine[0] if p == ALLERGEN else "no", "agent_responded": mine[1] if p == ALLERGEN else "no"} for p in ids]}
+    session ended before the procedure finished)."""
+    if signature is not CheckRules:
+        return pattern_reply(role, signature, inputs)
+    text = inputs["transcript"]
     rules = []
-    for key in re.findall(r"^- ((?:step|never|warning)_\d+): ", text, re.M):
+    for key in inputs["rules_to_check"]:
         status, ev = {"step": "done", "never": "ok", "warning": "absent"}[key.split("_")[0]], []
         if key == "never_1" and "DEV" in text:
             status, ev = "violated", [{"turn": 2, "quote": "totally safe"}]
@@ -39,6 +36,14 @@ def model(role, messages, schema):
             status, ev = "present", [{"turn": 1, "quote": "EpiPen"}]
         rules.append({"rule": key, "reason": "fake", "status": status, "evidence": ev})
     return {"rules": rules, "goal_reason": "g", "goal_reached": "yes"}
+
+
+def decide(state, questions):
+    if "findings" in state["inputs"]:
+        return pattern_answer(state, questions)
+    excluded = any("EXCL" in u["text"] for u in state["inputs"]["transcript"])
+    mine = field_name(f"p_{ALLERGEN}")
+    return {k: (0.03 if excluded and k.endswith("_responded") else 0.95) if k.startswith(mine) else 0.03 for k in questions}
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +54,9 @@ def env(tmp_path_factory, request):
         pytest.skip("needs sopc")
     tmp = tmp_path_factory.mktemp("insights")
     store = Store(fresh_db_url(tmp), Sopc(SOPC_BIN))
-    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, llm=FakeLLM(model))))
+    os.environ["SOPOPS_CHECK_MODE"] = "review"  # the sessions are all processed here, during setup
+    request.addfinalizer(lambda: os.environ.pop("SOPOPS_CHECK_MODE", None))
+    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=FakeModels(model, FakeSystemOne(decide)))))
     files = read_files(FIXTURE / "sops")
     client.put(f"{WS}/files", json={"files": files})
     client.post(f"{WS}/releases", json={})

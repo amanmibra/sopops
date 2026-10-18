@@ -7,13 +7,15 @@ from types import SimpleNamespace
 
 import pytest
 from conftest import SOPC_BIN, WS, fresh_db_url
-from fakes import PATTERN_SCHEMAS, pattern_reply
+from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from sopops import Sopc, Store, create_app
+from sopops.ai.fakes import FakeModels, FakeSystemOne
+from sopops.ai.lm import set_ai
+from sopops.ai.signatures import CheckRules, ClusterFindings, GroupThemes, field_name
 from sopops.jobs import Jobs
-from sopops.llm import FakeLLM, text_of
 from sopops.orm import Finding, Pattern, Theme
 from sopops.patterns import OTHER_MIN_NEW, RECLUSTER_NEW, SPLIT_AT, jaccard, reason_due
 
@@ -30,37 +32,40 @@ class Model:
         self.rename = ""
         self.cluster_calls = 0
 
-    def __call__(self, role, messages, schema):
-        text = text_of(messages)
-        if schema.__name__ in PATTERN_SCHEMAS:
-            reply = pattern_reply(role, messages, schema)
-            if schema.__name__ == "ClusterReply":
+    def __call__(self, role, signature, inputs):
+        if signature is not CheckRules:
+            reply = pattern_reply(role, signature, inputs)
+            if signature is ClusterFindings:
                 self.cluster_calls += 1
                 for m in reply["modes"]:
                     m["name"] += self.rename
             return reply
-        if role == "fast":
-            ids = re.findall(r'<procedure id="([^"]+)">', text)
-            return {"procedures": [{"procedure": p, "reason": "r", "request": "yes" if p == ALLERGEN else "no", "agent_responded": "yes" if p == ALLERGEN else "no"} for p in ids]}
-        mode = re.search(r"MODE:(\w+)", text).group(1)
+        mode = re.search(r"MODE:(\w+)", inputs["transcript"]).group(1)
         rules = []
-        for key in re.findall(r"^- ((?:step|never|warning)_\d+): ", text, re.M):
+        for key in inputs["rules_to_check"]:
             status = {"step": "done", "never": "ok", "warning": "absent"}[key.split("_")[0]]
             ev = []
             if key == "never_1":
                 status, ev = "violated", [{"turn": 2, "quote": "totally safe"}]
-            if key == "step_2" and "ALSO" in text:
+            if key == "step_2" and "ALSO" in inputs["transcript"]:
                 status = "skipped"
             rules.append({"rule": key, "reason": f"fake mode {mode}", "status": status, "evidence": ev})
         return {"rules": rules, "goal_reason": "g", "goal_reached": "yes"}
 
+    def decide(self, state, questions):
+        if "findings" in state["inputs"]:
+            return pattern_answer(state, questions)
+        allergen = field_name(f"p_{ALLERGEN}")
+        return {k: 0.95 if k.startswith(allergen) else 0.03 for k in questions}
+
 
 @pytest.fixture
-def env(tmp_path, files):
+def env(tmp_path, files, monkeypatch):
+    monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
     store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
     model = Model()
-    fake = FakeLLM(model)
-    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, llm=fake)))
+    fake = FakeModels(model, FakeSystemOne(model.decide))
+    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
     client.put(f"{WS}/files", json={"files": files})
     client.post(f"{WS}/releases", json={})
     token = client.post(f"{WS}/tokens").json()["token"]
@@ -141,9 +146,9 @@ def test_split_assign_and_stable_ids_across_reclustering(env):
     env.model.rename = ""
     original = env.model.__call__
 
-    def without_b(role, messages, schema):
-        reply = original(role, messages, schema)
-        if schema.__name__ == "ClusterReply":
+    def without_b(role, signature, inputs):
+        reply = original(role, signature, inputs)
+        if signature is ClusterFindings:
             reply["modes"] = [m for m in reply["modes"] if not m["name"].startswith("Mode B")]
         return reply
 
@@ -190,9 +195,9 @@ def test_themes_keep_their_names_and_ids(env):
     # regrouping with a model that renames: existing themes keep their names and ids
     original = env.model.__call__
 
-    def renaming(role, messages, schema):
-        reply = original(role, messages, schema)
-        if schema.__name__ == "ThemesReply":
+    def renaming(role, signature, inputs):
+        reply = original(role, signature, inputs)
+        if signature is GroupThemes:
             for t in reply["themes"]:
                 t["name"] = "Something else " + t["name"]
         return reply
@@ -204,9 +209,9 @@ def test_themes_keep_their_names_and_ids(env):
     assert again == {k: v.id for k, v in themes.items()}
 
     # a model that swaps the existing keys between groups: matched by their patterns instead
-    def swapping(role, messages, schema):
-        reply = original(role, messages, schema)
-        if schema.__name__ == "ThemesReply":
+    def swapping(role, signature, inputs):
+        reply = original(role, signature, inputs)
+        if signature is GroupThemes:
             keys = [t["key"] for t in reply["themes"]]
             for t, k in zip(reply["themes"], reversed(keys)):
                 t["key"] = k
@@ -239,13 +244,12 @@ def test_pattern_api_and_recluster_endpoint(env):
 
 
 def test_recluster_cli(env, capsys):
-    from sopops import llm
     from sopops.cli import main as cli
 
     url = env.store.engine.url.render_as_string(hide_password=False)
     for mode in "AAAABBB":
         env.send(mode)
-    llm.set_llm(env.fake)
+    set_ai(env.fake)
     cli(["recluster", "--database-url", url, "--workspace", "demo", "--force"])
     assert "0 rules reclustered" in capsys.readouterr().out  # 7 findings: under the minimum to split, even with --force
     env.send("B")  # the pipeline splits the rule itself at 8

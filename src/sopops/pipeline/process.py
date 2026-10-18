@@ -1,11 +1,12 @@
 """`process_session`: what runs after a session is ingested.
 
 1. normalize: canonical turns and tool calls; status received (or partial, or failed).
-2. route (fast model): which procedures applied, and which are excluded because the session ended before the
-   procedure started or finished. Status routed, or excluded when there's nothing to check.
-3. check (reasoning model, one call per applicable procedure): every rule's status, the goal, and the rollup.
+2. route (decisions, see `sopops.ai.decide`): which procedures applied, and which are excluded because the session
+   ended before the procedure started or finished. Status routed, or excluded when there's nothing to check.
+3. check (per applicable procedure): every rule's status from decisions, the reasoning model's review of what they
+   flag, the goal, and the rollup.
 4. finish: status checked (a partial session stays partial), with the worst procedure result.
-5. patterns: each new finding joins its rule's pattern (the fast model picks a failure mode on split rules), then
+5. patterns: each new finding joins its rule's pattern (a decision picks a failure mode on split rules), then
    rules and themes that are due are reclustered and regrouped (see `sopops.patterns`). A failure here never fails the
    session; the findings stay unassigned until the next run or the daily recluster.
 
@@ -19,12 +20,10 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 
-from .. import llm as llm_mod
-from ..ai import classify
-from ..ai import jev as jev_mod
+from ..ai import decide
 from ..ai import lm as ai_lm
+from ..ai.signatures import VERSIONS
 from ..errors import NotFound
-from . import judge, prompts
 from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
 from .rollup import apply_tool_calls, mark_out_of_order, rollup
@@ -38,7 +37,7 @@ from .types import (
 )
 
 if TYPE_CHECKING:
-    from ..llm import LLM
+    from ..ai.lm import AI
     from ..orm import SessionRecord
     from ..patterns import Outcome
     from ..store import Store
@@ -47,21 +46,21 @@ log = logging.getLogger("sopops.pipeline")
 NO_MODEL = "No model configured: set SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING to check sessions against procedures."
 
 
-def process_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> ProcessResult:
+def process_session(store: Store, ref: SessionRef, ai: AI | None = None) -> ProcessResult:
     """Every step, in this process."""
     n = normalize_session(store, ref)
     if n.skipped or n.status == "failed" or n.turn_count == 0:
         return n
-    r = route_session(store, ref, llm)
+    r = route_session(store, ref, ai)
     if not r.go:
         return ProcessResult(session_id=ref.session_id, status=r.status, turn_count=n.turn_count, skipped=r.status == "stale", reason=r.reason)
     for pid in r.to_check:
-        c = check_procedure(store, CheckRef(**ref.model_dump(), procedure_id=pid), llm)
+        c = check_procedure(store, CheckRef(**ref.model_dump(), procedure_id=pid), ai)
         if not c.stored:
             return ProcessResult(session_id=ref.session_id, status=n.status, turn_count=n.turn_count, skipped=True)
     done = finish_session(store, ref, n.turn_count)
     if not done.skipped:
-        assign_patterns(store, ref, llm)
+        assign_patterns(store, ref, ai)
     return done
 
 
@@ -106,8 +105,8 @@ def _partial(s: SessionRecord) -> bool:
     return s.status_reason in PARTIAL_REASONS
 
 
-def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> RouteResult:
-    llm = llm or llm_mod.get_llm()
+def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteResult:
+    ai = ai or ai_lm.get_ai()
     s = _load(store, ref)
     if s is None:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
@@ -115,7 +114,7 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         return RouteResult(session_id=ref.session_id, go=False, status=s.status, reason=s.status_reason)
     partial = _partial(s)
     base = "partial" if partial else "received"
-    if not llm_mod.configured(llm):
+    if not ai_lm.configured(ai):
         store.checks.reset(ref, base, s.status_reason if partial else NO_MODEL)
         return RouteResult(session_id=ref.session_id, go=False, status=base, reason=NO_MODEL)
     cand = candidates(store, s)
@@ -124,21 +123,13 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         status = "partial" if partial else (base if cand.release is None else "excluded")
         store.checks.reset(ref, status, s.status_reason if partial else why)
         return RouteResult(session_id=ref.session_id, go=False, status=status, release_id=cand.release, reason=why)
-    jev = jev_mod.get_jev()
-    model, version = llm.model("fast"), prompts.load("route").version
+    cfg = decide.DecisionConfig.from_env()
     try:
-        if jev is None:
-            decisions = judge.route(llm, cand.procedures, cand.variables, s.turns, s.tool_calls)
-        else:
-            decisions, by_llm = classify.route(
-                jev, cand.procedures, cand.variables, s.turns, s.tool_calls, classify.JevConfig.from_env(),
-                fallback=lambda: judge.route(llm, cand.procedures, cand.variables, s.turns, s.tool_calls),
-            )
-            if not by_llm:
-                model, version = jev.model, classify.ROUTE_VERSION
+        routing = decide.route(ai, cand.procedures, cand.variables, s.turns, cfg, decide.route_params(store.engine, ref.workspace_id, cand.procedures, cfg))
     except Exception as e:
         store.checks.fail(ref, f"route: {e}")
         raise
+    decisions = routing.decisions
     to_check = [d.procedure_id for d in decisions if d.status == "applied"]
     if to_check:
         status, reason = "routed", None
@@ -147,14 +138,14 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         status, reason = "excluded", (excluded[0].excluded_reason if excluded else "No procedure applied.")
     if partial:
         status, reason = "partial", s.status_reason
-    stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, model, version)
+    stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, routing.model, VERSIONS["route"])
     if not stored:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
     return RouteResult(session_id=ref.session_id, go=bool(to_check), status=status, release_id=cand.release, to_check=to_check, reason=reason)
 
 
-def check_procedure(store: Store, ref: CheckRef, llm: LLM | None = None) -> CheckResult:
-    llm = llm or llm_mod.get_llm()
+def check_procedure(store: Store, ref: CheckRef, ai: AI | None = None) -> CheckResult:
+    ai = ai or ai_lm.get_ai()
     s = _load(store, ref)
     if s is None:
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)
@@ -162,24 +153,19 @@ def check_procedure(store: Store, ref: CheckRef, llm: LLM | None = None) -> Chec
     p: Procedure | None = next((x for x in cand.procedures if x.id == ref.procedure_id), None)
     if p is None:
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)
-    jev = jev_mod.get_jev()
-    model, version = llm.model("reasoning"), prompts.load("check").version
     try:
-        if jev is None:
-            checked = judge.check(llm, p, cand.variables, s.turns, s.tool_calls)
-        else:
-            got = classify.check(jev, ai_lm.get_ai(), store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, classify.JevConfig.from_env())
-            checked, model, version = got.checked, got.model, got.prompt_version
+        got = decide.check(ai, store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, decide.DecisionConfig.from_env())
     except Exception as e:
         store.checks.fail(ref, f"check {p.id}: {e}")
         raise
+    checked = got.checked
     steps = [r for r in checked.rules if r.kind == "step"]
     tools = {r.id: r.tool for r in p.rules if r.kind == "step" and r.tool and r.required}
     apply_tool_calls(steps, tools, s.tool_calls, s.turns)
     mark_out_of_order(steps)
     agent_spoke = any(t.get("role") == "agent" and t.get("text") for t in s.turns)
     roll = rollup(checked.rules, checked.goal_reached, agent_spoke)
-    stored = store.checks.save(ref, p, checked.rules, checked.goal_reached, checked.goal_reason, roll, model, version)
+    stored = store.checks.save(ref, p, checked.rules, checked.goal_reached, checked.goal_reason, roll, got.model, got.prompt_version)
     return CheckResult(session_id=ref.session_id, procedure_id=p.id, result=roll.result, stored=stored)
 
 
@@ -203,12 +189,12 @@ def _ws_lock(workspace: str) -> threading.Lock:
         return _ws_locks.setdefault(workspace, threading.Lock())
 
 
-def assign_patterns(store: Store, ref: SessionRef, llm: LLM | None = None, recluster: bool = True) -> Outcome | None:
+def assign_patterns(store: Store, ref: SessionRef, ai: AI | None = None, recluster: bool = True) -> Outcome | None:
     """Step 5, in this process: one workspace's pattern writes at a time (Hatchet runs them with concurrency 1 per
     workspace instead). Returns None if it failed (logged)."""
     try:
         with _ws_lock(ref.workspace_id):
-            return store.patterns.assign_session(ref.workspace_id, ref.session_id, llm, recluster=recluster)
+            return store.patterns.assign_session(ref.workspace_id, ref.session_id, ai, recluster=recluster)
     except Exception:
         log.exception("assigning patterns failed for session %s", ref.session_id)
         return None

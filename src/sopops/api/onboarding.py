@@ -9,7 +9,7 @@ import time
 from fastapi import APIRouter, Header, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
-from ..llm import LLMError, model_for
+from ..ai.lm import AIError, model_for
 from ..onboarding import platforms
 from ..onboarding.service import DONE, Onboarding
 from ..onboarding.types import ProposalContent, SourcePrompt
@@ -53,7 +53,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     @r.get("/v1/onboarding/capabilities", response_model=Capabilities)
     def onboarding_capabilities() -> dict:
         """What this server can do for onboarding: extract with its own model, and which platforms it reads."""
-        return {"llm": onboarding.llm is not None, "model": model_for("reasoning"), "platforms": list(platforms.PLATFORMS)}
+        return {"llm": onboarding.ai is not None, "model": model_for("reasoning"), "platforms": list(platforms.PLATFORMS)}
 
     @r.post("/v1/onboarding/platform-agents", response_model=list[PlatformAgent], responses={400: {"description": "The platform refused the key or couldn't be reached."}})
     def list_platform_agents(req: PlatformAgentsRequest) -> list[dict]:
@@ -84,7 +84,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
                 raise HTTPException(400, str(e)) from None
         try:
             return onboarding.start(workspace, sources, req.author)
-        except LLMError as e:
+        except AIError as e:
             raise HTTPException(503, str(e)) from None
         except ValueError as e:
             raise HTTPException(400, str(e)) from None

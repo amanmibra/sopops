@@ -3,7 +3,7 @@
 Two ways in, one way out:
 
 - **LLM import** (`source: llm`): prompts pasted, uploaded or read from ElevenLabs/Vapi are extracted here, in a
-  background thread, with the configured model (`sopops.llm`).
+  background thread, with the configured models (`sopops.ai`).
 - **Agent import** (`source: agent`): the user starts Claude Code or Codex in their repo with the `sopops-mcp` server
   and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one.
 
@@ -26,8 +26,8 @@ from typing import Callable
 from sqlmodel import Session, inspect, select
 
 from .. import forms
+from ..ai.lm import AI, RULES, AIError, configured, get_ai, model_for
 from ..errors import workspace_id
-from ..llm import Completer, LLMError, from_env
 from ..orm import ImportEvent, ImportRecord, Token
 from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
@@ -36,6 +36,7 @@ from ..tokens import out as token_info
 from . import fidelity, kickoff
 from .pipeline import extract
 from .review import refresh_used_by, resolve
+from .rules import RulesModels
 from .types import Finding, Proposal, ProposalContent, SourcePrompt
 
 log = logging.getLogger("sopops.onboarding")
@@ -46,24 +47,27 @@ TOKEN_TTL = timedelta(hours=2)
 DONE = ("applied", "discarded")
 
 
-def llm_from_env() -> Completer | None:
-    """The configured model, the rules completer (`SOPOPS_MODEL_REASONING=rules`, for trying it out), or None."""
-    return from_env()
+def ai_from_env() -> AI | None:
+    """The configured models, the rules mode (`SOPOPS_MODEL_REASONING=rules`, for trying it out), or None."""
+    if model_for("reasoning") == RULES:
+        return RulesModels()
+    ai = get_ai()
+    return ai if configured(ai) else None
 
 
 class Onboarding:
-    def __init__(self, store: Store, llm: Completer | None | Callable[[], Completer | None] = llm_from_env):
+    def __init__(self, store: Store, ai: AI | None | Callable[[], AI | None] = ai_from_env):
         self.store = store
-        self._llm = llm
+        self._ai = ai
         self._fail_interrupted()
 
     @property
-    def llm(self) -> Completer | None:
-        return self._llm() if callable(self._llm) and not hasattr(self._llm, "complete") else self._llm  # type: ignore[return-value]
+    def ai(self) -> AI | None:
+        return self._ai() if callable(self._ai) and not hasattr(self._ai, "predict") else self._ai  # type: ignore[return-value]
 
-    @llm.setter
-    def llm(self, value: Completer | None) -> None:
-        self._llm = value
+    @ai.setter
+    def ai(self, value: AI | None) -> None:
+        self._ai = value
 
     @property
     def tokens(self) -> Tokens:
@@ -109,8 +113,8 @@ class Onboarding:
 
     def start(self, workspace: str, sources: list[SourcePrompt], author: str | None = None, run: bool = True) -> dict:
         """Start extracting in a background thread. Raises LLMError if no model is configured."""
-        if self.llm is None:
-            raise LLMError("No model is configured for extraction. Set SOPOPS_MODEL_REASONING (and optionally SOPOPS_MODEL_FAST) "
+        if self.ai is None:
+            raise AIError("No model is configured for extraction. Set SOPOPS_MODEL_REASONING (and optionally SOPOPS_MODEL_FAST) "
                            "to a LiteLLM model name and its provider key, or use Claude Code / Codex instead.")
         if not sources:
             raise ValueError("add at least one prompt")
@@ -127,14 +131,14 @@ class Onboarding:
 
     def run(self, id: str, sources: list[SourcePrompt]) -> None:
         try:
-            llm = self.llm
-            if llm is None:
-                raise LLMError("no model is configured")
-            proposal = extract(sources, llm, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
+            ai = self.ai
+            if ai is None:
+                raise AIError("no model is configured")
+            proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
             self._save(id, proposal, status="ready")
         except Exception as e:  # report every failure on the import itself
             log.exception("import %s failed", id)
-            message = str(e) if isinstance(e, (LLMError, SopcUnavailable, Invalid, ValueError)) else f"{type(e).__name__}: {e}"
+            message = str(e) if isinstance(e, (AIError, SopcUnavailable, Invalid, ValueError)) else f"{type(e).__name__}: {e}"
             self.event(id, "failed", message[:2000])
             with self._db() as db:
                 r = db.get(ImportRecord, id)

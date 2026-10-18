@@ -36,9 +36,10 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgres://` URLs use psycopg 3, `pip install 'sopops[postgres]'`) or SQLite. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary: v0.0.12 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
-| `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions and import prompts, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). If only one is set it serves both. Unset, sessions are stored but not checked, and imports need Claude Code or Codex. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
+| `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions and import prompts, as model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`; see [Model backends](#model-backends)), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). If only one is set it serves both. Unset, sessions are stored but not checked, and imports need Claude Code or Codex. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
 | `SOPOPS_LLM_API_BASE` | unset | Send every model call to this base URL (an OpenAI-compatible endpoint for local models). |
-| `TYPESAFE_API_KEY`, `SOPOPS_JEV`, `SOPOPS_JEV_MODEL` | unset, auto, `jev-1.13.0` | Optional: TypeSafe's Jev as the first pass of routing, checks and pattern assignment (`pip install 'sopops[jev]'`). On when the key is set, unless `SOPOPS_JEV=off`. See [Model backends](#model-backends). |
+| `TYPESAFE_API_KEY`, `SOPOPS_JEV`, `SOPOPS_JEV_MODEL` | unset, auto, `jev-1.13.0` | Optional: TypeSafe's Jev answers the decisions (`pip install 'sopops[jev]'`). On when the key is set, unless `SOPOPS_JEV=off`. See [Model backends](#model-backends). |
+| `SOPOPS_CHECK_MODE`, `SOPOPS_CHECK_REVIEW`, `SOPOPS_DECISIONS` | `decide`, `on`, unset | How rules are checked: decisions first with the reasoning model reviewing what they flag (`decide`), or the reasoning model on every rule (`review`); review off; decision thresholds and bands (JSON). |
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform API keys and webhook secrets. Needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks (ElevenLabs, Vapi) are refused for a workspace with no webhook secret or runtime token, instead of open. |
@@ -73,8 +74,12 @@ Before you publish, Unpublished changes shows what was edited and exactly how ea
 
 ## Model backends
 
-- **LLM (default).** Every model call goes through [LiteLLM](https://docs.litellm.ai/docs/providers): two roles, `fast` and `reasoning`, each a LiteLLM model string, so any hosted provider or OpenAI-compatible local endpoint works. Self-hosting needs nothing else.
-- **Jev (optional).** With `sopops[jev]` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers first: whether each procedure applied, each rule as literal yes/no questions with the transcript line that shows it, and which failure mode a finding belongs to. The reasoning model rewrites each rule into those questions once per rule version, and reviews only the rules Jev flags or isn't sure about; the rest keep Jev's answer. Thresholds and the review band are settings (`SOPOPS_JEV_CONFIG`, JSON; `SOPOPS_JEV_ESCALATE=off` lets Jev decide every rule). Each check records the model that made it (`jev-1.13.0`, or `jev-1.13.0+<reasoning model>` when rules were reviewed).
+Every model call is a typed [DSPy](https://dspy.ai) signature (`src/sopops/ai/signatures.py`), so the instructions, inputs and outputs of each one are in one place, and each result records the model and instructions version that made it.
+
+- **LLMs.** Two roles, `fast` and `reasoning`, each a model string (`anthropic/claude-haiku-4-5`, `openai/gpt-4o-mini`, a local model behind an OpenAI-compatible endpoint with `SOPOPS_LLM_API_BASE`). DSPy calls the provider with its own client, with LiteLLM as its fallback (pinned, with hashes in `uv.lock`). Self-hosting needs nothing else.
+- **Decisions.** Routing, the rule checks and pattern assignment are yes/no and pick-one questions (DSPy's `Noul` and `Choice`) with a probability each. Each rule is rewritten once per rule version as literal checks (a condition and positive actions). By default the fast model answers them; the reasoning model then reviews only what they flag (a skipped step, a broken never rule, an unheeded warning sign) or aren't sure about, and the rest keep the decision, with the transcript line that shows it. `SOPOPS_CHECK_MODE=review` has the reasoning model judge every rule instead; `SOPOPS_CHECK_REVIEW=off` lets the decisions stand.
+- **Jev (optional).** With `sopops[jev]` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers the decisions instead of the fast model: calibrated probabilities, much faster and cheaper than an LLM call.
+- **Calibration.** Thresholds can be fitted to a workspace's own labeled sessions with DSPy's `ReAnchor` (`sopops.ai.programs`), and are stored per workspace (`calibrations`), never in the code. Until then the defaults in `DecisionConfig` apply (`SOPOPS_DECISIONS`, JSON, overrides them).
 
 ## Import your agents
 
@@ -142,14 +147,14 @@ Every source converts into one canonical JSON format ([API.md](API.md#sessions))
 **The pipeline.** Each new or changed session runs `process_session`:
 
 1. **normalize** the turns and tool calls;
-2. **route** (the fast model): which of the agent's procedures, in the release the session ran on, applied, and which to leave out because the session ended before the procedure started or finished;
-3. **check** (the reasoning model, one call per procedure that applied): a status for every rule, with quotes, and whether the procedure's goal was reached. Required tool steps are checked against the tool calls, when the session has them;
+2. **route** (decisions): which of the agent's procedures, in the release the session ran on, applied, and which to leave out because the session ended before the procedure started or finished;
+3. **check** (per procedure that applied): a decision for every rule, the reasoning model's review of what they flag, a status for every rule with quotes, and whether the procedure's goal was reached ([Model backends](#model-backends)). Required tool steps are checked against the tool calls, when the session has them;
 4. a **result** per procedure, and the worst of them for the session: deviated, partial, followed or not measurable ([how](API.md#sop-checks));
 5. **patterns**: each finding joins its rule's pattern, and once a rule has enough findings, a model splits it into named failure modes, so the same mistake shows up once with its count. Themes group them by the phase of the session ([how](API.md#patterns-and-themes)).
 
 Without Hatchet it runs inside sopops, after the response. With `HATCHET_CLIENT_TOKEN` set it runs on Hatchet in `sopops worker`: one run per session version, a fair share per workspace, one check per procedure in parallel, and model calls rate-limited per model (`SOPOPS_RATE_LIMIT_PER_MINUTE`, default 60). `docker compose --profile hatchet up` runs hatchet-lite (see [docker-compose.yml](docker-compose.yml)). Live updates reach the Sessions page from any process on Postgres (LISTEN/NOTIFY); on SQLite, only from the sopops process itself.
 
-Models are called through [LiteLLM](https://github.com/BerriAI/litellm), as a library (pinned, with hashes in `uv.lock`), so any provider it supports works, including a local model behind an OpenAI-compatible endpoint. Prompts are in [`src/sopops/pipeline/prompts`](src/sopops/pipeline/prompts), and every result records the model and prompt version that produced it.
+Every model call is a DSPy signature in [`src/sopops/ai/signatures.py`](src/sopops/ai/signatures.py), and every result records the model and instructions version that produced it.
 
 ## Insights and the report
 

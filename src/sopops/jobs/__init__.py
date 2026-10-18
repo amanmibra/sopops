@@ -10,12 +10,13 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-from ..pipeline import SessionRef, process_session, session_event
+from ..pipeline.process import process_session, session_event
+from ..pipeline.types import SessionRef
 
 if TYPE_CHECKING:
     from fastapi import BackgroundTasks
 
-    from ..llm import LLM
+    from ..ai.lm import AI
     from ..store import Store
 
 log = logging.getLogger("sopops.jobs")
@@ -26,10 +27,10 @@ def hatchet_configured() -> bool:
 
 
 class Jobs:
-    def __init__(self, store: Store, use_hatchet: bool | None = None, llm: LLM | None = None):
-        """`llm`: the model client for inline runs (tests pass a fake); default: LiteLLM from the environment."""
+    def __init__(self, store: Store, use_hatchet: bool | None = None, ai: AI | None = None):
+        """`ai`: the models for inline runs (tests pass a fake); default: `sopops.ai.lm.Models` from the environment."""
         self.store = store
-        self.llm = llm
+        self.ai = ai
         self.use_hatchet = hatchet_configured() if use_hatchet is None else use_hatchet
 
     @property
@@ -58,6 +59,6 @@ class Jobs:
 
     def run_inline(self, ref: SessionRef) -> None:
         try:
-            process_session(self.store, ref, self.llm)
+            process_session(self.store, ref, self.ai)
         except Exception:  # the session is marked failed with the reason; nothing else to do here
             log.exception("process_session failed for %s", ref.session_id)

@@ -9,37 +9,41 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-from sopops.llm import text_of
-
-PATTERN_SCHEMAS = ("ClusterReply", "AssignReply", "ThemesReply")
-FINDING = re.compile(r"^- (f\d+) \[\w+\] (.*)$", re.M)
+from sopops.ai.signatures import ClusterFindings, GroupThemes
 
 
-def pattern_reply(role, messages, schema):
-    text = text_of(messages)
-    name = schema.__name__
-    if name == "ClusterReply":
+def mode_of(reason: str) -> str | None:
+    m = re.search(r"mode (\w+)", reason)
+    return m.group(1) if m else None
+
+
+def pattern_reply(role, signature, inputs):
+    """Clustering and themes (the reasoning model)."""
+    if signature is ClusterFindings:
         modes = defaultdict(list)
-        for key, reason in FINDING.findall(text):
-            m = re.search(r"mode (\w+)", reason)
-            if m:
-                modes[m.group(1)].append(key)
+        for f in inputs["findings"]:
+            if mode_of(f.reason):
+                modes[mode_of(f.reason)].append(f.key)
         return {"modes": [{"name": f"Mode {x}", "description": f"Findings of kind {x}.", "findings": ks} for x, ks in sorted(modes.items()) if len(ks) >= 2]}
-    if name == "AssignReply":
-        out = []
-        for block in re.findall(r"<rule>(.*?)</rule>", text, re.S):
-            modes = dict((label, key) for key, label in re.findall(r"^- (m\d+): Mode (\w+)\.", block, re.M))
-            for key, reason in FINDING.findall(block):
-                m = re.search(r"mode (\w+)", reason)
-                out.append({"finding": key, "mode": modes.get(m.group(1), "other") if m else "other"})
-        return {"assignments": out}
-    if name == "ThemesReply":
-        existing = re.findall(r"^- (t\d+): ", text, re.M)
+    if signature is GroupThemes:
+        existing = [t.key for t in inputs["existing_themes"]]
         groups = defaultdict(list)
-        for key, kind in re.findall(r"^- (r\d+): (Step|Never|Warning sign) \d+:", text, re.M):
-            groups[kind].append(key)
+        for p in inputs["patterns"]:
+            groups[p.rule.split(" ")[0] if not p.rule.startswith("Warning sign") else "Warning sign"].append(p.key)
+        order = ["Step", "Never", "Warning sign"]
         themes = []
-        for i, (kind, keys) in enumerate(sorted(groups.items(), key=lambda kv: ["Step", "Never", "Warning sign"].index(kv[0]))):
+        for i, (kind, keys) in enumerate(sorted(groups.items(), key=lambda kv: order.index(kv[0]))):
             themes.append({"key": existing[i] if i < len(existing) else "new", "name": f"{kind} problems", "description": f"{kind} rules.", "patterns": keys})
         return {"themes": themes}
-    raise AssertionError(f"not a pattern schema: {name}")
+    raise AssertionError(f"not a pattern signature: {signature.__name__}")
+
+
+def pattern_answer(state, questions):
+    """Assignment (a decision): the mode named "Mode X" for a finding whose reason says mode X, else other."""
+    findings = state["inputs"]["findings"]
+    out = {}
+    for key, q in questions.items():
+        x = mode_of(findings[key]["reason"])
+        named = next((label for label, desc in q["criteria"].items() if desc and x and desc.startswith(f"Mode {x}.")), "other")
+        out[key] = named
+    return out

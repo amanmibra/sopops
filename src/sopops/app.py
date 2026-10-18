@@ -32,7 +32,7 @@ from .api.deps import OPEN
 from .db import database_url
 from .events import PgListener
 from .jobs import Jobs
-from .onboarding.service import Onboarding, llm_from_env
+from .onboarding.service import Onboarding, ai_from_env
 from .sopc import Sopc
 from .store import Store
 
@@ -68,8 +68,8 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     )
     app.state.store = store
     app.state.jobs = jobs
-    # Jobs(llm=...) reaches imports too
-    app.state.onboarding = Onboarding(store, llm=lambda: jobs.llm if jobs.llm is not None else llm_from_env())
+    # Jobs(ai=...) reaches imports too
+    app.state.onboarding = Onboarding(store, ai=lambda: jobs.ai if jobs.ai is not None else ai_from_env())
     errors.register(app)
     rt = runtime.register(app, store)  # push to platforms, their call-start webhooks, runtime token
 

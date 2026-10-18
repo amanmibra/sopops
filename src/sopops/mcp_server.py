@@ -25,12 +25,17 @@ from typing import Any, Callable
 import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from pydantic import ValidationError
 
-from .onboarding import platforms
+from .ai.lm import AI, RULES, Models, model_for
+from .ai.signatures import SegmentPrompt, StructureProcedure
+from .onboarding import fidelity, platforms
 from .onboarding import text as tx
 from .onboarding.fidelity import files_of
-from .onboarding.pipeline import prompt_text
+from .onboarding.pipeline import extract, guide_text
+from .onboarding.rules import RulesModels
 from .onboarding.types import Finding, Proposal, ProposalContent, SourcePrompt
+from .sopc import Invalid, Sopc, SopcUnavailable
 
 INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_extraction_guide. Only read from the user's systems and platforms;
 never change, deploy or delete anything there. Report progress with report_progress as you go."""
@@ -72,9 +77,7 @@ def _key(platform: str, env: dict[str, str]) -> str:
     return key
 
 
-def _sopc(env: dict[str, str]):
-    from .sopc import Sopc
-
+def _sopc(env: dict[str, str]) -> Sopc | None:
     binary = env.get("SOPC_BIN") or shutil.which("sopc")
     return Sopc(binary) if binary and Path(binary).exists() else None
 
@@ -85,9 +88,6 @@ def _content(proposal: dict) -> ProposalContent:
 
 def _explained(fn: Callable) -> Callable:
     """Errors the host agent can act on reach it as tool errors with their message (others stay on the server)."""
-    from pydantic import ValidationError
-
-    from .sopc import Invalid, SopcUnavailable
 
     @functools.wraps(fn)
     def wrapper(*args, **kwargs):
@@ -116,7 +116,7 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
             except RuntimeError as e:
                 session = {"error": str(e)}
         return {
-            "guide": prompt_text("guide"),
+            "guide": guide_text(),
             "proposal_schema": ProposalContent.model_json_schema(),
             "finding_schema": Finding.model_json_schema(),
             "session": session,
@@ -142,16 +142,14 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
         With a model configured for sopops in this environment, sopops extracts it and returns `proposal`.
         Otherwise it returns `instructions` and the prompts split into numbered units for you to classify yourself."""
         sources = [SourcePrompt.model_validate(p) for p in prompts]
-        llm = _llm_for(env)
-        if llm is not None:
-            from .onboarding.pipeline import extract
-
-            proposal = extract(sources, llm, _sopc(env))
+        ai = _ai_for(env)
+        if ai is not None:
+            proposal = extract(sources, ai, _sopc(env))
             return {"mode": "extracted", "proposal": proposal.model_dump(mode="json")}
         ids = [tx.unique(tx.slug(s.name, "agent"), set()) for s in sources]
         return {
             "mode": "host",
-            "instructions": prompt_text("guide") + "\n\n## How to classify\n\n" + prompt_text("segment") + "\n\n## Procedures\n\n" + prompt_text("procedure"),
+            "instructions": guide_text() + "\n\n## How to classify\n\n" + SegmentPrompt.instructions + "\n\n## Procedures\n\n" + StructureProcedure.instructions,
             "inputs": [
                 {"id": i, "name": s.name, "platform": s.platform, "platform_id": s.platform_id or i, "tools": s.tools,
                  "units": [{"n": n + 1, "text": u} for n, u in enumerate(tx.split_units(s.prompt))]}
@@ -173,9 +171,7 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
         sopc = _sopc(env)
         if sopc is None:
             raise RuntimeError("No sopops connection and no sopc binary: set SOPOPS_URL and SOPOPS_TOKEN, or install sopc (SOPC_BIN).")
-        from .onboarding.fidelity import check
-
-        checked = check(Proposal(**content.model_dump(), originals=originals), sopc)
+        checked = fidelity.check(Proposal(**content.model_dump(), originals=originals), sopc)
         return {"fidelity": [f.model_dump(exclude={"compiled"}) for f in checked.fidelity], "issues": [i.model_dump() for i in checked.issues]}
 
     @server.tool()
@@ -226,15 +222,11 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     return server
 
 
-def _llm_for(env: dict[str, str]):
-    from .llm import LiteLLM, model_for
-
+def _ai_for(env: dict[str, str]) -> AI | None:
     model = model_for("reasoning", env)
-    if model == "rules":
-        from .onboarding.rules import Rules
-
-        return Rules()
-    return LiteLLM({"reasoning": model, "fast": model_for("fast", env) or model}) if model else None
+    if model == RULES:
+        return RulesModels()
+    return Models({"reasoning": model, "fast": model_for("fast", env) or model}) if model else None
 
 
 def main() -> None:

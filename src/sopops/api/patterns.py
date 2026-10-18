@@ -47,14 +47,14 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         req = req or ReclusterRequest()
         ws = workspace_id(workspace)
         pats = store.patterns
-        out = pats.assign_pending(ws, jobs.llm)
+        out = pats.assign_pending(ws, jobs.ai)
         if req.rule and req.procedure:
-            done = pats.recluster(ws, req.procedure, req.rule, jobs.llm, force=req.force)
+            done = pats.recluster(ws, req.procedure, req.rule, jobs.ai, force=req.force)
             out.reclustered += [req.rule] if done else []
-            if pats.regroup_themes(ws, req.procedure, jobs.llm, force=done):
+            if pats.regroup_themes(ws, req.procedure, jobs.ai, force=done):
                 out.themed.append(req.procedure)
         else:
-            more = pats.recluster_due(ws, jobs.llm) if not req.force else pats.recluster_all(ws, req.procedure, jobs.llm)
+            more = pats.recluster_due(ws, jobs.ai) if not req.force else pats.recluster_all(ws, req.procedure, jobs.ai)
             out.reclustered += more.reclustered
             out.themed += more.themed
         return {"assigned": out.assigned, "reclustered": sorted(set(out.reclustered)), "themed": sorted(set(out.themed))}

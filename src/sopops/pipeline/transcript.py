@@ -93,6 +93,14 @@ def verify_evidence(evidence: list[dict[str, Any]], turns: list[dict[str, Any]])
     return out
 
 
+def agent_quote(evidence: list[dict[str, Any]], turns: list[dict[str, Any]]) -> bool:
+    """Some evidence quotes an agent turn exactly (not an approximate match)."""
+    return any(
+        not e.get("approximate") and (e.get("quote") or "").strip() and isinstance(e.get("turn"), int) and turns[e["turn"]].get("role") == "agent"
+        for e in evidence
+    )
+
+
 def _overlap(q: str, text: str) -> float:
     words = q.split()
     have = set(text.split())

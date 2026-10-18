@@ -27,10 +27,16 @@ from hatchet_sdk import (
 from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
 from sqlmodel import Session, select
 
-from .. import llm as llm_mod
+from ..ai import lm as ai_lm
 from ..db import database_url
 from ..orm import Finding
-from ..pipeline import (
+from ..pipeline.process import (
+    check_procedure,
+    finish_session,
+    normalize_session,
+    route_session,
+)
+from ..pipeline.types import (
     CheckRef,
     CheckResult,
     ProcessResult,
@@ -38,10 +44,6 @@ from ..pipeline import (
     RouteRef,
     RouteResult,
     SessionRef,
-    check_procedure,
-    finish_session,
-    normalize_session,
-    route_session,
 )
 from ..sopc import Sopc
 from ..store import Store
@@ -82,7 +84,7 @@ def _get_store():
 
 
 def _model_key(role: str) -> str:
-    return llm_mod.get_llm().model(role) or "none"
+    return ai_lm.get_ai().model(role) or "none"
 
 
 @process_session_wf.task(execution_timeout=timedelta(minutes=2), retries=3, backoff_factor=2.0, backoff_max_seconds=30)

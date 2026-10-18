@@ -283,7 +283,8 @@ def test_stream_endpoint_sends_events(client, token):
 
 
 def test_pipeline_skips_stale_and_missing_sessions(client, token):
-    from sopops.pipeline import SessionRef, process_session
+    from sopops.pipeline.process import process_session
+    from sopops.pipeline.types import SessionRef
 
     store = client.app.state.store
     sid = ingest(client, token, session()).json()["id"]

@@ -10,13 +10,11 @@ dependencies = [
     "sqlalchemy>=2.0",
     "sqlmodel>=0.0.48",
     "alembic>=1.20.0",
-    # LLM calls (src/sopops/llm.py): the library only, never the proxy. Pinned exactly, hashes in uv.lock:
-    # 1.82.7 and 1.82.8 on PyPI were compromised (March 2026); upgrade deliberately, after a delay.
-    "litellm==1.105.1",
     "httpx>=0.28.1",
     "cryptography>=50.0.2",
     "mcp>=2.3,<3",
-    # Model calls as typed DSPy signatures (src/sopops/ai); pinned, upgrade deliberately.
+    # Model calls as typed DSPy signatures (src/sopops/ai); pinned, upgrade deliberately. DSPy uses LiteLLM as its
+    # fallback client: pinned below with hashes in uv.lock (1.82.7 and 1.82.8 on PyPI were compromised, March 2026).
     "dspy==3.4.1",
 ]
 
@@ -35,6 +33,9 @@ jev = [
 [project.scripts]
 sopops = "sopops.cli:main"
 sopops-mcp = "sopops.mcp_server:main"
+
+[tool.uv]
+constraint-dependencies = ["litellm==1.105.1"]
 
 [dependency-groups]
 dev = ["pytest>=8", "httpx2", "respx>=0.23.1"]

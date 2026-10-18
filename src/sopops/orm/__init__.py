@@ -8,6 +8,7 @@ is re-exported here, and `metadata` holds every table (Alembic compares it with 
 from sqlmodel import SQLModel
 
 from .agent_delivery import AgentDelivery
+from .calibrations import Calibration
 from .columns import JSONDoc
 from .fetches import Fetch
 from .file_versions import FileVersion
@@ -29,4 +30,5 @@ from .workspaces import Workspace
 
 metadata = SQLModel.metadata
 
-__all__ = ["AgentDelivery", "Fetch", "FileVersion", "Finding", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RuleChecks", "RuleResult", "RuntimeServe", "SessionRecord", "Theme", "Token", "Workspace", "metadata"]
+__all__ = [
+    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RuleChecks", "RuleResult", "RuntimeServe", "SessionRecord", "Theme", "Token", "Workspace", "metadata"]

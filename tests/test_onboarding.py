@@ -5,25 +5,27 @@ import time
 from datetime import timedelta
 from pathlib import Path
 
+import dspy
 import httpx
 import pytest
 from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 
 from sopops import Sopc
+from sopops.ai.lm import Usage
+from sopops.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
 from sopops.onboarding import kickoff, platforms
 from sopops.onboarding import text as tx
 from sopops.onboarding.fidelity import check, parse_compare
 from sopops.onboarding.pipeline import extract
 from sopops.onboarding.review import resolve
-from sopops.onboarding.rules import Rules
+from sopops.onboarding.rules import RulesModels
 from sopops.onboarding.types import (
     ProcedureDraft,
     Segment,
     Segmentation,
     SourcePrompt,
     StepDraft,
-    VariableNames,
 )
 from sopops.orm import ImportRecord, Token
 
@@ -38,7 +40,7 @@ def sources() -> list[SourcePrompt]:
 
 @pytest.fixture(scope="module")
 def proposal():
-    return extract(sources(), Rules(), Sopc(SOPC_BIN))
+    return extract(sources(), RulesModels(), Sopc(SOPC_BIN))
 
 
 # --- text --------------------------------------------------------------------------------
@@ -131,18 +133,26 @@ def test_fidelity_is_complete_and_flags_dropped_text(proposal):
 
 
 class Scripted:
-    """A fake LLM: answers each step from a script, and records what it was asked."""
+    """Fake models: answer each step from a script, and record what was asked."""
 
     def __init__(self, segments=None, procedure=None, names=None):
         self.segments, self.procedure, self.names, self.calls = segments, procedure, names, []
+        self.usage = Usage()
 
-    def complete(self, role, messages, schema):
-        self.calls.append((role, schema.__name__))
-        if schema is Segmentation:
-            return self.segments
-        if schema is ProcedureDraft:
-            return self.procedure
-        return VariableNames(names=self.names or [])
+    def model(self, role):
+        return "fake"
+
+    def decision_native(self):
+        return False
+
+    def predict(self, role, signature, **inputs):
+        self.calls.append((role, signature.__name__))
+        if signature is SegmentPrompt:
+            return dspy.Prediction(segments=self.segments.segments)
+        if signature is StructureProcedure:
+            return dspy.Prediction(procedure=self.procedure)
+        assert signature is NameVariables
+        return dspy.Prediction(names=self.names or [])
 
 
 def test_units_the_model_leaves_out_are_kept_as_context():
@@ -153,7 +163,7 @@ def test_units_the_model_leaves_out_are_kept_as_context():
     assert [i.text for i in p.instructions] == ["Be brief."]
     assert any("weren't placed" in n for n in p.notes)
     assert p.fidelity[0].ok
-    assert fake.calls == [("reasoning", "Segmentation")]
+    assert fake.calls == [("reasoning", "SegmentPrompt")]
 
 
 def test_procedures_keep_tools_from_the_agent_and_report_dropped_variables():
@@ -204,14 +214,14 @@ def payload():
 
 
 def test_import_without_a_model_says_how(client, monkeypatch):
-    client.app.state.onboarding.llm = None
+    client.app.state.onboarding.ai = None
     res = client.post(IMPORTS, json=payload())
     assert res.status_code == 503 and "SOPOPS_MODEL_REASONING" in res.json()["detail"]
     assert client.get("/v1/onboarding/capabilities").json()["llm"] is False
 
 
 def test_import_review_and_apply_creates_drafts_only(client):
-    client.app.state.onboarding.llm = Rules()
+    client.app.state.onboarding.ai = RulesModels()
     created = client.post(IMPORTS, json=payload())
     assert created.status_code == 201 and created.json()["status"] == "running"
     body = wait_ready(client, created.json()["id"])
@@ -246,7 +256,7 @@ def test_import_review_and_apply_creates_drafts_only(client):
 
 
 def test_platform_import_uses_the_key_only_in_the_request(client, monkeypatch):
-    client.app.state.onboarding.llm = Rules()
+    client.app.state.onboarding.ai = RulesModels()
     seen = []
 
     def fake_get_agent(platform, api_key, agent_id, transport=None):

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from pydantic import BaseModel, Field
+
+from .rollup import Judged
 
 # Why a session is partial: it stays partial through the pipeline (it's still checked).
 SENDER_PARTIAL = "The sender marked the transcript incomplete."
@@ -57,3 +61,35 @@ class ReclusterRef(BaseModel):
     procedure_id: str
     rule_id: str | None = Field(None, description="Recluster this rule (if due, or `force`); none: only regroup the procedure's themes if due.")
     force: bool = False
+
+
+EXCLUDED_REASON = {
+    "ended_before_start": "The session ended before the procedure started.",
+    "ended_before_finish": "The session ended before the procedure finished.",
+}
+
+
+@dataclass
+class Routed:
+    """Whether one procedure applied to a session."""
+
+    procedure_id: str
+    status: str  # applied | not_applicable | ended_before_start | ended_before_finish
+    reason: str
+
+    @property
+    def applicable(self) -> bool:
+        return self.status != "not_applicable"
+
+    @property
+    def excluded_reason(self) -> str | None:
+        return EXCLUDED_REASON.get(self.status)
+
+
+@dataclass
+class Checked:
+    """Every rule's status for one procedure, and the goal."""
+
+    rules: list[Judged]
+    goal_reached: bool | None
+    goal_reason: str

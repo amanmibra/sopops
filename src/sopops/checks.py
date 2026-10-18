@@ -17,8 +17,8 @@ from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 from .pipeline.types import SessionRef
 
 if TYPE_CHECKING:
-    from .pipeline.judge import Routed
     from .pipeline.procedures import Procedure
+    from .pipeline.types import Routed
     from .store import Store
 
 

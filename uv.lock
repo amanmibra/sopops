@@ -6,6 +6,9 @@ resolution-markers = [
     "python_full_version < '3.14'",
 ]
 
+[manifest]
+constraints = [{ name = "litellm", specifier = "==1.105.1" }]
+
 [[package]]
 name = "aiohappyeyeballs"
 version = "2.7.1"
@@ -2463,7 +2466,6 @@ dependencies = [
     { name = "dspy" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "litellm" },
     { name = "mcp" },
     { name = "sqlalchemy" },
     { name = "sqlmodel" },
@@ -2496,7 +2498,6 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.115" },
     { name = "hatchet-sdk", marker = "extra == 'hatchet'", specifier = "==1.42.1" },
     { name = "httpx", specifier = ">=0.28.1" },
-    { name = "litellm", specifier = "==1.105.1" },
     { name = "mcp", specifier = ">=2.3,<3" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },

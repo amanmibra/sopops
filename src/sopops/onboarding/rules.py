@@ -1,4 +1,4 @@
-"""A `Completer` that answers the extraction steps with plain rules instead of a model.
+"""Onboarding's extraction steps answered with plain rules instead of a model: an `AI` like `sopops.ai.lm.Models`.
 
 For tests and for trying onboarding without an LLM key (`SOPOPS_MODEL_REASONING=rules`). It handles prompts written
 the usual way (a heading per procedure, a "When ...:" line, numbered steps, "Never ..." and "If ..., transfer ..."
@@ -7,16 +7,16 @@ lines) and is much weaker than a model on anything else.
 
 from __future__ import annotations
 
-import json
 import re
-from typing import TypeVar
+from typing import Any
 
-from pydantic import BaseModel
+import dspy
 
+from ..ai.lm import RULES, Usage, as_predict
+from ..ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
 from . import text as tx
-from .types import ProcedureDraft, Segment, Segmentation, StepDraft, VariableNames
-
-T = TypeVar("T", bound=BaseModel)
+from .pipeline import heuristic_names
+from .types import ProcedureDraft, Segment, Segmentation, StepDraft
 
 TRIGGER = re.compile(r"^(when|if|whenever)\b.*:\s*$", re.I)
 NUMBERED = re.compile(r"^\s*\d+[.)]\s+")
@@ -24,24 +24,28 @@ NEVER = re.compile(r"^\s*(?:[-*]\s+)?(never|don't|do not)\b", re.I)
 ESCALATE = re.compile(r"\b(transfer|escalate|hand off|put .* through)\b", re.I)
 
 
-def _input(messages: list[dict]) -> dict:
-    content = messages[-1]["content"]
-    m = re.search(r"```json\s*(.*?)```", content, re.S)
-    return json.loads(m.group(1) if m else content)
+class RulesModels:
+    """Answers `SegmentPrompt`, `StructureProcedure` and `NameVariables` by rule; nothing else."""
 
+    def __init__(self) -> None:
+        self.usage = Usage()
 
-class Rules:
-    def complete(self, role: str, messages: list[dict], schema: type[T]) -> T:
-        data = _input(messages)
-        if schema is Segmentation:
-            return segment(data)  # type: ignore[return-value]
-        if schema is ProcedureDraft:
-            return procedure(data)  # type: ignore[return-value]
-        if schema is VariableNames:
-            from .pipeline import heuristic_names
+    def model(self, role: str) -> str | None:
+        return RULES if role in ("fast", "reasoning") else None
 
-            return VariableNames(names=heuristic_names([(s["text"], s["values"]) for s in data["slots"]], {}))  # type: ignore[return-value]
-        raise ValueError(f"the rules completer can't answer {schema.__name__}")
+    def decision_native(self) -> bool:
+        return False
+
+    def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction:
+        sig = as_predict(predictor).signature
+        data = {k: [x.model_dump() if hasattr(x, "model_dump") else x for x in v] if isinstance(v, list) else v for k, v in inputs.items()}
+        if sig is SegmentPrompt:
+            return dspy.Prediction(segments=segment(data).segments)
+        if sig is StructureProcedure:
+            return dspy.Prediction(procedure=procedure(data))
+        if sig is NameVariables:
+            return dspy.Prediction(names=heuristic_names([(s["text"], s["values"]) for s in data["slots"]], {}))
+        raise ValueError(f"the rules mode can't answer {sig.__name__}")
 
 
 def _procedural(text: str) -> bool:

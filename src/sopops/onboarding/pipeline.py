@@ -16,7 +16,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from collections import Counter
 from collections.abc import Callable
@@ -24,7 +23,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..llm import Completer, LLMError
+from ..ai.lm import AI, AIError
+from ..ai.signatures import NameVariables, SegmentPrompt, Slot, StructureProcedure, Unit
 from ..sopc import Sopc
 from . import fidelity
 from . import text as tx
@@ -38,27 +38,18 @@ from .types import (
     ProposedProcedure,
     ProposedSettings,
     ProposedStep,
-    Segmentation,
     SourcePrompt,
-    VariableNames,
     Variant,
 )
 
-PROMPTS = Path(__file__).parent / "prompts"
+GUIDE = Path(__file__).parent / "guide.md"
 Progress = Callable[[str, str], None]
 MATCH = 0.6  # word similarity at which two segments are copies of one passage
 
 
-def prompt_text(name: str) -> str:
-    return (PROMPTS / f"{name}.md").read_text()
-
-
-def task(name: str, data: dict) -> list[dict]:
-    """The messages for one step: its instructions, then the input as JSON."""
-    return [
-        {"role": "system", "content": prompt_text(name)},
-        {"role": "user", "content": "Input:\n```json\n" + json.dumps(data, ensure_ascii=False, indent=1) + "\n```"},
-    ]
+def guide_text() -> str:
+    """How a coding agent extracts prompts itself (sopops-mcp's guide)."""
+    return GUIDE.read_text()
 
 
 @dataclass
@@ -108,15 +99,10 @@ def agent_ids(sources: list[SourcePrompt]) -> list[str]:
 # --- 1. split -------------------------------------------------------------------------------------
 
 
-def split(llm: Completer, source: SourcePrompt, agent: str, notes: list[str]) -> list[Seg]:
+def split(ai: AI, source: SourcePrompt, agent: str, notes: list[str]) -> list[Seg]:
     units = tx.split_units(source.prompt)
-    data = {
-        "agent": source.name,
-        "platform": source.platform,
-        "tools": source.tools,
-        "units": [{"n": i + 1, "text": u} for i, u in enumerate(units)],
-    }
-    result = llm.complete("reasoning", task("segment", data), Segmentation)
+    result = ai.predict("reasoning", SegmentPrompt, agent=source.name, platform=source.platform, tools=source.tools,
+                        units=[Unit(n=i + 1, text=u) for i, u in enumerate(units)])
     owner: dict[int, int] = {}
     for si, seg in enumerate(result.segments):
         for n in seg.units:
@@ -250,7 +236,7 @@ class Builder:
             self.agent_blocks[m.agent].append((m.order, block.id))
         return block
 
-    def name_variables(self, llm: Completer) -> None:
+    def name_variables(self, ai: AI) -> None:
         """One variable per distinct per-agent mapping, named by the model (or a heuristic), and findings for them."""
         distinct: list[VarSlot] = []
         for vs in self.slots:
@@ -263,11 +249,10 @@ class Builder:
         names = heuristic_names([(d.context, d.values) for d in distinct], self.sources)
         if distinct:
             try:
-                data = {"slots": [{"n": i + 1, "text": d.context, "values": d.values} for i, d in enumerate(distinct)]}
-                got = llm.complete("fast", task("variables", data), VariableNames).names
+                got = ai.predict("fast", NameVariables, slots=[Slot(n=i + 1, text=d.context, values=d.values) for i, d in enumerate(distinct)]).names
                 if len(got) == len(distinct):
                     names = [tx.var_name(n) if n.strip() else names[i] for i, n in enumerate(got)]
-            except (LLMError, ValueError) as e:
+            except (AIError, ValueError) as e:
                 self.notes.append(f"Variables were named by rule, not by the model ({str(e)[:120]}).")
         taken: set[str] = set()
         final = [tx.unique(n, taken, "_") for n in names]
@@ -366,9 +351,8 @@ NAME_STOPWORDS = {"the", "a", "an", "to", "of", "for", "with", "than", "more", "
 # --- 3. structure -------------------------------------------------------------------------------------
 
 
-def structure(llm: Completer, block: Block, tools: list[str]) -> ProcedureDraft:
-    data = {"title": block.title, "tools": tools, "passage": block.text}
-    return llm.complete("reasoning", task("procedure", data), ProcedureDraft)
+def structure(ai: AI, block: Block, tools: list[str]) -> ProcedureDraft:
+    return ai.predict("reasoning", StructureProcedure, title=block.title, tools=tools, passage=block.text).procedure
 
 
 def to_procedure(block: Block, d: ProcedureDraft, tools: list[str], notes: list[str]) -> ProposedProcedure:
@@ -425,13 +409,13 @@ def common_group(agents: list[ProposedAgent], taken: set[str]) -> ProposedGroup 
 # --- the whole thing -------------------------------------------------------------------------------------
 
 
-def extract(sources: list[SourcePrompt], llm: Completer, sopc: Sopc | None = None, progress: Progress | None = None, workers: int = 4) -> Proposal:
+def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progress: Progress | None = None, workers: int = 4) -> Proposal:
     say = progress or (lambda step, message: None)
     ids = agent_ids(sources)
     notes: list[str] = []
     say("split", f"Splitting {len(sources)} prompt{'s' if len(sources) != 1 else ''} into agent context, shared instructions and procedures")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        per_agent = list(pool.map(lambda pair: split(llm, pair[0], pair[1], notes), zip(sources, ids)))
+        per_agent = list(pool.map(lambda pair: split(ai, pair[0], pair[1], notes), zip(sources, ids)))
     for agent, segs in zip(ids, per_agent):
         counts = Counter(s.kind for s in segs)
         say("split", f"{agent}: {counts['instruction']} instruction(s), {counts['procedure']} procedure(s), {counts['context']} context passage(s)")
@@ -440,7 +424,7 @@ def extract(sources: list[SourcePrompt], llm: Completer, sopc: Sopc | None = Non
     b = Builder(sources, ids)
     for c in cluster([s for segs in per_agent for s in segs]):
         b.add(c)
-    b.name_variables(llm)
+    b.name_variables(ai)
     b.notes = notes + b.notes
     shared = sum(1 for blk in b.blocks if len(set(blk.agents)) > 1)
     say("dedupe", f"{len(b.blocks)} blocks, {shared} shared by several agents; {len([f for f in b.findings if f.kind == 'drift'])} difference(s) to decide")
@@ -450,7 +434,7 @@ def extract(sources: list[SourcePrompt], llm: Completer, sopc: Sopc | None = Non
     if procs:
         say("structure", f"Structuring {len(procs)} procedure{'s' if len(procs) != 1 else ''}")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        drafts = list(pool.map(lambda blk: structure(llm, blk, tools_of[blk.id]), procs))
+        drafts = list(pool.map(lambda blk: structure(ai, blk, tools_of[blk.id]), procs))
     procedures: list[ProposedProcedure] = []
     demoted: set[str] = set()
     for blk, d in zip(procs, drafts):

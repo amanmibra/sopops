@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from sopops import Sopc, Store, create_app
+from sopops.ai.lm import ROLE_ENV, set_ai
 from sopops.db import engine_from_url
 from sopops.orm import metadata
 
@@ -36,18 +37,11 @@ def expected(name: str) -> str:
 @pytest.fixture(autouse=True)
 def no_models(monkeypatch):
     """Tests never reach a real model: no model env, and the process-wide client reset."""
-    from sopops import llm
-    from sopops.ai import jev, lm
-
-    for var in (*llm.ROLE_ENV.values(), "TYPESAFE_API_KEY", "SOPOPS_JEV", "SOPOPS_JEV_CONFIG", "SOPOPS_JEV_ESCALATE"):
+    for var in (*ROLE_ENV.values(), "TYPESAFE_API_KEY", "SOPOPS_JEV", "SOPOPS_DECISIONS", "SOPOPS_CHECK_REVIEW", "SOPOPS_CHECK_MODE"):
         monkeypatch.delenv(var, raising=False)
-    llm.set_llm(None)
-    lm.set_ai(None)
-    jev.set_jev(None)
+    set_ai(None)
     yield
-    llm.set_llm(None)
-    lm.set_ai(None)
-    jev.set_jev(None)
+    set_ai(None)
 
 
 @pytest.fixture

@@ -3,7 +3,7 @@
 - Every rule with findings has one **rule pattern** (`kind = rule`). Its name is made from the rule, no model needed.
 - Once a rule has `SPLIT_AT` findings, the reasoning model splits its findings into at most 5 named failure modes:
   **sub-patterns** (`kind = sub`), plus one `other` sub-pattern for findings that fit none.
-- New findings on a split rule are **assigned** by the fast model to one of its sub-patterns, or to `other`.
+- New findings on a split rule are **assigned** to one of its sub-patterns, or to `other`, by a decision (`sopops.ai.decide`).
 - A rule is **reclustered** when `RECLUSTER_NEW` findings arrived since its last clustering, or when `other` holds
   more than `OTHER_SHARE` of its findings (and at least `OTHER_MIN_NEW` arrived since), plus by the daily cron
   (`recluster_due`) and on demand (`sopops recluster`, `POST .../patterns/recluster`).
@@ -14,7 +14,7 @@
   orders them, reusing existing theme names where they still fit (by key, else by member overlap).
 
 A finding's `pattern_id` is its most specific pattern: its sub-pattern once the rule is split, else the rule pattern.
-Each function takes an `LLM` (tests pass a fake) and is plain, so it runs inline and as a Hatchet task.
+Each function takes an `AI` (tests pass a fake) and is plain, so it runs inline and as a Hatchet task.
 """
 
 from __future__ import annotations
@@ -24,20 +24,26 @@ import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field, create_model, model_validator
 from sqlmodel import Session, func, select
 
-from . import llm as llm_mod
-from .ai import classify
-from .ai import jev as jev_mod
-from .ai.jev import Jev
+from .ai import decide
+from .ai import lm as ai_lm
+from .ai.signatures import (
+    VERSIONS,
+    ClusterFindings,
+    FailureMode,
+    FindingIn,
+    GroupThemes,
+    PatternIn,
+    ThemeGroup,
+    ThemeIn,
+)
 from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
-from .pipeline import prompts
 
 if TYPE_CHECKING:
-    from .llm import LLM
+    from .ai.lm import AI
     from .store import Store
 
 log = logging.getLogger("sopops.patterns")
@@ -53,10 +59,6 @@ ASSIGN_BATCH = 25
 MAX_THEMES = 6
 
 KIND_LABEL = {"step": "Step", "never": "Never", "warning": "Warning sign"}
-
-
-class _Model(BaseModel):
-    model_config = ConfigDict(extra="ignore")
 
 
 def rule_pattern_name(kind: str, index: int) -> str:
@@ -111,78 +113,41 @@ def _views(db: Session, findings: list[Finding]) -> list[FindingView]:
     return out
 
 
-# --- schemas -----------------------------------------------------------------------------------------------------
+def clusters_of(modes: list[FailureMode], keys: dict[str, FindingView]) -> list[tuple[str, str, set[str]]]:
+    """The model's failure modes as (name, description, finding ids): known keys only, each finding in at most one
+    mode, modes with at least 2 findings, at most MAX_MODES."""
+    seen: set[str] = set()
+    out = []
+    for m in modes:
+        ids = {keys[k].id for k in dict.fromkeys(m.findings) if k in keys and k not in seen}
+        seen |= {k for k in m.findings if k in keys}
+        if len(ids) >= 2 and len(out) < MAX_MODES:
+            out.append((m.name.strip()[:200], m.description.strip(), ids))
+    return out
 
 
-def assign_schema(keys: list[str], options: list[str]) -> type[BaseModel]:
-    item = create_model(
-        "Assignment",
-        __base__=_Model,
-        finding=(Literal[tuple(keys)], ...),  # type: ignore[valid-type]
-        mode=(Literal[tuple(options)], Field(description="A failure mode key of the finding's own rule, or other.")),  # type: ignore[valid-type]
-    )
-
-    def complete(self):
-        got = [a.finding for a in self.assignments]
-        missing = [k for k in keys if k not in got]
-        if missing or len(got) != len(set(got)):
-            raise ValueError(f"assign each finding exactly once (missing: {', '.join(missing) or 'none'})")
-        return self
-
-    return create_model("AssignReply", __base__=_Model, assignments=(list[item], ...), __validators__={"complete": model_validator(mode="after")(complete)})
-
-
-def cluster_schema(keys: list[str]) -> type[BaseModel]:
-    mode = create_model(
-        "FailureMode",
-        __base__=_Model,
-        name=(str, Field(description="At most 8 words: what the agent did.")),
-        description=(str, Field(description="One or two sentences.")),
-        findings=(list[Literal[tuple(keys)]], Field(description="Keys of the findings in this mode.")),  # type: ignore[valid-type]
-    )
-
-    def check(self):
-        if len(self.modes) > MAX_MODES:
-            raise ValueError(f"give at most {MAX_MODES} failure modes")
-        seen: set[str] = set()
-        for m in self.modes:
-            dup = seen & set(m.findings)
-            if dup:
-                raise ValueError(f"each finding goes in at most one mode (repeated: {', '.join(sorted(dup))})")
-            seen |= set(m.findings)
-        return self
-
-    return create_model("ClusterReply", __base__=_Model, modes=(list[mode], ...), __validators__={"check": model_validator(mode="after")(check)})
-
-
-def themes_schema(pattern_keys: list[str], theme_keys: list[str]) -> type[BaseModel]:
-    theme = create_model(
-        "ThemeGroup",
-        __base__=_Model,
-        key=(Literal[tuple([*theme_keys, "new"])], Field(description="An existing theme's key, or new.")),  # type: ignore[valid-type]
-        name=(str, Field(description="At most 6 words.")),
-        description=(str, Field(description="One sentence.")),
-        patterns=(list[Literal[tuple(pattern_keys)]], ...),  # type: ignore[valid-type]
-    )
-
-    def check(self):
-        got = [p for t in self.themes for p in t.patterns]
-        missing = [k for k in pattern_keys if k not in got]
-        dup = {g for g in got if got.count(g) > 1}
-        if missing or dup:
-            raise ValueError(f"put every pattern in exactly one theme (missing: {', '.join(missing) or 'none'}; repeated: {', '.join(sorted(dup)) or 'none'})")
-        if not 1 <= len(self.themes) <= MAX_THEMES:
-            raise ValueError(f"use between 1 and {MAX_THEMES} themes")
-        old = [t.key for t in self.themes if t.key != "new"]
-        if len(old) != len(set(old)):
-            raise ValueError("use each existing theme key at most once")
-        return self
-
-    return create_model("ThemesReply", __base__=_Model, themes=(list[theme], ...), __validators__={"check": model_validator(mode="after")(check)})
-
-
-def _system(name: str) -> dict[str, Any]:
-    return {"role": "system", "content": [{"type": "text", "text": prompts.load(name).text, "cache_control": {"type": "ephemeral"}}]}
+def themes_of(themes: list[ThemeGroup], pkeys: dict[str, Pattern], tkeys: dict[str, Theme]) -> list[tuple[str, str, str, list[str]]]:
+    """The model's themes as (key, name, description, pattern ids): every pattern in exactly one theme (any it left
+    out go in the last), existing keys used once, at most MAX_THEMES (extra themes merge into the last)."""
+    placed: set[str] = set()
+    used: set[str] = set()
+    out: list[tuple[str, str, str, list[str]]] = []
+    for t in themes:
+        pats = [k for k in dict.fromkeys(t.patterns) if k in pkeys and k not in placed]
+        placed |= set(pats)
+        key = t.key if t.key in tkeys and t.key not in used else "new"
+        used.add(key)
+        if len(out) < MAX_THEMES:
+            out.append((key, t.name.strip()[:200], t.description.strip(), [pkeys[k].id for k in pats]))
+        elif out:
+            out[-1][3].extend(pkeys[k].id for k in pats)
+    rest = [pkeys[k].id for k in pkeys if k not in placed]
+    if rest:
+        if out:
+            out[-1][3].extend(rest)
+        else:
+            out.append(("new", "Other", "Patterns not grouped yet.", rest))
+    return [g for g in out if g[3]]
 
 
 def _rule_line(kind: str, index: int, text: str) -> str:
@@ -211,14 +176,14 @@ class Patterns:
 
     # --- assign ----------------------------------------------------------------------------------------------
 
-    def assign_session(self, workspace: str, session_id: str, llm: LLM | None = None, recluster: bool = True) -> Outcome:
+    def assign_session(self, workspace: str, session_id: str, ai: AI | None = None, recluster: bool = True) -> Outcome:
         """Put a checked session's unassigned findings into patterns, then recluster and regroup what's due
         (`recluster=False`: only report what's due, for a background job to pick up)."""
         with self._db() as db:
             findings = list(db.exec(select(Finding).where(Finding.workspace_id == workspace, Finding.session_id == session_id, Finding.pattern_id.is_(None))))
-        return self._assign_and_follow_up(workspace, findings, llm, recluster)
+        return self._assign_and_follow_up(workspace, findings, ai, recluster)
 
-    def assign_pending(self, workspace: str | None = None, llm: LLM | None = None, recluster: bool = True) -> Outcome:
+    def assign_pending(self, workspace: str | None = None, ai: AI | None = None, recluster: bool = True) -> Outcome:
         """Every finding without a pattern (a backfill, or after a model outage)."""
         out = Outcome()
         with self._db() as db:
@@ -230,34 +195,34 @@ class Patterns:
         for f in findings:
             by_ws[f.workspace_id].append(f)
         for ws, fs in by_ws.items():
-            o = self._assign_and_follow_up(ws, fs, llm, recluster)
+            o = self._assign_and_follow_up(ws, fs, ai, recluster)
             out.assigned += o.assigned
             out.reclustered += o.reclustered
             out.themed += o.themed
             out.due += o.due
         return out
 
-    def _assign_and_follow_up(self, ws: str, findings: list[Finding], llm: LLM | None, recluster: bool) -> Outcome:
+    def _assign_and_follow_up(self, ws: str, findings: list[Finding], ai: AI | None, recluster: bool) -> Outcome:
         out = Outcome()
         if not findings:
             return out
-        llm = llm or llm_mod.get_llm()
-        out.assigned = self._assign(ws, findings, llm)
+        ai = ai or ai_lm.get_ai()
+        out.assigned = self._assign(ws, findings, ai)
         rules = sorted({(f.procedure_id, f.rule_id) for f in findings})
         for pid, rid in rules:
             if self.due(ws, pid, rid):
                 if recluster:
-                    if self.recluster(ws, pid, rid, llm):
+                    if self.recluster(ws, pid, rid, ai):
                         out.reclustered.append(rid)
                 else:
                     out.due.append((pid, rid))
         if recluster:
             for pid in sorted({p for p, _ in rules}):
-                if self.themes_due(ws, pid) and self.regroup_themes(ws, pid, llm):
+                if self.themes_due(ws, pid) and self.regroup_themes(ws, pid, ai):
                     out.themed.append(pid)
         return out
 
-    def _assign(self, ws: str, findings: list[Finding], llm: LLM) -> int:
+    def _assign(self, ws: str, findings: list[Finding], ai: AI) -> int:
         """Rule pattern for every finding (created if new); the fast model picks a sub-pattern on split rules."""
         now = _now()
         with self._db() as db, db.begin():
@@ -277,7 +242,7 @@ class Patterns:
             split = [f for f in findings if subs.get(rule_pats[(f.procedure_id, f.rule_id)].id) and f.id in views]
             for i in range(0, len(split), ASSIGN_BATCH):
                 batch = split[i : i + ASSIGN_BATCH]
-                choice = self._choose(llm, [views[f.id] for f in batch], {f.id: subs[rule_pats[(f.procedure_id, f.rule_id)].id] for f in batch})
+                choice = self._choose(ai, [views[f.id] for f in batch], {f.id: subs[rule_pats[(f.procedure_id, f.rule_id)].id] for f in batch})
                 for f in batch:
                     f.pattern_id = choice[f.id]
                     db.add(f)
@@ -290,62 +255,30 @@ class Patterns:
                 self._refresh_counts(db, p)
         return len(findings)
 
-    def _choose(self, llm: LLM, views: list[FindingView], options: dict[str, list[Pattern]]) -> dict[str, str]:
-        """{finding id: pattern id}: the fast model picks among each finding's rule's sub-patterns (other included)."""
+    def _choose(self, ai: AI, views: list[FindingView], options: dict[str, list[Pattern]]) -> dict[str, str]:
+        """{finding id: pattern id}: a decision picks among each finding's rule's sub-patterns (other included)."""
         keys = {v.id: f"f{i + 1}" for i, v in enumerate(views)}
         mode_key: dict[str, str] = {}
         rules: dict[str, list[FindingView]] = defaultdict(list)
         for v in views:
             rules[v.rule_id].append(v)
-        lines = []
-        n = 0
-        for rid, vs in rules.items():
-            v0 = vs[0]
-            lines.append(f"<rule>\n{_rule_line(v0.kind, v0.index, v0.rule_text)}\nFailure modes:")
-            for p in options[vs[0].id]:
-                if p.kind == "other":
-                    continue
-                n += 1
-                mode_key[p.id] = f"m{n}"
-                lines.append(f"- m{n}: {p.name}. {p.description or ''}".rstrip())
-            lines.append("Findings:")
-            lines += [v.render(keys[v.id]) for v in vs]
-            lines.append("</rule>")
-        jev = jev_mod.get_jev()
-        if jev is not None:
-            picked = self._choose_jev(jev, views, options, keys, mode_key)
-            return self._picked(views, options, keys, mode_key, picked)
-        schema = assign_schema(list(keys.values()), [*mode_key.values(), "other"])
-        messages = [
-            _system("assign"),
-            {"role": "user", "content": [{"type": "text", "text": "\n".join(lines)}, {"type": "text", "text": "Pick a failure mode (or other) for every finding."}]},
-        ]
+        groups = []
+        for vs in rules.values():
+            modes = {}
+            for pat in options[vs[0].id]:
+                if pat.kind != "other":
+                    mode_key[pat.id] = f"m{len(mode_key) + 1}"
+                    modes[mode_key[pat.id]] = f"{pat.name}. {pat.description or ''}".strip()
+            groups.append(decide.AssignGroup(
+                rule=_rule_line(vs[0].kind, vs[0].index, vs[0].rule_text), modes=modes,
+                findings={keys[v.id]: {"status": v.status, "reason": v.reason, "quotes": v.quotes[:3]} for v in vs},
+            ))
         try:
-            reply = llm.complete("fast", messages, schema)
-            picked = {a.finding: a.mode for a in reply.assignments}
+            picked = decide.assign(ai, groups)
         except Exception:
             log.exception("assigning findings to patterns failed; they go to other")
             picked = {}
         return self._picked(views, options, keys, mode_key, picked)
-
-    def _choose_jev(self, jev: Jev, views: list[FindingView], options: dict[str, list[Pattern]], keys: dict[str, str], mode_key: dict[str, str]) -> dict[str, str]:
-        """Jev picks each finding's failure mode (a Choice over its rule's modes, plus other)."""
-        rules: dict[str, list[FindingView]] = defaultdict(list)
-        for v in views:
-            rules[v.rule_id].append(v)
-        groups = [
-            classify.AssignGroup(
-                rule=_rule_line(vs[0].kind, vs[0].index, vs[0].rule_text),
-                modes={mode_key[p.id]: f"{p.name}. {p.description or ''}".strip() for p in options[vs[0].id] if p.id in mode_key},
-                findings={keys[v.id]: {"status": v.status, "reason": v.reason, "quotes": v.quotes[:3]} for v in vs},
-            )
-            for vs in rules.values()
-        ]
-        try:
-            return classify.assign(jev, groups, classify.JevConfig.from_env())
-        except Exception:
-            log.exception("assigning findings to patterns with Jev failed; they go to other")
-            return {}
 
     def _picked(self, views: list[FindingView], options: dict[str, list[Pattern]], keys: dict[str, str], mode_key: dict[str, str], picked: dict[str, str]) -> dict[str, str]:
         out = {}
@@ -408,10 +341,10 @@ class Patterns:
             subs = list(db.exec(select(Pattern).where(Pattern.parent_id == rp.id, Pattern.status == "active")))
             return reason_due(rp, subs) is not None
 
-    def recluster_due(self, workspace: str | None = None, llm: LLM | None = None) -> Outcome:
+    def recluster_due(self, workspace: str | None = None, ai: AI | None = None) -> Outcome:
         """The daily pass: every rule whose triggers fire, or that gained findings since it was last clustered and has
         enough to split; then themes for procedures that changed."""
-        llm = llm or llm_mod.get_llm()
+        ai = ai or ai_lm.get_ai()
         out = Outcome()
         with self._db() as db:
             q = select(Pattern).where(Pattern.kind == "rule")
@@ -421,17 +354,17 @@ class Patterns:
         touched: set[tuple[str, str]] = set()
         for rp in rule_pats:
             daily = rp.finding_count >= SPLIT_AT and rp.finding_count != rp.clustered_count
-            if (daily or self.due(rp.workspace_id, rp.procedure_id, rp.rule_id)) and self.recluster(rp.workspace_id, rp.procedure_id, rp.rule_id, llm, force=True):
+            if (daily or self.due(rp.workspace_id, rp.procedure_id, rp.rule_id)) and self.recluster(rp.workspace_id, rp.procedure_id, rp.rule_id, ai, force=True):
                 out.reclustered.append(rp.rule_id)
                 touched.add((rp.workspace_id, rp.procedure_id))
         for ws, pid in sorted({(p.workspace_id, p.procedure_id) for p in rule_pats}):
-            if ((ws, pid) in touched or self.themes_due(ws, pid)) and self.regroup_themes(ws, pid, llm, force=(ws, pid) in touched):
+            if ((ws, pid) in touched or self.themes_due(ws, pid)) and self.regroup_themes(ws, pid, ai, force=(ws, pid) in touched):
                 out.themed.append(pid)
         return out
 
-    def recluster_all(self, workspace: str, procedure_id: str | None = None, llm: LLM | None = None) -> Outcome:
+    def recluster_all(self, workspace: str, procedure_id: str | None = None, ai: AI | None = None) -> Outcome:
         """Recluster every rule with enough findings (on demand), then regroup the themes of what changed."""
-        llm = llm or llm_mod.get_llm()
+        ai = ai or ai_lm.get_ai()
         out = Outcome()
         with self._db() as db:
             q = select(Pattern).where(Pattern.workspace_id == workspace, Pattern.kind == "rule")
@@ -439,17 +372,17 @@ class Patterns:
                 q = q.where(Pattern.procedure_id == procedure_id)
             rule_pats = list(db.exec(q))
         for rp in rule_pats:
-            if self.recluster(workspace, rp.procedure_id, rp.rule_id, llm, force=True):
+            if self.recluster(workspace, rp.procedure_id, rp.rule_id, ai, force=True):
                 out.reclustered.append(rp.rule_id)
         for pid in sorted({p.procedure_id for p in rule_pats}):
-            if self.regroup_themes(workspace, pid, llm, force=True):
+            if self.regroup_themes(workspace, pid, ai, force=True):
                 out.themed.append(pid)
         return out
 
-    def recluster(self, ws: str, procedure_id: str, rule_id: str, llm: LLM | None = None, force: bool = False) -> bool:
+    def recluster(self, ws: str, procedure_id: str, rule_id: str, ai: AI | None = None, force: bool = False) -> bool:
         """Split a rule's findings into failure modes and match them to the existing sub-patterns. Returns whether it
         ran (not when nothing is due, unless `force`; never with fewer than SPLIT_AT findings)."""
-        llm = llm or llm_mod.get_llm()
+        ai = ai or ai_lm.get_ai()
         with self._db() as db:
             rp = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == rule_id, Pattern.kind == "rule")).first()
             if rp is None:
@@ -470,16 +403,11 @@ class Patterns:
             return False
         keys = {f"f{i + 1}": v for i, v in enumerate(views)}
         v0 = views[0]
-        text = "\n".join(
-            [f"<rule>\n{_rule_line(v0.kind, v0.index, v0.rule_text)}\n</rule>", "<findings>", *[v.render(k) for k, v in keys.items()], "</findings>"]
+        reply = ai.predict(
+            "reasoning", ClusterFindings, rule=_rule_line(v0.kind, v0.index, v0.rule_text),
+            findings=[FindingIn(key=k, status=v.status, reason=v.reason, quotes=v.quotes[:3]) for k, v in keys.items()],
         )
-        messages = [
-            _system("cluster"),
-            {"role": "user", "content": [{"type": "text", "text": text}, {"type": "text", "text": f"Split these {len(keys)} findings into failure modes."}]},
-        ]
-        reply = llm.complete("reasoning", messages, cluster_schema(list(keys)))
-        clusters = [(m.name.strip()[:200], m.description.strip(), {keys[k].id for k in m.findings}) for m in reply.modes if len(set(m.findings)) >= 2]
-        self._apply_clusters(ws, rp.id, clusters, [v.id for v in views], llm.model("reasoning"), prompts.load("cluster").version)
+        self._apply_clusters(ws, rp.id, clusters_of(reply.modes, keys), [v.id for v in views], ai.model("reasoning"), VERSIONS["cluster"])
         rest = [f.id for f in findings[CLUSTER_SAMPLE:]]
         if rest:  # findings older than the model saw keep their sub-pattern if it's still active, else get assigned
             with self._db() as db, db.begin():
@@ -489,7 +417,7 @@ class Patterns:
                     f.pattern_id = None
                     db.add(f)
             if moved:
-                self._assign(ws, moved, llm)
+                self._assign(ws, moved, ai)
         return True
 
     def _apply_clusters(self, ws: str, rule_pattern_id: str, clusters: list[tuple[str, str, set[str]]], seen: list[str], model: str | None, version: str) -> None:
@@ -552,8 +480,8 @@ class Patterns:
                 select(func.count(Pattern.id)).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.kind == "rule", Pattern.theme_id.is_(None))
             ).one() > 0
 
-    def regroup_themes(self, ws: str, procedure_id: str, llm: LLM | None = None, force: bool = False) -> bool:
-        llm = llm or llm_mod.get_llm()
+    def regroup_themes(self, ws: str, procedure_id: str, ai: AI | None = None, force: bool = False) -> bool:
+        ai = ai or ai_lm.get_ai()
         if not force and not self.themes_due(ws, procedure_id):
             return False
         with self._db() as db:
@@ -577,24 +505,13 @@ class Patterns:
         rule_pats.sort(key=lambda p: (order.get(kinds.get(p.rule_id, ("", 0))[0], 3), kinds.get(p.rule_id, ("", 0))[1]))
         pkeys = {f"r{i + 1}": p for i, p in enumerate(rule_pats)}
         tkeys = {f"t{i + 1}": t for i, t in enumerate(themes)}
-        lines = [f"<procedure>{name or procedure_id}</procedure>", "<patterns>"]
-        for k, p in pkeys.items():
-            kind, index = kinds.get(p.rule_id, ("", 0))
-            modes = "; ".join(s.name for s in subs.get(p.id, [])) or "not split yet"
-            lines.append(f"- {k}: {_rule_line(kind, index, p.description or '')} ({p.finding_count} findings; failure modes: {modes})")
-        lines.append("</patterns>")
-        if tkeys:
-            lines.append("<existing_themes>")
-            for k, t in tkeys.items():
-                current = [pk for pk, p in pkeys.items() if p.theme_id == t.id]
-                lines.append(f"- {k}: {t.name}. {t.description or ''} (patterns now: {', '.join(current) or 'none'})")
-            lines.append("</existing_themes>")
-        messages = [
-            _system("themes"),
-            {"role": "user", "content": [{"type": "text", "text": "\n".join(lines)}, {"type": "text", "text": "Group every pattern into themes, in conversation order."}]},
+        patterns = [
+            PatternIn(key=k, rule=_rule_line(*kinds.get(p.rule_id, ("", 0)), p.description or ""), findings=p.finding_count, failure_modes=[x.name for x in subs.get(p.id, [])])
+            for k, p in pkeys.items()
         ]
-        reply = llm.complete("reasoning", messages, themes_schema(list(pkeys), list(tkeys)))
-        self._apply_themes(ws, procedure_id, [(t.key, t.name, t.description, [pkeys[k].id for k in t.patterns]) for t in reply.themes], tkeys)
+        existing = [ThemeIn(key=k, name=t.name, description=t.description or "", patterns=[pk for pk, p in pkeys.items() if p.theme_id == t.id]) for k, t in tkeys.items()]
+        reply = ai.predict("reasoning", GroupThemes, procedure=name or procedure_id, patterns=patterns, existing_themes=existing)
+        self._apply_themes(ws, procedure_id, themes_of(reply.themes, pkeys, tkeys), tkeys)
         return True
 
     def _apply_themes(self, ws: str, procedure_id: str, groups: list[tuple[str, str, str, list[str]]], tkeys: dict[str, Theme]) -> None:
