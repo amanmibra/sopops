@@ -99,9 +99,11 @@ class Band:
     decide: float = 0.5
 
     def unsure(self, a: Answer) -> bool:
-        """Unsure: inside the band, moved with the question's threshold when it was calibrated away from `decide`."""
+        """Unsure: inside the band. When the question's threshold was calibrated away from `decide`, the band also
+        covers the band moved with it, so calibration can widen what is reviewed but never narrow it: the band is
+        where review pays, and a threshold fitted to the decisions alone says nothing about that."""
         shift = a.t - self.decide
-        return self.no + shift < a.p < self.yes + shift
+        return min(self.no, self.no + shift) < a.p < max(self.yes, self.yes + shift)
 
 
 @dataclass(frozen=True)
@@ -110,11 +112,14 @@ class DecisionConfig:
     `SOPOPS_CHECK_MODE=review` has the reasoning model judge every rule; `SOPOPS_DECISIONS` (JSON) overrides any field,
     bands as `[no, yes, decide]`, e.g. `{"never": [0.05, 0.7, 0.7], "review_statuses": ["violated"]}`."""
 
-    route: Band = Band(0.3, 0.7, 0.5)
-    responded: Band = Band(0.3, 0.7, 0.5)
+    # Tuned on a private benchmark's dev split with review on (and kept on held-out): a wide review band for routing,
+    # steps and never rules (a done step under 0.9, a never rule over 0.05 goes to review). Narrower bands review
+    # fewer rules and lose recall.
+    route: Band = Band(0.2, 0.8, 0.5)
+    responded: Band = Band(0.2, 0.8, 0.5)
     condition: Band = Band(0.3, 0.7, 0.5)
-    step: Band = Band(0.3, 0.7, 0.5)
-    never: Band = Band(0.15, 0.7, 0.7)  # a violation only when confident; unsure ones are reviewed
+    step: Band = Band(0.3, 0.9, 0.5)
+    never: Band = Band(0.05, 0.7, 0.7)  # a violation only when confident; unsure ones are reviewed
     warning: Band = Band(0.3, 0.7, 0.5)
     goal: float = 0.5
     review: bool = True

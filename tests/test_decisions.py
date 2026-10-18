@@ -238,9 +238,8 @@ def test_models_count_tokens_and_cost_per_role():
     assert models.model("decide") == "fake/fast" and Models({"fast": "f"}, jev=True).model("decide") == "jev-1.13.0"
 
 
-def test_reanchor_fits_thresholds_against_a_metric_and_stores_them(env):
-    """Labeled sessions where step 1 counts as done only when it's clearly there: ReAnchor raises its threshold."""
-    from sopops.ai import programs
+def _calibration_setup(env, probs, done_above):
+    """Labeled sessions whose step 1 probability is `probs[i]`; step 1 counts as done only above `done_above`."""
     from sopops.pipeline.procedures import candidates
 
     env.send(session("seed"))
@@ -249,27 +248,56 @@ def test_reanchor_fits_thresholds_against_a_metric_and_stores_them(env):
     p = next(x for x in cand.procedures if x.id == ALLERGEN)
     splits = decide.rule_checks(env.fake, env.store.engine, "demo", p, cand.variables)
     step1 = next(r.id for r in p.rules if r.key == "step_1")
-
-    def answers(prob):
-        return lambda state, qs: {k: (prob if k == "step1_a0" else Decisions({})(state, {k: q})[k]) for k, q in qs.items()}
-
-    probs = [0.95, 0.9, 0.6, 0.55, 0.97, 0.58]
     by_text = {}
-    decider = FakeSystemOne(lambda state, qs: answers(by_text[state["inputs"]["transcript"][1]["text"]])(state, qs))
+
+    def answer(state, qs):
+        prob = by_text[state["inputs"]["transcript"][1]["text"]]
+        return {k: (prob if k == "step1_a0" else Decisions({}, goal=0.2)(state, {k: q})[k]) for k, q in qs.items()}  # goal not reached
+
+    decider = FakeSystemOne(answer)
     trainset = []
     for i, prob in enumerate(probs):
         turns = [{"role": "agent", "text": "Hi"}, {"role": "user", "text": f"case {i}"}, {"role": "agent", "text": "Any allergies?"}]
         by_text[f"case {i}"] = prob
-        trainset.append(dspy.Example(turns=turns, step1_done=prob > 0.9).with_inputs("turns"))
+        done = prob > done_above
+        trainset.append(dspy.Example(turns=turns, deviated=not done, failing=set() if done else {step1}).with_inputs("turns"))
+    return p, splits, cand, step1, decider, trainset
 
-    def metric(example, pred, trace=None):
-        return float((pred.statuses[step1] == "done") == example.step1_done)
 
+def test_calibration_fits_thresholds_offline_against_a_corpus_objective_and_stores_them(env):
+    """Step 1 counts as done only when it's clearly there: the fit raises its threshold, from one answer per session."""
+    from sopops.ai import programs
+
+    p, splits, cand, step1, decider, trainset = _calibration_setup(env, [0.85, 0.8, 0.6, 0.55, 0.88, 0.58], 0.7)
     program = programs.CheckDecisions(p, splits, cand.variables, DecisionConfig(), decider)
-    report = programs.calibrate(program, trainset, metric, env.store.engine, "demo", f"check:{ALLERGEN}", "fake-jev", num_threads=1)
-    assert report["train_score"] == 1.0 and report["train_score_before"] < 1.0
+    report = programs.calibrate(program, trainset, programs.check_objective(), env.store.engine, "demo", f"check:{ALLERGEN}", "fake-jev", num_threads=1)
+    assert report["train_score"] > report["train_score_before"]
+    assert len(decider.requests) == len(trainset)  # each session answered once; candidates are judged offline
     stored = calibration.load(env.store.engine, "demo", f"check:{ALLERGEN}", decide.question_hashes(program.decide))
-    assert 0.9 < stored["step1_a0"]["threshold"] < 0.95  # between the highest "no" and the lowest "yes"
+    assert 0.6 < stored["step1_a0"]["threshold"] <= 0.8  # between the highest "no" and the lowest "yes"
+    assert set(stored) <= {"step1_a0", "goal"}  # no other rule had labeled failures to fit on
+
+
+def test_calibration_keeps_thresholds_within_bounds_and_needs_labeled_failures(env):
+    from sopops.ai import programs
+
+    p, splits, cand, step1, decider, trainset = _calibration_setup(env, [0.97, 0.98, 0.95, 0.99, 0.96, 0.93], 0.955)
+    program = programs.CheckDecisions(p, splits, cand.variables, DecisionConfig(), decider)
+    report = programs.calibrate(program, trainset, programs.check_objective(), env.store.engine, "demo", f"check:{ALLERGEN}", "fake-jev", num_threads=1)
+    assert next(r for r in report["fitted"] if r["field"] == "step1_a0")["value"] <= programs.BOUNDS[1]
+    few = trainset[:4]  # two labeled failures: below min_positives, so step 1 keeps its default
+    program = programs.CheckDecisions(p, splits, cand.variables, DecisionConfig(), decider)
+    report = programs.calibrate(program, few, programs.check_objective(), env.store.engine, "demo", f"check:{ALLERGEN}", "fake-jev", num_threads=1)
+    row = next(r for r in report["fitted"] if r["field"] == "step1_a0")
+    assert row["value"] == 0.5 and "labeled failures" in row["skipped"]
+
+
+def test_a_calibrated_threshold_widens_the_review_band_but_never_narrows_it():
+    band = Band(0.3, 0.9, 0.5)
+    assert band.unsure(decide.Answer(0.85, True, 0, 0.5))
+    assert band.unsure(decide.Answer(0.85, True, 0, 0.1))  # moved down: the default band still applies
+    assert band.unsure(decide.Answer(0.2, False, 0, 0.1)) and not band.unsure(decide.Answer(0.2, False, 0, 0.5))  # widened down
+    assert band.unsure(decide.Answer(0.95, True, 0, 0.6)) and not band.unsure(decide.Answer(0.95, True, 0, 0.5))  # widened up
 
 
 def test_decision_requests_on_a_generative_model_are_built_once_and_match_dspy():

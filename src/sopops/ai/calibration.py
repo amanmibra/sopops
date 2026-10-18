@@ -1,7 +1,7 @@
 """Calibrated decision thresholds, per workspace and program, so one customer's calibration never ships with sopops.
 
 A program is `route` or `check:<procedure id>`; its params map a decision output to `{"threshold": x}` (what
-`dspy.experimental.ReAnchor` fits, see `sopops.ai.programs`). Each param is stored with a hash of its question, and
+`sopops.ai.programs.calibrate` fits). Each param is stored with a hash of its question, and
 `load` keeps only those whose question is unchanged, so an edited rule falls back to the defaults until it's
 recalibrated.
 """
