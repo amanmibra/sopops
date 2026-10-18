@@ -36,6 +36,9 @@ class Suggestion(SQLModel, table=True):
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     pr_url: str | None = Field(default=None, max_length=1024)
     pr_checked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    applied_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    pr_opened_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    merged_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))  # when sopops saw it merged
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True), description="Why it was dismissed.")
     reviewer: str | None = Field(default=None, max_length=256)
     attempts: int = 0

@@ -2,9 +2,9 @@
 // Preview runs it without saving; Apply saves the new thresholds. Refusals (too few labels) are said plainly.
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ApiError, type RuleRef } from "@/lib/api";
+import { ApiError, type Refusal } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural } from "@/lib/kinds";
 import { type CalibratedProcedure, type CalibratedRule, review } from "@/lib/review";
@@ -12,26 +12,24 @@ import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Panel } from "./bits";
 import { Hint, TipBody } from "./insights/kit";
-import { usePatternIndex } from "./review-bits";
 import { Button } from "./ui/button";
 
-/** The server's reason for refusing a procedure or leaving a rule as it was, in plain words. */
-export function refusal(reason: string): string {
-  let m = /^(\d+) labeled sessions \(< (\d+)\)/.exec(reason);
-  if (m) return `Not enough labels yet: ${plural(Number(m[1]), "session has", "sessions have")} a reviewed finding, and it needs ${m[2]}. Give verdicts on more of this procedure's patterns, then try again.`;
-  m = /^no rule has (\d+) labeled failures/.exec(reason);
-  if (m) return `Not enough labels yet: no rule has ${m[1]} findings judged. Give verdicts on more of this procedure's patterns, then try again.`;
-  m = /^the procedure isn't in release (\d+)/.exec(reason);
-  if (m) return `This procedure isn't in release ${m[1]}, the one its latest reviewed session ran. Calibrate after a session on a release that has it.`;
-  return reason.charAt(0).toUpperCase() + reason.slice(1) + ".";
+/** Why a procedure was refused, in plain words (from the refusal's code; its message otherwise). */
+export function refusal(r: Refusal): string {
+  const again = "Give verdicts on more of this procedure's patterns, then try again.";
+  if (r.code === "too_few_labeled_sessions" && r.have != null && r.need != null)
+    return `Not enough labels yet: ${plural(r.have, "session has", "sessions have")} a reviewed finding, and it needs ${r.need}. ${again}`;
+  if (r.code === "too_few_failures" && r.need != null) return `Not enough labels yet: no rule has ${r.need} findings judged. ${again}`;
+  if (r.code === "not_in_release") return `${r.message} Calibrate after a session on a release that has it.`;
+  return r.message;
 }
 
-function ruleSkip(reason: string): string {
-  let m = /^(\d+) labeled failures on its rule \(< (\d+)\)/.exec(reason);
-  if (m) return `Kept: only ${m[1]} judged findings, needs ${m[2]}`;
-  if (reason.startsWith("too few distinct")) return "Kept: the checker's answers are too alike to fit";
-  if (reason.startsWith("fold check")) return "Kept: the new value didn't hold up on held-out sessions";
-  return `Kept: ${reason}`;
+/** Why one question kept its threshold. */
+function ruleSkip(r: Refusal): string {
+  if (r.code === "too_few_failures" && r.have != null && r.need != null) return `Kept: only ${r.have} judged findings, needs ${r.need}`;
+  if (r.code === "too_alike") return "Kept: the checker's answers are too alike to fit";
+  if (r.code === "held_out") return "Kept: the new value didn't hold up on held-out sessions";
+  return `Kept: ${r.message}`;
 }
 
 const fmt = (x: number | null | undefined) => (x == null ? "—" : x.toFixed(2));
@@ -42,12 +40,6 @@ export function CalibrationCard() {
   const { ws, cfg } = useWs();
   const qc = useQueryClient();
   const [runs, setRuns] = useState<Record<string, Run>>({});
-  const { index } = usePatternIndex(ws);
-  const rules = useMemo(() => {
-    const m = new Map<string, RuleRef>();
-    for (const p of index.values()) if (p.kind === "rule" && "rule" in p) m.set(p.rule_id, (p as { rule: RuleRef }).rule);
-    return m;
-  }, [index]);
   const procs = [...cfg.procedures].sort((a, b) => a.name.localeCompare(b.name));
 
   const run = async (pid: string, dry: boolean) => {
@@ -99,7 +91,7 @@ export function CalibrationCard() {
                       <ErrorBanner error={r.error} />
                     </div>
                   ))}
-                {r.result && <Result r={r.result} rules={rules} />}
+                {r.result && <Result r={r.result} />}
               </li>
             );
           })}
@@ -109,7 +101,7 @@ export function CalibrationCard() {
   );
 }
 
-function Result({ r, rules }: { r: CalibratedProcedure; rules: Map<string, RuleRef> }) {
+function Result({ r }: { r: CalibratedProcedure }) {
   if (r.skipped)
     return (
       <Banner tone="warn" className="mt-2 mb-0 text-[13px]">
@@ -118,8 +110,7 @@ function Result({ r, rules }: { r: CalibratedProcedure; rules: Map<string, RuleR
     );
   const label = (x: CalibratedRule) => {
     if (!x.rule_id) return "Overall: does the session need attention?";
-    const ref = rules.get(x.rule_id);
-    return ref ? `${ruleName(ref.kind, ref.index)}${ref.text ? `: ${ref.text}` : ""}` : x.field;
+    return x.kind ? `${ruleName(x.kind, x.index)}${x.text ? `: ${x.text}` : ""}` : x.field;
   };
   const up = r.score != null && r.score_before != null ? r.score - r.score_before : null;
   return (
@@ -169,10 +160,21 @@ function Result({ r, rules }: { r: CalibratedProcedure; rules: Map<string, RuleR
                       <span className="line-clamp-2">{label(x)}</span>
                       {x.skipped && <span className="text-muted-foreground block text-xs">{ruleSkip(x.skipped)}</span>}
                     </td>
-                    <td className="text-muted-foreground px-2.5 py-1.5 text-right tabular-nums">{fmt(x.before)}</td>
+                    <td className="text-muted-foreground px-2.5 py-1.5 text-right tabular-nums">
+                      <Hint focusable={false} tip={`In use now: the checker flags this when it's at least ${fmt(x.before)} sure.`}>
+                        <span>{fmt(x.before)}</span>
+                      </Hint>
+                    </td>
                     <td className={cn("px-2.5 py-1.5 text-right font-medium tabular-nums whitespace-nowrap", Math.abs(d) < 0.005 && "text-muted-foreground font-normal")}>
-                      {fmt(x.after)}
-                      {Math.abs(d) >= 0.005 && <span className="text-muted-foreground ml-1 text-xs font-normal">({d > 0 ? "+" : ""}{d.toFixed(2)})</span>}
+                      <Hint
+                        focusable={false}
+                        tip={Math.abs(d) < 0.005 ? "Unchanged." : `Fitted to your labels: ${d > 0 ? "stricter" : "looser"} by ${Math.abs(d).toFixed(2)}, so it flags ${d > 0 ? "less" : "more"} often.`}
+                      >
+                        <span>
+                          {fmt(x.after)}
+                          {Math.abs(d) >= 0.005 && <span className="text-muted-foreground ml-1 text-xs font-normal">({d > 0 ? "+" : ""}{d.toFixed(2)})</span>}
+                        </span>
+                      </Hint>
                     </td>
                   </tr>
                 );

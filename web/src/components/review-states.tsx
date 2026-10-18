@@ -15,11 +15,9 @@ import { Hint, Skel, TipBody } from "./insights/kit";
 import { ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 
-/** Sessions so far toward a fix holding, from a note like "Release 2 is live: 4 of 10 sessions so far." */
-const progressOf = (note: string | null | undefined) => {
-  const m = note && /(\d+) of (\d+) sessions/.exec(note);
-  return m ? { n: Number(m[1]), of: Number(m[2]) } : null;
-};
+/** Sessions so far toward a fix holding (once its release is live). */
+const progressOf = (x: { fix_sessions?: number | null; fix_sessions_needed?: number | null }) =>
+  x.fix_sessions != null && x.fix_sessions_needed != null ? { n: x.fix_sessions, of: x.fix_sessions_needed } : null;
 
 /** The suggestion that belongs to the current verdict (written after it), if any. */
 const fixFor = (s: SuggestionSummary | null | undefined, v: VerdictOut | null | undefined) => (s && (!v || s.created_at >= v.created_at) ? s : null);
@@ -192,7 +190,7 @@ function OpenNext({ item }: { item: ReviewItem }) {
 
 /** Fixing: the fix, and what it's waiting for. */
 function FixingNext({ item }: { item: ReviewItem }) {
-  const p = progressOf(item.review_note);
+  const p = progressOf(item);
   const live = !!item.fix_release && !!p;
   return (
     <div className="grid gap-2">
@@ -244,7 +242,8 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
   const applied = fixes.find((s) => s.status in APPLIED);
   const latest = applied ?? fixes[0];
   const rel = d.fix_release != null ? releases.find((r) => r.number === d.fix_release) : undefined;
-  const p = progressOf(d.review_note);
+  const p = progressOf(d);
+  const pr = applied?.pr_url ? applied : undefined;
 
   const steps: Step[] = [
     {
@@ -262,15 +261,23 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
     steps.push({ key: "fix", label: latest ? "Fix written" : "Fix not written yet", detail: latest ? <SuggestionLinkInline s={latest} /> : undefined, at: latest?.created_at, done: !!latest && latest.status !== "generating" && latest.status !== "failed" });
     steps.push({
       key: "applied",
-      label: applied ? APPLIED[applied.status] : "Not applied yet",
-      detail: applied?.pr_url ? (
-        <a href={applied.pr_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
+      label: pr ? "Pull request opened" : applied ? APPLIED[applied.status] : "Not applied yet",
+      detail: pr?.pr_url ? (
+        <a href={pr.pr_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
           Open the pull request <ExternalLink className="size-3" />
         </a>
       ) : undefined,
-      at: applied?.updated_at,
+      at: pr ? pr.pr_opened_at : applied?.applied_at,
       done: !!applied,
     });
+    if (pr)
+      steps.push({
+        key: "merged",
+        label: pr.status === "merged" ? "Pull request merged" : "Waiting for the merge",
+        detail: pr.status === "merged" && d.fix_release == null ? "Pull the repository into drafts (Settings), then publish." : undefined,
+        at: pr.merged_at,
+        done: pr.status === "merged",
+      });
     steps.push({
       key: "release",
       label: d.fix_release != null ? `In release ${d.fix_release}` : "Waiting for a release",
@@ -283,7 +290,7 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
         ) : applied ? (
           d.review_note
         ) : undefined,
-      at: rel?.created_at,
+      at: applied?.released_at ?? rel?.created_at,
       done: d.fix_release != null,
     });
     steps.push(

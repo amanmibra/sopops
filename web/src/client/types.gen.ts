@@ -719,11 +719,9 @@ export type CalibratedProcedure = {
      */
     saved: boolean;
     /**
-     * Skipped
-     *
      * Why the procedure was refused (below the minimums), if it was.
      */
-    skipped: string | null;
+    skipped: Refusal | null;
     /**
      * Score Before
      */
@@ -749,6 +747,26 @@ export type CalibratedRule = {
      */
     rule_id: string | null;
     /**
+     * Lineage Id
+     *
+     * The rule's lineage (the id its rule pattern is keyed by).
+     */
+    lineage_id: string | null;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     *
+     * The rule as it reads now: its lineage's latest wording.
+     */
+    text: string | null;
+    /**
      * Field
      *
      * The decision question.
@@ -765,11 +783,9 @@ export type CalibratedRule = {
      */
     after: number;
     /**
-     * Skipped
-     *
      * Why it wasn't fitted.
      */
-    skipped: string | null;
+    skipped: Refusal | null;
 };
 
 /**
@@ -2812,6 +2828,18 @@ export type PatternDetail = {
      * The release with the applied edit, once there is one.
      */
     fix_release: number | null;
+    /**
+     * Fix Sessions
+     *
+     * Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.
+     */
+    fix_sessions: number | null;
+    /**
+     * Fix Sessions Needed
+     *
+     * With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.
+     */
+    fix_sessions_needed: number | null;
 };
 
 /**
@@ -3966,6 +3994,36 @@ export type ReclusterResponse = {
 };
 
 /**
+ * Refusal
+ */
+export type Refusal = {
+    /**
+     * Code
+     *
+     * Procedures: `too_few_labeled_sessions` (fewer than 5 with a reviewed finding), `too_few_failures` (no rule with 3 judged failures), `not_in_release`. Questions: `too_few_failures` (on its rule), `too_alike` (the answers don't spread enough to fit), `held_out` (the new value didn't hold on held-out sessions).
+     */
+    code: 'too_few_labeled_sessions' | 'too_few_failures' | 'not_in_release' | 'too_alike' | 'held_out' | 'other';
+    /**
+     * Message
+     *
+     * The same, in a sentence.
+     */
+    message: string;
+    /**
+     * Have
+     *
+     * For the `too_few_*` codes: how many there are.
+     */
+    have: number | null;
+    /**
+     * Need
+     *
+     * For the `too_few_*` codes: how many it takes.
+     */
+    need: number | null;
+};
+
+/**
  * ReleaseDetail
  */
 export type ReleaseDetail = {
@@ -4764,6 +4822,18 @@ export type ReviewItem = {
      * The release with the applied edit, once there is one.
      */
     fix_release: number | null;
+    /**
+     * Fix Sessions
+     *
+     * Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.
+     */
+    fix_sessions: number | null;
+    /**
+     * Fix Sessions Needed
+     *
+     * With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.
+     */
+    fix_sessions_needed: number | null;
     /**
      * Suppressed Count
      */
@@ -6156,6 +6226,36 @@ export type SuggestionDetail = {
      */
     updated_at: string;
     /**
+     * Applied At
+     *
+     * When it was saved as a draft edit.
+     */
+    applied_at: string | null;
+    /**
+     * Pr Opened At
+     *
+     * When its pull request was opened.
+     */
+    pr_opened_at: string | null;
+    /**
+     * Merged At
+     *
+     * When sopops saw its pull request merged (checked every 15 minutes, and when it's read).
+     */
+    merged_at: string | null;
+    /**
+     * Released In
+     *
+     * The first release whose file is the suggested text (for a repo: after the merge is pulled and published).
+     */
+    released_in: number | null;
+    /**
+     * Released At
+     *
+     * When that release was published.
+     */
+    released_at: string | null;
+    /**
      * Path
      *
      * The procedure's file.
@@ -6307,6 +6407,36 @@ export type SuggestionSummary = {
      * Updated At
      */
     updated_at: string;
+    /**
+     * Applied At
+     *
+     * When it was saved as a draft edit.
+     */
+    applied_at: string | null;
+    /**
+     * Pr Opened At
+     *
+     * When its pull request was opened.
+     */
+    pr_opened_at: string | null;
+    /**
+     * Merged At
+     *
+     * When sopops saw its pull request merged (checked every 15 minutes, and when it's read).
+     */
+    merged_at: string | null;
+    /**
+     * Released In
+     *
+     * The first release whose file is the suggested text (for a repo: after the merge is pulled and published).
+     */
+    released_in: number | null;
+    /**
+     * Released At
+     *
+     * When that release was published.
+     */
+    released_at: string | null;
 };
 
 /**

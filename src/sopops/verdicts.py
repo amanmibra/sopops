@@ -102,10 +102,31 @@ def override_out(o: FindingOverride, suppressed: bool | None = None) -> dict[str
             "correct": o.correct, "note": o.note, "reviewer": o.reviewer, "created_at": _utc(o.created_at), "suppressed": suppressed}
 
 
-def suggestion_summary(s: Suggestion, pattern_name: str | None = None) -> dict[str, Any]:
+def suggestion_summary(s: Suggestion, pattern_name: str | None = None, released: Release | None = None) -> dict[str, Any]:
+    """`released`: the release with its edit (`release_with`), for `released_in` and `released_at`."""
     return {"suggestion_id": s.id, "pattern_id": s.pattern_id, "pattern_name": pattern_name, "procedure_id": s.procedure_id, "rule_id": s.rule_id,
             "block_id": s.procedure_id, "status": s.status, "rationale": s.rationale, "error": s.error, "pr_url": s.pr_url,
-            "created_at": _utc(s.created_at), "updated_at": _utc(s.updated_at)}
+            "created_at": _utc(s.created_at), "updated_at": _utc(s.updated_at), "applied_at": _utc(s.applied_at), "pr_opened_at": _utc(s.pr_opened_at),
+            "merged_at": _utc(s.merged_at), "released_in": released.number if released else None, "released_at": _utc(released.created_at) if released else None}
+
+
+def release_with(db: Session, ws: str, s: Suggestion) -> Release | None:
+    """The first release since the suggestion whose file is its suggested text (None until there is one, and for a
+    suggestion that wasn't applied)."""
+    if s.status not in lineage.FIX_STATUSES or not s.path or s.new_text is None:
+        return None
+    for rel in db.exec(select(Release).where(Release.workspace == ws, Release.created_at >= s.created_at).order_by(Release.number)):
+        version = rel.files.get(s.path)
+        if version is None:
+            continue
+        content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == s.path, FileVersion.version == version)).first()
+        if content == s.new_text:
+            return rel
+    return None
+
+
+def summaries(db: Session, ws: str, rows: Iterable[Suggestion], pattern_name: str | None = None) -> list[dict[str, Any]]:
+    return [suggestion_summary(s, pattern_name, release_with(db, ws, s)) for s in rows]
 
 
 def latest(db: Session, ws: str, pattern_ids: Iterable[str]) -> dict[str, Verdict]:
@@ -327,9 +348,10 @@ class Verdicts:
             v = effective(db, ws, [p]).get(p.id)
             history = list(db.exec(select(Verdict).where(Verdict.workspace_id == ws, Verdict.pattern_id == p.id).order_by(Verdict.created_at.desc())))
             sugg = list(db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc())))
+            suggs = summaries(db, ws, sugg, p.name)
             state = self.state(db, ws, p, v)
         return {"verdict": verdict_out(*v) if v else None, "verdict_history": [verdict_out(x) for x in history],
-                "suppressed_count": self.suppressed_count(ws, p), "suggestions": [suggestion_summary(s, p.name) for s in sugg], **state}
+                "suppressed_count": self.suppressed_count(ws, p), "suggestions": suggs, **state}
 
     def annotate(self, ws: str, items: list[dict[str, Any]]) -> None:
         """Add `verdict`, `review_state` and `review_note` to pattern dicts (the patterns list)."""
@@ -351,9 +373,10 @@ class Verdicts:
             return _utc(db.exec(select(func.max(Pattern.clustered_at)).where(Pattern.workspace_id == ws, Pattern.kind == "rule")).one())
 
     def state(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None) -> dict[str, Any]:
-        """{review_state, review_note, fix_release} (see the module docstring)."""
-        def out(state: str, note: str | None = None, release: int | None = None) -> dict[str, Any]:
-            return {"review_state": state, "review_note": note, "fix_release": release}
+        """{review_state, review_note, fix_release, fix_sessions, fix_sessions_needed} (see the module docstring)."""
+        def out(state: str, note: str | None = None, release: int | None = None, sessions: int | None = None) -> dict[str, Any]:
+            return {"review_state": state, "review_note": note, "fix_release": release, "fix_sessions": sessions,
+                    "fix_sessions_needed": FIXED_MIN_N if sessions is not None else None}
 
         if v is None:
             return out("needs_review", "No verdict yet.")
@@ -371,11 +394,12 @@ class Verdicts:
                 return out("needs_review", f"The rule was reworded after this verdict: {newer} finding{'s' if newer != 1 else ''} on the new wording, not suppressed. Confirm it, or give another.")
             return out("closed")
         fix = db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id.in_([x for x in (p.id, p.parent_id) if x]),
-                                               Suggestion.verdict_id == verdict.id, Suggestion.status.in_(("applied", "pr_open", "merged")))
+                                               Suggestion.verdict_id == verdict.id, Suggestion.status.in_(lineage.FIX_STATUSES))
                       .order_by(Suggestion.updated_at.desc())).first()
         if fix is None:
             return out("open")
-        release = self._release_with(db, ws, fix)
+        found = release_with(db, ws, fix)
+        release = found.number if found else None
         live = db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
         if release is None:
             wait = {"applied": "Waiting for a release with the edit.", "pr_open": "Waiting for the pull request to be merged.",
@@ -392,21 +416,8 @@ class Verdicts:
         n = db.exec(select(func.count(func.distinct(PC.session_id))).join(S, S.id == PC.session_id)
                     .where(PC.workspace_id == ws, PC.procedure_id == p.procedure_id, PC.result.is_not(None), S.release_id >= release)).one()
         if n >= FIXED_MIN_N:
-            return out("fixed", f"No findings in {n} sessions on release {release} or later.", release)
-        return out("fixing", f"Release {release} is live: {n} of {FIXED_MIN_N} sessions so far.", release)
-
-    def _release_with(self, db: Session, ws: str, s: Suggestion) -> int | None:
-        """The first release since the suggestion whose file is its suggested text."""
-        if not s.path or s.new_text is None:
-            return None
-        for rel in db.exec(select(Release).where(Release.workspace == ws, Release.created_at >= s.created_at).order_by(Release.number)):
-            version = rel.files.get(s.path)
-            if version is None:
-                continue
-            content = db.exec(select(FileVersion.content).where(FileVersion.workspace == ws, FileVersion.path == s.path, FileVersion.version == version)).first()
-            if content == s.new_text:
-                return rel.number
-        return None
+            return out("fixed", f"No findings in {n} sessions on release {release} or later.", release, n)
+        return out("fixing", f"Release {release} is live: {n} of {FIXED_MIN_N} sessions so far.", release, n)
 
     def queue(self, ws: str, limit: int = 50, states: Iterable[str] | None = None) -> dict[str, Any]:
         """Every active leaf pattern (a rule pattern that isn't split, else its sub-patterns and `other`) with findings,
@@ -448,7 +459,7 @@ class Verdicts:
             "findings": p.finding_count, "sessions": p.session_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen),
             "clustered_at": _utc(p.clustered_at), "procedure_name": name or p.procedure_id, "rule": {"kind": text[0], "index": text[1], "text": text[2]} if text else {"kind": None, "index": None, "text": None},
             "rule_text": text[2] if text else None, "examples": [_example(f, r, at) for f, r, at in rows], "verdict": verdict_out(*v) if v else None,
-            "new_findings": new, "suppressed_count": suppressed, "suggestion": suggestion_summary(sugg, p.name) if sugg else None, **state,
+            "new_findings": new, "suppressed_count": suppressed, "suggestion": suggestion_summary(sugg, p.name, release_with(db, ws, sugg)) if sugg else None, **state,
         }
 
     def examples(self, ws: str, pattern_id: str, k: int = EXAMPLES) -> tuple[Pattern, list[dict[str, Any]]]:

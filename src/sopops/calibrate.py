@@ -35,7 +35,8 @@ class Calibrate:
 
     def run(self, ws: str, procedure_id: str | None = None, dry_run: bool = False, ai: AI | None = None) -> dict[str, Any]:
         """{workspace, dry_run, procedures: [{procedure_id, program, labels, negative_labels, saved, skipped, score_before,
-        score, rules: [{rule_id, field, before, after, skipped}]}]}"""
+        score, rules: [{rule_id, lineage_id, kind, index, text, field, before, after, skipped}]}]}. `skipped` is a refusal,
+        {code, message, have, need}, or None (`refusal`)."""
         ai = ai or ai_lm.get_ai()
         if procedure_id:
             pids = [procedure_id]
@@ -58,16 +59,18 @@ class Calibrate:
         examples = _relabel(examples, lambda r: lins.get((pid, r), r))  # every label on its lineage
         support = programs.positives(examples)
         if len(examples) < programs.FOLDS:
-            row["skipped"] = f"{len(examples)} labeled sessions (< {programs.FOLDS})"
+            row["skipped"] = refusal("too_few_labeled_sessions", f"{len(examples)} sessions have a reviewed finding; calibrating needs {programs.FOLDS}.",
+                                     len(examples), programs.FOLDS)
             return row
         if max(support.values(), default=0) < programs.MIN_POSITIVES:
-            row["skipped"] = f"no rule has {programs.MIN_POSITIVES} labeled failures"
+            most = max(support.values(), default=0)
+            row["skipped"] = refusal("too_few_failures", f"No rule has {programs.MIN_POSITIVES} judged failures yet (the most is {most}).", most, programs.MIN_POSITIVES)
             return row
         latest = max(examples, key=lambda e: self.store.sessions.load(ws, e.session_id).started_at)
         cand = candidates(self.store, self.store.sessions.load(ws, latest.session_id))
         p = next((x for x in cand.procedures if x.id == pid), None)
         if p is None:
-            row["skipped"] = f"the procedure isn't in release {cand.release}"
+            row["skipped"] = refusal("not_in_release", f"The procedure isn't in release {cand.release}, the one its latest reviewed session ran.")
             return row
         wording = {lins.get((pid, r.id), r.id): r.id for r in p.rules}
         examples = _relabel(examples, lambda r: wording.get(r, r))  # then on the rule as this release words it
@@ -78,11 +81,37 @@ class Calibrate:
         defaults = {n: float(c["threshold"]) for n, c in program.decide.fields.items() if "threshold" in c}
         report = programs.calibrate(program, examples, programs.check_objective(), self.store.engine, ws, name, ai.model(DECIDE), save=not dry_run)
         row.update(saved=not dry_run, score_before=report["train_score_before"], score=report["train_score"])
+        rules = {r.id: r for r in p.rules}
+        with Session(self.store.engine) as db:
+            now = {lin: lineage.latest(db, ws, pid, lin) for lin in {lins.get((pid, r.id), r.id) for r in p.rules}}
         for r in report["fitted"]:
             before = float(stored.get(r["field"], {}).get("threshold", defaults[r["field"]]))
             after = before if r.get("skipped") else float(r["value"])
-            row["rules"].append({"rule_id": program.rule_of(r["field"]), "field": r["field"], "before": before, "after": after, "skipped": r.get("skipped")})
+            rid = program.rule_of(r["field"])
+            rule, lin = rules.get(rid or ""), lins.get((pid, rid or ""), rid)
+            text = (now.get(lin or "") or (None, None, rule.text if rule else None))[2]  # the rule as it reads now (its lineage's latest wording)
+            row["rules"].append({"rule_id": rid, "lineage_id": lin, "kind": rule.kind if rule else None, "index": rule.index if rule else None, "text": text,
+                                 "field": r["field"], "before": before, "after": after, "skipped": _rule_refusal(r)})
         return row
+
+
+RULE_SKIPS = {
+    "too_few_failures": "{have} judged failures on this rule; it needs {need}.",
+    "too_alike": "The checker's answers on this question are too alike to fit a threshold.",
+    "held_out": "The new value didn't hold up on held-out sessions.",
+}
+
+
+def refusal(code: str, message: str, have: int | None = None, need: int | None = None) -> dict[str, Any]:
+    return {"code": code, "message": message, "have": have, "need": need}
+
+
+def _rule_refusal(row: dict[str, Any]) -> dict[str, Any] | None:
+    """Why a question kept its threshold, from a `programs.fit` report row."""
+    if not row.get("skipped"):
+        return None
+    code = row.get("skip_code") or "other"
+    return refusal(code, RULE_SKIPS.get(code, str(row["skipped"])).format(have=row.get("have"), need=row.get("need")), row.get("have"), row.get("need"))
 
 
 def _relabel(examples: list[dspy.Example], to: Callable[[str], str]) -> list[dspy.Example]:

@@ -83,6 +83,8 @@ class PatternDetail(PatternOut):
     suppressed_count: int = Field(0, description="Suppressed findings, all time.")
     suggestions: list[SuggestionSummary] = Field(default_factory=list, description="Newest first.")
     fix_release: int | None = Field(None, description="The release with the applied edit, once there is one.")
+    fix_sessions: int | None = Field(None, description="Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.")
+    fix_sessions_needed: int | None = Field(None, description="With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.")
 
 
 class ReclusterRequest(BaseModel):

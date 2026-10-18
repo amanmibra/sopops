@@ -285,10 +285,11 @@ def fit(program: CheckDecisions | RouteDecisions, answered: list[_Answered], obj
         for n in defaults:
             rule = program.rule_of(n)
             if rule is not None and support.get(rule, 0) < min_positives:
-                report[n] = {"field": n, "value": defaults[n], "skipped": f"{support.get(rule, 0)} labeled failures on its rule (< {min_positives})"}
+                report[n] = {"field": n, "value": defaults[n], "skipped": f"{support.get(rule, 0)} labeled failures on its rule (< {min_positives})",
+                             "skip_code": "too_few_failures", "have": support.get(rule, 0), "need": min_positives}
                 continue
             if len(set(observed[n])) < 2:
-                report[n] = {"field": n, "value": current[n], "skipped": "too few distinct probabilities"}
+                report[n] = {"field": n, "value": current[n], "skipped": "too few distinct probabilities", "skip_code": "too_alike"}
                 continue
             tried = []
             for t in _candidates(observed[n], lo, hi):
@@ -314,7 +315,7 @@ def fit(program: CheckDecisions | RouteDecisions, answered: list[_Answered], obj
                     current, changed = th, True
                     row.update(value=t, score=round(s, 4))
                 else:
-                    row.update(skipped=f"fold check: held-out {held:.3f} vs {held_start:.3f}")
+                    row.update(skipped=f"fold check: held-out {held:.3f} vs {held_start:.3f}", skip_code="held_out")
             report[n] = row
         if not changed:
             break

@@ -149,7 +149,7 @@ def calibrate(argv: list[str]) -> None:
     for p in out["procedures"]:
         head = f"{p['procedure_id']}: {p['labels']} labeled sessions ({p['negative_labels']} findings judged wrong)"
         if p["skipped"]:
-            print(f"{head}; refused: {p['skipped']}")
+            print(f"{head}; refused: {p['skipped']['message']}")
             continue
         print(f"{head}; objective {p['score_before']} -> {p['score']}{' (dry run, not saved)' if args.dry_run else ''}")
         for r in p["rules"]:

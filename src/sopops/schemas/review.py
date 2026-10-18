@@ -50,6 +50,8 @@ class ReviewItem(BaseModel):
     review_state: ReviewState = Field(description=REVIEW_STATE_HELP)
     review_note: str | None = Field(description="Why it's in that state, e.g. \"Came back after release 7: 3 findings ...\".")
     fix_release: int | None = Field(description="The release with the applied edit, once there is one.")
+    fix_sessions: int | None = Field(None, description="Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.")
+    fix_sessions_needed: int | None = Field(None, description="With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.")
     suppressed_count: int
     suggestion: SuggestionSummary | None = Field(description="The latest suggestion for the pattern.")
 

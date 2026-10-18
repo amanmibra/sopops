@@ -9847,13 +9847,12 @@
           "skipped": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/Refusal"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Skipped",
             "description": "Why the procedure was refused (below the minimums), if it was."
           },
           "score_before": {
@@ -9914,6 +9913,57 @@
             "title": "Rule Id",
             "description": "Null for the goal question."
           },
+          "lineage_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lineage Id",
+            "description": "The rule's lineage (the id its rule pattern is keyed by)."
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text",
+            "description": "The rule as it reads now: its lineage's latest wording."
+          },
           "field": {
             "type": "string",
             "title": "Field",
@@ -9931,19 +9981,22 @@
           "skipped": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/Refusal"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Skipped",
             "description": "Why it wasn't fitted."
           }
         },
         "type": "object",
         "required": [
           "rule_id",
+          "lineage_id",
+          "kind",
+          "index",
+          "text",
           "field",
           "before",
           "after",
@@ -13592,6 +13645,30 @@
             ],
             "title": "Fix Release",
             "description": "The release with the applied edit, once there is one."
+          },
+          "fix_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Sessions",
+            "description": "Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later."
+          },
+          "fix_sessions_needed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Sessions Needed",
+            "description": "With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed."
           }
         },
         "type": "object",
@@ -13624,7 +13701,9 @@
           "verdict_history",
           "suppressed_count",
           "suggestions",
-          "fix_release"
+          "fix_release",
+          "fix_sessions",
+          "fix_sessions_needed"
         ],
         "title": "PatternDetail"
       },
@@ -15653,6 +15732,60 @@
         ],
         "title": "ReclusterResponse"
       },
+      "Refusal": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "too_few_labeled_sessions",
+              "too_few_failures",
+              "not_in_release",
+              "too_alike",
+              "held_out",
+              "other"
+            ],
+            "title": "Code",
+            "description": "Procedures: `too_few_labeled_sessions` (fewer than 5 with a reviewed finding), `too_few_failures` (no rule with 3 judged failures), `not_in_release`. Questions: `too_few_failures` (on its rule), `too_alike` (the answers don't spread enough to fit), `held_out` (the new value didn't hold on held-out sessions)."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "The same, in a sentence."
+          },
+          "have": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Have",
+            "description": "For the `too_few_*` codes: how many there are."
+          },
+          "need": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Need",
+            "description": "For the `too_few_*` codes: how many it takes."
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message",
+          "have",
+          "need"
+        ],
+        "title": "Refusal"
+      },
       "ReleaseDetail": {
         "properties": {
           "number": {
@@ -16924,6 +17057,30 @@
             "title": "Fix Release",
             "description": "The release with the applied edit, once there is one."
           },
+          "fix_sessions": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Sessions",
+            "description": "Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later."
+          },
+          "fix_sessions_needed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fix Sessions Needed",
+            "description": "With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed."
+          },
           "suppressed_count": {
             "type": "integer",
             "title": "Suppressed Count"
@@ -16966,6 +17123,8 @@
           "review_state",
           "review_note",
           "fix_release",
+          "fix_sessions",
+          "fix_sessions_needed",
           "suppressed_count",
           "suggestion"
         ],
@@ -19511,6 +19670,70 @@
             "format": "date-time",
             "title": "Updated At"
           },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At",
+            "description": "When it was saved as a draft edit."
+          },
+          "pr_opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Opened At",
+            "description": "When its pull request was opened."
+          },
+          "merged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged At",
+            "description": "When sopops saw its pull request merged (checked every 15 minutes, and when it's read)."
+          },
+          "released_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released In",
+            "description": "The first release whose file is the suggested text (for a repo: after the merge is pulled and published)."
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At",
+            "description": "When that release was published."
+          },
           "path": {
             "anyOf": [
               {
@@ -19653,6 +19876,11 @@
           "pr_url",
           "created_at",
           "updated_at",
+          "applied_at",
+          "pr_opened_at",
+          "merged_at",
+          "released_in",
+          "released_at",
           "path",
           "base_version",
           "old_text",
@@ -19826,6 +20054,70 @@
             "type": "string",
             "format": "date-time",
             "title": "Updated At"
+          },
+          "applied_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Applied At",
+            "description": "When it was saved as a draft edit."
+          },
+          "pr_opened_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pr Opened At",
+            "description": "When its pull request was opened."
+          },
+          "merged_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merged At",
+            "description": "When sopops saw its pull request merged (checked every 15 minutes, and when it's read)."
+          },
+          "released_in": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released In",
+            "description": "The first release whose file is the suggested text (for a repo: after the merge is pulled and published)."
+          },
+          "released_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Released At",
+            "description": "When that release was published."
           }
         },
         "type": "object",
@@ -19841,7 +20133,12 @@
           "error",
           "pr_url",
           "created_at",
-          "updated_at"
+          "updated_at",
+          "applied_at",
+          "pr_opened_at",
+          "merged_at",
+          "released_in",
+          "released_at"
         ],
         "title": "SuggestionSummary"
       },

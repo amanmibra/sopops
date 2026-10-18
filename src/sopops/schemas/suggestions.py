@@ -27,6 +27,11 @@ class SuggestionSummary(BaseModel):
     pr_url: str | None
     created_at: datetime
     updated_at: datetime
+    applied_at: datetime | None = Field(None, description="When it was saved as a draft edit.")
+    pr_opened_at: datetime | None = Field(None, description="When its pull request was opened.")
+    merged_at: datetime | None = Field(None, description="When sopops saw its pull request merged (checked every 15 minutes, and when it's read).")
+    released_in: int | None = Field(None, description="The first release whose file is the suggested text (for a repo: after the merge is pulled and published).")
+    released_at: datetime | None = Field(None, description="When that release was published.")
 
 
 class AgentPromptChange(BaseModel):

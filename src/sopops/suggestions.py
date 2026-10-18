@@ -31,7 +31,7 @@ from .errors import Conflict, NotFound
 from .orm import Pattern, Suggestion, Verdict, Workspace
 from .patterns import KIND_LABEL
 from .sopc import Invalid
-from .verdicts import SUGGESTIBLE, suggestion_summary, verdict_out
+from .verdicts import SUGGESTIBLE, release_with, suggestion_summary, verdict_out
 
 if TYPE_CHECKING:
     from .ai.lm import AI
@@ -77,7 +77,7 @@ class Suggestions:
         p = db.get(Pattern, s.pattern_id)
         v = db.get(Verdict, s.verdict_id) if s.verdict_id else None
         return {
-            **suggestion_summary(s, p.name if p else None), "path": s.path, "base_version": s.base_version, "old_text": s.old_text, "new_text": s.new_text,
+            **suggestion_summary(s, p.name if p else None, release_with(db, s.workspace_id, s)), "path": s.path, "base_version": s.base_version, "old_text": s.old_text, "new_text": s.new_text,
             "plan": s.plan, "note": s.note, "reviewer": s.reviewer, "attempts": s.attempts, "model": s.model, "prompt_version": s.prompt_version,
             "pattern": {"pattern_id": p.id, "kind": p.kind, "name": p.name, "description": _description(db, p), "procedure_id": p.procedure_id, "rule_id": p.rule_id} if p else None,
             "verdict": verdict_out(v) if v else None,
@@ -117,7 +117,7 @@ class Suggestions:
             self._save(s, pr_checked_at=now)
             return None
         if state == "merged":
-            self._save(s, status="merged", pr_checked_at=now)
+            self._save(s, status="merged", pr_checked_at=now, merged_at=now)
         elif state == "closed":
             self._save(s, status="dismissed", note="PR closed", pr_checked_at=now)
         else:
@@ -130,7 +130,7 @@ class Suggestions:
             q = select(Suggestion, Pattern.name).join(Pattern, Pattern.id == Suggestion.pattern_id, isouter=True).where(Suggestion.workspace_id == ws)
             if status:
                 q = q.where(Suggestion.status == status)
-            return [suggestion_summary(s, name) for s, name in db.exec(q.order_by(Suggestion.created_at.desc()))]
+            return [suggestion_summary(s, name, release_with(db, ws, s)) for s, name in db.exec(q.order_by(Suggestion.created_at.desc()))]
 
     # --- writes --------------------------------------------------------------------------------------------------
 
@@ -250,9 +250,9 @@ class Suggestions:
             agents = [a["agent"] for a in (s.plan or {}).get("agents", [])]
             body = "\n\n".join(x for x in (s.rationale, f"Pattern: {name}", f"Agents whose prompt changes: {', '.join(agents) or 'none'}", "Suggested by sopops.") if x)
             url = github.open_pull_request(self.store, ws, {s.path: s.new_text}, f"{s.procedure_id}: {name}", body)
-            return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer)
+            return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer, pr_opened_at=_now())
         self.store.edit(ws, {s.path: s.new_text}, author=reviewer or "sopops", note=f"Suggestion for “{name}”")
-        return self._save(s, status="applied", reviewer=reviewer or s.reviewer)
+        return self._save(s, status="applied", reviewer=reviewer or s.reviewer, applied_at=_now())
 
     def dismiss(self, ws: str, suggestion_id: str, note: str | None = None, reviewer: str | None = None) -> dict[str, Any]:
         with self._db() as db:

@@ -245,7 +245,15 @@ def test_a_fix_goes_from_fixing_to_fixed_or_regressed(env):
     release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
     st = env.client.get(f"{WS}/patterns/{never['pattern_id']}").json()
     assert (st["review_state"], st["fix_release"], st["review_note"]) == ("fixing", release, f"Release {release} is live: 0 of 10 sessions so far.")
-    for _ in range(10):
+    assert (st["fix_sessions"], st["fix_sessions_needed"]) == (0, 10)
+    (s,) = st["suggestions"]
+    assert s["applied_at"] and s["pr_opened_at"] is None and s["released_in"] == release and s["released_at"] == next(
+        r["created_at"] for r in env.client.get(f"{WS}/releases").json() if r["number"] == release)
+    for _ in range(3):
+        env.send("CLEAN", release=release)
+    item = next(i for i in queue(env, "fixing")["items"] if i["pattern_id"] == never["pattern_id"])
+    assert (item["fix_sessions"], item["fix_sessions_needed"], item["suggestion"]["released_in"]) == (3, 10, release)
+    for _ in range(7):
         env.send("CLEAN", release=release)
     assert state_of(env, never["pattern_id"]) == ("fixed", f"No findings in 10 sessions on release {release} or later.")
     # a finding on a session that ran the fix: regressed, back in the queue
@@ -271,7 +279,8 @@ def test_pull_requests_are_followed_on_github(env, monkeypatch):
     monkeypatch.setattr(github, "pr_status", lambda store, ws, url: calls.append(url) or states["pr"])
 
     sid = env.client.post(f"{WS}/patterns/{never['pattern_id']}/verdict", json={"verdict": "real"}).json()["suggestion"]["suggestion_id"]
-    assert env.client.post(f"{WS}/suggestions/{sid}/apply").json()["status"] == "pr_open"
+    opened = env.client.post(f"{WS}/suggestions/{sid}/apply").json()
+    assert opened["status"] == "pr_open" and opened["pr_opened_at"] and opened["applied_at"] is None and opened["merged_at"] is None
     assert state_of(env, never["pattern_id"]) == ("fixing", "Waiting for the pull request to be merged.")
     assert env.client.get(f"{WS}/suggestions/{sid}").json()["status"] == "pr_open" and len(calls) == 1
     env.client.get(f"{WS}/suggestions/{sid}")
@@ -279,11 +288,13 @@ def test_pull_requests_are_followed_on_github(env, monkeypatch):
 
     states["pr"] = "merged"
     assert env.store.suggestions.sync_prs("demo", force=True) == {"merged": 1, "closed": 0, "open": 0, "failed": 0}
-    assert env.client.get(f"{WS}/suggestions/{sid}").json()["status"] == "merged"
+    merged = env.client.get(f"{WS}/suggestions/{sid}").json()
+    assert merged["status"] == "merged" and merged["merged_at"] >= merged["pr_opened_at"] and merged["released_in"] is None
     assert state_of(env, never["pattern_id"])[0] == "fixing" and "Merged" in state_of(env, never["pattern_id"])[1]
     env.store.edit("demo", {PATH: fixed})  # the repo pulled after the merge, then published
     release = env.client.post(f"{WS}/releases", json={}).json()["release"]["number"]
     assert state_of(env, never["pattern_id"])[1] == f"Release {release} is live: 0 of 10 sessions so far."
+    assert env.client.get(f"{WS}/suggestions").json()["items"][0]["released_in"] == release
 
     # a pull request closed without merging dismisses its suggestion; the pattern is open again
     verdict(env, never["pattern_id"], "sop_wrong", suggest=True)
@@ -315,7 +326,8 @@ def test_calibrate_from_labels(env, capsys):
     r = env.client.post(f"{WS}/calibrate", json={"dry_run": True})
     assert r.status_code == 200, r.text
     (p,) = r.json()["procedures"]
-    assert (p["procedure_id"], p["labels"], p["saved"]) == (ALLERGEN, 4, False) and p["skipped"].startswith("4 labeled sessions")
+    assert (p["procedure_id"], p["labels"], p["saved"]) == (ALLERGEN, 4, False)
+    assert p["skipped"] == {"code": "too_few_labeled_sessions", "message": "4 sessions have a reviewed finding; calibrating needs 5.", "have": 4, "need": 5}
 
     ids.append(env.send("A"))
     finding = next(x for x in session(env, ids[0])["checks"][0]["rules"] if x["finding"])["finding_id"]
@@ -323,7 +335,10 @@ def test_calibrate_from_labels(env, capsys):
     (p,) = env.client.post(f"{WS}/calibrate", json={"procedure": ALLERGEN, "dry_run": True}).json()["procedures"]
     assert (p["labels"], p["negative_labels"], p["saved"], p["skipped"]) == (5, 1, False, None)
     rule = next(x for x in p["rules"] if x["rule_id"] == never["rule_id"])
-    assert rule["before"] == rule["after"] and rule["skipped"]  # the fake answers every session alike: nothing to fit
+    assert rule["before"] == rule["after"] and rule["skipped"]["code"] == "too_alike"  # the fake answers every session alike: nothing to fit
+    assert (rule["kind"], rule["index"], rule["text"], rule["lineage_id"]) == ("never", 1, SAFE, never["rule_id"])
+    step = next(x for x in p["rules"] if x["kind"] == "step" and x["index"] == 1)
+    assert step["skipped"] == {"code": "too_few_failures", "message": "0 judged failures on this rule; it needs 3.", "have": 0, "need": 3}
     assert calibration.load(env.store.engine, "demo", f"check:{ALLERGEN}") == {} and env.store.engine.dialect.name  # a dry run saves nothing
     (p,) = env.client.post(f"{WS}/calibrate", json={}).json()["procedures"]
     assert p["saved"] is True
