@@ -454,8 +454,8 @@ export function useNeedsReview(ws: string) {
 const TABS: { tab: PatternsTab; label: string; help: string; badge: string }[] = [
   { tab: "review", label: "Needs review", help: "Patterns nobody has judged yet, and fixes that didn't hold.", badge: "Patterns waiting for a verdict, or that came back after a fix" },
   { tab: "open", label: "Open", help: "Real problems with no fix applied yet. Write a fix, or review the one proposed.", badge: "Real problems with no fix applied yet" },
-  { tab: "fixing", label: "Fixing", help: "Fixes applied or in a pull request, waiting to go live and for 10 sessions on them.", badge: "Fixes waiting for a release and 10 sessions on it" },
-  { tab: "fixed", label: "Fixed", help: "Fixes that held: 10 sessions on the new release with no findings.", badge: "Fixes that held" },
+  { tab: "fixing", label: "Fixing", help: "Real mistakes and wrong SOPs with a fix applied or in a pull request, waiting to go live and for 10 sessions on it. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes waiting for a release and 10 sessions on it" },
+  { tab: "fixed", label: "Fixed", help: "Real mistakes and wrong SOPs whose fix held: 10 sessions on the new release with no findings. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes that held" },
   { tab: "all", label: "All patterns", help: "Every pattern, by procedure and theme, with its verdict and state.", badge: "Every pattern" },
 ];
 
@@ -562,7 +562,8 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
         <section className="bg-card mb-4 rounded-lg border px-4 py-3">
           <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
           <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
-          <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
+          <p className="text-muted-foreground mt-3 text-[13px]">Real mistake and SOP is wrong go to Open, then Fixing and Fixed as a fix goes live and holds. Acceptable and Checker is wrong close the pattern and hide its findings, so a rule edit made for them isn't followed as a fix.</p>
+          <p className="text-muted-foreground mt-1 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
         </section>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">

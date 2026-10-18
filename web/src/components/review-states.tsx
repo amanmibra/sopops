@@ -24,8 +24,8 @@ const fixFor = (s: SuggestionSummary | null | undefined, v: VerdictOut | null | 
 
 const EMPTY: Record<Exclude<PatternsTab, "review" | "all">, { head: string; body: string }> = {
   open: { head: "Nothing open", body: "Real mistakes and wrong SOPs wait here until a fix is applied." },
-  fixing: { head: "No fixes in progress", body: "Once a fix is applied or sent as a pull request, it waits here for its release and 10 sessions on it." },
-  fixed: { head: "No fixes confirmed yet", body: "A fix counts as held after 10 sessions on its release with no findings in the pattern." },
+  fixing: { head: "No fixes in progress", body: "When a fix for a Real mistake or SOP is wrong verdict is applied or sent as a pull request, it waits here for its release and 10 sessions on it." },
+  fixed: { head: "No fixes confirmed yet", body: "A fix for a Real mistake or SOP is wrong verdict counts as held after 10 sessions on its release with no findings in the pattern." },
 };
 
 export function StateList({ tab, items, loading, error, onRetry }: { tab: Exclude<PatternsTab, "review" | "all">; items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void }) {
