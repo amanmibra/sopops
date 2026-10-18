@@ -17,6 +17,7 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "./ui/sheet";
 import { Hint } from "./insights/kit";
+import { SessionCost } from "./insights/spend";
 
 type Status = SessionSummary["status"];
 
@@ -467,6 +468,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
     ["Started", when(s.started_at)],
     ["Ended", s.ended_at ? `${when(s.ended_at)} (${clock(s.duration_s)})` : "—"],
     ["Processed", s.processed_at ? when(s.processed_at) : "Not yet"],
+    ["Model cost", s.model_calls ? <SessionCost calls={s.model_calls} cost={s.cost_usd} /> : "No model calls yet"],
   ];
   if (s.agent_ref && s.agent_id && s.agent_ref !== s.agent_id) facts.splice(1, 0, ["Sent as", s.agent_ref]);
   return (
@@ -487,7 +489,13 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
       <Sub>
         {plural(s.turn_count, "turn", "turns")}
         {s.tool_call_count ? `, ${plural(s.tool_call_count, "tool call", "tool calls")}` : ""}
-        {s.duration_s != null ? `, ${clock(s.duration_s)} long` : ""}.
+        {s.duration_s != null ? `, ${clock(s.duration_s)} long` : ""}
+        {s.model_calls ? (
+          <>
+            , <SessionCost calls={s.model_calls} cost={s.cost_usd} />
+          </>
+        ) : null}
+        .
       </Sub>
       {s.status_reason && <Banner tone={s.status === "failed" ? "err" : "warn"}>{s.status_reason}</Banner>}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">

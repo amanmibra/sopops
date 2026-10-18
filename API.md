@@ -381,6 +381,19 @@ All take the window filters plus `agent`, `procedure`, `release` (repeatable) an
 | `GET …/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule (by lineage), both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded (`rule_change: changed`, with A's wording in `a_text`, the release that brought B's wording in `reworded_in`, and every wording in `wording_history`). |
 | `GET …/insights/report` | The review report: headline numbers (plus sessions with problems on more than one rule), then per procedure its themes, each with its patterns: the rule they're about, failure modes, example phrasings and the sessions. |
 
+## Model spend
+
+Every model call sopops makes is recorded in `model_calls`: the model, the input and output tokens it reported, and its estimated cost, for the workspace, the session it was about (routing, checks, the reviewer, assigning its findings) and its purpose: `route`, `check`, `review`, `cluster` (assigning findings, splitting and naming patterns), `theme`, `suggestion`, `calibrate`, `onboarding`. Prompts and replies aren't stored. Calls are seen through DSPy's usage tracker, so every client path counts (a `dspy.LM`, native or through LiteLLM, and Jev); a cached answer costs nothing and isn't recorded.
+
+Costs come from a price table in USD per million tokens (input, output): Jev at $0.042 input and free output, and the current Claude models at list prices. `SOPOPS_MODEL_PRICES` (JSON, `{"model": [input, output]}`) changes or adds entries. A model string matches its name with or without the provider, else the longest entry it starts with (dated snapshots). A model with no price has its tokens recorded and a null cost.
+
+| Endpoint | |
+|---|---|
+| `GET …/usage?window=` | Over the window (`window`, or `start` and `end`; on when the call was made): `total` (`calls`, `input_tokens`, `output_tokens`, `cost_usd`, `unpriced_calls`), `by_purpose` and `by_model` (largest cost first), `sessions` and `per_session_usd` (the cost of calls about a session, per session), and `daily`, one row per UTC day. |
+| `GET /v1/model-prices` | The price table (`source`: `default` or `env`), and each configured role's model with its price. |
+
+A session's detail has its own `model_calls` and `cost_usd`.
+
 ## Onboarding
 
 Importing existing agent prompts. Both ways end in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity from `sopc compare`) that the user reviews and applies as drafts.

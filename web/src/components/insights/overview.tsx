@@ -11,6 +11,7 @@ import { useWs } from "@/lib/workspace";
 import { HrefLink, useGo } from "../href-link";
 import { Button } from "../ui/button";
 import { ProblemsChart, TrendCharts } from "./charts";
+import { SpendCard } from "./spend";
 import { DeltaMark, HeaderHint, Hint, Kpi, KpiGrid, OutcomeBar, OutcomeLegend, RateN, Spark, TipBody, WidgetCard } from "./kit";
 import { AsOf, InsightsShell, Pick } from "./scope";
 
@@ -423,6 +424,7 @@ export function OverviewView({ filters, onFilters }: { filters: InsightFilters; 
               </WidgetCard>
               <AgentsTable agents={d?.agents ?? []} scope={scope} minN={d?.thresholds.min_n ?? 10} agentMinN={d?.thresholds.agent_min_n ?? 3} loading={res.isPending} error={d ? undefined : res.error} />
             </div>
+            <SpendCard filters={filters} />
           </>
         )}
       </div>

@@ -16,6 +16,7 @@ from .finding_overrides import FindingOverride
 from .findings import Finding
 from .import_events import ImportEvent
 from .imports import ImportRecord
+from .model_calls import ModelCall
 from .patterns import Pattern
 from .platform_secrets import PlatformSecret
 from .procedure_checks import ProcedureCheck
@@ -36,4 +37,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "Fetch", "FileVersion", "Finding", "FindingOverride", "ImportEvent", "ImportRecord", "JSONDoc", "ModelCall", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "Theme", "Token", "Verdict", "Workspace", "metadata"]

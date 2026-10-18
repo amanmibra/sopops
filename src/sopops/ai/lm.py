@@ -9,7 +9,8 @@
   else the fast model, which DSPy asks for probability evidence and decodes the same way.
 
 `Models.predict(role, predictor, **inputs)` runs one `dspy.Predict` (or a signature) with that role's model, on its
-own copy of the client, and adds the call's tokens and cost to `usage`. DSPy's response cache is in memory only,
+own copy of the client, and adds the call's tokens and cost to `usage`; each call is also recorded for the workspace
+in scope (`sopops.ai.spend`, through DSPy's usage tracker). DSPy's response cache is in memory only,
 unless `SOPOPS_DSPY_CACHE_DIR` names a directory for a disk cache (transcripts would be written there).
 
 `SOPOPS_MODEL_REASONING=rules` is the model-free mode for trying onboarding (`sopops.onboarding.rules.RulesModels`).
@@ -29,13 +30,13 @@ import dspy
 from dspy.experimental import TypeSafe
 
 from . import dspy_fixes  # noqa: F401  (installs the decision-adapter fix)
+from . import spend
 
 ROLES = ("fast", "reasoning")
 ROLE_ENV = {"fast": "SOPOPS_MODEL_FAST", "reasoning": "SOPOPS_MODEL_REASONING"}
 RULES = "rules"  # not a model: onboarding's model-free mode
 DECIDE = "decide"
 JEV_MODEL = "jev-1.13.0"  # pinned, not jev-latest, so calibrated thresholds don't move under us
-JEV_PRICE_PER_M_INPUT = 0.042  # docs.typesafe.ai/models: $0.042 per million input tokens, output free
 JEV_TIMEOUT_S = 120.0  # the SDK's 10 s default is sized for small requests
 
 MAX_TOKENS = int(os.environ.get("SOPOPS_MAX_TOKENS", "16000"))
@@ -165,7 +166,7 @@ class Models:
         client = self.client(role).copy()
         started = time.monotonic()
         try:
-            with dspy.context(lm=client):
+            with dspy.context(lm=client), spend.tracking():
                 return as_predict(predictor)(**inputs)
         except Exception as e:  # provider, parse and decoding errors come in many types; report them as one
             raise AIError(f"{self.model(role)}: {type(e).__name__}: {str(e)[:500]}") from e
@@ -175,12 +176,14 @@ class Models:
     def _record(self, role: str, client: Any, seconds: float) -> None:
         row = {"input_tokens": 0.0, "output_tokens": 0.0, "cost_usd": 0.0, "seconds": seconds}
         jev = isinstance(client, TypeSafe)
+        model = self.model(role) if not jev else self.jev_model
         for h in getattr(client, "history", []):
             u = h.get("usage") or {}
             tokens_in = float(u.get("prompt_tokens") or u.get("input_tokens") or 0)
+            tokens_out = float(u.get("completion_tokens") or u.get("output_tokens") or 0)
             row["input_tokens"] += tokens_in
-            row["output_tokens"] += float(u.get("completion_tokens") or u.get("output_tokens") or 0)
-            row["cost_usd"] += tokens_in * JEV_PRICE_PER_M_INPUT / 1e6 if jev else float(h.get("cost") or 0.0)
+            row["output_tokens"] += tokens_out
+            row["cost_usd"] += spend.cost(model, int(tokens_in), int(tokens_out)) or float(h.get("cost") or 0.0)
         with self._lock:
             self.usage.add("jev" if jev else role, row)
 

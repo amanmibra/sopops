@@ -23,6 +23,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..ai import spend
 from ..ai.lm import AI, AIError
 from ..ai.signatures import NameVariables, SegmentPrompt, Slot, StructureProcedure, Unit
 from ..sopc import Sopc
@@ -415,7 +416,7 @@ def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progr
     notes: list[str] = []
     say("split", f"Splitting {len(sources)} prompt{'s' if len(sources) != 1 else ''} into agent context, shared instructions and procedures")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        per_agent = list(pool.map(lambda pair: split(ai, pair[0], pair[1], notes), zip(sources, ids)))
+        per_agent = list(pool.map(spend.carry(lambda pair: split(ai, pair[0], pair[1], notes)), zip(sources, ids)))
     for agent, segs in zip(ids, per_agent):
         counts = Counter(s.kind for s in segs)
         say("split", f"{agent}: {counts['instruction']} instruction(s), {counts['procedure']} procedure(s), {counts['context']} context passage(s)")
@@ -434,7 +435,7 @@ def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progr
     if procs:
         say("structure", f"Structuring {len(procs)} procedure{'s' if len(procs) != 1 else ''}")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        drafts = list(pool.map(lambda blk: structure(ai, blk, tools_of[blk.id]), procs))
+        drafts = list(pool.map(spend.carry(lambda blk: structure(ai, blk, tools_of[blk.id])), procs))
     procedures: list[ProposedProcedure] = []
     demoted: set[str] = set()
     for blk, d in zip(procs, drafts):

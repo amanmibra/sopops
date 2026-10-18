@@ -1150,6 +1150,42 @@ export type CreateImport = {
 };
 
 /**
+ * DaySpend
+ */
+export type DaySpend = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Cost Usd
+     *
+     * Estimated from the price table in use (USD); calls to a model without a price add nothing.
+     */
+    cost_usd: number;
+    /**
+     * Unpriced Calls
+     *
+     * Calls to a model with no price: their tokens count, their cost doesn't.
+     */
+    unpriced_calls: number;
+    /**
+     * Day
+     *
+     * A UTC day.
+     */
+    day: string;
+};
+
+/**
  * DecisionIn
  */
 export type DecisionIn = {
@@ -2450,6 +2486,68 @@ export type MigrateResponse = {
 };
 
 /**
+ * ModelPrice
+ */
+export type ModelPrice = {
+    /**
+     * Model
+     *
+     * Matches a model string without its provider, or as a prefix (a dated snapshot).
+     */
+    model: string;
+    /**
+     * Input Per M
+     *
+     * USD per million input tokens.
+     */
+    input_per_m: number;
+    /**
+     * Output Per M
+     *
+     * USD per million output tokens.
+     */
+    output_per_m: number;
+    /**
+     * Source
+     */
+    source: 'default' | 'env';
+};
+
+/**
+ * ModelSpend
+ */
+export type ModelSpend = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Cost Usd
+     *
+     * Estimated from the price table in use (USD); calls to a model without a price add nothing.
+     */
+    cost_usd: number;
+    /**
+     * Unpriced Calls
+     *
+     * Calls to a model with no price: their tokens count, their cost doesn't.
+     */
+    unpriced_calls: number;
+    /**
+     * Model
+     */
+    model: string;
+};
+
+/**
  * NewAgent
  */
 export type NewAgent = {
@@ -3112,6 +3210,28 @@ export type PreviewResponse = {
      * The agent's prompt in the current release, to compare with.
      */
     released_prompt: string | null;
+};
+
+/**
+ * PricesResponse
+ */
+export type PricesResponse = {
+    /**
+     * Prices
+     */
+    prices: Array<ModelPrice>;
+    /**
+     * Roles
+     *
+     * The models in use, and the price each gets.
+     */
+    roles: Array<RolePrice>;
+    /**
+     * Env
+     *
+     * The variable that overrides or extends the table: JSON, {"model": [input, output]}.
+     */
+    env: string;
 };
 
 /**
@@ -3795,6 +3915,40 @@ export type PullOut = {
      * Nothing changed: the commit was already pulled, or its files match head.
      */
     unchanged: boolean;
+};
+
+/**
+ * PurposeSpend
+ */
+export type PurposeSpend = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Cost Usd
+     *
+     * Estimated from the price table in use (USD); calls to a model without a price add nothing.
+     */
+    cost_usd: number;
+    /**
+     * Unpriced Calls
+     *
+     * Calls to a model with no price: their tokens count, their cost doesn't.
+     */
+    unpriced_calls: number;
+    /**
+     * Purpose
+     */
+    purpose: 'route' | 'check' | 'review' | 'cluster' | 'theme' | 'suggestion' | 'calibrate' | 'onboarding';
 };
 
 /**
@@ -4932,6 +5086,32 @@ export type ReviewResponse = {
 };
 
 /**
+ * RolePrice
+ */
+export type RolePrice = {
+    /**
+     * Role
+     */
+    role: 'fast' | 'reasoning' | 'decide';
+    /**
+     * Model
+     *
+     * Null when no model is configured for it.
+     */
+    model: string | null;
+    /**
+     * Input Per M
+     *
+     * Null when the model has no price.
+     */
+    input_per_m: number | null;
+    /**
+     * Output Per M
+     */
+    output_per_m: number | null;
+};
+
+/**
  * RuleDot
  */
 export type RuleDot = {
@@ -5605,6 +5785,18 @@ export type SessionDetail = {
      * Each procedure the router considered, with its rule results.
      */
     checks: Array<ProcedureCheckOut>;
+    /**
+     * Model Calls
+     *
+     * Model calls about this session (routing, checks, the reviewer, assigning its findings).
+     */
+    model_calls: number;
+    /**
+     * Cost Usd
+     *
+     * Their estimated cost (USD), by the price table in use; null before any call.
+     */
+    cost_usd: number | null;
 };
 
 /**
@@ -6121,6 +6313,36 @@ export type SparkPoint = {
      * Pass Rate
      */
     pass_rate: number | null;
+};
+
+/**
+ * SpendTotals
+ */
+export type SpendTotals = {
+    /**
+     * Calls
+     */
+    calls: number;
+    /**
+     * Input Tokens
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Cost Usd
+     *
+     * Estimated from the price table in use (USD); calls to a model without a price add nothing.
+     */
+    cost_usd: number;
+    /**
+     * Unpriced Calls
+     *
+     * Calls to a model with no price: their tokens count, their cost doesn't.
+     */
+    unpriced_calls: number;
 };
 
 /**
@@ -6993,6 +7215,49 @@ export type UniqueText = {
      * Decision
      */
     decision: 'context' | 'block';
+};
+
+/**
+ * UsageResponse
+ */
+export type UsageResponse = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     */
+    end: string;
+    total: SpendTotals;
+    /**
+     * By Purpose
+     *
+     * route, check, review (the reviewer on flagged rules), cluster (assigning findings, splitting and naming patterns), theme, suggestion, calibrate, onboarding. Largest cost first.
+     */
+    by_purpose: Array<PurposeSpend>;
+    /**
+     * By Model
+     */
+    by_model: Array<ModelSpend>;
+    /**
+     * Sessions
+     *
+     * Sessions with a model call about them in the window.
+     */
+    sessions: number;
+    /**
+     * Per Session Usd
+     *
+     * The cost of calls about a session (routing, checks, review, assigning its findings), per session.
+     */
+    per_session_usd: number | null;
+    /**
+     * Daily
+     *
+     * Every UTC day of the window, empty ones included.
+     */
+    daily: Array<DaySpend>;
 };
 
 /**
@@ -11391,6 +11656,67 @@ export type RebuildLineageResponses = {
 };
 
 export type RebuildLineageResponse = RebuildLineageResponses[keyof RebuildLineageResponses];
+
+export type ModelUsageData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         */
+        start?: string | null;
+        /**
+         * End
+         */
+        end?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/usage';
+};
+
+export type ModelUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModelUsageError = ModelUsageErrors[keyof ModelUsageErrors];
+
+export type ModelUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: UsageResponse;
+};
+
+export type ModelUsageResponse = ModelUsageResponses[keyof ModelUsageResponses];
+
+export type ModelPricesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/model-prices';
+};
+
+export type ModelPricesResponses = {
+    /**
+     * Successful Response
+     */
+    200: PricesResponse;
+};
+
+export type ModelPricesResponse = ModelPricesResponses[keyof ModelPricesResponses];
 
 export type DisconnectRepoData = {
     body?: never;

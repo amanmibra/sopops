@@ -28,6 +28,7 @@ from typing import Callable
 from sqlmodel import Session, inspect, select
 
 from .. import forms
+from ..ai import spend
 from ..ai.lm import AI, RULES, AIError, configured, get_ai, model_for
 from ..errors import workspace_id
 from ..orm import ImportEvent, ImportRecord, Token
@@ -138,7 +139,10 @@ class Onboarding:
             ai = self.ai
             if ai is None:
                 raise AIError("no model is configured")
-            proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
+            with self._db() as db:
+                ws = db.get(ImportRecord, id).workspace  # type: ignore[union-attr]
+            with spend.scope(self.store.engine, ws, "onboarding"):
+                proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
             self._save(id, proposal, status="ready")
         except Exception as e:  # report every failure on the import itself
             log.exception("import %s failed", id)

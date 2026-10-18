@@ -23,6 +23,7 @@ from dspy.lm15 import Message, Response
 from dspy.lm15 import Usage as LMUsage
 from pydantic import BaseModel, TypeAdapter
 
+from . import spend
 from .lm import DECIDE, NotConfigured, Usage, as_predict
 from .programs import rule_phrase
 from .signatures import NameRulePattern, SplitRule
@@ -83,6 +84,7 @@ class FakeSystemOne:
                 out[name] = {"probabilities": full, "confidence": max(full.values())}
         tokens = len(json.dumps(state)) // 2 + len(json.dumps(questions)) // 2
         self.history.append({"usage": {"prompt_tokens": tokens, "completion_tokens": 0}})
+        spend.report(self.model, {"prompt_tokens": tokens, "completion_tokens": 0})  # as Jev's client reports it to DSPy
         return out
 
     async def acall(self, state: dict[str, Any], questions: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -118,7 +120,7 @@ class FakeModels:
         self.calls.append((role, p.signature, inputs))
         self.usage.add("jev" if role == DECIDE and self.decider is not None else role, {})
         if role == DECIDE and self.decider is not None:
-            with dspy.context(lm=self.decider):
+            with dspy.context(lm=self.decider), spend.tracking():
                 return p(**inputs)
         out = self.responder(role, p.signature, inputs) if self.responder is not None else None
         fields = out.model_dump() if isinstance(out, BaseModel) else dict(out or {})
@@ -127,6 +129,8 @@ class FakeModels:
             fields |= {n: v for n, v in default.items() if fields.get(n) is None}
         if self.responder is None and default is None:
             raise AssertionError(f"no responder for {p.signature.__name__}")
+        with spend.tracking():  # what a model would have used: a token per four characters in and out
+            spend.report(self.model(role), {"prompt_tokens": len(json.dumps(inputs, default=str)) // 4, "completion_tokens": len(json.dumps(fields, default=str)) // 4})
         return dspy.Prediction(**{n: TypeAdapter(f.annotation).validate_python(fields[n]) for n, f in p.signature.output_fields.items()})
 
 

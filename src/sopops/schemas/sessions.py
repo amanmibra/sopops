@@ -162,6 +162,8 @@ class SessionDetail(SessionSummary):
     tool_calls: list[dict[str, Any]]
     metadata: dict[str, Any]
     checks: list[ProcedureCheckOut] = Field(description="Each procedure the router considered, with its rule results.")
+    model_calls: int = Field(0, description="Model calls about this session (routing, checks, the reviewer, assigning its findings).")
+    cost_usd: float | None = Field(None, description="Their estimated cost (USD), by the price table in use; null before any call.")
 
 
 class SessionPage(BaseModel):

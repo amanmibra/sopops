@@ -35,7 +35,7 @@ from sqlalchemy.engine import Engine
 
 from ..pipeline.procedures import Procedure
 from ..pipeline.rollup import FINDING_STATUSES, Judged, rollup
-from . import calibration, decide
+from . import calibration, decide, spend
 from .lm import AI
 from .signatures import ExampleIn, NameRulePattern, RuleChecks, SuggestEdit
 
@@ -335,7 +335,7 @@ def calibrate(program: CheckDecisions | RouteDecisions, trainset: list[dspy.Exam
         return _Answered(e, program.answers(e.turns), _agent_spoke(e.turns))
 
     with ThreadPoolExecutor(max(1, num_threads)) as pool:
-        answered = list(pool.map(one, trainset))
+        answered = list(pool.map(spend.carry(one), trainset))  # each in the caller's scope, so its calls are recorded
     defaults = {n: float(cfg["threshold"]) for n, cfg in program.decide.fields.items() if "threshold" in cfg}
     every = list(range(len(answered)))
 

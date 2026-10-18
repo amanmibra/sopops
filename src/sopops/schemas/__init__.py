@@ -109,6 +109,7 @@ from .insights import (
     Wording,
 )
 from .lineage import LineageRebuildOut, LineageRule, LinkHow, LinkIn, RuleLineageOut, WordingRef
+from .usage import DaySpend, ModelPrice, ModelSpend, PricesResponse, Purpose, PurposeSpend, RolePrice, SpendTotals, UsageResponse
 from .onboarding import (
     AgentImportOut,
     AgentImportRequest,
@@ -325,6 +326,15 @@ __all__ = [
     "Kickoff",
     "LadderRow",
     "LineageRebuildOut",
+    "DaySpend",
+    "ModelPrice",
+    "ModelSpend",
+    "PricesResponse",
+    "Purpose",
+    "PurposeSpend",
+    "RolePrice",
+    "SpendTotals",
+    "UsageResponse",
     "LineageRule",
     "LinkHow",
     "LinkIn",

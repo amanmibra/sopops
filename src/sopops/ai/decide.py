@@ -52,7 +52,7 @@ from ..pipeline.transcript import (
     verify_evidence,
 )
 from ..pipeline.types import Checked, Routed
-from . import calibration
+from . import calibration, spend
 from .lm import AI, DECIDE
 from .signatures import (
     VERSIONS,
@@ -567,8 +567,9 @@ def check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[
 def _review(ai: AI, p: Procedure, variables: dict[str, str], turns: list[dict], tool_calls: list[dict], review: list[Rule],
             decisions: dict[str, Decision], goal: bool | None, goal_reason: str) -> Decided:
     """The reasoning model judges `review` (every rule in review mode); the other rules keep their decisions."""
-    reply = ai.predict("reasoning", CheckRules, transcript=render_transcript(turns, tool_calls), procedure=render_procedure(p, variables),
-                       rules_to_check=[r.key for r in review])
+    with spend.purpose("review"):
+        reply = ai.predict("reasoning", CheckRules, transcript=render_transcript(turns, tool_calls), procedure=render_procedure(p, variables),
+                           rules_to_check=[r.key for r in review])
     by_key = {j.rule: j for j in reply.rules}
     for r in review:
         j = by_key.get(r.key)

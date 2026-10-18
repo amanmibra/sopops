@@ -257,7 +257,8 @@ class Sessions:
 
     def get(self, workspace: str, id: str) -> dict:
         row = self.load(workspace, id)
-        return {**_summary(row), "turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id)}
+        return {**_summary(row), "turns": row.turns, "tool_calls": row.tool_calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id),
+                **self.store.usage.session(row.workspace_id, row.id)}
 
     def list(
         self,

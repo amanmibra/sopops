@@ -7311,6 +7311,123 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/usage": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Model Usage",
+        "description": "Model calls in the window, by when they were made: totals, by purpose and by model, the cost per session, and a\nseries per UTC day. Costs are estimates from the price table (`GET /v1/model-prices`); prompts aren't stored.",
+        "operationId": "model_usage",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Start"
+            }
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/model-prices": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Model Prices",
+        "description": "The price table in use (defaults, and SOPOPS_MODEL_PRICES), and the price each configured model gets.",
+        "operationId": "model_prices",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PricesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/repo": {
       "get": {
         "tags": [
@@ -10709,6 +10826,48 @@
         "type": "object",
         "title": "CreateImport"
       },
+      "DaySpend": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "Estimated from the price table in use (USD); calls to a model without a price add nothing."
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "description": "Calls to a model with no price: their tokens count, their cost doesn't."
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day",
+            "description": "A UTC day."
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "cost_usd",
+          "unpriced_calls",
+          "day"
+        ],
+        "title": "DaySpend"
+      },
       "DecisionIn": {
         "properties": {
           "choice": {
@@ -12990,6 +13149,81 @@
         ],
         "title": "MigrateResponse"
       },
+      "ModelPrice": {
+        "properties": {
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Matches a model string without its provider, or as a prefix (a dated snapshot)."
+          },
+          "input_per_m": {
+            "type": "number",
+            "title": "Input Per M",
+            "description": "USD per million input tokens."
+          },
+          "output_per_m": {
+            "type": "number",
+            "title": "Output Per M",
+            "description": "USD per million output tokens."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "default",
+              "env"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "input_per_m",
+          "output_per_m",
+          "source"
+        ],
+        "title": "ModelPrice"
+      },
+      "ModelSpend": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "Estimated from the price table in use (USD); calls to a model without a price add nothing."
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "description": "Calls to a model with no price: their tokens count, their cost doesn't."
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "cost_usd",
+          "unpriced_calls",
+          "model"
+        ],
+        "title": "ModelSpend"
+      },
       "NewAgent": {
         "properties": {
           "author": {
@@ -14236,6 +14470,37 @@
         ],
         "title": "PreviewResponse"
       },
+      "PricesResponse": {
+        "properties": {
+          "prices": {
+            "items": {
+              "$ref": "#/components/schemas/ModelPrice"
+            },
+            "type": "array",
+            "title": "Prices"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RolePrice"
+            },
+            "type": "array",
+            "title": "Roles",
+            "description": "The models in use, and the price each gets."
+          },
+          "env": {
+            "type": "string",
+            "title": "Env",
+            "description": "The variable that overrides or extends the table: JSON, {\"model\": [input, output]}."
+          }
+        },
+        "type": "object",
+        "required": [
+          "prices",
+          "roles",
+          "env"
+        ],
+        "title": "PricesResponse"
+      },
       "Problem": {
         "properties": {
           "type": {
@@ -15423,6 +15688,56 @@
           "unchanged"
         ],
         "title": "PullOut"
+      },
+      "PurposeSpend": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "Estimated from the price table in use (USD); calls to a model without a price add nothing."
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "description": "Calls to a model with no price: their tokens count, their cost doesn't."
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "route",
+              "check",
+              "review",
+              "cluster",
+              "theme",
+              "suggestion",
+              "calibrate",
+              "onboarding"
+            ],
+            "title": "Purpose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "cost_usd",
+          "unpriced_calls",
+          "purpose"
+        ],
+        "title": "PurposeSpend"
       },
       "PushIn": {
         "properties": {
@@ -17319,6 +17634,62 @@
         ],
         "title": "ReviewResponse"
       },
+      "RolePrice": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "fast",
+              "reasoning",
+              "decide"
+            ],
+            "title": "Role"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "Null when no model is configured for it."
+          },
+          "input_per_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Per M",
+            "description": "Null when the model has no price."
+          },
+          "output_per_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Per M"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "model",
+          "input_per_m",
+          "output_per_m"
+        ],
+        "title": "RolePrice"
+      },
       "RuleDot": {
         "properties": {
           "rule_id": {
@@ -18555,6 +18926,24 @@
             "type": "array",
             "title": "Checks",
             "description": "Each procedure the router considered, with its rule results."
+          },
+          "model_calls": {
+            "type": "integer",
+            "title": "Model Calls",
+            "description": "Model calls about this session (routing, checks, the reviewer, assigning its findings).",
+            "default": 0
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd",
+            "description": "Their estimated cost (USD), by the price table in use; null before any call."
           }
         },
         "type": "object",
@@ -18583,7 +18972,9 @@
           "turns",
           "tool_calls",
           "metadata",
-          "checks"
+          "checks",
+          "model_calls",
+          "cost_usd"
         ],
         "title": "SessionDetail"
       },
@@ -19544,6 +19935,41 @@
           "pass_rate"
         ],
         "title": "SparkPoint"
+      },
+      "SpendTotals": {
+        "properties": {
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens"
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd",
+            "description": "Estimated from the price table in use (USD); calls to a model without a price add nothing."
+          },
+          "unpriced_calls": {
+            "type": "integer",
+            "title": "Unpriced Calls",
+            "description": "Calls to a model with no price: their tokens count, their cost doesn't."
+          }
+        },
+        "type": "object",
+        "required": [
+          "calls",
+          "input_tokens",
+          "output_tokens",
+          "cost_usd",
+          "unpriced_calls"
+        ],
+        "title": "SpendTotals"
       },
       "SplitRow": {
         "properties": {
@@ -21079,6 +21505,75 @@
           "decision"
         ],
         "title": "UniqueText"
+      },
+      "UsageResponse": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End"
+          },
+          "total": {
+            "$ref": "#/components/schemas/SpendTotals"
+          },
+          "by_purpose": {
+            "items": {
+              "$ref": "#/components/schemas/PurposeSpend"
+            },
+            "type": "array",
+            "title": "By Purpose",
+            "description": "route, check, review (the reviewer on flagged rules), cluster (assigning findings, splitting and naming patterns), theme, suggestion, calibrate, onboarding. Largest cost first."
+          },
+          "by_model": {
+            "items": {
+              "$ref": "#/components/schemas/ModelSpend"
+            },
+            "type": "array",
+            "title": "By Model"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "Sessions with a model call about them in the window."
+          },
+          "per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Per Session Usd",
+            "description": "The cost of calls about a session (routing, checks, review, assigning its findings), per session."
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DaySpend"
+            },
+            "type": "array",
+            "title": "Daily",
+            "description": "Every UTC day of the window, empty ones included."
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "total",
+          "by_purpose",
+          "by_model",
+          "sessions",
+          "per_session_usd",
+          "daily"
+        ],
+        "title": "UsageResponse"
       },
       "Use": {
         "properties": {

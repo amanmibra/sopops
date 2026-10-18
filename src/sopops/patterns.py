@@ -37,7 +37,7 @@ from typing import TYPE_CHECKING
 from sqlmodel import Session, func, select
 
 from . import lineage
-from .ai import decide
+from .ai import decide, spend
 from .ai import lm as ai_lm
 from .ai.programs import NamePattern, rule_phrase
 from .ai.signatures import (
@@ -232,6 +232,10 @@ class Patterns:
 
     def _assign(self, ws: str, findings: list[Finding], ai: AI) -> int:
         """Rule pattern for every finding (created, then named, if new); the fast model picks a sub-pattern on split rules."""
+        with spend.scope(self.store.engine, ws, "cluster", _only({f.session_id for f in findings})):
+            return self._assign_in_scope(ws, findings, ai)
+
+    def _assign_in_scope(self, ws: str, findings: list[Finding], ai: AI) -> int:
         now = _now()
         created: list[str] = []
         with self._db() as db, db.begin():
@@ -275,6 +279,10 @@ class Patterns:
         when it's configured, else the rule's text trimmed. Only patterns no model has named yet (`named_by_model`),
         unless `force` (`pattern_ids`: just those; else every rule pattern of the workspace). A model error leaves the
         trimmed text. Returns how many names changed."""
+        with spend.scope(self.store.engine, ws, "cluster"):
+            return self._name(ws, pattern_ids, ai, force)
+
+    def _name(self, ws: str, pattern_ids: list[str] | None = None, ai: AI | None = None, force: bool = False) -> int:
         ai = ai or ai_lm.get_ai()
         with self._db() as db:
             q = select(Pattern).where(Pattern.workspace_id == ws, Pattern.kind == "rule")
@@ -408,6 +416,10 @@ class Patterns:
         """Split a rule's findings (every wording's: `rule_id` is any rule of the lineage) into failure modes and match
         them to the existing sub-patterns. Returns whether it ran (not when nothing is due, unless `force`; never with
         fewer than SPLIT_AT findings)."""
+        with spend.scope(self.store.engine, ws, "cluster"):
+            return self._recluster(ws, procedure_id, rule_id, ai, force)
+
+    def _recluster(self, ws: str, procedure_id: str, rule_id: str, ai: AI | None = None, force: bool = False) -> bool:
         ai = ai or ai_lm.get_ai()
         with self._db() as db:
             rule_id = lineage.lineage_of(db, ws, procedure_id, rule_id)
@@ -519,6 +531,10 @@ class Patterns:
             ).one() > 0
 
     def regroup_themes(self, ws: str, procedure_id: str, ai: AI | None = None, force: bool = False) -> bool:
+        with spend.scope(self.store.engine, ws, "theme"):
+            return self._regroup_themes(ws, procedure_id, ai, force)
+
+    def _regroup_themes(self, ws: str, procedure_id: str, ai: AI | None = None, force: bool = False) -> bool:
         ai = ai or ai_lm.get_ai()
         if not force and not self.themes_due(ws, procedure_id):
             return False
@@ -723,6 +739,11 @@ def _merge(db: Session, ws: str, src: Pattern, keeper: Pattern, now: datetime) -
     db.flush()
     db.delete(src)
     db.flush()
+
+
+def _only(ids: set[str]) -> str | None:
+    """The one session a batch of findings is about, or None."""
+    return next(iter(ids)) if len(ids) == 1 else None
 
 
 def _utc(at: datetime | None) -> datetime:

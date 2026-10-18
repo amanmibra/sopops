@@ -29,6 +29,7 @@ from .sessions import Sessions
 from .sopc import Files, Invalid, Issue, Sopc, path_issues
 from .suggestions import Suggestions
 from .tokens import Tokens
+from .usage import Usage
 from .verdicts import Verdicts
 
 # Which folder each lock.json block kind lives in.
@@ -50,6 +51,7 @@ class Store:
         self.suggestions = Suggestions(self)
         self.calibrate = Calibrate(self)
         self.insights = Insights(self)
+        self.usage = Usage(self)
         if migrate:
             upgrade(self.engine, self.sopc)
 

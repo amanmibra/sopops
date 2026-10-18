@@ -20,7 +20,7 @@ import logging
 import threading
 from typing import TYPE_CHECKING
 
-from ..ai import decide
+from ..ai import decide, spend
 from ..ai import lm as ai_lm
 from ..ai.signatures import VERSIONS
 from ..errors import NotFound
@@ -125,7 +125,8 @@ def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteR
         return RouteResult(session_id=ref.session_id, go=False, status=status, release_id=cand.release, reason=why)
     cfg = decide.DecisionConfig.from_env()
     try:
-        routing = decide.route(ai, cand.procedures, cand.variables, s.turns, cfg, decide.route_params(store.engine, ref.workspace_id, cand.procedures, cfg))
+        with spend.scope(store.engine, ref.workspace_id, "route", ref.session_id):
+            routing = decide.route(ai, cand.procedures, cand.variables, s.turns, cfg, decide.route_params(store.engine, ref.workspace_id, cand.procedures, cfg))
     except Exception as e:
         store.checks.fail(ref, f"route: {e}")
         raise
@@ -154,7 +155,8 @@ def check_procedure(store: Store, ref: CheckRef, ai: AI | None = None) -> CheckR
     if p is None:
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)
     try:
-        got = decide.check(ai, store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, decide.DecisionConfig.from_env())
+        with spend.scope(store.engine, ref.workspace_id, "check", ref.session_id):
+            got = decide.check(ai, store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, decide.DecisionConfig.from_env())
     except Exception as e:
         store.checks.fail(ref, f"check {p.id}: {e}")
         raise

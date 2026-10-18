@@ -31,6 +31,7 @@ from .api import (
     suggestions,
     tokens,
     ui,
+    usage,
 )
 from .api.deps import OPEN
 from .db import database_url
@@ -94,6 +95,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         suggestions.router(store, jobs),
         insights.router(store),
         lineage.router(store),
+        usage.router(store),
         repo.router(store),
     ):
         app.include_router(r)

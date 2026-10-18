@@ -18,7 +18,7 @@ import dspy
 from sqlmodel import Session, select
 
 from . import lineage
-from .ai import calibration, decide, programs
+from .ai import calibration, decide, programs, spend
 from .ai import lm as ai_lm
 from .ai.lm import DECIDE
 from .orm import Finding
@@ -44,10 +44,11 @@ class Calibrate:
             with Session(self.store.engine) as db:
                 pids = sorted(set(db.exec(select(Finding.procedure_id).where(Finding.workspace_id == ws).distinct())))
         out = []
-        for pid in pids:
-            examples = self.store.verdicts.calibration_examples(ws, pid)
-            if examples or procedure_id:
-                out.append(self._one(ws, pid, examples, dry_run, ai))
+        with spend.scope(self.store.engine, ws, "calibrate"):
+            for pid in pids:
+                examples = self.store.verdicts.calibration_examples(ws, pid)
+                if examples or procedure_id:
+                    out.append(self._one(ws, pid, examples, dry_run, ai))
         return {"workspace": ws, "dry_run": dry_run, "procedures": out}
 
     def _one(self, ws: str, pid: str, examples: list, dry_run: bool, ai: AI) -> dict[str, Any]:
