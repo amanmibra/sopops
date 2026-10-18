@@ -14,7 +14,7 @@ from fakes import PATTERN_SCHEMAS, pattern_reply
 from sopops import Sopc, Store, create_app
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM, text_of
-from sopops.models import Finding, Pattern, Theme
+from sopops.orm import Finding, Pattern, Theme
 from sopops.patterns import OTHER_MIN_NEW, RECLUSTER_NEW, SPLIT_AT, jaccard, reason_due
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)

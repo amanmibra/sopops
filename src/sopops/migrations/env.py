@@ -5,7 +5,7 @@ from alembic import context
 from sqlalchemy import pool
 
 from sopops.db import engine_from_url, database_url
-from sopops.models import metadata
+from sopops.orm import metadata
 
 config = context.config
 target_metadata = metadata

@@ -11,13 +11,13 @@ from sqlmodel import Session, select
 
 from conftest import SOPC_BIN, WS
 from sopops import Sopc
-from sopops.models import Token
+from sopops.orm import Token
 from sopops.onboarding import kickoff, platforms
 from sopops.onboarding import text as tx
 from sopops.onboarding.fidelity import check, parse_compare
-from sopops.onboarding.models import ProcedureDraft, Segment, Segmentation, SourcePrompt, StepDraft, VariableNames
+from sopops.onboarding.types import ProcedureDraft, Segment, Segmentation, SourcePrompt, StepDraft, VariableNames
 from sopops.onboarding.pipeline import extract
-from sopops.onboarding.records import ImportRecord
+from sopops.orm import ImportRecord
 from sopops.onboarding.review import resolve
 from sopops.onboarding.rules import Rules
 

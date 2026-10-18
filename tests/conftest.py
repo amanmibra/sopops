@@ -9,7 +9,7 @@ from sopops import Sopc, Store, create_app
 from sqlalchemy import text
 
 from sopops.db import engine_from_url
-from sopops.models import metadata
+from sopops.orm import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
 SOPC_BIN = os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sopc/target/release/sopc")

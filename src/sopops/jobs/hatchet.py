@@ -157,7 +157,7 @@ def recluster_daily(input, ctx: Context) -> dict:
 def _session_findings(store, ref: SessionRef):
     from sqlmodel import Session, select
 
-    from ..models import Finding
+    from ..orm import Finding
 
     with Session(store.engine) as db:
         return list(db.exec(select(Finding).where(Finding.session_id == ref.session_id)))

@@ -20,7 +20,7 @@ from sqlmodel import Session, select
 
 from . import forms
 from .db import engine_from_url, upgrade
-from .models import Fetch, FileVersion, Release, Workspace
+from .orm import Fetch, FileVersion, Release, Workspace
 from .checks import Checks
 from .insights import Insights
 from .patterns import Patterns

@@ -16,7 +16,7 @@ from sopops.ai.jev import Choice, FakeJev, Noul
 from sopops.ai.signatures import CheckRules, SplitRule
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM
-from sopops.models import RuleChecks
+from sopops.orm import RuleChecks
 from test_checks import ALLERGEN, DELIVERY, Scenario, checks_by_id, rules_by_key, session
 
 NEVER_SAFE = 'Never say an item is "allergen-free" or "safe"'

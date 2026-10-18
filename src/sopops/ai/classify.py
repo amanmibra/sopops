@@ -39,7 +39,7 @@ from typing import Any
 from sqlalchemy import Engine
 from sqlmodel import Session, select
 
-from ..models import RuleChecks as RuleChecksRow
+from ..orm import RuleChecks as RuleChecksRow
 from ..pipeline.judge import Checked, Routed, agent_quote
 from ..pipeline.procedures import Procedure, Rule, fill
 from ..pipeline.rollup import Judged

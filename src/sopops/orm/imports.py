@@ -1,6 +1,4 @@
-"""Onboarding tables: one row per import (an LLM job run here, or a coding agent working through an onboarding token),
-and its progress events. Migration `0006_onboarding`.
-"""
+"""The `imports` table."""
 
 from __future__ import annotations
 
@@ -36,16 +34,3 @@ class ImportRecord(SQLModel, table=True):
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     created_by: str | None = Field(default=None, max_length=256)
-
-
-class ImportEvent(SQLModel, table=True):
-    """A progress message: from the extraction steps here, or from the coding agent (`report_progress`)."""
-
-    __tablename__ = "import_events"
-
-    id: int | None = Field(default=None, primary_key=True)
-    import_id: str = Field(max_length=36, index=True)
-    at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
-    step: str = Field(max_length=64)
-    message: str = Field(sa_column=Column(Text, nullable=False))
-    by: str = Field(max_length=16)  # sopops | agent

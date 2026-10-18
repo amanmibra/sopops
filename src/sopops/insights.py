@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 from sqlalchemy import and_, func, or_
 from sqlmodel import Session, select
 
-from .models import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
+from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
 from .pipeline.rollup import SEVERITY
 
 if TYPE_CHECKING:

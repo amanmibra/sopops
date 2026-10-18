@@ -20,8 +20,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .events import CHANNEL, Broker
-from .models import Release, SessionRecord, Workspace
-from .pipeline.models import SessionRef
+from .orm import Release, SessionRecord, Workspace
+from .pipeline.types import SessionRef
 from .pipeline.normalize import to_utc
 from .schemas import SessionIn
 
@@ -187,7 +187,7 @@ class Sessions:
         """Newest first (by start time). `agent` matches the sopc agent or the agent as sent. The drill-down filters
         (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
         check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it."""
-        from .models import Finding, Pattern, ProcedureCheck, RuleResult
+        from .orm import Finding, Pattern, ProcedureCheck, RuleResult
         from .store import _ws
 
         S = SessionRecord

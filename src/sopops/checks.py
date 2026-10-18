@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import delete
 from sqlmodel import Session, select
 
-from .models import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
-from .pipeline.models import SessionRef
+from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
+from .pipeline.types import SessionRef
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 
 if TYPE_CHECKING:

@@ -14,11 +14,11 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
 
-from ..models import FileVersion, Release, Workspace
+from ..orm import FileVersion, Release, Workspace
 from ..sopc import Invalid
 
 if TYPE_CHECKING:
-    from ..models import SessionRecord
+    from ..orm import SessionRecord
     from ..store import Store
 
 

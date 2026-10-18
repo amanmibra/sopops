@@ -14,7 +14,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 
 from . import text as tx
-from .models import ProcedureDraft, Segment, Segmentation, StepDraft, VariableNames
+from .types import ProcedureDraft, Segment, Segmentation, StepDraft, VariableNames
 
 T = TypeVar("T", bound=BaseModel)
 

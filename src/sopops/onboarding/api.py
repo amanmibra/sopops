@@ -17,7 +17,7 @@ from ..schemas import WrittenFile
 from ..store import Store
 from ..tokens import Forbidden, Unauthorized
 from . import platforms
-from .models import Finding, Proposal, ProposalContent, SourcePrompt
+from .types import Finding, Proposal, ProposalContent, SourcePrompt
 from .service import DONE, Onboarding
 
 # --- request and response shapes ------------------------------------------------------------

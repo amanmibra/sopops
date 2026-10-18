@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from .models import Finding, Proposal, ProposalContent
+from .types import Finding, Proposal, ProposalContent
 
 
 class ReviewError(ValueError):

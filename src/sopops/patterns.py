@@ -34,7 +34,7 @@ from . import llm as llm_mod
 from .ai import classify
 from .ai import jev as jev_mod
 from .ai.jev import Jev
-from .models import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
+from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
 from .pipeline import prompts
 
 if TYPE_CHECKING:

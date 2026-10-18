@@ -80,7 +80,7 @@ def test_an_expired_token_stops_working(client):
 
     from sqlmodel import Session
 
-    from sopops.models import Token
+    from sopops.orm import Token
 
     made = client.post(f"{WS}/tokens", json={"expires_in_days": 1}).json()
     assert made["expires_at"] and ingest(client, made["token"], session()).status_code == 201
@@ -118,7 +118,7 @@ def test_the_unique_key_holds_in_the_database(client):
     from sqlalchemy.exc import IntegrityError
     from sqlmodel import Session as Db
 
-    from sopops.models import SessionRecord
+    from sopops.orm import SessionRecord
 
     store = client.app.state.store
     store.sessions.ingest("demo", SessionIn(**session()))

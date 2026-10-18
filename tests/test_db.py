@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, inspect, text
 from conftest import SOPC_BIN, WS
 from sopops import Sopc, Store, create_app
 from sopops.db import alembic_config, current_revision, upgrade
-from sopops.models import metadata
+from sopops.orm import metadata
 
 
 def test_migrations_match_the_models(tmp_path):

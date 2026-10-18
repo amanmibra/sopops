@@ -27,7 +27,7 @@ from pathlib import Path
 from ..llm import Completer, LLMError
 from ..sopc import Sopc
 from . import text as tx
-from .models import (
+from .types import (
     Finding, Proposal, ProposedAgent, ProposedGroup, ProposedInstruction, ProposedProcedure, ProposedSettings,
     ProcedureDraft, ProposedStep, Segmentation, SourcePrompt, VariableNames, Variant,
 )

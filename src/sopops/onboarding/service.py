@@ -30,12 +30,12 @@ from ..llm import Completer, LLMError, from_env
 from ..sopc import Invalid, SopcUnavailable
 from ..store import Conflict, NotFound, Store
 from . import fidelity, kickoff
-from .models import Finding, Proposal, ProposalContent, SourcePrompt
+from .types import Finding, Proposal, ProposalContent, SourcePrompt
 from .pipeline import extract
-from ..models import Token
+from ..orm import Token
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
-from .records import ImportEvent, ImportRecord
+from ..orm import ImportEvent, ImportRecord
 from .review import refresh_used_by, resolve
 
 log = logging.getLogger("sopops.onboarding")

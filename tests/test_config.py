@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy import insert
 
 from conftest import FIXTURE, WS, expected, read_files
-from sopops.models import FileVersion, Release, Workspace
+from sopops.orm import FileVersion, Release, Workspace
 
 CFG = f"{WS}/config"
 OLD = FIXTURE.parent / "old-format" / "sops"

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Iterable
 
 from sqlmodel import Session, select
 
-from .models import Token
+from .orm import Token
 
 if TYPE_CHECKING:
     from .store import Store

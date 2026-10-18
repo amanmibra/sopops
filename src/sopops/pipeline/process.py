@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from .. import llm as llm_mod
 from ..ai import classify, jev as jev_mod, lm as ai_lm
 from . import judge, prompts
-from .models import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
+from .types import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
 from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
 from .rollup import apply_tool_calls, mark_out_of_order, rollup
@@ -30,7 +30,7 @@ from .rollup import apply_tool_calls, mark_out_of_order, rollup
 if TYPE_CHECKING:
     from ..llm import LLM
     from ..patterns import Outcome
-    from ..models import SessionRecord
+    from ..orm import SessionRecord
     from ..store import Store
 
 log = logging.getLogger("sopops.pipeline")

@@ -29,7 +29,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from .onboarding import platforms
 from .onboarding import text as tx
 from .onboarding.fidelity import files_of
-from .onboarding.models import Finding, Proposal, ProposalContent, SourcePrompt
+from .onboarding.types import Finding, Proposal, ProposalContent, SourcePrompt
 from .onboarding.pipeline import prompt_text
 
 INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_extraction_guide. Only read from the user's systems and platforms;

@@ -12,7 +12,7 @@ from typing import Callable
 from .. import forms
 from ..sopc import Files, Invalid, Issue, Sopc, SopcUnavailable
 from . import text as tx
-from .models import AgentFidelity, Changed, Proposal, ProposalContent, ProposalIssue
+from .types import AgentFidelity, Changed, Proposal, ProposalContent, ProposalIssue
 
 Export = Callable[[Files], dict]
 

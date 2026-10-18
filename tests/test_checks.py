@@ -14,7 +14,7 @@ from fakes import PATTERN_SCHEMAS, pattern_reply
 from sopops import Sopc, Store, create_app
 from sopops.jobs import Jobs
 from sopops.llm import FakeLLM, LiteLLM, text_of
-from sopops.models import Finding, ProcedureCheck, RuleResult
+from sopops.orm import Finding, ProcedureCheck, RuleResult
 from sopops.pipeline import SessionRef, process_session
 from sopops.pipeline.rollup import Judged, mark_out_of_order, rollup
 from sopops.pipeline.transcript import verify_evidence
