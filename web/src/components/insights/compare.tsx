@@ -2,7 +2,7 @@
 // with its own color, used on every mark on the page), the top cards show A and B side by side with the change,
 // then pass rate on every release in the window, per procedure and per rule with n, 95% ranges and flags gated on min n.
 import { useQuery } from "@tanstack/react-query";
-import { GitCompare, ListChecks, TrendingDown, TrendingUp } from "lucide-react";
+import { GitCompare, ListChecks, TrendingUp } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { CompareRate, CompareResponse, CompareRule, InsightFilters, RateOut } from "@/lib/api";
 import { q } from "@/lib/api";
@@ -356,12 +356,11 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
                 <div className="bg-card min-w-0 rounded-lg border px-4 py-3.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium">
-                      Rules worse on <SideName side="b" release={d.b} />
-                      <Help text={`Steps and never rules at least ${points} points worse on B than on A, with ${minN} or more results on each and 95% ranges that don't overlap.`} />
+                      Rules better on <SideName side="a" release={d.a} />
+                      <Help text={`Steps and never rules at least ${points} points better on A than on B, with ${minN} or more results on each and 95% ranges that don't overlap.`} />
                     </span>
-                    <TrendingDown className="text-err size-3.5" />
                   </div>
-                  <div className={cn("text-[22px] leading-tight font-semibold tabular-nums", flagged.some((r) => r.flag === "regressed") && "text-err")}>{flagged.filter((r) => r.flag === "regressed").length}</div>
+                  <div className="text-[22px] leading-tight font-semibold tabular-nums" style={{ color: SIDES.a.color }}>{flagged.filter((r) => r.flag === "regressed").length}</div>
                   <div className="text-muted-foreground text-[11.5px]">of {d.rules.length} rules compared</div>
                 </div>
                 <div className="bg-card min-w-0 rounded-lg border px-4 py-3.5">
@@ -370,9 +369,8 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
                       Rules better on <SideName side="b" release={d.b} />
                       <Help text={`Steps and never rules at least ${points} points better on B than on A, with ${minN} or more results on each and 95% ranges that don't overlap.`} />
                     </span>
-                    <TrendingUp className="text-ok size-3.5" />
                   </div>
-                  <div className={cn("text-[22px] leading-tight font-semibold tabular-nums", flagged.some((r) => r.flag === "improved") && "text-ok")}>{flagged.filter((r) => r.flag === "improved").length}</div>
+                  <div className="text-[22px] leading-tight font-semibold tabular-nums" style={{ color: SIDES.b.color }}>{flagged.filter((r) => r.flag === "improved").length}</div>
                   <div className="text-muted-foreground text-[11.5px]">
                     <Hint focusable={false} tip={`Rules with fewer than ${minN} results on a release can't be called better or worse yet.`}>
                       <span className="cursor-help border-b border-dotted border-current">{d.rules.filter((r) => r.flag === "thin").length} with too few results</span>
