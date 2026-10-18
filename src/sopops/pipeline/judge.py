@@ -189,7 +189,7 @@ class Checked:
     goal_reason: str
 
 
-def _agent_quote(evidence: list[dict[str, Any]], turns: list[dict]) -> bool:
+def agent_quote(evidence: list[dict[str, Any]], turns: list[dict]) -> bool:
     """Some evidence quotes an agent turn exactly (not an approximate match)."""
     return any(
         not e.get("approximate") and (e.get("quote") or "").strip() and isinstance(e.get("turn"), int) and turns[e["turn"]].get("role") == "agent"
@@ -205,7 +205,7 @@ def check(llm: LLM, p: Procedure, variables: dict[str, str], turns: list[dict], 
         j = got[r.key]
         evidence = verify_evidence([e.model_dump() for e in j.evidence], turns)
         status, reason = j.status, j.reason.strip()
-        if status == "violated" and not _agent_quote(evidence, turns):
+        if status == "violated" and not agent_quote(evidence, turns):
             # a never rule counts as violated only on a quote of the agent's own words
             status, reason, evidence = "ok", f"{reason} (Not counted: no quote of the agent's own words shows it.)".strip(), []
         rules.append(Judged(r.id, r.kind, r.index, status, evidence, reason, r.required))

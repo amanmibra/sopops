@@ -31,6 +31,9 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from . import llm as llm_mod
+from .ai import classify
+from .ai import jev as jev_mod
+from .ai.jev import Jev
 from .models import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
 from .pipeline import prompts
 
@@ -309,6 +312,10 @@ class Patterns:
             lines.append("Findings:")
             lines += [v.render(keys[v.id]) for v in vs]
             lines.append("</rule>")
+        jev = jev_mod.get_jev()
+        if jev is not None:
+            picked = self._choose_jev(jev, views, options, keys, mode_key)
+            return self._picked(views, options, keys, mode_key, picked)
         schema = assign_schema(list(keys.values()), [*mode_key.values(), "other"])
         messages = [
             _system("assign"),
@@ -320,6 +327,28 @@ class Patterns:
         except Exception:
             log.exception("assigning findings to patterns failed; they go to other")
             picked = {}
+        return self._picked(views, options, keys, mode_key, picked)
+
+    def _choose_jev(self, jev: Jev, views: list[FindingView], options: dict[str, list[Pattern]], keys: dict[str, str], mode_key: dict[str, str]) -> dict[str, str]:
+        """Jev picks each finding's failure mode (a Choice over its rule's modes, plus other)."""
+        rules: dict[str, list[FindingView]] = defaultdict(list)
+        for v in views:
+            rules[v.rule_id].append(v)
+        groups = [
+            classify.AssignGroup(
+                rule=_rule_line(vs[0].kind, vs[0].index, vs[0].rule_text),
+                modes={mode_key[p.id]: f"{p.name}. {p.description or ''}".strip() for p in options[vs[0].id] if p.id in mode_key},
+                findings={keys[v.id]: {"status": v.status, "reason": v.reason, "quotes": v.quotes[:3]} for v in vs},
+            )
+            for vs in rules.values()
+        ]
+        try:
+            return classify.assign(jev, groups, classify.JevConfig.from_env())
+        except Exception:
+            log.exception("assigning findings to patterns with Jev failed; they go to other")
+            return {}
+
+    def _picked(self, views: list[FindingView], options: dict[str, list[Pattern]], keys: dict[str, str], mode_key: dict[str, str], picked: dict[str, str]) -> dict[str, str]:
         out = {}
         for v in views:
             opts = options[v.id]

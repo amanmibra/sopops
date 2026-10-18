@@ -241,6 +241,8 @@ A session's `result` is the worst of its procedures' (deviated, then partial, fo
 
 Re-running a session replaces its results; a run for content that has since been re-sent writes nothing.
 
+**Model backends.** By default the router is the `fast` model and the check the `reasoning` model, over LiteLLM. With Jev on (`TYPESAFE_API_KEY`, `sopops[jev]`), Jev routes and answers each rule first; rules it flags (`skipped`, `violated`, `unheeded`) or answers inside its uncertainty band are reviewed by the reasoning model, and the rest keep Jev's status and evidence (`reason` starts with "Jev:"). `model` and `prompt_version` say which: `jev-1.13.0` / `jev-check-1`, or `jev-1.13.0+<reasoning model>` / `jev-check-1+check-4+rules`. Settings: `SOPOPS_JEV_CONFIG` (JSON: bands as `[no, yes, decide]` for `route`, `responded`, `condition`, `step`, `never`, `warning`; `goal`; `escalate_statuses`; `assign_min`), `SOPOPS_JEV_ESCALATE=off`.
+
 ## Patterns and themes
 
 Findings are grouped so the same mistake shows up once, with its count, instead of once per session.

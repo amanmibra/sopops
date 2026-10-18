@@ -20,6 +20,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from .. import llm as llm_mod
+from ..ai import classify, jev as jev_mod, lm as ai_lm
 from . import judge, prompts
 from .models import CheckRef, CheckResult, ProcessResult, RouteResult, SessionRef
 from .normalize import normalize_tool_calls, normalize_turns
@@ -113,8 +114,18 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         status = "partial" if partial else (base if cand.release is None else "excluded")
         store.checks.reset(ref, status, SENDER_PARTIAL if partial else why)
         return RouteResult(session_id=ref.session_id, go=False, status=status, release_id=cand.release, reason=why)
+    jev = jev_mod.get_jev()
+    model, version = llm.model("fast"), prompts.load("route").version
     try:
-        decisions = judge.route(llm, cand.procedures, cand.variables, s.turns, s.tool_calls)
+        if jev is None:
+            decisions = judge.route(llm, cand.procedures, cand.variables, s.turns, s.tool_calls)
+        else:
+            decisions, by_llm = classify.route(
+                jev, cand.procedures, cand.variables, s.turns, s.tool_calls, classify.JevConfig.from_env(),
+                fallback=lambda: judge.route(llm, cand.procedures, cand.variables, s.turns, s.tool_calls),
+            )
+            if not by_llm:
+                model, version = jev.model, classify.ROUTE_VERSION
     except Exception as e:
         store.checks.fail(ref, f"route: {e}")
         raise
@@ -126,7 +137,7 @@ def route_session(store: Store, ref: SessionRef, llm: LLM | None = None) -> Rout
         status, reason = "excluded", (excluded[0].excluded_reason if excluded else "No procedure applied.")
     if partial:
         status, reason = "partial", SENDER_PARTIAL
-    stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, llm.model("fast"), prompts.load("route").version)
+    stored = store.checks.routed(ref, cand.procedures, decisions, status, reason, model, version)
     if not stored:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
     return RouteResult(session_id=ref.session_id, go=bool(to_check), status=status, release_id=cand.release, to_check=to_check, reason=reason)
@@ -141,8 +152,14 @@ def check_procedure(store: Store, ref: CheckRef, llm: LLM | None = None) -> Chec
     p: Procedure | None = next((x for x in cand.procedures if x.id == ref.procedure_id), None)
     if p is None:
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)
+    jev = jev_mod.get_jev()
+    model, version = llm.model("reasoning"), prompts.load("check").version
     try:
-        checked = judge.check(llm, p, cand.variables, s.turns, s.tool_calls)
+        if jev is None:
+            checked = judge.check(llm, p, cand.variables, s.turns, s.tool_calls)
+        else:
+            got = classify.check(jev, ai_lm.get_ai(), store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, classify.JevConfig.from_env())
+            checked, model, version = got.checked, got.model, got.prompt_version
     except Exception as e:
         store.checks.fail(ref, f"check {p.id}: {e}")
         raise
@@ -152,7 +169,7 @@ def check_procedure(store: Store, ref: CheckRef, llm: LLM | None = None) -> Chec
     mark_out_of_order(steps)
     agent_spoke = any(t.get("role") == "agent" and t.get("text") for t in s.turns)
     roll = rollup(checked.rules, checked.goal_reached, agent_spoke)
-    stored = store.checks.save(ref, p, checked.rules, checked.goal_reached, checked.goal_reason, roll, llm.model("reasoning"), prompts.load("check").version)
+    stored = store.checks.save(ref, p, checked.rules, checked.goal_reached, checked.goal_reason, roll, model, version)
     return CheckResult(session_id=ref.session_id, procedure_id=p.id, result=roll.result, stored=stored)
 
 

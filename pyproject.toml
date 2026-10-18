@@ -16,6 +16,8 @@ dependencies = [
     "httpx>=0.28.1",
     "cryptography>=50.0.2",
     "mcp>=2.3,<3",
+    # Model calls as typed DSPy signatures (src/sopops/ai); pinned, upgrade deliberately.
+    "dspy==3.4.1",
 ]
 
 [project.optional-dependencies]
@@ -24,6 +26,10 @@ postgres = [
 ]
 hatchet = [
     "hatchet-sdk==1.42.1",
+]
+# TypeSafe's Jev (system-1 classifier) as the first pass of routing, checks and pattern assignment.
+jev = [
+    "typesafe-sdk==0.7.5",
 ]
 
 [project.scripts]

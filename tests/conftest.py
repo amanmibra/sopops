@@ -38,12 +38,17 @@ def expected(name: str) -> str:
 def no_models(monkeypatch):
     """Tests never reach a real model: no model env, and the process-wide client reset."""
     from sopops import llm
+    from sopops.ai import jev, lm
 
-    for var in llm.ROLE_ENV.values():
+    for var in (*llm.ROLE_ENV.values(), "TYPESAFE_API_KEY", "SOPOPS_JEV", "SOPOPS_JEV_CONFIG", "SOPOPS_JEV_ESCALATE"):
         monkeypatch.delenv(var, raising=False)
     llm.set_llm(None)
+    lm.set_ai(None)
+    jev.set_jev(None)
     yield
     llm.set_llm(None)
+    lm.set_ai(None)
+    jev.set_jev(None)
 
 
 @pytest.fixture

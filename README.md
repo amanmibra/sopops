@@ -38,6 +38,7 @@ Open http://127.0.0.1:8484, create a workspace, and add a shared instruction, a 
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 | `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The models that check sessions and import prompts, as [LiteLLM](https://docs.litellm.ai/docs/providers) model strings (e.g. `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`), with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). If only one is set it serves both. Unset, sessions are stored but not checked, and imports need Claude Code or Codex. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
 | `SOPOPS_LLM_API_BASE` | unset | Send every model call to this base URL (an OpenAI-compatible endpoint for local models). |
+| `TYPESAFE_API_KEY`, `SOPOPS_JEV`, `SOPOPS_JEV_MODEL` | unset, auto, `jev-1.13.0` | Optional: TypeSafe's Jev as the first pass of routing, checks and pattern assignment (`pip install 'sopops[jev]'`). On when the key is set, unless `SOPOPS_JEV=off`. See [Model backends](#model-backends). |
 | `SOPOPS_SECRET_KEY` | unset | A Fernet key that encrypts platform API keys and webhook secrets. Needed to store them. Make one: `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated origins allowed to call sopops from a browser. |
 | `SOPOPS_REQUIRE_WEBHOOK_SECRET` | `false` | Set `true` when sopops is hosted: call-start webhooks (ElevenLabs, Vapi) are refused for a workspace with no webhook secret or runtime token, instead of open. |
@@ -69,6 +70,11 @@ The Overview page shows every agent against every block, and a click adds or rem
 Before you publish, Unpublished changes shows what was edited and exactly how each agent's prompt changes:
 
 <p align="center"><img src="docs/images/changes.png" alt="Unpublished changes: one block added to tonys-pizza's list, and the resulting prompt diff with the new Reservations procedure" width="860"></p>
+
+## Model backends
+
+- **LLM (default).** Every model call goes through [LiteLLM](https://docs.litellm.ai/docs/providers): two roles, `fast` and `reasoning`, each a LiteLLM model string, so any hosted provider or OpenAI-compatible local endpoint works. Self-hosting needs nothing else.
+- **Jev (optional).** With `sopops[jev]` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers first: whether each procedure applied, each rule as literal yes/no questions with the transcript line that shows it, and which failure mode a finding belongs to. The reasoning model rewrites each rule into those questions once per rule version, and reviews only the rules Jev flags or isn't sure about; the rest keep Jev's answer. Thresholds and the review band are settings (`SOPOPS_JEV_CONFIG`, JSON; `SOPOPS_JEV_ESCALATE=off` lets Jev decide every rule). Each check records the model that made it (`jev-1.13.0`, or `jev-1.13.0+<reasoning model>` when rules were reviewed).
 
 ## Import your agents
 
