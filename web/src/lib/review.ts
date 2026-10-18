@@ -7,10 +7,10 @@ export type Verdict = VerdictIn["verdict"];
 export const VERDICTS: Verdict[] = ["real", "acceptable", "sop_wrong", "checker_wrong"];
 
 export const VERDICT: Record<Verdict, { label: string; key: string; help: string; tone: string; suggests: boolean }> = {
-  real: { label: "Real mistake", key: "1", help: "The agent made a real mistake.", tone: "bg-err-soft text-err", suggests: true },
-  acceptable: { label: "Acceptable", key: "2", help: "Fine in this situation. Hidden from now on.", tone: "bg-brand-soft text-primary", suggests: true },
-  sop_wrong: { label: "SOP is wrong", key: "3", help: "The instruction is wrong or outdated.", tone: "bg-warn-soft text-warn", suggests: true },
-  checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Hidden, and used to recalibrate.", tone: "bg-muted text-muted-foreground", suggests: false },
+  real: { label: "Real mistake", key: "1", help: "The agent made a real mistake. Its fix is followed in Fixing, then Fixed.", tone: "bg-err-soft text-err", suggests: true },
+  acceptable: { label: "Acceptable", key: "2", help: "Fine in this situation. Closed and hidden from now on. Doesn't go to Fixing or Fixed, even if you edit the rule.", tone: "bg-brand-soft text-primary", suggests: true },
+  sop_wrong: { label: "SOP is wrong", key: "3", help: "The instruction is wrong or outdated. Its fix is followed in Fixing, then Fixed.", tone: "bg-warn-soft text-warn", suggests: true },
+  checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Closed, hidden, and used to recalibrate. Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
 export type { CalibrateOut, CalibratedProcedure, CalibratedRule, MergeConflict, OverrideOut as FindingOverride, SinceWritten, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";

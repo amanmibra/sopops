@@ -562,8 +562,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
         <section className="bg-card mb-4 rounded-lg border px-4 py-3">
           <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
           <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
-          <p className="text-muted-foreground mt-3 text-[13px]">Real mistake and SOP is wrong go to Open, then Fixing and Fixed as a fix goes live and holds. Acceptable and Checker is wrong close the pattern and hide its findings, so a rule edit made for them isn't followed as a fix.</p>
-          <p className="text-muted-foreground mt-1 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
+          <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
         </section>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
