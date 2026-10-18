@@ -4419,10 +4419,10 @@
                   "type": "null"
                 }
               ],
-              "description": "Sessions the router considered this procedure for.",
+              "description": "Sessions the router considered this procedure for; each item then carries `procedure_check`.",
               "title": "Procedure"
             },
-            "description": "Sessions the router considered this procedure for."
+            "description": "Sessions the router considered this procedure for; each item then carries `procedure_check`."
           },
           {
             "name": "procedure_result",
@@ -4494,10 +4494,10 @@
                   "type": "null"
                 }
               ],
-              "description": "With `rule`: only these statuses (e.g. skipped).",
+              "description": "With `rule`: only these statuses (e.g. skipped); alone: a result on any rule with one of them.",
               "title": "Rule Status"
             },
-            "description": "With `rule`: only these statuses (e.g. skipped)."
+            "description": "With `rule`: only these statuses (e.g. skipped); alone: a result on any rule with one of them."
           },
           {
             "name": "pattern",
@@ -7874,6 +7874,103 @@
         ],
         "title": "AgentFields"
       },
+      "AgentGap": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "fails": {
+            "type": "integer",
+            "title": "Fails"
+          },
+          "fail_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fail Rate"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bad",
+                  "warn"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "n",
+          "fails",
+          "fail_rate",
+          "tone",
+          "procedure_id"
+        ],
+        "title": "AgentGap"
+      },
       "AgentImportOut": {
         "properties": {
           "import": {
@@ -8149,6 +8246,14 @@
             "title": "Thin",
             "description": "n below the minimum (10): not flagged."
           },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Results by status."
+          },
           "agent": {
             "anyOf": [
               {
@@ -8170,9 +8275,131 @@
           "interval",
           "not_counted",
           "thin",
+          "counts",
           "agent"
         ],
         "title": "AgentRate"
+      },
+      "AgentRow": {
+        "properties": {
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "checks": {
+            "type": "integer",
+            "title": "Checks"
+          },
+          "measurable": {
+            "type": "integer",
+            "title": "Measurable"
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed"
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "deviated": {
+            "type": "integer",
+            "title": "Deviated"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "prior_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior Pass Rate"
+          },
+          "prior_measurable": {
+            "type": "integer",
+            "title": "Prior Measurable"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points",
+            "description": "Null unless both windows have at least min_n measurable checks."
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin"
+          },
+          "top_gap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentGap"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The rule this agent fails most, among rules it ran at least agent_min_n times."
+          },
+          "median_duration_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Median Duration S"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "sessions",
+          "checks",
+          "measurable",
+          "followed",
+          "partial",
+          "deviated",
+          "pass_rate",
+          "prior_pass_rate",
+          "prior_measurable",
+          "delta_points",
+          "thin",
+          "top_gap",
+          "median_duration_s"
+        ],
+        "title": "AgentRow"
       },
       "AgentSaved": {
         "properties": {
@@ -8393,6 +8620,147 @@
         ],
         "title": "BlockRow"
       },
+      "Callout": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "hot_rule",
+              "release",
+              "warning",
+              "rising_pattern"
+            ],
+            "title": "Kind"
+          },
+          "tone": {
+            "type": "string",
+            "enum": [
+              "bad",
+              "good"
+            ],
+            "title": "Tone"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "drill": {
+            "$ref": "#/components/schemas/CalloutDrill"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "tone",
+          "procedure_id",
+          "procedure_name",
+          "rule_id",
+          "title",
+          "body",
+          "drill"
+        ],
+        "title": "Callout"
+      },
+      "CalloutDrill": {
+        "properties": {
+          "procedure": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure"
+          },
+          "rule": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule"
+          },
+          "rule_status": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Status"
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release"
+          },
+          "pattern": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pattern"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure",
+          "rule",
+          "rule_status",
+          "release",
+          "pattern"
+        ],
+        "title": "CalloutDrill",
+        "description": "Sessions-list filters for the sessions behind a callout."
+      },
       "Capabilities": {
         "properties": {
           "llm": {
@@ -8535,6 +8903,22 @@
               }
             ],
             "title": "Interval"
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed"
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "deviated": {
+            "type": "integer",
+            "title": "Deviated"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
           }
         },
         "type": "object",
@@ -8542,7 +8926,11 @@
           "n",
           "passes",
           "pass_rate",
-          "interval"
+          "interval",
+          "followed",
+          "partial",
+          "deviated",
+          "not_measurable"
         ],
         "title": "CompareRate"
       },
@@ -8550,6 +8938,9 @@
         "properties": {
           "filters": {
             "$ref": "#/components/schemas/FiltersOut"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
           },
           "a": {
             "anyOf": [
@@ -8601,18 +8992,38 @@
             },
             "type": "array",
             "title": "Rules"
+          },
+          "sessions_a": {
+            "type": "integer",
+            "title": "Sessions A"
+          },
+          "sessions_b": {
+            "type": "integer",
+            "title": "Sessions B"
+          },
+          "timeline": {
+            "items": {
+              "$ref": "#/components/schemas/ReleasePoint"
+            },
+            "type": "array",
+            "title": "Timeline",
+            "description": "Every release with sessions in the window, by the release each session ran."
           }
         },
         "type": "object",
         "required": [
           "filters",
+          "thresholds",
           "a",
           "b",
           "releases",
           "min_n",
           "flag_points",
           "procedures",
-          "rules"
+          "rules",
+          "sessions_a",
+          "sessions_b",
+          "timeline"
         ],
         "title": "CompareResponse"
       },
@@ -9440,6 +9851,21 @@
               }
             ],
             "title": "Fail Rate"
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bad",
+                  "warn"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
           }
         },
         "type": "object",
@@ -9450,7 +9876,8 @@
           "text",
           "n",
           "fails",
-          "fail_rate"
+          "fail_rate",
+          "tone"
         ],
         "title": "FailingRule"
       },
@@ -10696,6 +11123,38 @@
           "patterns": {
             "type": "integer",
             "title": "Patterns"
+          },
+          "reached_pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reached Pct",
+            "description": "Steps: judged sessions still going when the step was due (not reached left out)."
+          },
+          "tone": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bad",
+                  "warn"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tone"
+          },
+          "most_failed": {
+            "type": "boolean",
+            "title": "Most Failed",
+            "description": "The highest fail rate among rules with n >= min_n."
           }
         },
         "type": "object",
@@ -10720,7 +11179,10 @@
           "not_counted_pct",
           "findings",
           "pattern_id",
-          "patterns"
+          "patterns",
+          "reached_pct",
+          "tone",
+          "most_failed"
         ],
         "title": "LadderRow"
       },
@@ -11152,6 +11614,9 @@
           "filters": {
             "$ref": "#/components/schemas/FiltersOut"
           },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
+          },
           "tiles": {
             "$ref": "#/components/schemas/Tiles"
           },
@@ -11164,14 +11629,39 @@
             },
             "type": "array",
             "title": "Scoreboard"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRow"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "callouts": {
+            "items": {
+              "$ref": "#/components/schemas/Callout"
+            },
+            "type": "array",
+            "title": "Callouts"
           }
         },
         "type": "object",
         "required": [
           "filters",
+          "thresholds",
           "tiles",
           "trend",
-          "scoreboard"
+          "scoreboard",
+          "problems",
+          "agents",
+          "callouts"
         ],
         "title": "OverviewResponse"
       },
@@ -11744,6 +12234,74 @@
         ],
         "title": "PreviewResponse"
       },
+      "Problem": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "skipped",
+              "never",
+              "out_of_order",
+              "not_reached",
+              "unheeded"
+            ],
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "checks": {
+            "type": "integer",
+            "title": "Checks",
+            "description": "Measurable procedure checks with this problem (they overlap)."
+          },
+          "of": {
+            "type": "integer",
+            "title": "Of",
+            "description": "Measurable procedure checks."
+          },
+          "pct": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pct"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Statuses",
+            "description": "The rule statuses behind it, for the sessions drill-down."
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "label",
+          "checks",
+          "of",
+          "pct",
+          "kind",
+          "statuses"
+        ],
+        "title": "Problem"
+      },
       "ProcedureCheckOut": {
         "properties": {
           "procedure_id": {
@@ -12190,6 +12748,9 @@
           "filters": {
             "$ref": "#/components/schemas/FiltersOut"
           },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
+          },
           "procedure_id": {
             "type": "string",
             "title": "Procedure Id"
@@ -12234,11 +12795,33 @@
             },
             "type": "array",
             "title": "Themes"
+          },
+          "problems": {
+            "items": {
+              "$ref": "#/components/schemas/Problem"
+            },
+            "type": "array",
+            "title": "Problems"
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/AgentRow"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "callouts": {
+            "items": {
+              "$ref": "#/components/schemas/Callout"
+            },
+            "type": "array",
+            "title": "Callouts"
           }
         },
         "type": "object",
         "required": [
           "filters",
+          "thresholds",
           "procedure_id",
           "procedure_name",
           "tiles",
@@ -12246,7 +12829,10 @@
           "rules",
           "release_split",
           "warning_impact",
-          "themes"
+          "themes",
+          "problems",
+          "agents",
+          "callouts"
         ],
         "title": "ProcedureInsights"
       },
@@ -12989,6 +13575,14 @@
             "type": "boolean",
             "title": "Thin",
             "description": "n below the minimum (10): not flagged."
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Results by status."
           }
         },
         "type": "object",
@@ -12999,7 +13593,8 @@
           "pass_rate",
           "interval",
           "not_counted",
-          "thin"
+          "thin",
+          "counts"
         ],
         "title": "RateOut"
       },
@@ -13222,6 +13817,74 @@
         ],
         "title": "ReleaseMarker"
       },
+      "ReleasePoint": {
+        "properties": {
+          "release": {
+            "type": "integer",
+            "title": "Release"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "description": "Measurable procedure checks on this release."
+          },
+          "passes": {
+            "type": "integer",
+            "title": "Passes"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin"
+          }
+        },
+        "type": "object",
+        "required": [
+          "release",
+          "sessions",
+          "n",
+          "passes",
+          "pass_rate",
+          "interval",
+          "thin"
+        ],
+        "title": "ReleasePoint"
+      },
       "ReleaseRate": {
         "properties": {
           "n": {
@@ -13292,6 +13955,14 @@
             "title": "Thin",
             "description": "n below the minimum (10): not flagged."
           },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts",
+            "description": "Results by status."
+          },
           "release": {
             "anyOf": [
               {
@@ -13313,6 +13984,7 @@
           "interval",
           "not_counted",
           "thin",
+          "counts",
           "release"
         ],
         "title": "ReleaseRate"
@@ -13703,6 +14375,37 @@
             ],
             "title": "Goal Rate"
           },
+          "rule_n": {
+            "type": "integer",
+            "title": "Rule N",
+            "description": "Step and never rule results that passed or failed."
+          },
+          "rule_passes": {
+            "type": "integer",
+            "title": "Rule Passes"
+          },
+          "rule_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Pass Rate",
+            "description": "Rule results passed / rule_n (warning signs left out)."
+          },
+          "never_violations": {
+            "type": "integer",
+            "title": "Never Violations",
+            "description": "Never rules broken (one session can break several)."
+          },
+          "never_sessions": {
+            "type": "integer",
+            "title": "Never Sessions",
+            "description": "Sessions that broke a never rule."
+          },
           "multi_problem_sessions": {
             "type": "integer",
             "title": "Multi Problem Sessions"
@@ -13725,6 +14428,11 @@
           "pass_rate",
           "goal_n",
           "goal_rate",
+          "rule_n",
+          "rule_passes",
+          "rule_pass_rate",
+          "never_violations",
+          "never_sessions",
           "multi_problem_sessions"
         ],
         "title": "ReportHeadline"
@@ -13913,10 +14621,46 @@
         ],
         "title": "ReviewOut"
       },
+      "RuleDot": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "kind",
+          "index",
+          "status"
+        ],
+        "title": "RuleDot"
+      },
       "RuleInsights": {
         "properties": {
           "filters": {
             "$ref": "#/components/schemas/FiltersOut"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
           },
           "procedure_id": {
             "type": "string",
@@ -13999,6 +14743,7 @@
         "type": "object",
         "required": [
           "filters",
+          "thresholds",
           "procedure_id",
           "rule_id",
           "kind",
@@ -14434,7 +15179,8 @@
               "$ref": "#/components/schemas/FailingRule"
             },
             "type": "array",
-            "title": "Top Failing Rules"
+            "title": "Top Failing Rules",
+            "description": "The two rules failing most, among rules judged at least min_n times."
           },
           "never_violations": {
             "type": "integer",
@@ -14444,6 +15190,23 @@
             "type": "integer",
             "title": "Open Patterns",
             "description": "Patterns (each finding's most specific one) with findings in the window."
+          },
+          "rules": {
+            "type": "integer",
+            "title": "Rules"
+          },
+          "spark": {
+            "items": {
+              "$ref": "#/components/schemas/SparkPoint"
+            },
+            "type": "array",
+            "title": "Spark",
+            "description": "Pass rate per trend bucket: follows the selected window."
+          },
+          "callouts": {
+            "type": "integer",
+            "title": "Callouts",
+            "description": "How many of the overview's callouts are about this procedure."
           }
         },
         "type": "object",
@@ -14463,7 +15226,10 @@
           "delta_points",
           "top_failing_rules",
           "never_violations",
-          "open_patterns"
+          "open_patterns",
+          "rules",
+          "spark",
+          "callouts"
         ],
         "title": "ScoreboardRow"
       },
@@ -14845,6 +15611,17 @@
             "title": "Processed At",
             "description": "When the pipeline last finished with it."
           },
+          "procedure_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionProcedureFocus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only in the list, with its `procedure` filter."
+          },
           "turns": {
             "items": {
               "$ref": "#/components/schemas/SessionTurn"
@@ -14896,6 +15673,7 @@
           "created_at",
           "updated_at",
           "processed_at",
+          "procedure_check",
           "turns",
           "tool_calls",
           "metadata",
@@ -15335,6 +16113,58 @@
         ],
         "title": "SessionPage"
       },
+      "SessionProcedureFocus": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "deviated",
+                  "partial",
+                  "followed",
+                  "not_measurable"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "goal_reached": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Reached"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/RuleDot"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "result",
+          "goal_reached",
+          "rules"
+        ],
+        "title": "SessionProcedureFocus",
+        "description": "With the list's `procedure` filter: that procedure's check on this session, one dot per rule."
+      },
       "SessionSummary": {
         "properties": {
           "id": {
@@ -15515,6 +16345,17 @@
             ],
             "title": "Processed At",
             "description": "When the pipeline last finished with it."
+          },
+          "procedure_check": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionProcedureFocus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only in the list, with its `procedure` filter."
           }
         },
         "type": "object",
@@ -15538,7 +16379,8 @@
           "tool_call_count",
           "created_at",
           "updated_at",
-          "processed_at"
+          "processed_at",
+          "procedure_check"
         ],
         "title": "SessionSummary"
       },
@@ -15766,6 +16608,37 @@
         "title": "SourcePrompt",
         "description": "One existing agent's prompt, as it runs today."
       },
+      "SparkPoint": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "n",
+          "pass_rate"
+        ],
+        "title": "SparkPoint"
+      },
       "SplitRow": {
         "properties": {
           "rule_id": {
@@ -15970,6 +16843,63 @@
         ],
         "title": "ThemeOut"
       },
+      "Thresholds": {
+        "properties": {
+          "min_n": {
+            "type": "integer",
+            "title": "Min N",
+            "description": "Below this n a rate is thin: no tone, no flag, no \"most failed\"."
+          },
+          "flag_points": {
+            "type": "integer",
+            "title": "Flag Points",
+            "description": "A release comparison flags a change of at least this many points (and non-overlapping 95% intervals)."
+          },
+          "warning_drop_points": {
+            "type": "integer",
+            "title": "Warning Drop Points",
+            "description": "A warning sign is flagged when the pass rate drops this many points with it present."
+          },
+          "hot_min_n": {
+            "type": "integer",
+            "title": "Hot Min N",
+            "description": "A hot-rule callout needs this many judged results."
+          },
+          "fail_warn": {
+            "type": "integer",
+            "title": "Fail Warn",
+            "description": "Fail rate (%) that reads as a warning, at n >= min_n."
+          },
+          "fail_bad": {
+            "type": "integer",
+            "title": "Fail Bad",
+            "description": "Fail rate (%) that reads as bad, at n >= min_n."
+          },
+          "agent_min_n": {
+            "type": "integer",
+            "title": "Agent Min N",
+            "description": "An agent's biggest gap only counts rules it ran this many times."
+          },
+          "rising_min": {
+            "type": "integer",
+            "title": "Rising Min",
+            "description": "A rising pattern has at least this many findings, and twice the prior window's."
+          }
+        },
+        "type": "object",
+        "required": [
+          "min_n",
+          "flag_points",
+          "warning_drop_points",
+          "hot_min_n",
+          "fail_warn",
+          "fail_bad",
+          "agent_min_n",
+          "rising_min"
+        ],
+        "title": "Thresholds",
+        "description": "The cut-offs every view applies, returned so the UI never hardcodes one."
+      },
       "Tiles": {
         "properties": {
           "current": {
@@ -16109,6 +17039,37 @@
               }
             ],
             "title": "Goal Rate"
+          },
+          "rule_n": {
+            "type": "integer",
+            "title": "Rule N",
+            "description": "Step and never rule results that passed or failed."
+          },
+          "rule_passes": {
+            "type": "integer",
+            "title": "Rule Passes"
+          },
+          "rule_pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Pass Rate",
+            "description": "Rule results passed / rule_n (warning signs left out)."
+          },
+          "never_violations": {
+            "type": "integer",
+            "title": "Never Violations",
+            "description": "Never rules broken (one session can break several)."
+          },
+          "never_sessions": {
+            "type": "integer",
+            "title": "Never Sessions",
+            "description": "Sessions that broke a never rule."
           }
         },
         "type": "object",
@@ -16127,7 +17088,12 @@
           "measurable_checks",
           "pass_rate",
           "goal_n",
-          "goal_rate"
+          "goal_rate",
+          "rule_n",
+          "rule_passes",
+          "rule_pass_rate",
+          "never_violations",
+          "never_sessions"
         ],
         "title": "TilesValues"
       },
@@ -16489,6 +17455,12 @@
             "format": "date-time",
             "title": "Start"
           },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End",
+            "description": "The next bucket's start, or the window's end."
+          },
           "followed": {
             "type": "integer",
             "title": "Followed"
@@ -16524,6 +17496,7 @@
         "type": "object",
         "required": [
           "start",
+          "end",
           "followed",
           "partial",
           "deviated",

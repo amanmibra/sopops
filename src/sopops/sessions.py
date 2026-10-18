@@ -295,8 +295,10 @@ class Sessions:
             if procedure_result:
                 pc = pc.where(ProcedureCheck.result == procedure_result)
             q = q.where(S.id.in_(pc))
-        if rule:
-            rr = select(RuleResult.session_id).where(RuleResult.rule_id == rule)
+        if rule or rule_status:  # rule_status alone: any rule with those statuses
+            rr = select(RuleResult.session_id).where(RuleResult.workspace_id == workspace_id(workspace))
+            if rule:
+                rr = rr.where(RuleResult.rule_id == rule)
             if procedure:
                 rr = rr.where(RuleResult.procedure_id == procedure)
             if rule_status:
@@ -332,9 +334,22 @@ class Sessions:
         q = q.order_by(S.started_at.desc(), S.id.desc()).limit(limit + 1)
         with self._db() as db:
             rows = list(db.exec(q))
-        more = len(rows) > limit
-        rows = rows[:limit]
-        return {"items": [_summary(r) for r in rows], "next_cursor": _encode_cursor(rows[-1]) if more else None}
+            more = len(rows) > limit
+            rows = rows[:limit]
+            items = [_summary(r) for r in rows]
+            if procedure and items:  # that procedure's check on each session, one dot per rule
+                ids = [r.id for r in rows]
+                checks = {pc.session_id: pc for pc in db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id.in_(ids), ProcedureCheck.procedure_id == procedure))}
+                dots: dict[str, list[dict]] = {}
+                for rr in db.exec(select(RuleResult).where(RuleResult.session_id.in_(ids), RuleResult.procedure_id == procedure)):
+                    dots.setdefault(rr.session_id, []).append({"rule_id": rr.rule_id, "kind": rr.kind, "index": rr.index, "status": rr.status})
+                order = {"step": 0, "never": 1, "warning": 2}
+                for it in items:
+                    pc = checks.get(it["id"])
+                    if pc is not None:
+                        it["procedure_check"] = {"procedure_id": procedure, "result": pc.result, "goal_reached": pc.goal_reached,
+                                                 "rules": sorted(dots.get(it["id"], []), key=lambda d: (order.get(d["kind"], 3), d["index"]))}
+        return {"items": items, "next_cursor": _encode_cursor(rows[-1]) if more else None}
 
     # --- internals -------------------------------------------------------------
 

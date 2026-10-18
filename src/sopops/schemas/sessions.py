@@ -109,6 +109,22 @@ class SessionIngested(BaseModel):
     warnings: list[str] = Field(description="E.g. a release that doesn't exist (the session is kept without it).")
 
 
+class RuleDot(BaseModel):
+    rule_id: str
+    kind: Literal["step", "never", "warning"]
+    index: int
+    status: str
+
+
+class SessionProcedureFocus(BaseModel):
+    """With the list's `procedure` filter: that procedure's check on this session, one dot per rule."""
+
+    procedure_id: str
+    result: CheckResultValue | None
+    goal_reached: bool | None
+    rules: list[RuleDot]
+
+
 class SessionSummary(BaseModel):
     id: str
     workspace: str
@@ -130,6 +146,7 @@ class SessionSummary(BaseModel):
     created_at: datetime
     updated_at: datetime
     processed_at: datetime | None = Field(description="When the pipeline last finished with it.")
+    procedure_check: SessionProcedureFocus | None = Field(None, description="Only in the list, with its `procedure` filter.")
 
 
 class SessionTurn(_BaseModel):

@@ -17,6 +17,10 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
 - **Comparisons** (releases): a 95% Wilson interval per rate; a side with n < MIN_N is `thin` and never flagged;
   `regressed` / `improved` need |delta| >= FLAG_POINTS and intervals that don't overlap.
 - Release splits use the release each session ran (`session.release_id`), never dates.
+- **Thresholds** live here and are returned with every view (`thresholds`), so the UI never hardcodes one: rates
+  get a tone, a "most failed" mark or a callout only at n >= MIN_N (HOT_MIN_N for a hot rule).
+- **Callouts** are templated from these numbers, no model: a hot rule, a release that moved a procedure, a warning
+  sign that drops the pass rate, a rising pattern.
 """
 
 from __future__ import annotations
@@ -43,6 +47,12 @@ MIN_N = 10
 FLAG_POINTS = 5
 WARNING_DROP_POINTS = 10
 DAILY_UNTIL = timedelta(days=31)
+HOT_MIN_N = 15  # a hot-rule callout needs this many judged results
+FAIL_WARN, FAIL_BAD = 8, 15  # fail-rate tones, in %, only at n >= MIN_N
+AGENT_MIN_N = 3  # an agent's biggest gap: only rules it ran this many times
+RISING_MIN = 5  # a rising pattern: at least this many findings, and at least twice the prior window's
+THRESHOLDS = {"min_n": MIN_N, "flag_points": FLAG_POINTS, "warning_drop_points": WARNING_DROP_POINTS, "hot_min_n": HOT_MIN_N,
+              "fail_warn": FAIL_WARN, "fail_bad": FAIL_BAD, "agent_min_n": AGENT_MIN_N, "rising_min": RISING_MIN}
 
 ELIGIBLE_STATUSES = ("checked", "partial")
 MEASURABLE = ("deviated", "partial", "followed")
@@ -103,6 +113,21 @@ def compare_flag(a_pass: int, a_n: int, b_pass: int, b_n: int) -> str:
     if d >= FLAG_POINTS and apart:
         return "improved"
     return "steady"
+
+
+def fail_tone(fail_rate: int | None, n: int) -> str | None:
+    """bad | warn | None for a fail rate; None below MIN_N, so a handful of results never reads as a problem."""
+    if fail_rate is None or n < MIN_N:
+        return None
+    return "bad" if fail_rate >= FAIL_BAD else "warn" if fail_rate >= FAIL_WARN else None
+
+
+def _median(values: list[float]) -> float | None:
+    if not values:
+        return None
+    v = sorted(values)
+    m = len(v) // 2
+    return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2
 
 
 def _utc(at: datetime | None) -> datetime | None:
@@ -220,6 +245,18 @@ class Insights:
             S, PC = SessionRecord, ProcedureCheck
             excluded = db.exec(f.sessions(select(func.count(func.distinct(PC.session_id))).join(S, S.id == PC.session_id)).where(PC.procedure_id == f.procedure, PC.excluded_reason.is_not(None))).one()
         checked = len(outcome)
+        rule_passes = rule_n = nevers = 0
+        for _pid, _rid, kind, _index, st, n in self._rule_rows(db, f):
+            ok = rule_pass(kind, st)
+            if ok is not None:
+                rule_n += n
+                rule_passes += n if ok else 0
+            if kind == "never" and st in NEVER_FAIL:
+                nevers += n
+        S, R = SessionRecord, RuleResult
+        nq = f.sessions(select(func.count(func.distinct(R.session_id))).join(S, S.id == R.session_id)).where(ELIGIBLE, R.kind == "never", R.status.in_(NEVER_FAIL))
+        if f.procedure:
+            nq = nq.where(R.procedure_id == f.procedure)
         return {
             "sessions_checked": checked,
             "followed": oc.get("followed", 0),
@@ -236,12 +273,17 @@ class Insights:
             "pass_rate": pct(followed, len(measurable)),
             "goal_n": len(goal_n),
             "goal_rate": pct(sum(1 for c in goal_n if c[4]), len(goal_n)),
+            "rule_n": rule_n,
+            "rule_passes": rule_passes,
+            "rule_pass_rate": pct(rule_passes, rule_n),
+            "never_violations": nevers,
+            "never_sessions": db.exec(nq).one(),
         }
 
     def tiles(self, db: Session, f: Filters) -> dict[str, Any]:
         cur, prior = self._tiles(db, f), self._tiles(db, f.prior())
-        rates = ("followed_pct", "need_attention_pct", "pass_rate", "goal_rate")
-        counts = ("sessions_checked", "followed", "need_attention", "excluded")
+        rates = ("followed_pct", "need_attention_pct", "pass_rate", "goal_rate", "rule_pass_rate")
+        counts = ("sessions_checked", "followed", "need_attention", "excluded", "never_violations")
         return {
             "current": cur,
             "prior": prior,
@@ -344,37 +386,192 @@ class Insights:
             tiles = self.tiles(db, f)
             trend = self._trend(db, f)
             board = self._scoreboard(db, f)
-        return {"filters": f.as_dict(), "tiles": tiles, "trend": trend, "scoreboard": board}
+            problems = self._problems(db, f)
+            agents = self._agents(db, f)
+            callouts = []
+            for row in board:
+                pf = f.with_(procedure=row["procedure_id"])
+                ladder = self._ladder(db, pf, row["procedure_id"])
+                mine = self._callouts(db, pf, row["procedure_id"], row["procedure_name"], ladder, self._warning_impact(db, pf, row["procedure_id"], ladder))
+                row["callouts"] = len(mine)
+                callouts += mine
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "tiles": tiles, "trend": trend, "scoreboard": board, "problems": problems,
+                "agents": agents, "callouts": callouts}
+
+    PROBLEMS = (
+        ("skipped", "A step skipped", ("skipped",), "step"),
+        ("never", "A never rule broken", NEVER_FAIL, "never"),
+        ("out_of_order", "A step out of order", ("out_of_order",), "step"),
+        ("not_reached", "Ended before a step", ("not_reached",), "step"),
+        ("unheeded", "A warning sign unheeded", ("unheeded",), "warning"),
+    )
+
+    def _problems(self, db: Session, f: Filters) -> list[dict[str, Any]]:
+        """Measurable procedure checks with each kind of problem; one check can have several, so they overlap."""
+        S, R, PC = SessionRecord, RuleResult, ProcedureCheck
+        q = f.sessions(select(R.session_id, R.procedure_id, R.kind, R.status).join(S, S.id == R.session_id)
+                       .join(PC, and_(PC.session_id == R.session_id, PC.procedure_id == R.procedure_id)))
+        q = q.where(ELIGIBLE, PC.result.in_(MEASURABLE), R.status.in_(("skipped", "out_of_order", "not_reached", "unheeded", *NEVER_FAIL))).distinct()
+        if f.procedure:
+            q = q.where(R.procedure_id == f.procedure)
+        hits: dict[str, set[tuple[str, str]]] = defaultdict(set)
+        for sid, pid, kind, status in db.exec(q).all():
+            for key, _label, statuses, k in self.PROBLEMS:
+                if kind == k and status in statuses:
+                    hits[key].add((sid, pid))
+        of = sum(1 for c in self._checks(db, f) if c[3] in MEASURABLE)
+        return [{"type": key, "label": label, "checks": len(hits[key]), "of": of, "pct": pct(len(hits[key]), of), "statuses": list(statuses), "kind": k}
+                for key, label, statuses, k in self.PROBLEMS]
+
+    def _agents(self, db: Session, f: Filters) -> list[dict[str, Any]]:
+        """Each agent's procedure checks: pass rate (current and prior), the rule it fails most (among rules it ran at
+        least AGENT_MIN_N times), and the median session length."""
+        S, PC = SessionRecord, ProcedureCheck
+        agent = func.coalesce(S.agent_id, S.agent_ref)
+
+        def load(ff: Filters):
+            q = ff.sessions(select(agent, PC.session_id, PC.result, S.started_at, S.ended_at).join(S, S.id == PC.session_id)).where(ELIGIBLE, PC.result.is_not(None))
+            if ff.procedure:
+                q = q.where(PC.procedure_id == ff.procedure)
+            return list(db.exec(q).all())
+
+        cur, prior = load(f), load(f.prior())
+        by: dict[Any, list] = defaultdict(list)
+        for row in cur:
+            by[row[0]].append(row)
+        prior_by: dict[Any, Counter] = defaultdict(Counter)
+        for a, _sid, result, *_ in prior:
+            if result in MEASURABLE:
+                prior_by[a]["n"] += 1
+                prior_by[a]["followed"] += result == "followed"
+        rules: dict[tuple[Any, str, str], list[tuple]] = defaultdict(list)
+        for pid, rid, kind, _i, status, a, n in self._rule_rows(db, f, by="agent"):
+            rules[(a, pid, rid)].append((kind, status, n))
+        texts = self._rule_texts(db, f.workspace, f.procedure)
+        out = []
+        for a, rows in by.items():
+            m = [r for r in rows if r[2] in MEASURABLE]
+            fol = sum(r[2] == "followed" for r in m)
+            pn, pf_ = prior_by[a]["n"], prior_by[a]["followed"]
+            rate, prate = pct(fol, len(m)), pct(pf_, pn)
+            gap = None
+            for (a2, pid, rid), rr in rules.items():
+                if a2 != a:
+                    continue
+                st = self._rule_stats(rr)
+                if st["n"] >= AGENT_MIN_N and st["fails"] and (gap is None or (st["fail_rate"] or 0) > (gap["fail_rate"] or 0)):
+                    t = texts.get((pid, rid), {})
+                    gap = {"procedure_id": pid, "rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
+                           "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])}
+            durations = [(_utc(e) - _utc(s)).total_seconds() for *_x, s, e in {r[1]: r for r in rows}.values() if e is not None]
+            out.append({"agent": a, "sessions": len({r[1] for r in rows}), "checks": len(rows), "measurable": len(m), "followed": fol,
+                        "partial": sum(r[2] == "partial" for r in m), "deviated": sum(r[2] == "deviated" for r in m), "pass_rate": rate,
+                        "prior_pass_rate": prate, "prior_measurable": pn, "delta_points": delta_points(rate, prate) if len(m) >= MIN_N and pn >= MIN_N else None,
+                        "thin": len(m) < MIN_N, "top_gap": gap, "median_duration_s": _median(durations)})
+        out.sort(key=lambda r: (-r["measurable"], str(r["agent"])))
+        return out
+
+    def _callouts(self, db: Session, f: Filters, procedure_id: str, name: str, ladder: list[dict[str, Any]], impact: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """What stands out about one procedure in the window, each with the sessions behind it (`drill`)."""
+        out: list[dict[str, Any]] = []
+        # hot rule: the most-failed step or never rule, judged at least HOT_MIN_N times, failing at least FAIL_BAD %
+        hot = [r for r in ladder if r["kind"] != "warning" and r["n"] >= HOT_MIN_N and (r["fail_rate"] or 0) >= FAIL_BAD]
+        if hot:
+            r = max(hot, key=lambda r: (r["fail_rate"], r["n"]))
+            label = f"{'Step' if r['kind'] == 'step' else 'Never rule'} {r['index']}"
+            out.append({"id": f"hot:{procedure_id}:{r['rule_id']}", "kind": "hot_rule", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name,
+                        "rule_id": r["rule_id"], "title": f"{label} of {name} fails {r['fail_rate']}% of the time",
+                        "body": f"{r['fails']} of {r['n']} sessions: “{r['text']}”",
+                        "drill": {"procedure": procedure_id, "rule": r["rule_id"], "rule_status": list(STEP_FAIL if r["kind"] == "step" else NEVER_FAIL)}})
+        # release effect: the latest release in the window against the one before, by the release each session ran
+        per: dict[int, list[int]] = defaultdict(lambda: [0, 0])
+        for _sid, _pid, _n, result, _g, rel, _at in self._checks(db, f.with_(procedure=procedure_id)):
+            if rel is not None and result in MEASURABLE:
+                per[rel][1] += 1
+                per[rel][0] += result == "followed"
+        if len(per) >= 2:
+            a, b = sorted(per)[-2:]
+            flag = compare_flag(per[a][0], per[a][1], per[b][0], per[b][1])
+            if flag in ("improved", "regressed"):
+                ra, rb = pct(*per[a]), pct(*per[b])
+                verb = "lifted" if flag == "improved" else "dropped"
+                out.append({"id": f"release:{procedure_id}:{a}:{b}", "kind": "release", "tone": "good" if flag == "improved" else "bad", "procedure_id": procedure_id,
+                            "procedure_name": name, "rule_id": None, "title": f"Release #{b} {verb} {name} from {ra}% to {rb}%",
+                            "body": f"Followed end to end on {per[b][0]} of {per[b][1]} sessions on #{b}, against {per[a][0]} of {per[a][1]} on #{a}. The 95% intervals don't overlap.",
+                            "drill": {"procedure": procedure_id, "release": b}})
+        # warning signs that drop the pass rate
+        for w in impact:
+            if w["flag"]:
+                out.append({"id": f"warning:{procedure_id}:{w['rule_id']}", "kind": "warning", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name,
+                            "rule_id": w["rule_id"], "title": f"{name} holds up worse when warning sign {w['index']} comes up",
+                            "body": f"Pass rate {w['present_pass_rate']}% with it (n={w['present_n']}) against {w['absent_pass_rate']}% without (n={w['absent_n']}): “{w['text']}”",
+                            "drill": {"procedure": procedure_id, "rule": w["rule_id"], "rule_status": list(WARNING_PRESENT)}})
+        # rising patterns: at least RISING_MIN findings and at least twice the prior window's. A rule pattern counts its
+        # whole family (findings wait in its "other" until they're clustered); a named sub-pattern counts on its own.
+        now, before = self._pattern_window_counts(db, f, procedure_id), self._pattern_window_counts(db, f.prior(), procedure_id)
+        pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace, Pattern.procedure_id == procedure_id)).all())
+        family = {p.id: [p.id] + [c.id for c in pats if c.parent_id == p.id] for p in pats if p.kind == "rule"}
+        count = lambda counts, ids: sum(counts.get(i, (0, 0))[0] for i in ids)  # noqa: E731
+        rising = [(p, count(now, family[p.id] if p.kind == "rule" else [p.id]), count(before, family[p.id] if p.kind == "rule" else [p.id]))
+                  for p in pats if p.kind in ("rule", "sub")]
+        fired = set()
+        for p, n, was in sorted(rising, key=lambda x: (x[0].kind != "rule", -x[1])):
+            if n < RISING_MIN or n < 2 * was or (p.parent_id and p.parent_id in fired):
+                continue
+            fired.add(p.id)
+            out.append({"id": f"rising:{p.id}", "kind": "rising_pattern", "tone": "bad", "procedure_id": procedure_id, "procedure_name": name, "rule_id": p.rule_id,
+                        "title": f"“{p.name}” is rising", "body": f"{n} findings in this window, up from {was} in the one before.",
+                        "drill": {"pattern": p.id}})
+        return out
+
+    @staticmethod
+    def _buckets(f: Filters) -> tuple[str, list[datetime], Any]:
+        """The trend's buckets for the window: days up to 31 days, else weeks (Monday), in UTC. Every chart on a view
+        uses these, so nothing ignores the selected window."""
+        daily = f.end - f.start <= DAILY_UNTIL
+
+        def bucket(at: datetime) -> datetime:
+            d = _utc(at).replace(hour=0, minute=0, second=0, microsecond=0)
+            return d if daily else d - timedelta(days=d.weekday())
+
+        starts, b = [], bucket(f.start)
+        while b <= f.end:
+            starts.append(b)
+            b += timedelta(days=1 if daily else 7)
+        return ("day" if daily else "week"), starts, bucket
 
     def _trend(self, db: Session, f: Filters) -> dict[str, Any]:
-        daily = f.end - f.start <= DAILY_UNTIL
+        unit, starts, bucket = self._buckets(f)
         checks = self._checks(db, f)
         outcome: dict[str, tuple[str, datetime]] = {}
         for sid, _pid, _name, result, _goal, _rel, started in checks:
             if sid not in outcome or SEVERITY[result] > SEVERITY[outcome[sid][0]]:
                 outcome[sid] = (result, _utc(started))
-
-        def bucket(at: datetime) -> datetime:
-            d = at.replace(hour=0, minute=0, second=0, microsecond=0)
-            return d if daily else d - timedelta(days=d.weekday())
-
-        buckets: dict[datetime, Counter] = {}
-        b = bucket(f.start)
-        while b <= f.end:
-            buckets[b] = Counter()
-            b += timedelta(days=1 if daily else 7)
+        buckets: dict[datetime, Counter] = {s: Counter() for s in starts}
         for result, at in outcome.values():
             buckets.setdefault(bucket(at), Counter())[result] += 1
+        step = timedelta(days=1 if unit == "day" else 7)
         rows = []
         for start in sorted(buckets):
             c = buckets[start]
             m = c["followed"] + c["partial"] + c["deviated"]
-            rows.append({"start": start, "followed": c["followed"], "partial": c["partial"], "deviated": c["deviated"], "not_measurable": c["not_measurable"],
-                         "pass_rate": pct(c["followed"], m), "n": m})
+            rows.append({"start": start, "end": min(start + step, f.end), "followed": c["followed"], "partial": c["partial"], "deviated": c["deviated"],
+                         "not_measurable": c["not_measurable"], "pass_rate": pct(c["followed"], m), "n": m})
         S = SessionRecord
         first = db.exec(f.sessions(select(S.release_id, func.min(S.started_at)).where(S.release_id.is_not(None))).group_by(S.release_id)).all()
         markers = sorted(({"release": r, "first_session": _utc(at)} for r, at in first), key=lambda m: m["first_session"])
-        return {"bucket": "day" if daily else "week", "buckets": rows, "releases": markers}
+        return {"bucket": unit, "buckets": rows, "releases": markers}
+
+    def _spark(self, f: Filters, checks: list[tuple]) -> list[dict[str, Any]]:
+        """Pass rate per trend bucket for these procedure checks (the window's buckets, not a fixed span)."""
+        _unit, starts, bucket = self._buckets(f)
+        c: dict[datetime, list[int]] = {s: [0, 0] for s in starts}
+        for _sid, _pid, _name, result, _goal, _rel, started in checks:
+            if result in MEASURABLE:
+                x = c.setdefault(bucket(started), [0, 0])
+                x[1] += 1
+                x[0] += result == "followed"
+        return [{"start": s, "n": c[s][1], "pass_rate": pct(c[s][0], c[s][1])} for s in sorted(c)]
 
     def _scoreboard(self, db: Session, f: Filters) -> list[dict[str, Any]]:
         cur, prior = self._checks(db, f), self._checks(db, f.prior())
@@ -410,8 +607,9 @@ class Insights:
                 t = texts.get((pid, rid), {})
                 if t.get("kind") == "never":
                     nevers += st["fails"] or 0
-                if st["n"] and st["fails"]:
-                    worst.append({"rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"], "fail_rate": st["fail_rate"]})
+                if st["n"] >= MIN_N and st["fails"]:  # a rule judged a handful of times is never "most failed"
+                    worst.append({"rule_id": rid, "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
+                                  "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])})
             worst.sort(key=lambda r: (-(r["fail_rate"] or 0), -r["n"]))
             open_patterns = sum(1 for p in pats if p.procedure_id == pid and counts.get(p.id, (0, 0))[0] > 0)  # leaves with findings in the window
             out.append({
@@ -420,6 +618,7 @@ class Insights:
                 "deviated": sum(c[3] == "deviated" for c in m), "not_measurable": len(rows) - len(m), "excluded": excluded.get(pid, 0),
                 "pass_rate": rate, "prior_pass_rate": prate, "prior_measurable": len(pm), "delta_points": delta_points(rate, prate),
                 "top_failing_rules": worst[:2], "never_violations": nevers, "open_patterns": open_patterns,
+                "rules": sum(1 for (p2, _r) in texts if p2 == pid), "spark": self._spark(f, rows), "callouts": 0,
             })
         out.sort(key=lambda r: (r["pass_rate"] if r["pass_rate"] is not None else 101, -r["deviated"]))
         return out
@@ -437,8 +636,11 @@ class Insights:
             for th in themes:
                 th.pop("_sessions", None)
             trend = self._trend(db, f)
-        return {"filters": f.as_dict(), "procedure_id": procedure_id, "procedure_name": name, "tiles": tiles, "trend": trend, "rules": ladder,
-                "release_split": split, "warning_impact": impact, "themes": themes}
+            problems = self._problems(db, f)
+            agents = self._agents(db, f)
+            callouts = self._callouts(db, f, procedure_id, name, ladder, impact)
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "procedure_id": procedure_id, "procedure_name": name, "tiles": tiles, "trend": trend, "rules": ladder,
+                "release_split": split, "warning_impact": impact, "themes": themes, "problems": problems, "agents": agents, "callouts": callouts}
 
     def _ladder(self, db: Session, f: Filters, procedure_id: str) -> list[dict[str, Any]]:
         per: dict[str, list[tuple]] = defaultdict(list)
@@ -455,9 +657,16 @@ class Insights:
             rule_pat = next((p for p in mine if p.kind == "rule"), None)
             n_pat = sum(1 for p in mine if p.kind == "sub" and p.status == "active" and counts.get(p.id, (0, 0))[0] > 0)
             findings = sum(counts.get(p.id, (0, 0))[0] for p in mine)
+            c = st["counts"]
+            judged = st["total"] - c.get("not_applicable", 0)
             rows.append({"rule_id": rid, "kind": t["kind"], "index": t["index"], "text": t["text"], "wordings": t["wordings"], **st,
-                         "findings": findings, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat})
+                         "findings": findings, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat,
+                         "reached_pct": pct(judged - c.get("not_reached", 0), judged) if t["kind"] == "step" else None,
+                         "tone": fail_tone(st["fail_rate"], st["n"]), "most_failed": False})
         rows.sort(key=lambda r: (order.get(r["kind"], 3), r["index"]))
+        rated = [r for r in rows if r["kind"] != "warning" and r["n"] >= MIN_N and r["fails"]]
+        if rated:
+            max(rated, key=lambda r: (r["fail_rate"], r["n"]))["most_failed"] = True
         return rows
 
     def _release_split(self, db: Session, f: Filters, procedure_id: str, ladder: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -570,7 +779,7 @@ class Insights:
                 {"finding_id": fi.id, "session_id": fi.session_id, "started_at": _utc(at), "status": rr.status, "reason": rr.reason, "evidence": rr.evidence, "pattern_id": fi.pattern_id}
                 for fi, rr, at in db.exec(q.order_by(S.started_at.desc()).limit(5)).all()
             ]
-        return {"filters": f.as_dict(), "procedure_id": procedure_id, "rule_id": rule_id, "kind": kind, "index": index,
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "procedure_id": procedure_id, "rule_id": rule_id, "kind": kind, "index": index,
                 "text": wordings[0]["text"] if wordings else None, "wordings": wordings, "overall": _rate_out(overall), "releases": releases,
                 "agents": agents, "patterns": patterns, "recent_findings": recent}
 
@@ -598,6 +807,7 @@ class Insights:
             texts = self._rule_texts(db, f.workspace, f.procedure)
             ca = self._checks(db, f.with_(releases=(a,))) if a is not None else []
             cb = self._checks(db, f.with_(releases=(b,))) if b is not None else []
+            every = self._checks(db, f)
         def group(rows):
             g: dict[tuple[str, str], list[tuple]] = defaultdict(list)
             for pid, rid, kind, _i, status, n in rows:
@@ -621,14 +831,28 @@ class Insights:
         procs = []
         for pid in sorted({c[1] for c in ca} | {c[1] for c in cb}):
             def rate(cs):
-                m = [c for c in cs if c[1] == pid and c[3] in MEASURABLE]
+                mine = [c for c in cs if c[1] == pid]
+                m = [c for c in mine if c[3] in MEASURABLE]
                 fol = sum(c[3] == "followed" for c in m)
-                return {"n": len(m), "passes": fol, "pass_rate": pct(fol, len(m)), "interval": wilson(fol, len(m))}
+                return {"n": len(m), "passes": fol, "pass_rate": pct(fol, len(m)), "interval": wilson(fol, len(m)), "followed": fol,
+                        "partial": sum(c[3] == "partial" for c in m), "deviated": sum(c[3] == "deviated" for c in m), "not_measurable": len(mine) - len(m)}
             ra, rb = rate(ca), rate(cb)
             procs.append({"procedure_id": pid, "procedure_name": next((c[2] for c in ca + cb if c[1] == pid and c[2]), pid), "a": ra, "b": rb,
                           "delta_points": delta_points(rb["pass_rate"], ra["pass_rate"]) if ra["n"] >= MIN_N and rb["n"] >= MIN_N else None,
                           "flag": compare_flag(ra["passes"], ra["n"], rb["passes"], rb["n"])})
-        return {"filters": f.as_dict(), "a": a, "b": b, "releases": seen, "min_n": MIN_N, "flag_points": FLAG_POINTS, "procedures": procs, "rules": out}
+        # every release in the window: the procedure pass rate on each (by the release each session ran)
+        per: dict[int, list] = defaultdict(lambda: [0, 0, set()])
+        for sid, _pid, _n, result, _g, rel, _at in every:
+            if rel is None:
+                continue
+            per[rel][2].add(sid)
+            if result in MEASURABLE:
+                per[rel][1] += 1
+                per[rel][0] += result == "followed"
+        timeline = [{"release": r, "sessions": len(per[r][2]), "n": per[r][1], "passes": per[r][0], "pass_rate": pct(per[r][0], per[r][1]),
+                     "interval": wilson(per[r][0], per[r][1]), "thin": per[r][1] < MIN_N} for r in sorted(per)]
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "a": a, "b": b, "releases": seen, "min_n": MIN_N, "flag_points": FLAG_POINTS, "procedures": procs,
+                "rules": out, "sessions_a": len({c[0] for c in ca}), "sessions_b": len({c[0] for c in cb}), "timeline": timeline}
 
     def report(self, f: Filters, examples: int = 3, sessions_per_pattern: int = 12) -> dict[str, Any]:
         """The call-review report: headline numbers, then per procedure its themes, each theme's patterns with the rule
@@ -712,7 +936,7 @@ class Insights:
 
 def _rate_out(st: dict[str, Any]) -> dict[str, Any]:
     return {"n": st["n"], "passes": st["passes"], "fails": st["fails"], "pass_rate": st["pass_rate"], "interval": wilson(st["passes"] or 0, st["n"]) if st["n"] else None,
-            "not_counted": st["not_counted"], "thin": st["n"] < MIN_N}
+            "not_counted": st["not_counted"], "thin": st["n"] < MIN_N, "counts": st["counts"]}
 
 
 def _pattern_out(p: Pattern, findings: int, sessions: int) -> dict[str, Any]:

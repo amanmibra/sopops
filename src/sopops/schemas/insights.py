@@ -11,6 +11,21 @@ from .base import BaseModel
 from .checks import EvidenceOut, RuleKind
 from .patterns import FiltersOut, Interval, RulePatternOut, ThemeOut
 
+Tone = Literal["bad", "warn"]
+
+
+class Thresholds(BaseModel):
+    """The cut-offs every view applies, returned so the UI never hardcodes one."""
+
+    min_n: int = Field(description="Below this n a rate is thin: no tone, no flag, no \"most failed\".")
+    flag_points: int = Field(description="A release comparison flags a change of at least this many points (and non-overlapping 95% intervals).")
+    warning_drop_points: int = Field(description="A warning sign is flagged when the pass rate drops this many points with it present.")
+    hot_min_n: int = Field(description="A hot-rule callout needs this many judged results.")
+    fail_warn: int = Field(description="Fail rate (%) that reads as a warning, at n >= min_n.")
+    fail_bad: int = Field(description="Fail rate (%) that reads as bad, at n >= min_n.")
+    agent_min_n: int = Field(description="An agent's biggest gap only counts rules it ran this many times.")
+    rising_min: int = Field(description="A rising pattern has at least this many findings, and twice the prior window's.")
+
 
 class TilesValues(BaseModel):
     sessions_checked: int = Field(description="Eligible sessions: checked (or partial) with a result.")
@@ -28,6 +43,11 @@ class TilesValues(BaseModel):
     pass_rate: int | None = Field(description="Procedure checks followed / measurable checks.")
     goal_n: int
     goal_rate: int | None
+    rule_n: int = Field(description="Step and never rule results that passed or failed.")
+    rule_passes: int
+    rule_pass_rate: int | None = Field(description="Rule results passed / rule_n (warning signs left out).")
+    never_violations: int = Field(description="Never rules broken (one session can break several).")
+    never_sessions: int = Field(description="Sessions that broke a never rule.")
 
 
 class Tiles(BaseModel):
@@ -39,6 +59,7 @@ class Tiles(BaseModel):
 
 class TrendBucket(BaseModel):
     start: datetime
+    end: datetime = Field(description="The next bucket's start, or the window's end.")
     followed: int
     partial: int
     deviated: int
@@ -66,6 +87,13 @@ class FailingRule(BaseModel):
     n: int
     fails: int
     fail_rate: int | None
+    tone: Tone | None
+
+
+class SparkPoint(BaseModel):
+    start: datetime
+    n: int
+    pass_rate: int | None
 
 
 class ScoreboardRow(BaseModel):
@@ -82,16 +110,76 @@ class ScoreboardRow(BaseModel):
     prior_pass_rate: int | None
     prior_measurable: int
     delta_points: int | None
-    top_failing_rules: list[FailingRule]
+    top_failing_rules: list[FailingRule] = Field(description="The two rules failing most, among rules judged at least min_n times.")
     never_violations: int
     open_patterns: int = Field(description="Patterns (each finding's most specific one) with findings in the window.")
+    rules: int
+    spark: list[SparkPoint] = Field(description="Pass rate per trend bucket: follows the selected window.")
+    callouts: int = Field(description="How many of the overview's callouts are about this procedure.")
+
+
+class Problem(BaseModel):
+    type: Literal["skipped", "never", "out_of_order", "not_reached", "unheeded"]
+    label: str
+    checks: int = Field(description="Measurable procedure checks with this problem (they overlap).")
+    of: int = Field(description="Measurable procedure checks.")
+    pct: int | None
+    kind: RuleKind
+    statuses: list[str] = Field(description="The rule statuses behind it, for the sessions drill-down.")
+
+
+class AgentGap(FailingRule):
+    procedure_id: str
+
+
+class AgentRow(BaseModel):
+    agent: str | None
+    sessions: int
+    checks: int
+    measurable: int
+    followed: int
+    partial: int
+    deviated: int
+    pass_rate: int | None
+    prior_pass_rate: int | None
+    prior_measurable: int
+    delta_points: int | None = Field(description="Null unless both windows have at least min_n measurable checks.")
+    thin: bool
+    top_gap: AgentGap | None = Field(description="The rule this agent fails most, among rules it ran at least agent_min_n times.")
+    median_duration_s: float | None
+
+
+class CalloutDrill(BaseModel):
+    """Sessions-list filters for the sessions behind a callout."""
+
+    procedure: str | None = None
+    rule: str | None = None
+    rule_status: list[str] | None = None
+    release: int | None = None
+    pattern: str | None = None
+
+
+class Callout(BaseModel):
+    id: str
+    kind: Literal["hot_rule", "release", "warning", "rising_pattern"]
+    tone: Literal["bad", "good"]
+    procedure_id: str
+    procedure_name: str
+    rule_id: str | None
+    title: str
+    body: str
+    drill: CalloutDrill
 
 
 class OverviewResponse(BaseModel):
     filters: FiltersOut
+    thresholds: Thresholds
     tiles: Tiles
     trend: Trend
     scoreboard: list[ScoreboardRow]
+    problems: list[Problem]
+    agents: list[AgentRow]
+    callouts: list[Callout]
 
 
 class LadderRow(BaseModel):
@@ -116,6 +204,9 @@ class LadderRow(BaseModel):
     findings: int
     pattern_id: str | None
     patterns: int
+    reached_pct: int | None = Field(description="Steps: judged sessions still going when the step was due (not reached left out).")
+    tone: Tone | None
+    most_failed: bool = Field(description="The highest fail rate among rules with n >= min_n.")
 
 
 class SplitRow(BaseModel):
@@ -150,6 +241,7 @@ class WarningImpact(BaseModel):
 
 class ProcedureInsights(BaseModel):
     filters: FiltersOut
+    thresholds: Thresholds
     procedure_id: str
     procedure_name: str
     tiles: Tiles
@@ -158,6 +250,9 @@ class ProcedureInsights(BaseModel):
     release_split: ReleaseSplit | None
     warning_impact: list[WarningImpact]
     themes: list[ThemeOut]
+    problems: list[Problem]
+    agents: list[AgentRow]
+    callouts: list[Callout]
 
 
 class RateOut(BaseModel):
@@ -168,6 +263,7 @@ class RateOut(BaseModel):
     interval: Interval | None = Field(description="95% Wilson interval, whole percentages.")
     not_counted: int
     thin: bool = Field(description="n below the minimum (10): not flagged.")
+    counts: dict[str, int] = Field(description="Results by status.")
 
 
 class Wording(BaseModel):
@@ -198,6 +294,7 @@ class RecentFinding(BaseModel):
 
 class RuleInsights(BaseModel):
     filters: FiltersOut
+    thresholds: Thresholds
     procedure_id: str
     rule_id: str
     kind: RuleKind
@@ -230,6 +327,20 @@ class CompareRate(BaseModel):
     passes: int
     pass_rate: int | None
     interval: Interval | None
+    followed: int
+    partial: int
+    deviated: int
+    not_measurable: int
+
+
+class ReleasePoint(BaseModel):
+    release: int
+    sessions: int
+    n: int = Field(description="Measurable procedure checks on this release.")
+    passes: int
+    pass_rate: int | None
+    interval: Interval | None
+    thin: bool
 
 
 class CompareProcedure(BaseModel):
@@ -243,6 +354,7 @@ class CompareProcedure(BaseModel):
 
 class CompareResponse(BaseModel):
     filters: FiltersOut
+    thresholds: Thresholds
     a: int | None
     b: int | None
     releases: list[int]
@@ -250,6 +362,9 @@ class CompareResponse(BaseModel):
     flag_points: int
     procedures: list[CompareProcedure]
     rules: list[CompareRule]
+    sessions_a: int
+    sessions_b: int
+    timeline: list[ReleasePoint] = Field(description="Every release with sessions in the window, by the release each session ran.")
 
 
 class ReportHeadline(TilesValues):

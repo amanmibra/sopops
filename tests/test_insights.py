@@ -184,3 +184,65 @@ def test_report(env):
 
 def test_bad_filters_are_422(env):
     assert env.client.get(f"{WS}/insights/overview", params={"window": "3w"}).status_code == 422
+
+
+def test_tiles_problems_agents_and_spark(env):
+    o = get(env, "overview")
+    cur, prior = o["tiles"]["current"], o["tiles"]["prior"]
+    assert (cur["never_violations"], cur["never_sessions"], prior["never_violations"]) == (5, 5, 3)
+    assert cur["rule_n"] > cur["rule_passes"] and cur["rule_pass_rate"] == pct(cur["rule_passes"], cur["rule_n"])
+    assert o["tiles"]["delta_pct"]["never_violations"] == 67 and "rule_pass_rate" in o["tiles"]["delta_points"]
+    assert o["thresholds"]["min_n"] == 10 and o["thresholds"]["fail_bad"] == 15
+    problems = {p["type"]: p for p in o["problems"]}
+    assert (problems["never"]["checks"], problems["never"]["of"], problems["never"]["pct"], problems["skipped"]["checks"]) == (5, 14, 36, 0)
+    [agent] = o["agents"]
+    assert (agent["agent"], agent["measurable"], agent["followed"], agent["pass_rate"], agent["thin"]) == ("tonys-pizza", 14, 9, 64, False)
+    assert agent["delta_points"] is None and agent["prior_measurable"] == 3  # the prior window is thin
+    assert agent["top_gap"]["rule_id"] == env.rules[("never", 1)] and agent["top_gap"]["tone"] == "bad"
+    [row] = o["scoreboard"]
+    assert sum(p["n"] for p in row["spark"]) == 14 and [p["start"] for p in row["spark"]] == [b["start"] for b in o["trend"]["buckets"]]
+    assert row["top_failing_rules"][0]["tone"] == "bad"
+    assert all(b["end"] > b["start"] for b in o["trend"]["buckets"])
+    # a rule judged fewer than min_n times is never "most failed"
+    assert get(env, "overview", release=2)["scoreboard"][0]["top_failing_rules"] == []
+
+
+def test_ladder_tones_and_most_failed(env):
+    p = get(env, f"procedures/{ALLERGEN}")
+    rules = {(r["kind"], r["index"]): r for r in p["rules"]}
+    never = rules[("never", 1)]
+    assert (never["tone"], never["most_failed"]) == ("bad", True)
+    assert rules[("step", 1)]["reached_pct"] == 100 and rules[("step", 1)]["most_failed"] is False and never["reached_pct"] is None
+    assert p["callouts"] == [] and {x["type"] for x in p["problems"]} >= {"never", "skipped"} and p["agents"][0]["measurable"] == 14
+
+
+def test_callouts_hot_rule_and_rising_pattern(env):
+    wide = {"start": (T0 - timedelta(hours=13)).isoformat(), "end": env.params["end"]}  # the prior window's 3 deviated sessions too
+    o = get(env, "overview", **wide)
+    kinds = {c["kind"]: c for c in o["callouts"]}
+    hot = kinds["hot_rule"]
+    assert hot["rule_id"] == env.rules[("never", 1)] and hot["title"].endswith("fails 47% of the time") and hot["drill"]["rule_status"] == ["violated"]
+    assert kinds["rising_pattern"]["drill"]["pattern"] and "release" not in kinds  # release 2 is thin
+    assert o["scoreboard"][0]["callouts"] == len(o["callouts"])
+
+
+def test_compare_counts_and_timeline(env):
+    c = get(env, "releases/compare")
+    assert (c["sessions_a"], c["sessions_b"]) == (10, 4)
+    [proc] = c["procedures"]
+    assert (proc["a"]["followed"], proc["a"]["deviated"], proc["b"]["followed"]) == (5, 5, 4)
+    assert [(t["release"], t["n"], t["pass_rate"], t["thin"]) for t in c["timeline"]] == [(1, 10, 50, False), (2, 4, 100, True)]
+    never = next(r for r in c["rules"] if r["rule_id"] == env.rules[("never", 1)])
+    assert never["a"]["counts"] == {"violated": 5, "ok": 5}
+
+
+def test_sessions_rule_status_alone_and_procedure_dots(env):
+    items = lambda **q: env.client.get(f"{WS}/sessions", params={**q, "limit": 200}).json()["items"]  # noqa: E731
+    assert len(items(rule_status="violated")) == 8 and len(items(rule_status=["skipped"])) == 0
+    focused = items(procedure=ALLERGEN, procedure_result="deviated")
+    assert all(s["procedure_check"]["result"] == "deviated" for s in focused)
+    dots = focused[0]["procedure_check"]["rules"]
+    assert [d["kind"] for d in dots] == sorted((d["kind"] for d in dots), key=["step", "never", "warning"].index)
+    assert any(d["kind"] == "never" and d["status"] == "violated" for d in dots)
+    assert items()[0]["procedure_check"] is None
+

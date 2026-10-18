@@ -192,6 +192,48 @@ export type AgentFields = {
 };
 
 /**
+ * AgentGap
+ */
+export type AgentGap = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Fails
+     */
+    fails: number;
+    /**
+     * Fail Rate
+     */
+    fail_rate: number | null;
+    /**
+     * Tone
+     */
+    tone: 'bad' | 'warn' | null;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+};
+
+/**
  * AgentImportOut
  */
 export type AgentImportOut = {
@@ -363,9 +405,81 @@ export type AgentRate = {
      */
     thin: boolean;
     /**
+     * Counts
+     *
+     * Results by status.
+     */
+    counts: {
+        [key: string]: number;
+    };
+    /**
      * Agent
      */
     agent: string | null;
+};
+
+/**
+ * AgentRow
+ */
+export type AgentRow = {
+    /**
+     * Agent
+     */
+    agent: string | null;
+    /**
+     * Sessions
+     */
+    sessions: number;
+    /**
+     * Checks
+     */
+    checks: number;
+    /**
+     * Measurable
+     */
+    measurable: number;
+    /**
+     * Followed
+     */
+    followed: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Deviated
+     */
+    deviated: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Prior Pass Rate
+     */
+    prior_pass_rate: number | null;
+    /**
+     * Prior Measurable
+     */
+    prior_measurable: number;
+    /**
+     * Delta Points
+     *
+     * Null unless both windows have at least min_n measurable checks.
+     */
+    delta_points: number | null;
+    /**
+     * Thin
+     */
+    thin: boolean;
+    /**
+     * The rule this agent fails most, among rules it ran at least agent_min_n times.
+     */
+    top_gap: AgentGap | null;
+    /**
+     * Median Duration S
+     */
+    median_duration_s: number | null;
 };
 
 /**
@@ -503,6 +617,73 @@ export type BlockRow = {
 };
 
 /**
+ * Callout
+ */
+export type Callout = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Kind
+     */
+    kind: 'hot_rule' | 'release' | 'warning' | 'rising_pattern';
+    /**
+     * Tone
+     */
+    tone: 'bad' | 'good';
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string | null;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Body
+     */
+    body: string;
+    drill: CalloutDrill;
+};
+
+/**
+ * CalloutDrill
+ *
+ * Sessions-list filters for the sessions behind a callout.
+ */
+export type CalloutDrill = {
+    /**
+     * Procedure
+     */
+    procedure: string | null;
+    /**
+     * Rule
+     */
+    rule: string | null;
+    /**
+     * Rule Status
+     */
+    rule_status: Array<string> | null;
+    /**
+     * Release
+     */
+    release: number | null;
+    /**
+     * Pattern
+     */
+    pattern: string | null;
+};
+
+/**
  * Capabilities
  */
 export type Capabilities = {
@@ -583,6 +764,22 @@ export type CompareRate = {
         number,
         number
     ] | null;
+    /**
+     * Followed
+     */
+    followed: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Deviated
+     */
+    deviated: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
 };
 
 /**
@@ -590,6 +787,7 @@ export type CompareRate = {
  */
 export type CompareResponse = {
     filters: FiltersOut;
+    thresholds: Thresholds;
     /**
      * A
      */
@@ -618,6 +816,20 @@ export type CompareResponse = {
      * Rules
      */
     rules: Array<CompareRule>;
+    /**
+     * Sessions A
+     */
+    sessions_a: number;
+    /**
+     * Sessions B
+     */
+    sessions_b: number;
+    /**
+     * Timeline
+     *
+     * Every release with sessions in the window, by the release each session ran.
+     */
+    timeline: Array<ReleasePoint>;
 };
 
 /**
@@ -1061,6 +1273,10 @@ export type FailingRule = {
      * Fail Rate
      */
     fail_rate: number | null;
+    /**
+     * Tone
+     */
+    tone: 'bad' | 'warn' | null;
 };
 
 /**
@@ -1773,6 +1989,22 @@ export type LadderRow = {
      * Patterns
      */
     patterns: number;
+    /**
+     * Reached Pct
+     *
+     * Steps: judged sessions still going when the step was due (not reached left out).
+     */
+    reached_pct: number | null;
+    /**
+     * Tone
+     */
+    tone: 'bad' | 'warn' | null;
+    /**
+     * Most Failed
+     *
+     * The highest fail rate among rules with n >= min_n.
+     */
+    most_failed: boolean;
 };
 
 /**
@@ -2056,12 +2288,25 @@ export type NewProcedure = {
  */
 export type OverviewResponse = {
     filters: FiltersOut;
+    thresholds: Thresholds;
     tiles: Tiles;
     trend: Trend;
     /**
      * Scoreboard
      */
     scoreboard: Array<ScoreboardRow>;
+    /**
+     * Problems
+     */
+    problems: Array<Problem>;
+    /**
+     * Agents
+     */
+    agents: Array<AgentRow>;
+    /**
+     * Callouts
+     */
+    callouts: Array<Callout>;
 };
 
 /**
@@ -2376,6 +2621,46 @@ export type PreviewResponse = {
 };
 
 /**
+ * Problem
+ */
+export type Problem = {
+    /**
+     * Type
+     */
+    type: 'skipped' | 'never' | 'out_of_order' | 'not_reached' | 'unheeded';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Checks
+     *
+     * Measurable procedure checks with this problem (they overlap).
+     */
+    checks: number;
+    /**
+     * Of
+     *
+     * Measurable procedure checks.
+     */
+    of: number;
+    /**
+     * Pct
+     */
+    pct: number | null;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Statuses
+     *
+     * The rule statuses behind it, for the sessions drill-down.
+     */
+    statuses: Array<string>;
+};
+
+/**
  * ProcedureCheckOut
  */
 export type ProcedureCheckOut = {
@@ -2597,6 +2882,7 @@ export type ProcedureIn = {
  */
 export type ProcedureInsights = {
     filters: FiltersOut;
+    thresholds: Thresholds;
     /**
      * Procedure Id
      */
@@ -2620,6 +2906,18 @@ export type ProcedureInsights = {
      * Themes
      */
     themes: Array<ThemeOut>;
+    /**
+     * Problems
+     */
+    problems: Array<Problem>;
+    /**
+     * Agents
+     */
+    agents: Array<AgentRow>;
+    /**
+     * Callouts
+     */
+    callouts: Array<Callout>;
 };
 
 /**
@@ -3095,6 +3393,14 @@ export type RateOut = {
      * n below the minimum (10): not flagged.
      */
     thin: boolean;
+    /**
+     * Counts
+     *
+     * Results by status.
+     */
+    counts: {
+        [key: string]: number;
+    };
 };
 
 /**
@@ -3232,6 +3538,45 @@ export type ReleaseMarker = {
 };
 
 /**
+ * ReleasePoint
+ */
+export type ReleasePoint = {
+    /**
+     * Release
+     */
+    release: number;
+    /**
+     * Sessions
+     */
+    sessions: number;
+    /**
+     * N
+     *
+     * Measurable procedure checks on this release.
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Thin
+     */
+    thin: boolean;
+};
+
+/**
  * ReleaseRate
  */
 export type ReleaseRate = {
@@ -3270,6 +3615,14 @@ export type ReleaseRate = {
      * n below the minimum (10): not flagged.
      */
     thin: boolean;
+    /**
+     * Counts
+     *
+     * Results by status.
+     */
+    counts: {
+        [key: string]: number;
+    };
     /**
      * Release
      */
@@ -3540,6 +3893,34 @@ export type ReportHeadline = {
      */
     goal_rate: number | null;
     /**
+     * Rule N
+     *
+     * Step and never rule results that passed or failed.
+     */
+    rule_n: number;
+    /**
+     * Rule Passes
+     */
+    rule_passes: number;
+    /**
+     * Rule Pass Rate
+     *
+     * Rule results passed / rule_n (warning signs left out).
+     */
+    rule_pass_rate: number | null;
+    /**
+     * Never Violations
+     *
+     * Never rules broken (one session can break several).
+     */
+    never_violations: number;
+    /**
+     * Never Sessions
+     *
+     * Sessions that broke a never rule.
+     */
+    never_sessions: number;
+    /**
      * Multi Problem Sessions
      */
     multi_problem_sessions: number;
@@ -3669,10 +4050,33 @@ export type ReviewOut = {
 };
 
 /**
+ * RuleDot
+ */
+export type RuleDot = {
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Status
+     */
+    status: string;
+};
+
+/**
  * RuleInsights
  */
 export type RuleInsights = {
     filters: FiltersOut;
+    thresholds: Thresholds;
     /**
      * Procedure Id
      */
@@ -3941,6 +4345,8 @@ export type ScoreboardRow = {
     delta_points: number | null;
     /**
      * Top Failing Rules
+     *
+     * The two rules failing most, among rules judged at least min_n times.
      */
     top_failing_rules: Array<FailingRule>;
     /**
@@ -3953,6 +4359,22 @@ export type ScoreboardRow = {
      * Patterns (each finding's most specific one) with findings in the window.
      */
     open_patterns: number;
+    /**
+     * Rules
+     */
+    rules: number;
+    /**
+     * Spark
+     *
+     * Pass rate per trend bucket: follows the selected window.
+     */
+    spark: Array<SparkPoint>;
+    /**
+     * Callouts
+     *
+     * How many of the overview's callouts are about this procedure.
+     */
+    callouts: number;
 };
 
 /**
@@ -4171,6 +4593,10 @@ export type SessionDetail = {
      * When the pipeline last finished with it.
      */
     processed_at: string | null;
+    /**
+     * Only in the list, with its `procedure` filter.
+     */
+    procedure_check: SessionProcedureFocus | null;
     /**
      * Turns
      */
@@ -4436,6 +4862,30 @@ export type SessionPage = {
 };
 
 /**
+ * SessionProcedureFocus
+ *
+ * With the list's `procedure` filter: that procedure's check on this session, one dot per rule.
+ */
+export type SessionProcedureFocus = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Result
+     */
+    result: 'deviated' | 'partial' | 'followed' | 'not_measurable' | null;
+    /**
+     * Goal Reached
+     */
+    goal_reached: boolean | null;
+    /**
+     * Rules
+     */
+    rules: Array<RuleDot>;
+};
+
+/**
  * SessionSummary
  */
 export type SessionSummary = {
@@ -4527,6 +4977,10 @@ export type SessionSummary = {
      * When the pipeline last finished with it.
      */
     processed_at: string | null;
+    /**
+     * Only in the list, with its `procedure` filter.
+     */
+    procedure_check: SessionProcedureFocus | null;
 };
 
 /**
@@ -4666,6 +5120,24 @@ export type SourcePrompt = {
 };
 
 /**
+ * SparkPoint
+ */
+export type SparkPoint = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+};
+
+/**
  * SplitRow
  */
 export type SplitRow = {
@@ -4784,6 +5256,62 @@ export type ThemeOut = {
 };
 
 /**
+ * Thresholds
+ *
+ * The cut-offs every view applies, returned so the UI never hardcodes one.
+ */
+export type Thresholds = {
+    /**
+     * Min N
+     *
+     * Below this n a rate is thin: no tone, no flag, no "most failed".
+     */
+    min_n: number;
+    /**
+     * Flag Points
+     *
+     * A release comparison flags a change of at least this many points (and non-overlapping 95% intervals).
+     */
+    flag_points: number;
+    /**
+     * Warning Drop Points
+     *
+     * A warning sign is flagged when the pass rate drops this many points with it present.
+     */
+    warning_drop_points: number;
+    /**
+     * Hot Min N
+     *
+     * A hot-rule callout needs this many judged results.
+     */
+    hot_min_n: number;
+    /**
+     * Fail Warn
+     *
+     * Fail rate (%) that reads as a warning, at n >= min_n.
+     */
+    fail_warn: number;
+    /**
+     * Fail Bad
+     *
+     * Fail rate (%) that reads as bad, at n >= min_n.
+     */
+    fail_bad: number;
+    /**
+     * Agent Min N
+     *
+     * An agent's biggest gap only counts rules it ran this many times.
+     */
+    agent_min_n: number;
+    /**
+     * Rising Min
+     *
+     * A rising pattern has at least this many findings, and twice the prior window's.
+     */
+    rising_min: number;
+};
+
+/**
  * Tiles
  */
 export type Tiles = {
@@ -4875,6 +5403,34 @@ export type TilesValues = {
      * Goal Rate
      */
     goal_rate: number | null;
+    /**
+     * Rule N
+     *
+     * Step and never rule results that passed or failed.
+     */
+    rule_n: number;
+    /**
+     * Rule Passes
+     */
+    rule_passes: number;
+    /**
+     * Rule Pass Rate
+     *
+     * Rule results passed / rule_n (warning signs left out).
+     */
+    rule_pass_rate: number | null;
+    /**
+     * Never Violations
+     *
+     * Never rules broken (one session can break several).
+     */
+    never_violations: number;
+    /**
+     * Never Sessions
+     *
+     * Sessions that broke a never rule.
+     */
+    never_sessions: number;
 };
 
 /**
@@ -5080,6 +5636,12 @@ export type TrendBucket = {
      * Start
      */
     start: string;
+    /**
+     * End
+     *
+     * The next bucket's start, or the window's end.
+     */
+    end: string;
     /**
      * Followed
      */
@@ -7957,7 +8519,7 @@ export type ListSessionsData = {
         /**
          * Procedure
          *
-         * Sessions the router considered this procedure for.
+         * Sessions the router considered this procedure for; each item then carries `procedure_check`.
          */
         procedure?: string | null;
         /**
@@ -7975,7 +8537,7 @@ export type ListSessionsData = {
         /**
          * Rule Status
          *
-         * With `rule`: only these statuses (e.g. skipped).
+         * With `rule`: only these statuses (e.g. skipped); alone: a result on any rule with one of them.
          */
         rule_status?: Array<'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent'> | null;
         /**
