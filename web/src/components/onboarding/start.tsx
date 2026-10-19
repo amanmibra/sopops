@@ -5,6 +5,7 @@ import { type ReactNode, useRef, useState } from "react";
 import { call, sdk } from "@/lib/api";
 import { PLATFORMS, plural, when } from "@/lib/kinds";
 import { iq, readPromptFiles, rememberKickoff } from "@/lib/onboarding";
+import { type Platforms, usePlatforms } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
@@ -26,18 +27,27 @@ type Platform = "livekit" | "elevenlabs" | "vapi";
 type Row = { name: string; platform: Platform; platform_id: string; tools: string; prompt: string };
 
 const IMPORT_PLATFORMS = PLATFORMS.filter((p) => p.value !== "retell");
-const blank = (): Row => ({ name: "", platform: "livekit", platform_id: "", tools: "", prompt: "" });
+const blank = (platform: Platform = "livekit"): Row => ({ name: "", platform, platform_id: "", tools: "", prompt: "" });
 
-const SOURCES: { value: Source; title: string; text: string }[] = [
-  { value: "agent", title: "Claude Code or Codex", text: "Recommended. Your coding agent finds the instructions wherever they live (code, config, a database) and sends them here." },
-  { value: "paste", title: "Paste or upload", text: "LiveKit prompts from your code, or any prompt as text. One agent per prompt or file." },
-  { value: "elevenlabs", title: "ElevenLabs", text: "Read your agents' prompts and tools with an API key." },
-  { value: "vapi", title: "Vapi", text: "Read your assistants' prompts and tools with an API key." },
-  { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's prompt." },
-];
+/** Where prompts can come from: ElevenLabs and Vapi only for a team that uses them. */
+function sources(plats: Platforms): { value: Source; title: string; text: string }[] {
+  return [
+    { value: "agent", title: "Claude Code or Codex", text: "Recommended. Your coding agent finds the instructions wherever they live (code, config, a database) and sends them here." },
+    {
+      value: "paste",
+      title: "Paste or upload",
+      text: plats.has("livekit") ? "LiveKit prompts from your code, or any prompt as text. One agent per prompt or file." : "Any prompt as text. One agent per prompt or file.",
+    },
+    ...(plats.has("elevenlabs") ? [{ value: "elevenlabs" as const, title: "ElevenLabs", text: "Read your agents' prompts and tools with an API key." }] : []),
+    ...(plats.has("vapi") ? [{ value: "vapi" as const, title: "Vapi", text: "Read your assistants' prompts and tools with an API key." }] : []),
+    { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's prompt." },
+  ];
+}
 
 export function ImportStart() {
   const { ws } = useWs();
+  const plats = usePlatforms();
+  const SOURCES = sources(plats);
   const [source, setSource] = useState<Source>("agent");
   const imports = useQuery(iq.list(ws));
   const open = (imports.data ?? []).filter((i) => !["applied", "discarded"].includes(i.status));
@@ -121,7 +131,9 @@ function useStart() {
 // --- paste or upload ---------------------------------------------------------------------
 
 function PasteSource() {
-  const [rows, setRows] = useState<Row[]>([blank()]);
+  const plats = usePlatforms();
+  const options = IMPORT_PLATFORMS.filter((p) => plats.has(p.value));
+  const [rows, setRows] = useState<Row[]>(() => [blank(plats.first)]);
   const fileRef = useRef<HTMLInputElement>(null);
   const { run, busy, error } = useStart();
   const set = (i: number, r: Partial<Row>) => setRows(rows.map((x, j) => (j === i ? { ...x, ...r } : x)));
@@ -129,7 +141,7 @@ function PasteSource() {
     if (!files) return;
     const read = await readPromptFiles(files);
     const kept = rows.filter((r) => r.prompt.trim() || r.name.trim());
-    setRows([...kept, ...read.map((f) => ({ ...blank(), name: f.name, platform_id: f.name, prompt: f.prompt }))]);
+    setRows([...kept, ...read.map((f) => ({ ...blank(plats.first), name: f.name, platform_id: f.name, prompt: f.prompt }))]);
   };
   const ready = rows.filter((r) => r.name.trim() && r.prompt.trim());
   return (
@@ -151,7 +163,7 @@ function PasteSource() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {IMPORT_PLATFORMS.map((p) => (
+                  {options.map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       <PlatformLabel platform={p.value} />
                     </SelectItem>
@@ -185,7 +197,7 @@ function PasteSource() {
           </Panel>
         ))}
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => setRows([...rows, blank()])}>
+          <Button variant="outline" onClick={() => setRows([...rows, blank(plats.first)])}>
             + Add agent
           </Button>
           <Button variant="outline" onClick={() => fileRef.current?.click()}>
@@ -381,7 +393,7 @@ function AgentSource() {
           <Button disabled={busy} onClick={start}>
             {busy ? "Creating…" : "Create token and commands"}
           </Button>
-          <Note className="ml-3">The token works for 2 hours, only for importing into {ws}. It can't publish anything.</Note>
+          <Note className="ml-3">The token works for 2 hours, only for importing into your team. It can't publish anything.</Note>
         </div>
       )}
     </div>

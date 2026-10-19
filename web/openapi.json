@@ -1359,6 +1359,147 @@
         }
       }
     },
+    "/v1/auth/join/lookup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Lookup Join Link",
+        "description": "What a join link is for: the team, and the role people join with.",
+        "operationId": "lookup_join_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinInfo"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, expired or turned off."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/join": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Join With Link",
+        "description": "Join a team with its join link by making an account with a name, email and password. This browser signs in,\nworking in that team.",
+        "operationId": "join_with_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, expired or turned off."
+          },
+          "409": {
+            "description": "The email has an account: sign in, then join."
+          },
+          "429": {
+            "description": "Too many tries."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/join/accept": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Accept Join Link",
+        "description": "Join a team with its join link, signed in, and work in it. Your other teams stay as they are.",
+        "operationId": "accept_join_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinTokenIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown, expired or turned off."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/org": {
       "get": {
         "tags": [
@@ -1417,6 +1558,218 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v1/org/setup": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Up Org",
+        "description": "Set up the team: the org takes its name, and gets its first workspace, named after it, unless it has one.\nOwners and admins.",
+        "operationId": "set_up_org",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetUpIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetUpOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/orgs": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Team",
+        "description": "Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are.",
+        "operationId": "create_team",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TeamIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SetUpOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/platforms": {
+      "patch": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Set Org Platforms",
+        "description": "Pick the platforms the team uses (`other`: something else, or not sure yet). The app shows only those;\nnothing about the others is lost. Owners and admins; anyone in the team makes the first pick. With sign-in off,\nthe first org's.",
+        "operationId": "set_org_platforms",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformsIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformsOut"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Only owners and admins change them, once picked."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/org/join-link": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Join Link",
+        "description": "The team's join link that works, if there's one. Its address was shown once, when it was made.",
+        "operationId": "get_join_link",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/JoinLinkOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Join Link"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Create Join Link",
+        "description": "A new join link for the team: anyone who opens it can join with its role. The old one stops working.",
+        "operationId": "create_join_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinLinkIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JoinLinkCreated"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Delete Join Link",
+        "description": "Turn the team's join link off.",
+        "operationId": "delete_join_link",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           }
         }
       }
@@ -12346,6 +12699,17 @@
             "title": "Sign Up",
             "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
             "default": false
+          },
+          "platforms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlatformsOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org."
           }
         },
         "type": "object",
@@ -12357,7 +12721,8 @@
           "orgs",
           "first_account",
           "password_email",
-          "sign_up"
+          "sign_up",
+          "platforms"
         ],
         "title": "AuthState"
       },
@@ -15795,6 +16160,213 @@
         ],
         "title": "ItemVersion"
       },
+      "JoinIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the join link (the part after #)."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "email",
+          "password"
+        ],
+        "title": "JoinIn"
+      },
+      "JoinInfo": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id"
+          },
+          "org_name": {
+            "type": "string",
+            "title": "Org Name"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "description": "The role people join with."
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "member": {
+            "type": "boolean",
+            "title": "Member",
+            "description": "You're in this team already."
+          },
+          "needs_platforms": {
+            "type": "boolean",
+            "title": "Needs Platforms",
+            "description": "Nobody in the team has picked its platforms yet: whoever joins next is asked."
+          }
+        },
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_name",
+          "role",
+          "expires_at",
+          "member",
+          "needs_platforms"
+        ],
+        "title": "JoinInfo"
+      },
+      "JoinLinkCreated": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "joined": {
+            "type": "integer",
+            "title": "Joined",
+            "description": "How many people joined with it."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "link": {
+            "type": "string",
+            "title": "Link",
+            "description": "The join link, shown once. Anyone who opens it can join the team with its role, until it expires or is turned off."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "joined",
+          "created_at",
+          "expires_at",
+          "link"
+        ],
+        "title": "JoinLinkCreated"
+      },
+      "JoinLinkIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "member"
+            ],
+            "title": "Role",
+            "default": "member"
+          },
+          "days": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "description": "How long it works.",
+            "default": 7
+          }
+        },
+        "type": "object",
+        "title": "JoinLinkIn"
+      },
+      "JoinLinkOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "admin",
+              "member"
+            ],
+            "title": "Role"
+          },
+          "joined": {
+            "type": "integer",
+            "title": "Joined",
+            "description": "How many people joined with it."
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "role",
+          "joined",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "JoinLinkOut"
+      },
+      "JoinTokenIn": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Token",
+            "description": "From the join link (the part after #)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "JoinTokenIn"
+      },
       "KeyTestIn": {
         "properties": {
           "platform_id": {
@@ -17212,6 +17784,18 @@
             ],
             "title": "Role",
             "description": "Your role in it."
+          },
+          "workspace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workspace",
+            "description": "The team's workspace (the one changed most recently, if it has several). None until it has one."
           }
         },
         "type": "object",
@@ -17219,7 +17803,8 @@
           "id",
           "name",
           "slug",
-          "role"
+          "role",
+          "workspace"
         ],
         "title": "OrgSummary"
       },
@@ -18338,6 +18923,74 @@
           "agent_ids"
         ],
         "title": "PlatformImport"
+      },
+      "PlatformsIn": {
+        "properties": {
+          "platforms": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "livekit",
+                "elevenlabs",
+                "vapi",
+                "other"
+              ]
+            },
+            "type": "array",
+            "maxItems": 4,
+            "minItems": 1,
+            "title": "Platforms"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platforms"
+        ],
+        "title": "PlatformsIn"
+      },
+      "PlatformsOut": {
+        "properties": {
+          "selected": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "livekit",
+                    "elevenlabs",
+                    "vapi",
+                    "other"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Selected",
+            "description": "What the team picked. `other`: something else, or not sure yet. None: nobody has picked yet."
+          },
+          "shown": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "livekit",
+                "elevenlabs",
+                "vapi"
+              ]
+            },
+            "type": "array",
+            "title": "Shown",
+            "description": "The platforms the app shows: the ones picked, or all of them when none of them was picked."
+          }
+        },
+        "type": "object",
+        "required": [
+          "selected",
+          "shown"
+        ],
+        "title": "PlatformsOut"
       },
       "PostCallSecretIn": {
         "properties": {
@@ -24157,6 +24810,40 @@
         ],
         "title": "SessionTurn"
       },
+      "SetUpIn": {
+        "properties": {
+          "team": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Team",
+            "description": "What the team is called. The org takes this name."
+          }
+        },
+        "type": "object",
+        "required": [
+          "team"
+        ],
+        "title": "SetUpIn"
+      },
+      "SetUpOut": {
+        "properties": {
+          "org": {
+            "$ref": "#/components/schemas/OrgOut"
+          },
+          "workspace": {
+            "type": "string",
+            "title": "Workspace",
+            "description": "The team's workspace: made now, named after the team, unless it had one."
+          }
+        },
+        "type": "object",
+        "required": [
+          "org",
+          "workspace"
+        ],
+        "title": "SetUpOut"
+      },
       "SettingsConfig": {
         "properties": {
           "version": {
@@ -24353,6 +25040,17 @@
             "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
             "default": false
           },
+          "platforms": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PlatformsOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org."
+          },
           "next": {
             "type": "string",
             "title": "Next",
@@ -24369,6 +25067,7 @@
           "first_account",
           "password_email",
           "sign_up",
+          "platforms",
           "next"
         ],
         "title": "SignedIn"
@@ -25512,6 +26211,22 @@
           "state"
         ],
         "title": "SyncPrOut"
+      },
+      "TeamIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "description": "What the team is called."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "TeamIn"
       },
       "ThemeOut": {
         "properties": {

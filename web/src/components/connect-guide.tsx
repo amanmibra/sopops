@@ -4,6 +4,7 @@
 
 import type { ReactNode } from "react";
 
+import { usePlatforms } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { PlatformLabel } from "./brand-icon";
 import { HrefLink } from "./href-link";
@@ -82,8 +83,9 @@ function CellView({ cell }: { cell: Cell }) {
   );
 }
 
-/** Per platform: what it takes to get a prompt from sopops, and to send sessions back after a call and in real time. */
+/** Per platform the team uses: what it takes to get a prompt from sopops, and to send sessions back after a call and in real time. */
 export function ConnectGuide({ className }: { className?: string }) {
+  const plats = usePlatforms();
   return (
     <div className={cn("overflow-x-auto", className)}>
       <table className="w-full min-w-[720px] border-collapse text-left">
@@ -96,7 +98,7 @@ export function ConnectGuide({ className }: { className?: string }) {
           </tr>
         </thead>
         <tbody>
-          {ROWS.map((r) => (
+          {ROWS.filter((r) => plats.has(r.platform)).map((r) => (
             <tr key={r.platform}>
               <td className="border-b px-2.5 py-2.5 align-top text-[13px] font-semibold">
                 <PlatformLabel platform={r.platform} />

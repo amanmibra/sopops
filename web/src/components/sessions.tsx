@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
+import { usePlatforms } from "@/lib/platforms";
 import { PlatformLabel } from "./brand-icon";
 import { HrefLink, useGo } from "./href-link";
 import { Page } from "./item-shell";
@@ -145,6 +146,7 @@ function DrillChips({ filters, onFilters }: { filters: SessionFilters; onFilters
 
 export function SessionsView({ filters, onFilters }: { filters: SessionFilters; onFilters: (f: SessionFilters) => void }) {
   const { ws, cfg } = useWs();
+  const plats = usePlatforms();
   const go = useGo();
   const { connected, fresh } = useSessionStream(ws);
   const list = useInfiniteQuery(q.sessions(ws, filters));
@@ -170,7 +172,12 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         Sessions
       </PageTitle>
       <Sub>
-        Every voice call and text chat your agents had, newest first. Send them from the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>, the API or{" "}
+        Every voice call and text chat your agents had, newest first. Send them from {plats.has("livekit") && (
+          <>
+            the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>,{" "}
+          </>
+        )}
+        the API or{" "}
         <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink> (the gear icon).
       </Sub>
 

@@ -4,6 +4,7 @@ import { PlatformLabel } from "./brand-icon";
 import { type AgentConfig, type GroupConfig, type InstructionConfig, type IssueOut, type PreviewResponse, type ProcedureConfig, call, localIssue, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
 import { DELIVERY, KIND, type Kind, PLATFORMS, slug } from "@/lib/kinds";
+import { usePlatforms } from "@/lib/platforms";
 import { useUnsavedRegistration } from "@/lib/unsaved";
 import { type Step, cleanStep } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
@@ -73,8 +74,9 @@ export function AgentEditor({ id }: { id: string }) {
 
 function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
   const { ws, cfg, model } = useWs();
+  const plats = usePlatforms();
   const isNew = !item;
-  const blank: AgentModel = { id: "", platform: "livekit", platform_id: "", context: "", blocks: [], variables: {} };
+  const blank: AgentModel = { id: "", platform: plats.first, platform_id: "", context: "", blocks: [], variables: {} };
   const { m, set, dirty, notice } = useFields<AgentModel>("agent", id, item ? { id: item.id, platform: item.platform, platform_id: item.platform_id, context: item.context, blocks: item.blocks, variables: item.variables } : blank);
   const { errors, banner, onSave, remove } = useOnSave("agent", id, isNew, dirty);
   const plat = PLATFORMS.find((p) => p.value === m.platform) ?? PLATFORMS[0];
@@ -114,7 +116,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {PLATFORMS.filter((p) => !p.legacy || p.value === item?.platform).map((p) => (
+                  {PLATFORMS.filter((p) => (!p.legacy && plats.has(p.value)) || p.value === item?.platform).map((p) => (
                     <SelectItem key={p.value} value={p.value}>
                       <PlatformLabel platform={p.value} />
                     </SelectItem>

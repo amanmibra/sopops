@@ -5,6 +5,7 @@ import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AgentDeliveryOut, type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
 import { platformName, when } from "@/lib/kinds";
+import { listNames, usePlatforms } from "@/lib/platforms";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { PlatformIcon, PlatformLabel } from "./brand-icon";
@@ -67,6 +68,8 @@ export function RuntimePanels() {
 
 function DeliveryPanel() {
   const { ws } = useWs();
+  const plats = usePlatforms();
+  const pushers = plats.shown.filter((p) => p !== "livekit").map(platformName);
   const qc = useQueryClient();
   const rows = useQuery({ queryKey: keyOf(ws, "delivery"), queryFn: () => call(sdk.listDelivery({ path: { workspace: ws } })) });
   const set = async (agent: string, mode: Mode) => {
@@ -91,11 +94,13 @@ function DeliveryPanel() {
         <ul className="grid list-disc gap-1 pl-5">
           <li>
             <b className="text-foreground">Pull at call start</b>: the agent, or its platform's call-start webhook, fetches the live release when a call
-            starts. LiveKit agents always pull.
+            starts.{plats.has("livekit") && " LiveKit agents always pull."}
           </li>
-          <li>
-            <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the prompt into the agent on ElevenLabs or Vapi.
-          </li>
+          {pushers.length > 0 && (
+            <li>
+              <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the prompt into the agent on {listNames(pushers)}.
+            </li>
+          )}
         </ul>
       </div>
       {rows.isError && <ErrorBanner error={rows.error} />}
@@ -140,9 +145,15 @@ function DeliveryPanel() {
   );
 }
 
+/** Keys and capture for the platforms the team uses, and for any other platform that has something saved already. */
 function PlatformsPanel() {
   const { ws } = useWs();
+  const plats = usePlatforms();
   const creds = useQuery({ queryKey: keyOf(ws, "platforms"), queryFn: () => call(sdk.listPlatforms({ path: { workspace: ws } })) });
+  const capture = useQuery({ queryKey: keyOf(ws, "capture"), queryFn: () => call(sdk.getCapture({ path: { workspace: ws } })) });
+  const livekit = plats.has("livekit") || Boolean(capture.data?.livekit.connected);
+  const saved = (p: Platform) => (p === "elevenlabs" ? Boolean(capture.data?.elevenlabs.post_call_secret.set || capture.data?.elevenlabs.last_post_call_at) : false);
+  const rows = (creds.data ?? []).filter((c) => plats.has(c.platform) || c.api_key.set || c.webhook_secret.set || saved(c.platform));
   return (
     <Panel
       title={
@@ -155,8 +166,10 @@ function PlatformsPanel() {
         API keys and webhook secrets for each platform. They're stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       {creds.isError && <ErrorBanner error={creds.error} />}
-      <LiveKitCapture />
-      {creds.data?.map((c) => <PlatformRow key={c.platform} creds={c} />)}
+      {livekit && <LiveKitCapture />}
+      {rows.map((c) => (
+        <PlatformRow key={c.platform} creds={c} />
+      ))}
     </Panel>
   );
 }

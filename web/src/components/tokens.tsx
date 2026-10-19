@@ -4,7 +4,8 @@ import { Copy, KeyRound } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { type TokenOut, call, q, sdk } from "@/lib/api";
-import { when } from "@/lib/kinds";
+import { platformName, when } from "@/lib/kinds";
+import { usePlatforms } from "@/lib/platforms";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { Button } from "./ui/button";
@@ -21,6 +22,7 @@ const SCOPES: { scope: Scope; label: string; help: string }[] = [
 
 export function TokensPanel() {
   const { ws } = useWs();
+  const plats = usePlatforms();
   const qc = useQueryClient();
   const list = useQuery(q.tokens(ws));
   const [name, setName] = useState("");
@@ -78,8 +80,8 @@ export function TokensPanel() {
             <b className="text-foreground">ingest</b> sends sessions to <code className="break-all">{url}/sessions</code>.
           </li>
           <li>
-            <b className="text-foreground">runtime</b> fetches prompts (<code>…/agents/&lt;agent&gt;</code>) and answers call-start webhooks. Once the
-            workspace has a runtime token, every fetch needs one.
+            <b className="text-foreground">runtime</b> fetches prompts (<code>…/agents/&lt;agent&gt;</code>) and answers call-start webhooks. Once your
+            team has a runtime token, every fetch needs one.
           </li>
         </ul>
         <p>Tokens for coding agents are made on the Import agents page.</p>
@@ -135,7 +137,7 @@ export function TokensPanel() {
           <Label htmlFor="tok-name" className="text-[13px]">
             Name
           </Label>
-          <Input id="tok-name" className="h-8 w-[200px]" placeholder="e.g. LiveKit agents" value={name} onChange={(e) => setName(e.target.value)} />
+          <Input id="tok-name" className="h-8 w-[200px]" placeholder={`e.g. ${platformName(plats.first)} agents`} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <fieldset className="flex flex-wrap gap-3 pb-1.5">
           <legend className="sr-only">Scopes</legend>

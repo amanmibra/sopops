@@ -678,6 +678,10 @@ export type AuthState = {
      * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
      */
     sign_up: boolean;
+    /**
+     * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
+     */
+    platforms: PlatformsOut | null;
 };
 
 /**
@@ -2602,6 +2606,158 @@ export type ItemVersion = {
 };
 
 /**
+ * JoinIn
+ */
+export type JoinIn = {
+    /**
+     * Token
+     *
+     * From the join link (the part after #).
+     */
+    token: string;
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
+};
+
+/**
+ * JoinInfo
+ */
+export type JoinInfo = {
+    /**
+     * Org Id
+     */
+    org_id: string;
+    /**
+     * Org Name
+     */
+    org_name: string;
+    /**
+     * Role
+     *
+     * The role people join with.
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Member
+     *
+     * You're in this team already.
+     */
+    member: boolean;
+    /**
+     * Needs Platforms
+     *
+     * Nobody in the team has picked its platforms yet: whoever joins next is asked.
+     */
+    needs_platforms: boolean;
+};
+
+/**
+ * JoinLinkCreated
+ */
+export type JoinLinkCreated = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Joined
+     *
+     * How many people joined with it.
+     */
+    joined: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+    /**
+     * Link
+     *
+     * The join link, shown once. Anyone who opens it can join the team with its role, until it expires or is turned off.
+     */
+    link: string;
+};
+
+/**
+ * JoinLinkIn
+ */
+export type JoinLinkIn = {
+    /**
+     * Role
+     */
+    role?: 'admin' | 'member';
+    /**
+     * Days
+     *
+     * How long it works.
+     */
+    days?: number;
+};
+
+/**
+ * JoinLinkOut
+ */
+export type JoinLinkOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Role
+     */
+    role: 'owner' | 'admin' | 'member';
+    /**
+     * Joined
+     *
+     * How many people joined with it.
+     */
+    joined: number;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at: string;
+};
+
+/**
+ * JoinTokenIn
+ */
+export type JoinTokenIn = {
+    /**
+     * Token
+     *
+     * From the join link (the part after #).
+     */
+    token: string;
+};
+
+/**
  * KeyTestIn
  */
 export type KeyTestIn = {
@@ -3511,6 +3667,12 @@ export type OrgSummary = {
      * Your role in it.
      */
     role: 'owner' | 'admin' | 'member';
+    /**
+     * Workspace
+     *
+     * The team's workspace (the one changed most recently, if it has several). None until it has one.
+     */
+    workspace: string | null;
 };
 
 /**
@@ -4128,6 +4290,34 @@ export type PlatformImport = {
      * Agent Ids
      */
     agent_ids: Array<string>;
+};
+
+/**
+ * PlatformsIn
+ */
+export type PlatformsIn = {
+    /**
+     * Platforms
+     */
+    platforms: Array<'livekit' | 'elevenlabs' | 'vapi' | 'other'>;
+};
+
+/**
+ * PlatformsOut
+ */
+export type PlatformsOut = {
+    /**
+     * Selected
+     *
+     * What the team picked. `other`: something else, or not sure yet. None: nobody has picked yet.
+     */
+    selected: Array<'livekit' | 'elevenlabs' | 'vapi' | 'other'> | null;
+    /**
+     * Shown
+     *
+     * The platforms the app shows: the ones picked, or all of them when none of them was picked.
+     */
+    shown: Array<'livekit' | 'elevenlabs' | 'vapi'>;
 };
 
 /**
@@ -7433,6 +7623,31 @@ export type SessionTurn = {
 };
 
 /**
+ * SetUpIn
+ */
+export type SetUpIn = {
+    /**
+     * Team
+     *
+     * What the team is called. The org takes this name.
+     */
+    team: string;
+};
+
+/**
+ * SetUpOut
+ */
+export type SetUpOut = {
+    org: OrgOut;
+    /**
+     * Workspace
+     *
+     * The team's workspace: made now, named after the team, unless it had one.
+     */
+    workspace: string;
+};
+
+/**
  * SettingsConfig
  */
 export type SettingsConfig = {
@@ -7561,6 +7776,10 @@ export type SignedIn = {
      * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
      */
     sign_up: boolean;
+    /**
+     * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
+     */
+    platforms: PlatformsOut | null;
     /**
      * Next
      *
@@ -8181,6 +8400,18 @@ export type SyncPrOut = {
      * State
      */
     state: 'open' | 'merged' | 'closed' | null;
+};
+
+/**
+ * TeamIn
+ */
+export type TeamIn = {
+    /**
+     * Name
+     *
+     * What the team is called.
+     */
+    name: string;
 };
 
 /**
@@ -10052,6 +10283,101 @@ export type AcceptInviteResponses = {
 
 export type AcceptInviteResponse = AcceptInviteResponses[keyof AcceptInviteResponses];
 
+export type LookupJoinLinkData = {
+    body: JoinTokenIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/join/lookup';
+};
+
+export type LookupJoinLinkErrors = {
+    /**
+     * Unknown, expired or turned off.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LookupJoinLinkError = LookupJoinLinkErrors[keyof LookupJoinLinkErrors];
+
+export type LookupJoinLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: JoinInfo;
+};
+
+export type LookupJoinLinkResponse = LookupJoinLinkResponses[keyof LookupJoinLinkResponses];
+
+export type JoinWithLinkData = {
+    body: JoinIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/join';
+};
+
+export type JoinWithLinkErrors = {
+    /**
+     * Unknown, expired or turned off.
+     */
+    404: unknown;
+    /**
+     * The email has an account: sign in, then join.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * Too many tries.
+     */
+    429: unknown;
+};
+
+export type JoinWithLinkError = JoinWithLinkErrors[keyof JoinWithLinkErrors];
+
+export type JoinWithLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type JoinWithLinkResponse = JoinWithLinkResponses[keyof JoinWithLinkResponses];
+
+export type AcceptJoinLinkData = {
+    body: JoinTokenIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/join/accept';
+};
+
+export type AcceptJoinLinkErrors = {
+    /**
+     * Unknown, expired or turned off.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AcceptJoinLinkError = AcceptJoinLinkErrors[keyof AcceptJoinLinkErrors];
+
+export type AcceptJoinLinkResponses = {
+    /**
+     * Successful Response
+     */
+    200: AuthState;
+};
+
+export type AcceptJoinLinkResponse = AcceptJoinLinkResponses[keyof AcceptJoinLinkResponses];
+
 export type GetOrgData = {
     body?: never;
     path?: never;
@@ -10092,6 +10418,144 @@ export type UpdateOrgResponses = {
 };
 
 export type UpdateOrgResponse = UpdateOrgResponses[keyof UpdateOrgResponses];
+
+export type SetUpOrgData = {
+    body: SetUpIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/setup';
+};
+
+export type SetUpOrgErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetUpOrgError = SetUpOrgErrors[keyof SetUpOrgErrors];
+
+export type SetUpOrgResponses = {
+    /**
+     * Successful Response
+     */
+    200: SetUpOut;
+};
+
+export type SetUpOrgResponse = SetUpOrgResponses[keyof SetUpOrgResponses];
+
+export type CreateTeamData = {
+    body: TeamIn;
+    path?: never;
+    query?: never;
+    url: '/v1/orgs';
+};
+
+export type CreateTeamErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
+
+export type CreateTeamResponses = {
+    /**
+     * Successful Response
+     */
+    201: SetUpOut;
+};
+
+export type CreateTeamResponse = CreateTeamResponses[keyof CreateTeamResponses];
+
+export type SetOrgPlatformsData = {
+    body: PlatformsIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/platforms';
+};
+
+export type SetOrgPlatformsErrors = {
+    /**
+     * Only owners and admins change them, once picked.
+     */
+    403: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetOrgPlatformsError = SetOrgPlatformsErrors[keyof SetOrgPlatformsErrors];
+
+export type SetOrgPlatformsResponses = {
+    /**
+     * Successful Response
+     */
+    200: PlatformsOut;
+};
+
+export type SetOrgPlatformsResponse = SetOrgPlatformsResponses[keyof SetOrgPlatformsResponses];
+
+export type DeleteJoinLinkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org/join-link';
+};
+
+export type DeleteJoinLinkResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteJoinLinkResponse = DeleteJoinLinkResponses[keyof DeleteJoinLinkResponses];
+
+export type GetJoinLinkData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org/join-link';
+};
+
+export type GetJoinLinkResponses = {
+    /**
+     * Response Get Join Link
+     *
+     * Successful Response
+     */
+    200: JoinLinkOut | null;
+};
+
+export type GetJoinLinkResponse = GetJoinLinkResponses[keyof GetJoinLinkResponses];
+
+export type CreateJoinLinkData = {
+    body: JoinLinkIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/join-link';
+};
+
+export type CreateJoinLinkErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateJoinLinkError = CreateJoinLinkErrors[keyof CreateJoinLinkErrors];
+
+export type CreateJoinLinkResponses = {
+    /**
+     * Successful Response
+     */
+    201: JoinLinkCreated;
+};
+
+export type CreateJoinLinkResponse = CreateJoinLinkResponses[keyof CreateJoinLinkResponses];
 
 export type ListMembersData = {
     body?: never;

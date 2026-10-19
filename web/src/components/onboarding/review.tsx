@@ -7,7 +7,8 @@ import type {
   AgentFidelity, EventOut, IssueOut, ImportOut, Kickoff, Proposal, ProposalContent, ProposalIssue, ProposedAgent, ProposedInstruction, ProposedProcedure,
 } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
-import { plural, when } from "@/lib/kinds";
+import { platformName, plural, when } from "@/lib/kinds";
+import { listNames, usePlatforms } from "@/lib/platforms";
 import { useRepoStream } from "@/lib/live";
 import { TERMINAL, iq, kickoffFor, pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
@@ -77,7 +78,7 @@ export function ImportView({ id }: { id: string }) {
           <ConnectGuide />
         </Panel>
       )}
-      {d.status === "discarded" && <Banner>This import was discarded. Nothing in {ws} changed.</Banner>}
+      {d.status === "discarded" && <Banner>This import was discarded. Nothing changed.</Banner>}
       {d.proposal && d.status === "ready" && (d.source === "sopc" ? <SopcReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} />)}
     </Page>
   );
@@ -605,10 +606,12 @@ function AgentCard({
 
 export function ImportCard({ children }: { children?: ReactNode }) {
   const { ws } = useWs();
+  const plats = usePlatforms();
+  const from = ["Claude Code or Codex in your repo", "pasted or uploaded files", ...plats.shown.filter((p) => p !== "livekit").map(platformName)];
   return (
     <Panel title="Import agents">
       <p className="mb-3 text-[13px]">
-        Bring existing prompts into {ws}: from Claude Code or Codex in your repo, pasted or uploaded files, ElevenLabs or Vapi. You review the result before it's saved as drafts.
+        Bring the prompts your agents run today: from {listNames(from)}. You review the result before it's saved as drafts.
       </p>
       {children}
       <HrefLink href={wsHref(ws, "import")}>Import agents</HrefLink>
