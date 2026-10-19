@@ -638,11 +638,11 @@ export function ConvertView() {
   };
   return (
     <Page>
-      <PageTitle>Convert this workspace</PageTitle>
+      <PageTitle>Convert your team's files</PageTitle>
       <Sub>
         {legacy === "removed_field"
-          ? `Some shared instructions or procedures in ${ws} are marked locked, a setting sopc no longer has. Converting runs sopc migrate, which removes it. No agent's prompt changes.`
-          : `${ws} is stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sopc migrate: every agent's prompt stays the same, except that its own text moves to the top.`}
+          ? `Some shared instructions or procedures here are marked locked, a setting sopc no longer has. Converting runs sopc migrate, which removes it. No agent's prompt changes.`
+          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sopc migrate: every agent's prompt stays the same, except that its own text moves to the top.`}
       </Sub>
       {plan.isPending ? (
         <p className="text-muted-foreground">Checking what converting changes…</p>
@@ -679,7 +679,7 @@ export function EmptyWorkspace() {
   const go = useGo();
   return (
     <div className="max-w-[60ch] py-10">
-      <h1 className="mb-2 text-[22px] font-semibold tracking-tight">{ws} has no agents yet</h1>
+      <h1 className="mb-2 text-[22px] font-semibold tracking-tight">Your team has no agents yet</h1>
       <p className="mb-4">
         Already have agents running? Import their prompts: sopops splits them into shared instructions and procedures and shows where they differ. Or write the text several
         agents share as shared instructions, and each procedure they follow. Then build each agent (one per location or phone line) from those

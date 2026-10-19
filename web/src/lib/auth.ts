@@ -28,22 +28,25 @@ export function useSignOut(to = "/sign-in") {
 export const signInHref = (provider: string, next: string) =>
   `/v1/auth/login/${encodeURIComponent(provider)}?next=${encodeURIComponent(next)}`;
 
-// An invite link's token waits here while its holder signs in, so it never goes in a URL the server logs.
-const INVITE_KEY = "sopops.invite";
-export const pendingInvite = {
-  get: () => {
-    try {
-      return sessionStorage.getItem(INVITE_KEY);
-    } catch {
-      return null;
-    }
-  },
-  set: (token: string | null) => {
-    try {
-      if (token) sessionStorage.setItem(INVITE_KEY, token);
-      else sessionStorage.removeItem(INVITE_KEY);
-    } catch {
-      /* private mode */
-    }
-  },
-};
+// An invite or join link's token waits here while its holder signs in, so it never goes in a URL the server logs.
+function pending(key: string) {
+  return {
+    get: () => {
+      try {
+        return sessionStorage.getItem(key);
+      } catch {
+        return null;
+      }
+    },
+    set: (token: string | null) => {
+      try {
+        if (token) sessionStorage.setItem(key, token);
+        else sessionStorage.removeItem(key);
+      } catch {
+        /* private mode */
+      }
+    },
+  };
+}
+export const pendingInvite = pending("sopops.invite");
+export const pendingJoin = pending("sopops.join");

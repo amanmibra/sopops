@@ -18,7 +18,7 @@ function Members() {
   return (
     <>
       <SectionHead title="Choose who can use sopops">
-        Everyone here can use every workspace in {auth.org?.name}. Owners and admins add people, change roles and let email domains join.
+        Everyone in {auth.org?.name} can use everything in it. Owners and admins bring people in, change roles and let email domains join.
       </SectionHead>
       <MembersPanel auth={auth} />
     </>

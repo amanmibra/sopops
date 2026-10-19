@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Card, FirstAccount, SignInButtons } from "@/components/account";
+import { Card, SignInButtons } from "@/components/account";
 import { Banner } from "@/components/bits";
 import { useGo } from "@/components/href-link";
 import { useAuth } from "@/lib/auth";
@@ -27,7 +27,7 @@ function SignIn() {
     if (done) void go(safeNext(next), { replace: true });
   }, [done, next, go]);
   if (!auth || done) return null;
-  if (auth.first_account) return <FirstAccount auth={auth} />;
+  if (auth.first_account) return <Navigate to="/welcome" replace />;
   return (
     <Card title="Sign in to sopops">
       <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">Use the account or email your team uses for sopops. New here? Ask an owner to add you.</p>

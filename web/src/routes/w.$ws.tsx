@@ -3,6 +3,7 @@ import { Outlet, createFileRoute, useLocation } from "@tanstack/react-router";
 import { useEffect, useMemo } from "react";
 import { ErrorBanner } from "@/components/bits";
 import { Rail } from "@/components/layout";
+import { SetupBar } from "@/components/setup";
 import { ConvertView } from "@/components/views";
 import { q } from "@/lib/api";
 import { rememberPage } from "@/lib/mode";
@@ -34,7 +35,13 @@ function WorkspaceLayout() {
   if (!value) return <main className="text-muted-foreground px-8 py-6">Loading…</main>;
   // A workspace stored in an older sopc format can only be converted (or its releases looked at).
   const convert = value.legacy && !pathname.includes("/releases");
-  // Settings brings its own side menu in place of the mode's rail.
+  // Setup is a page of its own; Settings brings its own side menu in place of the mode's rail.
+  if (!convert && /^\/w\/[^/]+\/setup$/.test(pathname))
+    return (
+      <WsContext.Provider value={value}>
+        <Outlet />
+      </WsContext.Provider>
+    );
   if (!convert && /^\/w\/[^/]+\/settings(\/|$)/.test(pathname))
     return (
       <WsContext.Provider value={value}>
@@ -45,7 +52,10 @@ function WorkspaceLayout() {
     <WsContext.Provider value={value}>
       <div className="grid min-h-[calc(100vh-53px)] grid-cols-1 md:grid-cols-[264px_minmax(0,1fr)]">
         <Rail />
-        <main className="min-w-0 px-4 pt-5 pb-10 md:px-8 md:pt-6">{convert ? <ConvertView /> : <Outlet />}</main>
+        <main className="min-w-0 px-4 pt-5 pb-10 md:px-8 md:pt-6">
+          <SetupBar ws={ws} />
+          {convert ? <ConvertView /> : <Outlet />}
+        </main>
       </div>
     </WsContext.Provider>
   );

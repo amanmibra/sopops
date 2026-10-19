@@ -7,6 +7,13 @@ export const prefs = {
       return null;
     }
   },
+  remove(key: string) {
+    try {
+      localStorage.removeItem(`sopops.${key}`);
+    } catch {
+      /* private mode */
+    }
+  },
   set(key: string, value: string) {
     try {
       localStorage.setItem(`sopops.${key}`, value);

@@ -1,12 +1,12 @@
-// The frame: the top bar (workspace, QA or Instructions, author or user menu, unpublished changes, settings, theme) and the
+// The frame: the top bar (team, QA or Instructions, author or user menu, unpublished changes, settings, theme) and the
 // workspace's side rail, which lists the pages of the mode you're in.
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
-import { BookText, ClipboardCheck, Monitor, Moon, Plus, Settings, Sun } from "lucide-react";
+import { BookText, ClipboardCheck, Monitor, Moon, Settings, Sun } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { type AuthState, q } from "@/lib/api";
 import { rq } from "@/lib/review";
-import { KIND, type ListKind, WORKSPACE_ID } from "@/lib/kinds";
+import { KIND, type ListKind } from "@/lib/kinds";
 import { MODES, type Mode, currentMode, modeHref } from "@/lib/mode";
 import { prefs } from "@/lib/prefs";
 import { useTheme } from "@/lib/theme";
@@ -126,44 +126,6 @@ function ThemeMenu() {
   );
 }
 
-function NewWorkspace({ onDone }: { onDone: () => void }) {
-  const go = useGo();
-  const [name, setName] = useState("");
-  const [bad, setBad] = useState(false);
-  const create = () => {
-    const n = name.trim();
-    if (!WORKSPACE_ID.test(n)) return setBad(true);
-    onDone();
-    go(wsHref(n));
-  };
-  return (
-    <span className="flex items-center gap-1.5">
-      <Input
-        autoFocus
-        className={cn("h-8 w-44", bad && "border-err")}
-        placeholder="Workspace name"
-        aria-label="New workspace name"
-        title={bad ? "Use letters, digits, '.', '_' and '-'." : undefined}
-        value={name}
-        onChange={(e) => {
-          setName(e.target.value);
-          setBad(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") create();
-          if (e.key === "Escape") onDone();
-        }}
-      />
-      <Button size="sm" variant="outline" onClick={create}>
-        Create
-      </Button>
-      <Button size="sm" variant="ghost" onClick={onDone}>
-        Cancel
-      </Button>
-    </span>
-  );
-}
-
 export function TopBar({ auth }: { auth: AuthState }) {
   const { ws } = useParams({ strict: false }) as { ws?: string };
   return ws ? <WsTopBar ws={ws} auth={auth} /> : <Bar auth={auth} />;
@@ -187,42 +149,36 @@ function WsTopBar({ ws, auth }: { ws: string; auth: AuthState }) {
   );
 }
 
-/** The workspace picker lists the org's workspaces (the server only returns those). */
+/**
+ * The team's name (a team has one workspace, so there's nothing to pick). With sign-in off, an older install with
+ * several workspaces keeps a picker, so none of them is out of reach.
+ */
 function Bar({ ws, auth, mode, end }: { ws?: string; auth: AuthState; mode?: ReactNode; end?: ReactNode }) {
   const go = useGo();
-  const workspaces = useQuery(q.workspaces());
-  const [adding, setAdding] = useState(false);
+  const workspaces = useQuery({ ...q.workspaces(), enabled: !auth.required });
   const [name, setName] = useState(() => prefs.get("author") ?? "");
   const names = (workspaces.data ?? []).map((w) => w.workspace);
-  if (ws && !names.includes(ws)) names.push(ws);
+  if (ws && names.length && !names.includes(ws)) names.push(ws);
   return (
     <header className="bg-card sticky top-0 z-20 flex flex-wrap items-center gap-2.5 border-b px-4 py-2.5 md:px-5">
       <HrefLink href="/" className="text-foreground mr-1.5 flex items-center gap-2 text-[15px] font-semibold tracking-tight hover:no-underline">
         <Logo />
         sopops
       </HrefLink>
-      <Select value={ws ?? ""} onValueChange={(v) => go(wsHref(v))}>
-        <SelectTrigger size="sm" className="min-w-40" aria-label="Workspace">
-          <SelectValue placeholder={names.length ? "Pick a workspace" : "No workspaces yet"} />
-        </SelectTrigger>
-        <SelectContent>
-          {names.map((w) => (
-            <SelectItem key={w} value={w}>
-              {w}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {adding ? (
-        <NewWorkspace onDone={() => setAdding(false)} />
-      ) : ws ? (
-        <Button size="icon-sm" variant="ghost" className="text-muted-foreground" aria-label="New workspace" title="New workspace" onClick={() => setAdding(true)}>
-          <Plus />
-        </Button>
-      ) : (
-        <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => setAdding(true)}>
-          <Plus /> New workspace
-        </Button>
+      {auth.org && <span className="text-muted-foreground max-w-48 truncate text-[13px]" title="Your team">{auth.org.name}</span>}
+      {!auth.required && names.length > 1 && (
+        <Select value={ws ?? ""} onValueChange={(v) => go(wsHref(v))}>
+          <SelectTrigger size="sm" className="min-w-40" aria-label="Workspace">
+            <SelectValue placeholder="Pick one" />
+          </SelectTrigger>
+          <SelectContent>
+            {names.map((w) => (
+              <SelectItem key={w} value={w}>
+                {w}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
       {mode && <div className="max-md:order-last max-md:w-full md:ml-2">{mode}</div>}
       <span className="flex-1" />
@@ -309,7 +265,7 @@ export function Rail() {
   return (
     <nav
       className="bg-card border-b px-2.5 pt-3.5 pb-10 md:sticky md:top-[53px] md:h-[calc(100vh-53px)] md:overflow-auto md:border-r md:border-b-0"
-      aria-label={legacy ? "Workspace contents" : mode === "qa" ? "QA" : "Instructions"}
+      aria-label={legacy ? "Team files" : mode === "qa" ? "QA" : "Instructions"}
     >
       {legacy ? (
         <div className="mb-[18px]">{releases}</div>

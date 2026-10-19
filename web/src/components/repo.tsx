@@ -501,14 +501,14 @@ export function RepoCard() {
   const disconnect = () =>
     run("disconnect", async () => {
       await call(sdk.disconnectRepo({ path: { workspace: ws } }));
-      toast.success("Disconnected. The workspace's files stay.");
+      toast.success("Disconnected. Your team's files stay.");
       await qc.invalidateQueries({ queryKey: ["ws", ws, "repo"] });
     });
 
   return (
     <Panel title="GitHub repository">
       <p className="text-muted-foreground mb-3 text-[13px]">
-        Keep this workspace's sopc project in a repository: changes on GitHub come into drafts here, drafts go back as a pull request, and suggestions are applied as pull
+        Keep your team's sopc project in a repository: changes on GitHub come into drafts here, drafts go back as a pull request, and suggestions are applied as pull
         requests instead of drafts.
       </p>
       {res.isPending ? (

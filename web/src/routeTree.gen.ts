@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as InviteRouteImport } from './routes/invite'
+import { Route as JoinRouteImport } from './routes/join'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as SignInEmailRouteImport } from './routes/sign-in_.email'
 import { Route as WWsRouteImport } from './routes/w.$ws'
 import { Route as WWsIndexRouteImport } from './routes/w.$ws.index'
@@ -21,6 +23,7 @@ import { Route as WWsConvertRouteImport } from './routes/w.$ws.convert'
 import { Route as WWsOverviewRouteImport } from './routes/w.$ws.overview'
 import { Route as WWsReportRouteImport } from './routes/w.$ws.report'
 import { Route as WWsSettingsRouteImport } from './routes/w.$ws.settings'
+import { Route as WWsSetupRouteImport } from './routes/w.$ws.setup'
 import { Route as WWsAgentsIndexRouteImport } from './routes/w.$ws.agents.index'
 import { Route as WWsGroupsIndexRouteImport } from './routes/w.$ws.groups.index'
 import { Route as WWsImportIndexRouteImport } from './routes/w.$ws.import.index'
@@ -67,6 +70,11 @@ const InviteRoute = InviteRouteImport.update({
   path: '/invite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JoinRoute = JoinRouteImport.update({
+  id: '/join',
+  path: '/join',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SetPasswordRoute = SetPasswordRouteImport.update({
   id: '/set-password',
   path: '/set-password',
@@ -75,6 +83,11 @@ const SetPasswordRoute = SetPasswordRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInEmailRoute = SignInEmailRouteImport.update({
@@ -115,6 +128,11 @@ const WWsReportRoute = WWsReportRouteImport.update({
 const WWsSettingsRoute = WWsSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsSetupRoute = WWsSetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsAgentsIndexRoute = WWsAgentsIndexRouteImport.update({
@@ -299,8 +317,10 @@ const WWsInsightsProceduresIdRulesRuleIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
+  '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
@@ -308,6 +328,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
   '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
+  '/w/$ws/setup': typeof WWsSetupRoute
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
@@ -348,13 +369,16 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
+  '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
+  '/w/$ws/setup': typeof WWsSetupRoute
   '/w/$ws': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
@@ -396,8 +420,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/invite': typeof InviteRoute
+  '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/welcome': typeof WelcomeRoute
   '/sign-in_/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
@@ -405,6 +431,7 @@ export interface FileRoutesById {
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
   '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
+  '/w/$ws/setup': typeof WWsSetupRoute
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
@@ -447,8 +474,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/invite'
+    | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/welcome'
     | '/sign-in/email'
     | '/w/$ws'
     | '/w/$ws/changes'
@@ -456,6 +485,7 @@ export interface FileRouteTypes {
     | '/w/$ws/overview'
     | '/w/$ws/report'
     | '/w/$ws/settings'
+    | '/w/$ws/setup'
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
@@ -496,13 +526,16 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/invite'
+    | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/welcome'
     | '/sign-in/email'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
     | '/w/$ws/overview'
     | '/w/$ws/report'
+    | '/w/$ws/setup'
     | '/w/$ws'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
@@ -543,8 +576,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/invite'
+    | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/welcome'
     | '/sign-in_/email'
     | '/w/$ws'
     | '/w/$ws/changes'
@@ -552,6 +587,7 @@ export interface FileRouteTypes {
     | '/w/$ws/overview'
     | '/w/$ws/report'
     | '/w/$ws/settings'
+    | '/w/$ws/setup'
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
@@ -593,8 +629,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   InviteRoute: typeof InviteRoute
+  JoinRoute: typeof JoinRoute
   SetPasswordRoute: typeof SetPasswordRoute
   SignInRoute: typeof SignInRoute
+  WelcomeRoute: typeof WelcomeRoute
   SignInEmailRoute: typeof SignInEmailRoute
   WWsRoute: typeof WWsRouteWithChildren
 }
@@ -615,6 +653,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InviteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/join': {
+      id: '/join'
+      path: '/join'
+      fullPath: '/join'
+      preLoaderRoute: typeof JoinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/set-password': {
       id: '/set-password'
       path: '/set-password'
@@ -627,6 +672,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in_/email': {
@@ -683,6 +735,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/w/$ws/settings'
       preLoaderRoute: typeof WWsSettingsRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/setup': {
+      id: '/w/$ws/setup'
+      path: '/setup'
+      fullPath: '/w/$ws/setup'
+      preLoaderRoute: typeof WWsSetupRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/agents/': {
@@ -965,6 +1024,7 @@ interface WWsRouteChildren {
   WWsOverviewRoute: typeof WWsOverviewRoute
   WWsReportRoute: typeof WWsReportRoute
   WWsSettingsRoute: typeof WWsSettingsRouteWithChildren
+  WWsSetupRoute: typeof WWsSetupRoute
   WWsIndexRoute: typeof WWsIndexRoute
   WWsImportIdRoute: typeof WWsImportIdRoute
   WWsInsightsReleasesRoute: typeof WWsInsightsReleasesRoute
@@ -1001,6 +1061,7 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsOverviewRoute: WWsOverviewRoute,
   WWsReportRoute: WWsReportRoute,
   WWsSettingsRoute: WWsSettingsRouteWithChildren,
+  WWsSetupRoute: WWsSetupRoute,
   WWsIndexRoute: WWsIndexRoute,
   WWsImportIdRoute: WWsImportIdRoute,
   WWsInsightsReleasesRoute: WWsInsightsReleasesRoute,
@@ -1037,8 +1098,10 @@ const WWsRouteWithChildren = WWsRoute._addFileChildren(WWsRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   InviteRoute: InviteRoute,
+  JoinRoute: JoinRoute,
   SetPasswordRoute: SetPasswordRoute,
   SignInRoute: SignInRoute,
+  WelcomeRoute: WelcomeRoute,
   SignInEmailRoute: SignInEmailRoute,
   WWsRoute: WWsRouteWithChildren,
 }

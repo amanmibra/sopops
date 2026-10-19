@@ -1,14 +1,15 @@
-// Settings → Members: the org's people and roles, adding people by email (they join now, or when they first sign in),
+// Settings → Members: the team's people and roles, its join link, adding people by email (they join now, or when they first sign in),
 // reset links for passwords, who's invited and not signed in yet, and the email domains whose people join by signing in.
 // Owners and admins change things; members see who's here.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Clock, Copy, Globe, UserPlus, Users } from "lucide-react";
+import { Clock, Copy, Globe, Link2, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { type AuthState, type InviteCreated, type InviteOut, type MemberOut, type PasswordLinkCreated, type PersonAdded, call, sdk } from "@/lib/api";
+import { type AuthState, type InviteCreated, type JoinLinkCreated, type InviteOut, type MemberOut, type PasswordLinkCreated, type PersonAdded, call, sdk } from "@/lib/api";
 import { when } from "@/lib/kinds";
 import { Avatar } from "./account";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
+import { CopyLink, RoleSelect } from "./setup";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -37,6 +38,7 @@ export function MembersPanel({ auth }: { auth: AuthState }) {
   return (
     <>
       {org.isError && <ErrorBanner error={org.error} lead="The org didn't load:" />}
+      {manager && <ShareJoinLink orgName={auth.org?.name ?? ""} />}
       {manager && <AddPeople sendsEmail={org.data?.sends_email ?? false} orgName={auth.org?.name ?? ""} />}
       <People auth={auth} manager={manager} />
       {manager && <Pending sendsEmail={org.data?.sends_email ?? false} />}
@@ -170,6 +172,85 @@ function LinkBox({ email, link, what = "the invite link", note = "It isn't shown
 }
 
 const asRole = (r: Role) => (r === "member" ? "a member" : `an ${r}`);
+const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+
+/**
+ * The team's join link: one link, not tied to an email, that anyone can open to join with its role. It's shown once,
+ * when made (only a hash is kept), so "Make a new link" is how to copy it again; the old one stops working.
+ */
+function ShareJoinLink({ orgName }: { orgName: string }) {
+  const qc = useQueryClient();
+  const current = useQuery({ queryKey: ["org", "join-link"], queryFn: () => call(sdk.getJoinLink()) });
+  const [role, setRole] = useState<"member" | "admin">("member");
+  const [made, setMade] = useState<JoinLinkCreated | null>(null);
+  const [busy, setBusy] = useState(false);
+  const live = current.data ?? null;
+  const make = async () => {
+    setBusy(true);
+    try {
+      setMade(await call(sdk.createJoinLink({ body: { role, days: 7 } })));
+      await qc.invalidateQueries({ queryKey: ["org", "join-link"] });
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const turnOff = async () => {
+    try {
+      await call(sdk.deleteJoinLink());
+      setMade(null);
+      await qc.invalidateQueries({ queryKey: ["org", "join-link"] });
+      toast.success("The join link is off.");
+    } catch (e) {
+      fail(e);
+    }
+  };
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          <Link2 className="size-4" /> Share a join link
+        </span>
+      }
+    >
+      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+        Anyone who opens the link can make an account, or sign in, and join {orgName}. Send it however your team talks.
+      </p>
+      {current.isError && <ErrorBanner error={current.error} lead="The join link didn't load:" />}
+      {live && !made && (
+        <p className="mb-3 text-[13px]">
+          A link is on. People join as {asRole(live.role as Role)}, until {day(live.expires_at)}.{" "}
+          {live.joined > 0 && <>{live.joined === 1 ? "1 person has" : `${live.joined} people have`} joined with it. </>}
+          <span className="text-muted-foreground">It's shown only once, so make a new one to copy it again.</span>
+        </p>
+      )}
+      {made && (
+        <div className="mb-3 grid gap-1.5">
+          <CopyLink link={made.link} label="Copy the join link" />
+          <span className="text-muted-foreground text-[13px]">
+            People join as {asRole(made.role as Role)}. It works until {day(made.expires_at)}, and isn't shown again.
+          </span>
+        </div>
+      )}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <Label htmlFor="join-link-role" className="text-[13px]">
+          People join as
+        </Label>
+        <RoleSelect id="join-link-role" value={role} onChange={setRole} />
+        <Button size="sm" disabled={busy} onClick={() => void make()}>
+          {live ? "Make a new link" : "Make a join link"}
+        </Button>
+        {live && (
+          <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again: the link stops working" onConfirm={() => void turnOff()}>
+            Turn off
+          </ConfirmButton>
+        )}
+      </div>
+      {live && <Note className="mt-2 block">Making a new link stops the old one.</Note>}
+    </Panel>
+  );
+}
 
 function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: string }) {
   const qc = useQueryClient();
@@ -198,7 +279,7 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
     <Panel
       title={
         <span className="flex items-center gap-2">
-          <UserPlus className="size-4" /> Add people
+          <UserPlus className="size-4" /> Add people by email
         </span>
       }
     >

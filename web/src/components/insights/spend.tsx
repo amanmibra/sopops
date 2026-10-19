@@ -53,8 +53,8 @@ export function SpendCard({ filters }: { filters: InsightFilters }) {
   return (
     <WidgetCard
       title="Model spend"
-      subtitle={`What the models cost this workspace over ${windowPhrase(filters)}, estimated from the price table (Settings).`}
-      help="Every model call sopops made: routing, checks, the reviewer, patterns, themes, suggestions, calibration. Counted for the whole workspace, whatever the agent or procedure filter. Cached answers cost nothing and aren't counted."
+      subtitle={`What the models cost your team over ${windowPhrase(filters)}, estimated from the price table (Settings).`}
+      help="Every model call sopops made: routing, checks, the reviewer, patterns, themes, suggestions, calibration. Counted for the whole team, whatever the agent or procedure filter. Cached answers cost nothing and aren't counted."
       loading={res.isPending}
       error={d ? undefined : res.error}
       onRetry={() => void res.refetch()}

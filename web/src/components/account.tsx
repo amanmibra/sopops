@@ -1,9 +1,9 @@
-// Signing in: the gate every page goes through, the sign-in buttons, the password and email forms, the first account on
-// a fresh install, the "ask an owner" page, and the user menu in the top bar (avatar, name, org, change password, sign
-// out).
+// Signing in: the gate every page goes through, the sign-in buttons, the password and email forms, the "ask your team"
+// page, and the user menu in the top bar (avatar, name, your teams and making one, change password, sign out). The
+// first account on a fresh install is made on /welcome.
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
-import { Check, KeyRound, LogOut, Mail } from "lucide-react";
+import { Check, KeyRound, LogOut, Mail, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AuthState, type UserOut, call, sdk } from "@/lib/api";
@@ -18,8 +18,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
-/** Pages anyone can open: signing in, an emailed sign-in link, a link that sets a password, and an invite link. */
-const OPEN_PAGES = ["/sign-in", "/sign-in/email", "/set-password", "/invite"];
+/** Pages anyone can open: signing in, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
+const OPEN_PAGES = ["/sign-in", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
 
 /**
  * With sign-in on: send people who aren't signed in to the sign-in page, and people in no org to "ask an owner".
@@ -348,74 +348,6 @@ export function NewPassword({ id, label = "Password", value, onChange }: { id: s
   );
 }
 
-/** A fresh install with no accounts yet: make the first one, which owns the org. */
-export function FirstAccount({ auth }: { auth: AuthState }) {
-  const signedIn = useSignedIn();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const submit = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await call(sdk.firstAccount({ body: { name: name.trim(), email: email.trim(), password } }));
-      signedIn("/");
-    } catch (e) {
-      setError(message(e));
-      setBusy(false);
-    }
-  };
-  return (
-    <Card title="Create the first account">
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
-        Nobody has an account on this sopops yet. The first account owns it and adds everyone else.
-      </p>
-      <form
-        className="grid gap-3"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void submit();
-        }}
-      >
-        <div className="grid gap-1">
-          <Label htmlFor="first-name" className="text-[13px]">
-            Name
-          </Label>
-          <Input id="first-name" autoComplete="name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div className="grid gap-1">
-          <Label htmlFor="first-email" className="text-[13px]">
-            Email
-          </Label>
-          <Input
-            id="first-email"
-            type="email"
-            required
-            autoComplete="username"
-            className="h-10"
-            placeholder="name@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </div>
-        <NewPassword id="first-password" value={password} onChange={setPassword} />
-        {error && <Banner tone="err">{error}</Banner>}
-        <Button type="submit" className="h-10 text-[14px]" disabled={busy || !email.trim() || password.length < 10}>
-          Create account and sign in
-        </Button>
-      </form>
-      {auth.providers.some((p) => p.redirects) && (
-        <div className="mt-3 grid gap-2.5">
-          <Or />
-          <RedirectButtons auth={auth} next="/" />
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "name" | "email" | "avatar_url">; size?: number; className?: string }) {
   const initials = (user.name || user.email)
     .split(/[\s@._-]+/)
@@ -441,12 +373,12 @@ export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "na
 function NoOrg({ auth }: { auth: AuthState }) {
   const signOut = useSignOut();
   return (
-    <Card title="Ask an owner to invite you">
+    <Card title="Ask your team for its join link">
       <p className="mb-3 text-[14px] leading-relaxed">
-        You're signed in as <b>{auth.user?.email}</b>, but you're not in an org on this sopops yet.
+        You're signed in as <b>{auth.user?.email}</b>, but you're not on a team on this sopops yet.
       </p>
       <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
-        Ask an owner or admin to add this email address in Settings, Members. Then sign in again, or open the link they send you, and you're in.
+        Ask an owner or admin for the team's join link, or to add this email in Settings, under Members. Then open the link, or sign in again, and you're in.
       </p>
       <Button variant="outline" onClick={() => void signOut()}>
         <LogOut /> Sign out
@@ -460,13 +392,14 @@ export function UserMenu({ auth }: { auth: AuthState }) {
   const qc = useQueryClient();
   const signOut = useSignOut();
   const [changing, setChanging] = useState(false);
+  const [creating, setCreating] = useState(false);
   const user = auth.user;
   if (!user) return null;
   const switchTo = async (orgId: string) => {
     try {
-      await call(sdk.switchOrg({ body: { org_id: orgId } }));
+      const state = await call(sdk.switchOrg({ body: { org_id: orgId } }));
       qc.clear();
-      window.location.assign("/");
+      window.location.assign(state.org?.workspace ? `/w/${encodeURIComponent(state.org.workspace)}` : "/");
     } catch (e) {
       toast.error(message(e));
     }
@@ -488,7 +421,7 @@ export function UserMenu({ auth }: { auth: AuthState }) {
             </span>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">{auth.orgs.length > 1 ? "Your orgs" : "Your org"}</DropdownMenuLabel>
+          <DropdownMenuLabel className="text-muted-foreground text-xs font-normal">{auth.orgs.length > 1 ? "Your teams" : "Your team"}</DropdownMenuLabel>
           {auth.orgs.map((o) => (
             <DropdownMenuItem key={o.id} onSelect={() => o.id !== auth.org?.id && void switchTo(o.id)} className="gap-2">
               <span className="flex-1 truncate">{o.name}</span>
@@ -496,6 +429,11 @@ export function UserMenu({ auth }: { auth: AuthState }) {
               {o.id === auth.org?.id ? <Check className="size-4" /> : <span className="size-4" />}
             </DropdownMenuItem>
           ))}
+          {auth.org && (
+            <DropdownMenuItem onSelect={() => setCreating(true)}>
+              <Plus className="size-4" /> Create a team
+            </DropdownMenuItem>
+          )}
           <DropdownMenuSeparator />
           {user.has_password && (
             <DropdownMenuItem onSelect={() => setChanging(true)}>
@@ -510,7 +448,59 @@ export function UserMenu({ auth }: { auth: AuthState }) {
       <Dialog open={changing} onOpenChange={setChanging}>
         <DialogContent className="sm:max-w-[420px]">{changing && <ChangePassword onDone={() => setChanging(false)} />}</DialogContent>
       </Dialog>
+      <Dialog open={creating} onOpenChange={setCreating}>
+        <DialogContent className="sm:max-w-[420px]">{creating && <CreateTeam onDone={() => setCreating(false)} />}</DialogContent>
+      </Dialog>
     </>
+  );
+}
+
+/** A new team you own, with nothing in it yet. You switch to it; your other teams stay as they are. */
+function CreateTeam({ onDone }: { onDone: () => void }) {
+  const qc = useQueryClient();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const made = await call(sdk.createTeam({ body: { name: name.trim() } }));
+      qc.clear();
+      window.location.assign(`/w/${encodeURIComponent(made.workspace)}`);
+    } catch (e) {
+      setError(message(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="grid gap-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit();
+      }}
+    >
+      <DialogHeader>
+        <DialogTitle>Create a team</DialogTitle>
+        <DialogDescription>A new team starts empty, and you own it. You stay on your other teams, and switch between them from this menu.</DialogDescription>
+      </DialogHeader>
+      <div className="grid gap-1">
+        <Label htmlFor="team-name" className="text-[13px]">
+          What's your team called?
+        </Label>
+        <Input id="team-name" autoFocus className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
+      </div>
+      {error && <Banner tone="err">{error}</Banner>}
+      <DialogFooter>
+        <Button type="button" variant="outline" onClick={onDone}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={busy || !name.trim()}>
+          Create team
+        </Button>
+      </DialogFooter>
+    </form>
   );
 }
 
