@@ -20,6 +20,16 @@ Then every call comes back to sopops and is checked against the procedures it sh
 
 ## The loop
 
+```mermaid
+flowchart LR
+    E["✏️ Edit<br/>blocks and agents"] --> P["🚀 Publish<br/>a release"]
+    P --> C["📞 Calls<br/>agents fetch it at call start"]
+    C --> K["✅ Check<br/>every step, with quotes"]
+    K --> R["🔍 Review<br/>patterns of misses"]
+    R --> F["🛠️ Fix<br/>a suggested edit"]
+    F -- "drafts" --> P
+```
+
 1. **Edit** shared instructions, procedures and agents in the browser, or keep them in git. Every save is a draft.
 2. **Publish** a release. Agents fetch it when a call starts, or sopops pushes it to the platform. Rolling back is one click.
 3. **Check** each call, step by step, against the release it ran on, with the quotes that show it.
