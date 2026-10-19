@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Textarea } from "../ui/textarea";
 import { repoProjectQuery, repoQuery } from "../repo";
 import { ProjectFinding, RepoConnect } from "./github";
+import { BlocksExplainer } from "./blocks-diagram";
 import { SopcSource } from "./sopc";
 
 type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
@@ -58,6 +59,7 @@ export function ImportStart() {
         Bring in the prompts your agents run today. sopops splits each one into the agent's own text, shared instructions and procedures, merges what agents share, and
         shows where they differ. You review everything before it's saved, as drafts.
       </Sub>
+      <BlocksExplainer />
       {open.length > 0 && (
         <Panel title="In progress">
           <ul className="grid gap-1">
