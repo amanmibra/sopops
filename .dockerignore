@@ -8,3 +8,4 @@ tests/
 web/node_modules/
 web/dist/
 src/sopops/static/
+.env

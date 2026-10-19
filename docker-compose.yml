@@ -1,10 +1,17 @@
 # sopops with Postgres. `docker compose up --build`, then open http://127.0.0.1:8484.
-# There is no authentication yet, so the ports are bound to localhost only.
+#
+# Settings come from .env next to this file (optional): copy .env.example to .env and fill in what you use. Compose
+# reads it for the ${VAR} entries below and passes the whole file to the app and the worker. Exported shell variables
+# win over .env for the ${VAR} entries.
+#
+# The app is published on 127.0.0.1 only (SOPOPS_HOST_PORT, default 8484). To reach it from other machines, change
+# "127.0.0.1:" to "0.0.0.0:" under ports, set SOPOPS_PUBLIC_URL and SOPOPS_SECRET_KEY, keep sign-in on, and put TLS
+# in front.
 #
 # The session pipeline runs inside the app by default. To run it on Hatchet (hatchet-lite, Postgres only, no
 # RabbitMQ) with a separate worker:
 #   docker compose --profile hatchet up -d hatchet
-#   echo "HATCHET_CLIENT_TOKEN=$(docker compose exec hatchet /hatchet-admin token create --config /config --tenant-id 707d0855-80ab-4e1f-a156-f1c4546cbf52)" > .env
+#   echo "HATCHET_CLIENT_TOKEN=$(docker compose exec hatchet /hatchet-admin token create --config /config --tenant-id 707d0855-80ab-4e1f-a156-f1c4546cbf52)" >> .env
 #   docker compose --profile hatchet up --build
 # Hatchet's dashboard is on http://127.0.0.1:8888 (admin@example.com / Admin123!!).
 services:
@@ -24,17 +31,38 @@ services:
 
   app:
     build: .
+    env_file:
+      - path: .env
+        required: false
     environment: &app-env
       DATABASE_URL: postgresql://sopops:sopops@db:5432/sopops
+      # Encrypts stored platform keys and secrets, and where people reach sopops (.env.example says more).
+      SOPOPS_SECRET_KEY: ${SOPOPS_SECRET_KEY:-}
+      SOPOPS_PUBLIC_URL: ${SOPOPS_PUBLIC_URL:-}
+      # Sign-in: forced on or off, or unset (on once GitHub, Google or email is set up).
+      SOPOPS_AUTH_REQUIRED: ${SOPOPS_AUTH_REQUIRED:-}
+      SOPOPS_ALLOWED_EMAIL_DOMAINS: ${SOPOPS_ALLOWED_EMAIL_DOMAINS:-}
+      SOPOPS_GITHUB_OAUTH_CLIENT_ID: ${SOPOPS_GITHUB_OAUTH_CLIENT_ID:-}
+      SOPOPS_GITHUB_OAUTH_CLIENT_SECRET: ${SOPOPS_GITHUB_OAUTH_CLIENT_SECRET:-}
+      SOPOPS_GOOGLE_CLIENT_ID: ${SOPOPS_GOOGLE_CLIENT_ID:-}
+      SOPOPS_GOOGLE_CLIENT_SECRET: ${SOPOPS_GOOGLE_CLIENT_SECRET:-}
+      # Email: sign-in links, invites and reset links.
+      SOPOPS_SMTP_HOST: ${SOPOPS_SMTP_HOST:-}
+      SOPOPS_SMTP_PORT: ${SOPOPS_SMTP_PORT:-}
+      SOPOPS_SMTP_USER: ${SOPOPS_SMTP_USER:-}
+      SOPOPS_SMTP_PASSWORD: ${SOPOPS_SMTP_PASSWORD:-}
+      SOPOPS_SMTP_FROM: ${SOPOPS_SMTP_FROM:-}
+      SOPOPS_EMAIL_DEV: ${SOPOPS_EMAIL_DEV:-}
       # Models that check sessions (LiteLLM model strings) and the provider's key; unset, sessions aren't checked.
       SOPOPS_MODEL_FAST: ${SOPOPS_MODEL_FAST:-}
       SOPOPS_MODEL_REASONING: ${SOPOPS_MODEL_REASONING:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       HATCHET_CLIENT_TOKEN: ${HATCHET_CLIENT_TOKEN:-}
       HATCHET_CLIENT_TLS_STRATEGY: none
       HATCHET_CLIENT_HOST_PORT: hatchet:7077
     ports:
-      - "127.0.0.1:8484:8484"
+      - "127.0.0.1:${SOPOPS_HOST_PORT:-8484}:8484"  # localhost only; see the top of this file to expose it
     depends_on:
       db:
         condition: service_healthy
@@ -43,6 +71,9 @@ services:
     profiles: [hatchet]
     build: .
     command: ["sopops", "worker"]
+    env_file:
+      - path: .env
+        required: false
     environment: *app-env
     depends_on:
       db:

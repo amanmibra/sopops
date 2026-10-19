@@ -8,3 +8,4 @@ node_modules/
 web/dist/
 src/sopops/static/
 *.tsbuildinfo
+.env

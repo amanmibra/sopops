@@ -34,8 +34,11 @@ The loop:
 With Docker, from a clone:
 
 ```sh
+cp .env.example .env           # optional: keys, models, sign-in, email; leave out what you don't use
 docker compose up --build      # sopops and Postgres, on http://127.0.0.1:8484
 ```
+
+Compose reads `.env` for the settings it passes to sopops (`SOPOPS_SECRET_KEY`, `SOPOPS_PUBLIC_URL`, `SOPOPS_AUTH_REQUIRED`, the models and their keys, GitHub and Google sign-in, SMTP; [Configuration](#configuration) has them all), and exported shell variables win. It publishes the app on 127.0.0.1 only, on `SOPOPS_HOST_PORT` (default 8484); [docker-compose.yml](docker-compose.yml) says how to expose it. The image has Postgres, Hatchet and LiveKit capture (the `postgres`, `hatchet` and `livekit` extras) and sopc v0.0.17 (`--build-arg SOPC_REF=…` for another release). Migrations run when it starts.
 
 Or just the image: `docker build -t sopops . && docker run -p 127.0.0.1:8484:8484 sopops` (SQLite in its `/data` volume). Or from a clone, with [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later:
 
