@@ -425,7 +425,14 @@ function BlocksStep({ flow }: { flow: Flow }) {
     <StepShell
       flow={flow}
       step="blocks"
-      sub="Before you bring in your agents, here's how sopops stores their instructions (what your platform may call the prompt or system prompt). You'll see your own agents this way after the import."
+      sub={
+        <>
+          Most teams run several agents that are alike in some ways and different in others: one for each restaurant, customer or task. sopops splits their instructions
+          into blocks. Write a block once and every agent that uses it gets it. Change it once and all of those agents change together, so nobody edits each agent by
+          hand. Whatever is unique to one agent stays with that agent.
+          <span className="mt-2 block text-[13px]">Instructions are what your platform may call the prompt or system prompt.</span>
+        </>
+      }
       back={s.back}
       exit={s.exit}
       primary={{ label: "Continue", run: s.next }}

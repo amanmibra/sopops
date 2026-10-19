@@ -328,7 +328,7 @@ function Found({ draft, fidelity, onAgent }: { draft: Draft; fidelity: AgentFide
   const failing = failingOf(fidelity);
   return (
     <>
-      <Intro>Click an agent to read its full instructions.</Intro>
+      <Intro>sopops split your agents' instructions into blocks. Each block is written once, and every agent that uses it gets it. Click an agent to read its full instructions.</Intro>
       <Panel>
         <BlocksDiagram
           blocks={{

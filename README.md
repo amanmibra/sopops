@@ -55,6 +55,8 @@ Open http://127.0.0.1:8484, create a workspace, and import your agents or add a 
 
 ## How it works
 
+Most teams run several agents that are alike in some ways and different in others: one for each restaurant, customer or task. sopops splits their instructions into blocks. Write a block once and every agent that uses it gets it. Change it once and all of those agents change together, so nobody edits each agent by hand. Whatever is unique to one agent stays with that agent.
+
 | | What it is |
 |---|---|
 | Shared instruction | Text several agents get (identity, voice, policy). |
