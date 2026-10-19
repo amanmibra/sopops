@@ -4,6 +4,8 @@
 
 **Manage your agents' instructions, serve them at call start, and QA every session against them.**
 
+Instructions are what your platform may call the prompt or system prompt.
+
 Edit shared instructions and procedures in a browser, compose each agent from them, and publish releases<br>
 your agents fetch when a call starts. Every session comes back, is checked rule by rule, and what keeps<br>
 going wrong is grouped into patterns you review and fix with a suggested edit.
@@ -16,18 +18,18 @@ going wrong is grouped into patterns you review and fix with a suggested edit.
 
 ## Why
 
-[sopc](https://github.com/amanmibra/sopc) keeps agent instructions in git and compiles one prompt per agent. sopops is the service around it: forms to edit blocks and compose agents, drafts and releases, an API each agent calls when it starts, and QA on what the agents then do. It compiles with the sopc binary itself, so its prompts match the CLI byte for byte.
+[sopc](https://github.com/amanmibra/sopc) keeps agent instructions in git and compiles each agent's full instructions. sopops is the service around it: forms to edit blocks and compose agents, drafts and releases, an API each agent calls when it starts, and QA on what the agents then do. It compiles with the sopc binary itself, so its output matches the CLI byte for byte.
 
 The loop:
 
 1. **Manage.** Shared instructions, procedures (SOPs) and agents, edited in the UI or kept in git. Every save is a draft; a release is an immutable snapshot.
-2. **Serve.** Agents fetch their prompt when a call starts (or sopops pushes it to the platform). A publish or a rollback reaches the next call, with no redeploy.
+2. **Serve.** Agents fetch their instructions when a call starts (or sopops pushes them to the platform). A publish or a rollback reaches the next call, with no redeploy.
 3. **Check.** Each session comes back with the release it ran on and is checked against every procedure that applied: each step, never rule and warning sign, with the quotes that show it.
 4. **Cluster.** Findings on a rule become a pattern, split into named failure modes once there are enough, grouped into themes by the phase of the call.
 5. **Review.** A verdict per pattern: a real mistake, acceptable, the SOP is wrong, or sopops is wrong. Acceptable and misjudged findings stop counting.
-6. **Suggest.** A verdict that calls for an edit gets one: a procedure change compiled with sopc, with each agent's prompt diff, applied as a draft or opened as a GitHub pull request. Insights compares releases, so you see whether it helped.
+6. **Suggest.** A verdict that calls for an edit gets one: a procedure change compiled with sopc, with a diff of each agent's instructions, applied as a draft or opened as a GitHub pull request. Insights compares releases, so you see whether it helped.
 
-<p align="center"><img src="docs/images/agent-builder.png" alt="The agent builder: the agent's own text, its blocks as an ordered stack of cards, its variables, and the draft prompt with a diff against the live release" width="900"></p>
+<p align="center"><img src="docs/images/agent-builder.png" alt="The agent builder: the agent's own text, its blocks as an ordered stack of cards, its variables, and the draft instructions with a diff against the live release" width="900"></p>
 
 ## Quickstart
 
@@ -55,19 +57,19 @@ Open http://127.0.0.1:8484, create a workspace, and import your agents or add a 
 
 | | What it is |
 |---|---|
-| Shared instruction | Prompt text several agents get (identity, voice, policy). |
+| Shared instruction | Text several agents get (identity, voice, policy). |
 | Procedure | An SOP: goal, when it applies, steps (with tools), never rules, warning signs. |
 | Group | A named, ordered list of blocks. An agent lists it like a block. |
 | Agent | One per voice agent: platform id, its own text, its blocks in order, variables. |
-| Release | What agents are served: every block plus the compiled prompts. Pin one per call for A/B tests. |
+| Release | What agents are served: every block plus each agent's full instructions. Pin one per call for A/B tests. |
 
-Before you publish, **Changes** (in Instructions) shows what was edited and exactly how each agent's prompt changes, plus any duplicated or conflicting instructions `sopc lint` finds. Roll back by making an older release live. The **Overview** shows every agent against every block:
+Before you publish, **Changes** (in Instructions) shows what was edited and exactly how each agent's instructions change, plus any duplicated or conflicting instructions `sopc lint` finds. Roll back by making an older release live. The **Overview** shows every agent against every block:
 
 <p align="center"><img src="docs/images/overview.png" alt="Overview: a grid of agents against groups, shared instructions and procedures, with checkmarks, including blocks that come through a group" width="860"></p>
 
 ## Import your agents
 
-Already running agents? **Import** turns their prompts into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish as usual.
+Already running agents? **Import** brings their instructions into sopops: each agent's own text, shared instructions, procedures, and `{{variables}}` where agents differ only by a value. Where they disagree on a rule you pick one or keep both. Every agent is compiled and compared with its original sentence by sentence, so nothing is dropped silently. Applying writes drafts; you publish as usual.
 
 **With Claude Code or Codex (recommended).** The Import page gives you a 2-hour onboarding token (this workspace only; it can send progress and a proposal, nothing else) and one command to run in your agents' repo:
 
@@ -79,18 +81,18 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=
 
 (Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. **In my repo too** (repo mode) connects GitHub right there, with the same form as Settings, and sopops looks in the folder (default `sops/`) on the base branch: a sopc project sopc builds is offered for import as it is; with none, the coding agent also opens the onboarding pull request adding it (nothing merges without you), reports it, and sopops follows it and pulls the folder into drafts when you merge it; one sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it in a pull request. **In sopops** can connect GitHub too (optional), so suggested fixes arrive as pull requests. `sopops-mcp` ships in the Python client SDK ([sdks/python](sdks/python), its `mcp` extra), so `uvx` installs only the client and the MCP library, not the server; it asks sopops over HTTP to compile, check and write files (`/v1/onboarding/…`, [API.md](API.md#onboarding)). The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill --url http://127.0.0.1:8484` copies your server's copy into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. `/path/to/sopops/sdks/python[mcp]` for a local clone).
 
-**An existing sopc project.** Already keep one, or export one from wherever your prompts live? Import → **A sopc project**: pick its folder (or read it from the connected GitHub repository) and add each agent's original prompt. sopops runs the same fidelity check (sentences kept, rules word for word, similarity, missing lines) and applying writes exactly the project's files as drafts (`POST …/imports/sopc`, [API.md](API.md#onboarding)). The [walkthrough](examples/walkthrough/WALKTHROUGH.md#2-onboard-the-agent-repo) shows both ways.
+**An existing sopc project.** Already keep one, or export one from wherever your agents' instructions live? Import → **A sopc project**: pick its folder (or read it from the connected GitHub repository) and add each agent's original instructions. sopops runs the same fidelity check (sentences kept, rules word for word, similarity, missing lines) and applying writes exactly the project's files as drafts (`POST …/imports/sopc`, [API.md](API.md#onboarding)). The [walkthrough](examples/walkthrough/WALKTHROUGH.md#2-onboard-the-agent-repo) shows both ways.
 
 **Paste, upload, ElevenLabs or Vapi.** sopops extracts with its own model (`SOPOPS_MODEL_REASONING`; `rules` tries it without a model). Platform keys are used for that request only, never stored or logged.
 
 ## Connect your agent
 
-Each agent gets its prompt one of two ways, set per agent under the gear icon → Delivery:
+Each agent gets its instructions one of two ways, set per agent under the gear icon → Delivery:
 
 - **Pull:** the agent, or its platform's call-start webhook, fetches the live release when a call starts.
-- **Push:** publishing, or making a release live, writes the prompt into the agent on its platform, with results and retry on the release.
+- **Push:** publishing, or making a release live, writes the instructions into the agent on its platform, with results and retry on the release.
 
-| Platform | Prompt | Sessions back |
+| Platform | Instructions | Sessions back |
 |---|---|---|
 | **LiveKit** | Pull with the Python SDK's `attach` (or `fetchInstructions` in TypeScript) | No code: connect the LiveKit Cloud project and add its webhook, and sopops joins each call and records it live (no tool calls). Or `attach`, which posts `session.history` with tool calls at shutdown and can stream it; `recordSession` in TypeScript |
 | **ElevenLabs** | Push (`conversation_config.agent.prompt.prompt`), the conversation-initiation webhook for phone calls, or client overrides from the TypeScript SDK | No code: the post-call webhook, with tool calls; on Enterprise, phone calls also stream live from the monitor socket. Or the TypeScript SDK's `elevenLabsSession` (posted, optionally streamed) |
@@ -125,17 +127,17 @@ const conversation = await Conversation.startSession({ ...s.sessionOptions });
 const ins = await sopops.fetchInstructions("front-desk", { fallback: "You are a helpful assistant." });   // any framework
 ```
 
-**Webhooks.** ElevenLabs phone calls: the conversation-initiation webhook at `…/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-Sopops-Secret` (and the agent's system-prompt override allowed). Vapi: the phone number's Server URL at `…/runtime/vapi/assistant-request?agent=<id>`, with the secret as a Bearer Token credential.
+**Webhooks.** ElevenLabs phone calls: the conversation-initiation webhook at `…/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-Sopops-Secret` (and, under Security → Overrides, the System prompt override allowed). Vapi: the phone number's Server URL at `…/runtime/vapi/assistant-request?agent=<id>`, with the secret as a Bearer Token credential.
 
 **Sessions with no code.** Set up under the gear icon → Agents and platforms → Platforms. Each one feeds the same ingest and streaming as the SDKs, and a session that streamed and then arrives whole (a post-call webhook, an end-of-call report) stays one session: the full post wins.
 
 - *LiveKit.* Connect the project (URL, an API key and its secret; `pip install 'sopops[livekit]'` where sopops and its worker run), then in LiveKit Cloud → Settings → Webhooks add `…/capture/livekit/webhook`, signed with that key. When an agent joins a room, sopops joins it hidden and subscribe-only, reads the transcript the agent publishes on `lk.transcription`, and streams it into a session keyed by the job id (as `attach` keys it), closed when the call ends. The agent is the name it was dispatched with, else `{"sopops": {"agent": "<id>"}}` in job or room metadata, else the mapping in Settings. Tool calls aren't in the room, so they aren't recorded this way.
 - *ElevenLabs.* Add a post-call webhook (transcripts) at `…/capture/elevenlabs/post-call` and paste its HMAC secret into Settings. On Enterprise, turn on live monitoring (and Monitoring in the agent's Advanced settings): each call the conversation-initiation webhook serves is followed on the monitor socket with the API key. Where that's refused, it falls back to the post-call webhook, and Settings says why.
-- *Vapi.* On the assistant, under Server Messages, turn on `end-of-call-report`, `conversation-update` and `transcript` beside `assistant-request`. Same auth as the prompt.
+- *Vapi.* On the assistant, under Server Messages, turn on `end-of-call-report`, `conversation-update` and `transcript` beside `assistant-request`. Same auth as the instructions.
 
 Webhooks need sopops reachable from the internet: for local testing, a tunnel such as `cloudflared tunnel --url http://127.0.0.1:8484`, and open the UI through the tunnel's address so Settings shows the right webhook URLs.
 
-**Tokens.** The gear icon → Tokens, each with the scopes it needs: `runtime` (prompt fetches, call-start webhooks) and `ingest` (sessions). Shown once, stored hashed, can expire or be revoked. Once a workspace has a runtime token, prompt fetches need one; without one it serves prompts openly, for local use. Platform keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned.
+**Tokens.** The gear icon → Tokens, each with the scopes it needs: `runtime` (fetching instructions, call-start webhooks) and `ingest` (sessions). Shown once, stored hashed, can expire or be revoked. Once a workspace has a runtime token, fetching instructions needs one; without one it serves instructions openly, for local use. Platform keys and webhook secrets are encrypted with `SOPOPS_SECRET_KEY` and never returned.
 
 ## Sessions and checks
 
@@ -172,7 +174,7 @@ A single finding can be marked wrong too. A pattern with a verdict exports its s
 
 Each pattern then moves through review states: **needs review** (no verdict, or a recluster changed its findings since), **open** (a real mistake or a wrong SOP, not fixed yet), **fixing** (a suggestion applied or its pull request open or merged, waiting for the release to go live and for 10 sessions on it), **fixed**, or **regressed** (it came back on sessions that ran the fix, so it's back in the queue), and **closed** for acceptable and checker-wrong. Pull requests are followed on GitHub: merged moves the pattern on, closed reopens it.
 
-**Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows each agent's prompt diff. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. When the procedure changed after a suggestion was written (another one was applied, or someone edited it), the edit is merged into the file as it is now if the two touch different lines and the result compiles; if they overlap, the suggestion shows the conflicting lines and can't be applied, and **Rewrite against the current text** writes it again from the file as it is, keeping the edits made since. Details: [API.md](API.md#review-and-suggestions).
+**Suggestions.** The reviewer model proposes the smallest edit to the procedure that settles the verdict; sopops compiles it with sopc (one retry if it doesn't) and shows how each agent's instructions change. Apply saves it as a draft, or opens a pull request when the workspace has a GitHub repository connected. When the procedure changed after a suggestion was written (another one was applied, or someone edited it), the edit is merged into the file as it is now if the two touch different lines and the result compiles; if they overlap, the suggestion shows the conflicting lines and can't be applied, and **Rewrite against the current text** writes it again from the file as it is, keeping the edits made since. Details: [API.md](API.md#review-and-suggestions).
 
 ## Models
 
@@ -181,7 +183,7 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 - **Two roles.** `SOPOPS_MODEL_FAST` answers the decisions (routing, rule checks, pattern assignment) and `SOPOPS_MODEL_REASONING` is the reviewer: it judges the rules the decisions flag or aren't sure about, splits rules into checks, names patterns, clusters, names themes and writes suggestions. Model strings like `anthropic/claude-haiku-4-5` and `anthropic/claude-sonnet-5-5`, with the provider's key in its usual variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...); either alone serves both. Any provider DSPy knows works, or an OpenAI-compatible endpoint for local models (`SOPOPS_LLM_API_BASE`). Unset, sessions are stored but not checked.
 - **Jev (optional).** With `pip install 'sopops[jev]'` and a `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) answers the decisions instead of the fast model: calibrated probabilities, faster and much cheaper than an LLM call. The reviewer still reviews.
 - **Check modes.** `decide` (default): decisions first, the reviewer on what they flag. `review`: the reviewer judges every rule. `SOPOPS_CHECK_REVIEW=off` lets the decisions stand.
-- **Spend.** Every model call is recorded with its tokens and an estimated cost (a price table you can override with `SOPOPS_MODEL_PRICES`), by purpose and session: QA → Insights → Model spend, and each session's page ([API.md](API.md#model-spend)). Prompts aren't stored.
+- **Spend.** Every model call is recorded with its tokens and an estimated cost (a price table you can override with `SOPOPS_MODEL_PRICES`), by purpose and session: QA → Insights → Model spend, and each session's page ([API.md](API.md#model-spend)). The text sent to models isn't stored.
 - **Calibration.** Decision thresholds can be fitted to a workspace's own labeled sessions (verdicts and overrides are the labels; checker-wrong ones are negative) and are stored per workspace; until then the defaults apply (`SOPOPS_DECISIONS` overrides them). Run it with `sopops calibrate --workspace WS [--procedure P] [--dry-run]` or `POST …/calibrate`: it reports each threshold before and after, and refuses a procedure with fewer than 5 labeled sessions or no rule with 3 labeled failures. Calibration widens the review band, never narrows it.
 
 ## Configuration
@@ -258,7 +260,7 @@ Only addresses Google marks `email_verified` count.
 
 **Behind a proxy**, set `SOPOPS_PUBLIC_URL` to the address people use (`https://sopops.example.com`), so the callback URLs, sign-in links and invite links match what you registered. The per-client limit on email links counts the address the request comes from, so behind a proxy it counts the proxy unless uvicorn trusts its forwarded headers. Cookies are marked Secure when the request is https (with uvicorn behind a proxy, pass `--proxy-headers` and `--forwarded-allow-ips` so it sees `X-Forwarded-Proto`).
 
-**How it works.** GitHub and Google sign-in use OAuth with `state` and PKCE; email, invite and password links are random tokens stored hashed. A login session is a random token in an HttpOnly, SameSite=Lax cookie, stored hashed; it lasts 30 days from the last visit and ends when you sign out. Requests that change something with the cookie also send `X-CSRF-Token`, the value of the `sopops_csrf` cookie (the web UI does this), which another site can't read. With sign-in on, prompt fetches need the workspace's runtime token (or someone signed in), even for a workspace that has none yet, so make one in Settings → Access first. Every route's rule is in one table, `src/sopops/auth/access.py`.
+**How it works.** GitHub and Google sign-in use OAuth with `state` and PKCE; email, invite and password links are random tokens stored hashed. A login session is a random token in an HttpOnly, SameSite=Lax cookie, stored hashed; it lasts 30 days from the last visit and ends when you sign out. Requests that change something with the cookie also send `X-CSRF-Token`, the value of the `sopops_csrf` cookie (the web UI does this), which another site can't read. With sign-in on, fetching instructions needs the workspace's runtime token (or someone signed in), even for a workspace that has none yet, so make one in Settings → Access first. Every route's rule is in one table, `src/sopops/auth/access.py`.
 
 **More login providers.** Providers register into `sopops.auth.providers`; a package can add one (SAML, say) through the `sopops.login_providers` entry point group. One that signs people in some other way can also turn passwords off with `providers.unregister("password")`.
 
@@ -306,11 +308,11 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 
 | Endpoint | What it does |
 |---|---|
-| `GET …/agents/<agent>` | **Call start.** The prompt, release, hash, tools and the components it was built from. `?release=N` pins a release. |
-| `GET …/agents/<agent>/prompt` | Just the prompt text. |
+| `GET …/agents/<agent>` | **Call start.** The agent's full instructions, release, hash, tools and the components they were built from. `?release=N` pins a release. |
+| `GET …/agents/<agent>/prompt` | Just the instructions, as text. |
 | `…/runtime/delivery`, `…/runtime/platforms`, `POST …/runtime/served` | Each agent's delivery mode; platform keys and webhook secrets (write-only); which release a platform call ran on. |
 | `GET …/releases/<n>/pushes`, `POST …/pushes/retry` | What publishing pushed to ElevenLabs and Vapi; push again. |
-| `POST …/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` | Call-start webhooks that serve the prompt. |
+| `POST …/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` | Call-start webhooks that serve the instructions. |
 | `POST …/sessions`; `…/sessions/open`, `…/sessions/<platform>/<id>/events`, `…/close` | **Session end**, with an `ingest` token; or streamed while it runs. |
 | `GET …/sessions`, `…/sessions/<id>`, `…/sessions/stream` | List sessions (filters, cursor), one with its transcript and checks, and live events (SSE). |
 | `GET …/patterns`, `…/patterns/<id>`, `POST …/patterns/recluster` | Patterns with their failure modes; recluster now. |
@@ -326,13 +328,13 @@ Paths are under `/v1/workspaces/<ws>`. The full spec is at `/openapi.json` (SDKs
 | `GET/POST/DELETE …/repo`, `POST …/repo/{pull,sync,send}`, `…/repo/conflict` | The workspace's GitHub repository (token write-only; `null` when none); pull or sync its sopc project into drafts, send drafts back as a pull request, settle sync conflicts. |
 | `/v1/github/*` | The GitHub App: its status, install, create (manifest flow), webhooks. |
 | `/v1/auth/*`, `/v1/org/*` | Signing in with GitHub or Google, signing out; the org's members, roles, invites and allowed email domains. |
-| `…/imports`, `/v1/onboarding/*` | Import existing prompts: extraction jobs, onboarding tokens for coding agents, review and apply. |
+| `…/imports`, `/v1/onboarding/*` | Import agents' existing instructions: extraction jobs, onboarding tokens for coding agents, review and apply. |
 
 Errors from sopc come back as `422 {"valid": false, "issues": [...]}`, each issue naming the item and field it's about, in plain words.
 
 ## Status
 
-v0. With no login provider set up there is no sign-in: workspace tokens guard session ingest, onboarding pushes and, once the workspace has a runtime token, prompt fetches, and anyone who can reach sopops can read and change everything else, so run it on a private network only. Set up GitHub or Google sign-in ([Sign in](#sign-in)) to put the rest behind a login.
+v0. With no login provider set up there is no sign-in: workspace tokens guard session ingest, onboarding pushes and, once the workspace has a runtime token, fetching instructions, and anyone who can reach sopops can read and change everything else, so run it on a private network only. Set up GitHub or Google sign-in ([Sign in](#sign-in)) to put the rest behind a login.
 
 | Built | Planned |
 |---|---|
@@ -356,7 +358,7 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `src/sopops/orm/` | Database tables, one module per table; migrations in `migrations/` |
 | `src/sopops/ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide` (decisions and review), `programs` and `calibration` (fitted thresholds), `fakes` (for tests) |
 | `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
-| `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering prompts to platforms; inline or Hatchet runs |
+| `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering instructions to platforms; inline or Hatchet runs |
 | `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `lineage.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
 | `src/sopops/cli.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild, patterns rename) |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |

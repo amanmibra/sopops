@@ -6,8 +6,8 @@ Everything here is synthetic: the restaurants, the callers, the phone numbers (5
 
 ```
 walkthrough/
-  agent/before/          the team's repo before sopops: prompts.py builds each restaurant's prompt in code
-  agent/after/           the same agent fetching its prompt from sopops (the diff is in step 3)
+  agent/before/          the team's repo before sopops: prompts.py builds each restaurant's instructions in code
+  agent/after/           the same agent fetching its instructions from sopops (the diff is in step 3)
   onboarding/            proposal.json: what a coding agent makes of agent/before (for the no-agent path)
   serve.py               sopops on 127.0.0.1:8585 with its own database, fake or real models
   fake_models.py         fake mode: scripted stand-ins for every model call
@@ -72,7 +72,7 @@ Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`
 
 ### 2. Onboard the agent repo
 
-`agent/before` is the team's repo as it is today. `prompts.py` builds four prompts from shared sections (a host role, a brand voice, allergen, delivery and reservation sections, a closing) plus each restaurant's details. Copper Wok's allergen section is an older hand-edited copy whose first "never" rule says something slightly different: drift for onboarding to find.
+`agent/before` is the team's repo as it is today. `prompts.py` builds four agents' instructions from shared sections (a host role, a brand voice, allergen, delivery and reservation sections, a closing) plus each restaurant's details. Copper Wok's allergen section is an older hand-edited copy whose first "never" rule says something slightly different: drift for onboarding to find.
 
 **With Claude Code (the documented path).** In sopops, open **Instructions → Import** (`/w/walkthrough/import`), choose **Use Claude Code**, and copy the one command it gives you. Run it inside the agent repo:
 
@@ -99,9 +99,9 @@ Look at the import page (the command prints its URL, `/w/walkthrough/import/<id>
 just examples/walkthrough/onboard-publish  # resolve the drift, apply, publish release 1
 ```
 
-Expected: release 1 at `/w/walkthrough/releases`, and each agent's prompt at `/w/walkthrough/agents/<agent>/prompt`, the same text `prompts.py` built (fidelity 100%).
+Expected: release 1 at `/w/walkthrough/releases`, and each agent's instructions at `/w/walkthrough/agents/<agent>/prompt`, the same text `prompts.py` built (fidelity 100%).
 
-**Or: from an existing sopc project.** A team that already keeps its instructions as a sopc project (or exports one from wherever its prompts live, a database say) onboards without a coding agent. `onboarding/sops/` is that project for these four agents, with the shared allergen wording already chosen. In **Instructions → Import**, choose **A sopc project** and pick that folder (or, with a GitHub repository connected, read it from there), then **Add original** for each agent with the prompt `prompts.py` builds. The import page shows, per agent, the share of the original's sentences kept, how many rules appear word for word, how similar the two texts are, and the lines that are missing: Bayleaf and Juniper keep everything; both Copper Woks lose their own wording of the allergen never rule (9 of 10 rules word for word, 1 line missing), which is the drift the team settled. **Apply as drafts** writes exactly the project's files; publish as usual. The script does all of it:
+**Or: from an existing sopc project.** A team that already keeps its instructions as a sopc project (or exports one from wherever its agents' instructions live, a database say) onboards without a coding agent. `onboarding/sops/` is that project for these four agents, with the shared allergen wording already chosen. In **Instructions → Import**, choose **A sopc project** and pick that folder (or, with a GitHub repository connected, read it from there), then **Add original** for each agent with the prompt `prompts.py` builds. The import page shows, per agent, the share of the original's sentences kept, how many rules appear word for word, how similar the two texts are, and the lines that are missing: Bayleaf and Juniper keep everything; both Copper Woks lose their own wording of the allergen never rule (9 of 10 rules word for word, 1 line missing), which is the drift the team settled. **Apply as drafts** writes exactly the project's files; publish as usual. The script does all of it:
 
 ```sh
 just examples/walkthrough/onboard-sopc     # instead of onboard: import onboarding/sops/ with the originals, apply, publish release 1
@@ -109,9 +109,9 @@ just examples/walkthrough/onboard-sopc     # instead of onboard: import onboardi
 
 `WALKTHROUGH_ONBOARD=sopc just examples/walkthrough/all` runs the whole walkthrough this way; the release and everything after it are the same.
 
-### 3. Switch the agent to fetch its prompt
+### 3. Switch the agent to fetch its instructions
 
-`agent/after/agent.py` is the same agent with the prompt coming from sopops. `prompts.py` is gone; the agent asks for `livekit:<AGENT_NAME>` when each call starts, notes the release on the session, streams the call to sopops and posts it at shutdown:
+`agent/after/agent.py` is the same agent with its instructions coming from sopops. `prompts.py` is gone; the agent asks for `livekit:<AGENT_NAME>` when each call starts, notes the release on the session, streams the call to sopops and posts it at shutdown:
 
 ```diff
  from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli
@@ -144,7 +144,7 @@ and `sopops-client[livekit]` in `pyproject.toml`. To run it against a real LiveK
 just examples/walkthrough/generate     # --seed 7 --backfill 200 --new 100
 ```
 
-Writes `out/backfill.jsonl` (200 calls over the 14 days before today, on release 1's prompts), `out/new.jsonl` (100 calls for after the fix) and `out/ground_truth.json`. Each call is a LiveKit job: its `ChatContext` items (messages, `function_call`, `function_call_output`). What's planted, per rule:
+Writes `out/backfill.jsonl` (200 calls over the 14 days before today, on release 1's instructions), `out/new.jsonl` (100 calls for after the fix) and `out/ground_truth.json`. Each call is a LiveKit job: its `ChatContext` items (messages, `function_call`, `function_call_output`). What's planted, per rule:
 
 | Rule | Planted failure modes | Verdict it should get |
 |---|---|---|
@@ -180,9 +180,9 @@ Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each conv
 - "Used the word safe while declining to promise it" (fake mode): **Checker is wrong**. Suppressed, and kept as negative calibration labels.
 - The other patterns: **Real mistake**, no suggestion asked for.
 
-**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, with the prompt diff of every agent it changes. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected under **the gear icon** (Settings), open each as a pull request instead.
+**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, showing how it changes each agent's instructions. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected under **the gear icon** (Settings), open each as a pull request instead.
 
-**Instructions → Changes** (`/w/walkthrough/changes`) shows the two procedure edits and every agent's prompt diff. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
+**Instructions → Changes** (`/w/walkthrough/changes`) shows the two procedure edits and how each agent's instructions change. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
 
 ### 7. Replay new calls, as if live
 

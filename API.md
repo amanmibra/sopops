@@ -2,7 +2,7 @@
 
 Every endpoint. Paths below are under `/v1/workspaces/<ws>` unless they start with `/v1/`. The OpenAPI spec at `/openapi.json` has every field; `/docs` lets you try them.
 
-With no login provider set up there's no sign-in: only the workspace tokens (session ingest, onboarding, and prompt fetches once the workspace has a runtime token) guard anything, so keep sopops on a private network. With GitHub or Google sign-in set up, every other endpoint needs a login session ([Sign-in and the org](#sign-in-and-the-org)).
+With no login provider set up there's no sign-in: only the workspace tokens (session ingest, onboarding, and fetching instructions once the workspace has a runtime token) guard anything, so keep sopops on a private network. With GitHub or Google sign-in set up, every other endpoint needs a login session ([Sign-in and the org](#sign-in-and-the-org)).
 
 Each operation's `operationId` is its route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients have readable function names; the web UI's typed client (`web/src/client`) is generated this way. Paths outside `/v1` (and `/docs`, `/openapi.json`) serve the web UI.
 
@@ -34,7 +34,7 @@ What the UI edits. Each item is stored as a sopc file (sopops writes it, then re
 | `POST …/config/agents/<id>/preview` | The agent's fields, unsaved: `{valid, issues, prompt, hash, blocks, release, released_prompt}`. Compiles with the rest of head; saves nothing. |
 | `…/config/instructions[/<id>]` | Shared instructions: `{id, text}`. Deleting one takes it out of every agent and group that lists it. |
 | `…/config/procedures[/<id>]` | Procedures (SOPs): `{id, name, goal, when, guidance, steps: [{text, tool, required}], never, warning_signs, delivery: prompt\|auto\|tool}`. New ones are written as Markdown; one that came from git keeps its format unless Markdown can't hold an edit, then it becomes YAML. Deleting one takes it out of every agent and group. |
-| `…/config/groups[/<id>]` | Groups, kept in `sopc.yaml`: `{id, blocks}`. Deleting one lists its blocks in its place wherever it was used, so no prompt changes. |
+| `…/config/groups[/<id>]` | Groups, kept in `sopc.yaml`: `{id, blocks}`. Deleting one lists its blocks in its place wherever it was used, so no agent's instructions change. |
 | `GET/PUT …/config/settings` | `{variables, procedures_heading}`. |
 | `GET …/config/<kind>/<id>/history` | Every version, newest first. Groups and settings list only the versions of `sopc.yaml` that changed them. |
 | `GET …/config/<kind>/<id>/versions/<n>` | An older version, as fields. One that set `locked` is read as `sopc migrate` converts it; one saved in the v0.0.8 format comes back with `legacy: true` and its `content`. |
@@ -58,9 +58,9 @@ Paths under `build/` in uploads are ignored; absolute paths and `..` are rejecte
 
 | Endpoint | What it does |
 |---|---|
-| `GET …/draft` | Unpublished changes: files and `items` changed since the current release (each with its fields `before` and `after`), and agents added, changed, removed or unchanged, with the draft and released prompts, and `lint`: what `sopc lint` finds in the draft (duplicated or conflicting instructions; advisory, publishing isn't blocked). A release in an older format is compared as `sopc migrate` converts it. |
+| `GET …/draft` | Unpublished changes: files and `items` changed since the current release (each with its fields `before` and `after`), and agents added, changed, removed or unchanged, with the draft and released instructions, and `lint`: what `sopc lint` finds in the draft (duplicated or conflicting instructions; advisory, publishing isn't blocked). A release in an older format is compared as `sopc migrate` converts it. |
 | `POST …/releases` | `{author?, note?}`: release head and serve it (returns the current release if nothing changed). |
-| `GET …/releases`, `GET …/releases/<n>` | Release history; one release with every agent's prompt. |
+| `GET …/releases`, `GET …/releases/<n>` | Release history; one release with every agent's instructions. |
 | `POST …/releases/<n>/activate` | Serve an older release (roll back). |
 | `POST …/publish` | `{files, author?, note?}`: replace + release in one call, for CI. |
 | `POST …/migrate` | `{apply?, author?, note?}`: convert a workspace stored in an older sopc format with `sopc migrate`: the v0.0.8 format, or `locked` (v0.0.9), which it removes. Returns `{needed, plan, applied, changed}`; with `apply`, the converted files are written as a draft. |
@@ -71,17 +71,17 @@ Paths under `build/` in uploads are ignored; absolute paths and `..` are rejecte
 |---|---|
 | `GET …/agents` | Agents in the current release (`?release=N` for another). |
 | `GET …/agents/<agent>` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `?release=N` pins a release (A/B). Logs a fetch. |
-| `GET …/agents/<agent>/prompt` | Just the prompt as text, with `X-Sopc-Release` and `X-Sopc-Hash`. Logs a fetch. |
+| `GET …/agents/<agent>/prompt` | Just the instructions as text, with `X-Sopc-Release` and `X-Sopc-Hash`. Logs a fetch. |
 | `GET …/agents/<agent>/sops/<id>` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. |
-| `GET …/fetches?agent=` | Which release and prompt hash each agent was served, newest first. |
+| `GET …/fetches?agent=` | Which release and instructions hash each agent was served, newest first. |
 
 `GET …/agents/<agent>`, `…/prompt` and `…/sops/<id>` take a token with the `runtime` scope ([Tokens](#tokens)) as `Authorization: Bearer <token>` once the workspace has one, and answer `401` without it (`403` for a token without the scope). A workspace without an unrevoked runtime token serves them openly (local mode).
 
-`<agent>` is the sopc agent id (`tonys-pizza`) or its platform ref (`livekit:tonys-pizza`). `components` lists each file the prompt was built from, in prompt order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9).
+`<agent>` is the sopc agent id (`tonys-pizza`) or its platform ref (`livekit:tonys-pizza`). `components` lists each file the instructions were built from, in order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9).
 
 ## Runtime delivery
 
-How each agent gets its prompt: **pull** (the agent, or its platform's call-start webhook, fetches it) or **push** (sopops writes it into the agent on ElevenLabs or Vapi when a release goes live), or both.
+How each agent gets its instructions: **pull** (the agent, or its platform's call-start webhook, fetches it) or **push** (sopops writes it into the agent on ElevenLabs or Vapi when a release goes live), or both.
 
 | Endpoint | What it does |
 |---|---|
@@ -94,15 +94,15 @@ How each agent gets its prompt: **pull** (the agent, or its platform's call-star
 | `POST …/runtime/platforms/<platform>/test` | `{platform_id?}`: read one agent with the stored key (a GET; default: the first agent at head on that platform). `{ok, platform_id, message}`. |
 | `GET …/releases/<n>/pushes` | Each push-mode agent's latest push of the release: `{agent, platform, platform_id, status: ok \| unchanged \| error, version_id, error, attempts, at}`. |
 | `POST …/releases/<n>/pushes/retry` | `{agents?}`: push again (default: the agents whose last push failed). `409` unless the release is live. |
-| `POST …/runtime/served` | `{platform, call_id, agent, release}` with a runtime-scoped token: a client that fetched the prompt itself reports the call it served, so the session links to the release. |
+| `POST …/runtime/served` | `{platform, call_id, agent, release}` with a runtime-scoped token: a client that fetched the instructions itself reports the call it served, so the session links to the release. |
 | `POST …/runtime/elevenlabs/conversation-init` | ElevenLabs' conversation-initiation webhook (`?agent=`, `?release=` optional; default: the agent named by `agent_id` in the body, live release). Returns `{type: "conversation_initiation_client_data", dynamic_variables: {sopops_release, sopops_agent}, conversation_config_override: {agent: {prompt: {prompt}}}}`. |
 | `POST …/runtime/vapi/assistant-request` | Vapi's server URL (`?agent=` needed if the release has more than one Vapi agent; `?release=` optional). For `assistant-request`: `{assistantId, assistantOverrides: {model, variableValues: {sopops_prompt, sopops_release, sopops_agent}, metadata}}`, where `model` is the assistant's own (read with the stored key, cached 5 minutes) with the system message replaced; without a key, only `variableValues` (use `{{sopops_prompt}}` as the system message). Other message types get `{}`. |
 
-**Push.** Creating a release (`POST …/releases`, `…/publish`) or activating one pushes it to every push-mode agent, after the response. ElevenLabs: `GET /v1/convai/agents/<id>`, then `PATCH` with `{conversation_config: {agent: {prompt: {prompt}}}}`; an agent whose workflow has nodes besides start and end is refused, since its main prompt isn't the whole prompt. Vapi: `GET /assistant/<id>`, then `PATCH {model}` with every model field kept and the one system message replaced (added if there's none; refused if there are several). A prompt that's already live is recorded as `unchanged` without a write. `version_id` is ElevenLabs' `version_id` or Vapi's `latestVersion` when returned.
+**Push.** Creating a release (`POST …/releases`, `…/publish`) or activating one pushes it to every push-mode agent, after the response. ElevenLabs: `GET /v1/convai/agents/<id>`, then `PATCH` with `{conversation_config: {agent: {prompt: {prompt}}}}`; an agent whose workflow has nodes besides start and end is refused, since its main prompt isn't all of its instructions. Vapi: `GET /assistant/<id>`, then `PATCH {model}` with every model field kept and the one system message replaced (added if there's none; refused if there are several). Instructions that are already live are recorded as `unchanged` without a write. `version_id` is ElevenLabs' `version_id` or Vapi's `latestVersion` when returned.
 
 **Webhook authentication.** A request is accepted with the platform's webhook secret, as `Authorization: Bearer`, `X-Sopops-Secret` or `X-Vapi-Secret`, or as an HMAC-SHA256 signature: ElevenLabs' `ElevenLabs-Signature: t=…,v0=…` over `"{t}.{body}"` (at most 30 minutes old), or Vapi's `x-signature` (hex) and `x-timestamp` over `"{timestamp}.{body}"` (within 5 minutes). A token with the `runtime` scope as a bearer works too. A workspace with neither a webhook secret nor a runtime token accepts them unauthenticated (local mode), unless `SOPOPS_REQUIRE_WEBHOOK_SECRET` is true (set it when sopops is hosted): then they get `401`.
 
-**Linking sessions.** Each prompt served by a webhook, or reported to `…/runtime/served`, is kept for 7 days keyed by the call id: Vapi's `call.id`, ElevenLabs' `conversation_id` or `call_sid`. A session ingested without a `release` takes it from there, matching `external_id`, `metadata.call_sid` or `metadata.phone_call.call_sid`.
+**Linking sessions.** Each serve, by a webhook or reported to `…/runtime/served`, is kept for 7 days keyed by the call id: Vapi's `call.id`, ElevenLabs' `conversation_id` or `call_sid`. A session ingested without a `release` takes it from there, matching `external_id`, `metadata.call_sid` or `metadata.phone_call.call_sid`.
 
 ## GitHub
 
@@ -135,7 +135,7 @@ Nothing is stored.
 
 | Endpoint | What it does |
 |---|---|
-| `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, compiled prompts, and duplicate or conflicting instructions. |
+| `POST /v1/validate`, `/v1/render`, `/v1/lint` | `{files}`: sopc's checks, each agent's full instructions, and duplicate or conflicting instructions. |
 | `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
 
 ## Sign-in and the org
@@ -208,7 +208,7 @@ One kind of workspace token, with scopes. Tokens are stored as a sha256 hash and
 | Scope | What it allows | Made |
 |---|---|---|
 | `ingest` | `POST …/sessions`. | Settings → Tokens, or `POST …/tokens`. |
-| `runtime` | Prompt fetches (`…/agents/<agent>`, `…/prompt`, `…/sops/<id>`), `POST …/runtime/served`, and the call-start webhooks as a bearer. | Settings → Tokens, or `POST …/tokens`. |
+| `runtime` | Fetching instructions (`…/agents/<agent>`, `…/prompt`, `…/sops/<id>`), `POST …/runtime/served`, and the call-start webhooks as a bearer. | Settings → Tokens, or `POST …/tokens`. |
 | `onboarding:write` | The coding agent's `/v1/onboarding/*` endpoints, for one import, for 2 hours. | By `POST …/imports/agent` only. |
 
 | Endpoint | What it does |
@@ -217,7 +217,7 @@ One kind of workspace token, with scopes. Tokens are stored as a sha256 hash and
 | `POST …/tokens` | `{name?, scopes?: ["ingest", "runtime"], expires_in_days?}` (default: both scopes, never expires). `201` with the token, shown once. |
 | `DELETE …/tokens/<id>` | Revoke it: it stops working at once; the row is kept with `revoked_at`. |
 
-Prompt fetches stay open while the workspace has no unrevoked `runtime` token, for local use, unless sign-in is on; an expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.
+Fetching instructions stays open while the workspace has no unrevoked `runtime` token, for local use, unless sign-in is on; an expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.
 
 ## Sessions
 
@@ -393,7 +393,7 @@ Verdicts are appended, never edited: the latest is the pattern's verdict, the re
 
 The review queue lists `needs_review` and `regressed`; `state=open` lists verdicts waiting for a fix, and so on. A new verdict starts over.
 
-A **suggestion** is an edit to the pattern's procedure, made by the reasoning model (`SuggestEdit`) from the procedure's file at head, the rule, the pattern, the verdict and note, and up to 5 of its findings. It must compile with the rest of head; one that doesn't is sent back once with sopc's issues, then `failed`. `plan.agents` lists every agent whose prompt changes, with a diff. It's generated as a job (inline after the response, or the Hatchet `sopops_suggest` workflow). Status: `generating`, then `proposed` or `failed`; a proposal becomes `applied`, `pr_open` or `dismissed`. A pull request is followed on GitHub: every 15 minutes (`sopops_pr_status` on Hatchet, `SOPOPS_PR_STATUS_CRON`; without Hatchet, `sopops pr-status` from cron) and when the suggestion is read (at most once a minute). Merged makes it `merged`; closed without merging, `dismissed` with the note "PR closed". **Apply** opens a pull request when the workspace has a GitHub repo connection (`pr_open`, `pr_url`), else saves the file as a draft (`applied`), which shows in Unpublished changes and goes out with the next publish.
+A **suggestion** is an edit to the pattern's procedure, made by the reasoning model (`SuggestEdit`) from the procedure's file at head, the rule, the pattern, the verdict and note, and up to 5 of its findings. It must compile with the rest of head; one that doesn't is sent back once with sopc's issues, then `failed`. `plan.agents` lists every agent whose instructions change, with a diff. It's generated as a job (inline after the response, or the Hatchet `sopops_suggest` workflow). Status: `generating`, then `proposed` or `failed`; a proposal becomes `applied`, `pr_open` or `dismissed`. A pull request is followed on GitHub: every 15 minutes (`sopops_pr_status` on Hatchet, `SOPOPS_PR_STATUS_CRON`; without Hatchet, `sopops pr-status` from cron) and when the suggestion is read (at most once a minute). Merged makes it `merged`; closed without merging, `dismissed` with the note "PR closed". **Apply** opens a pull request when the workspace has a GitHub repo connection (`pr_open`, `pr_url`), else saves the file as a draft (`applied`), which shows in Unpublished changes and goes out with the next publish.
 
 **When the procedure changed since a suggestion was written** (another suggestion was applied, or someone edited the file), its edit is merged into the file as it is now: a three-way line merge (`sopops.merge`) with the file it was written against as the base. Edits on different lines merge, neighbouring lines included; the same lines changed two ways, or two insertions at the same place, conflict. A clean merge is then checked like a proposal: it must compile with the rest of head and still define the procedure, or it's a conflict too. Each proposed suggestion has `freshness`, computed when it's read (in every list, the review queue and the pattern page too):
 
@@ -412,7 +412,7 @@ A **suggestion** is an edit to the pattern's procedure, made by the reasoning mo
 | `POST …/patterns/<id>/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
 | `POST …/findings/<id>/override` | `{correct, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. |
 | `GET …/patterns/<id>` | Also has `verdict`, `verdict_history`, `review_state`, `review_note`, `fix_release`, `fix_sessions`, `fix_sessions_needed`, `suppressed_count` (all time) and `suggestions`. |
-| `GET …/patterns/<id>/regression` | JSON Lines, one per finding in the pattern: `session_id`, `external_id`, `transcript_ref` (the session's URL), `procedure_id`, `rule_id`, `rule_kind`, `rule_text`, `verdict`, `observed_status`, `expected_status`, `expect`. `expect: agent` (a real mistake): replay the conversation against the fixed prompt, and the rule should now pass. `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check the same transcript, and the rule should come out `expected_status` (`done`, `ok`, or `present` for a warning sign). `409` without a verdict. |
+| `GET …/patterns/<id>/regression` | JSON Lines, one per finding in the pattern: `session_id`, `external_id`, `transcript_ref` (the session's URL), `procedure_id`, `rule_id`, `rule_kind`, `rule_text`, `verdict`, `observed_status`, `expected_status`, `expect`. `expect: agent` (a real mistake): replay the conversation against the fixed instructions, and the rule should now pass. `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check the same transcript, and the rule should come out `expected_status` (`done`, `ok`, or `present` for a warning sign). `409` without a verdict. |
 | `POST …/patterns/<id>/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
 | `GET …/suggestions?status=` | Newest first. Each with its dates: `created_at`, `applied_at` (saved as a draft), `pr_opened_at`, `merged_at` (when sopops saw it merged), and `released_in` and `released_at`: the first release whose file has its edit (the suggested text, or that merged with other edits). A proposed one has `freshness` (above). |
 | `GET …/suggestions/<id>` | `old_text`, `new_text`, `rationale`, `plan` (`agents`: `agent`, `added`, `removed`, `diff`), `pattern`, `verdict`, `status`, `pr_url`, `error`, `merged_into_version`, `rewrite_of`, `rewritten_as`. A proposed one also has `since_written`: `state` (its `freshness`), `head_version`, `changes` (a unified diff of the file since it was written), `merged_text` (`merges`), `conflicts` (`conflict`: each part's `line` in the file now, and its `base`, `current` and `suggested` lines) and `issues` (`conflict`: sopc's errors with the merged file). |
@@ -469,7 +469,7 @@ All take the window filters plus `agent`, `procedure`, `release` (repeatable) an
 
 ## Model spend
 
-Every model call sopops makes is recorded in `model_calls`: the model, the input and output tokens it reported, and its estimated cost, for the workspace, the session it was about (routing, checks, the reviewer, assigning its findings) and its purpose: `route`, `check`, `review`, `cluster` (assigning findings, splitting and naming patterns), `theme`, `suggestion`, `calibrate`, `onboarding`. Prompts and replies aren't stored. Calls are seen through DSPy's usage tracker, so every client path counts (a `dspy.LM`, native or through LiteLLM, and Jev); a cached answer costs nothing and isn't recorded.
+Every model call sopops makes is recorded in `model_calls`: the model, the input and output tokens it reported, and its estimated cost, for the workspace, the session it was about (routing, checks, the reviewer, assigning its findings) and its purpose: `route`, `check`, `review`, `cluster` (assigning findings, splitting and naming patterns), `theme`, `suggestion`, `calibrate`, `onboarding`. The text sent to models and their replies aren't stored. Calls are seen through DSPy's usage tracker, so every client path counts (a `dspy.LM`, native or through LiteLLM, and Jev); a cached answer costs nothing and isn't recorded.
 
 Costs come from a price table in USD per million tokens (input, output): Jev at $0.042 input and free output, and the current Claude models at list prices. `SOPOPS_MODEL_PRICES` (JSON, `{"model": [input, output]}`) changes or adds entries. A model string matches its name with or without the provider, else the longest entry it starts with (dated snapshots). A model with no price has its tokens recorded and a null cost.
 
@@ -482,7 +482,7 @@ A session's detail has its own `model_calls` and `cost_usd`.
 
 ## Onboarding
 
-Importing existing agent prompts, or an existing sopc project. Every way ends in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity) that the user reviews and applies as drafts. Fidelity compiles each agent and compares it with its original prompt: `score` (the share of the original's sentences kept, from `sopc compare`), `missing`, `changed` and `reworded` sentences, `similarity` (word-level, 0 to 1), and `rules_verbatim` of `rules`: the steps, never rules and warning signs the compiled prompt states that appear in the original word for word (`not_verbatim` lists the others).
+Importing agents' existing instructions, or an existing sopc project. Every way ends in a **proposal** (agents, shared instructions, procedures, groups, findings, and per-agent fidelity) that the user reviews and applies as drafts. Fidelity compiles each agent and compares it with its original instructions: `score` (the share of the original's sentences kept, from `sopc compare`), `missing`, `changed` and `reworded` sentences, `similarity` (word-level, 0 to 1), and `rules_verbatim` of `rules`: the steps, never rules and warning signs the full instructions state that appear in the original word for word (`not_verbatim` lists the others).
 
 | Endpoint | What it does |
 |---|---|
@@ -490,8 +490,8 @@ Importing existing agent prompts, or an existing sopc project. Every way ends in
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs\|vapi, api_key}`: the agents the key can see. The key is used for this request only. |
 | `GET/POST …/imports` | List imports; start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
 | `POST …/imports/agent` | `{mode: hosted\|repo, server_url?}`: an onboarding token for Claude Code or Codex, shown once, plus `kickoff`: one command per agent (add the MCP server and start the agent on "call get_kickoff"), the Codex config as TOML, and recommended settings for each (`settings_claude_code`, `settings_codex`). Repo mode needs the workspace's GitHub repository (`400` without one, or when GitHub refuses the token): its folder is read first and recorded on the import (`repo`, `repo_branch`, `repo_path`, `repo_project`: `missing`, `invalid` or `valid`). Unless it's `valid`, the agent's kickoff tells it to open the onboarding pull request adding the project there, and to report it. |
-| `POST …/imports/sopc` | `{files?, from_repo?, originals?}`: an existing sopc project (its files by path relative to the folder with `sopc.yaml`, `build/` ignored; or `from_repo: true` reads the workspace's GitHub repository), with each agent's original prompt optionally. `source: sopc`, ready at once: the proposal shows what the project holds and carries its `files`; fidelity is checked for every agent with an original, as for any proposal. `400` without files or `sopc.yaml`, `422` when sopc can't read it. Its content isn't edited here (`409`): change the project and import it again. |
-| `PUT …/imports/<id>/originals` | `{originals: {agent: prompt}}`: add or replace agents' original prompts (an empty one removes it) and check fidelity again. |
+| `POST …/imports/sopc` | `{files?, from_repo?, originals?}`: an existing sopc project (its files by path relative to the folder with `sopc.yaml`, `build/` ignored; or `from_repo: true` reads the workspace's GitHub repository), with each agent's original instructions optionally. `source: sopc`, ready at once: the proposal shows what the project holds and carries its `files`; fidelity is checked for every agent with an original, as for any proposal. `400` without files or `sopc.yaml`, `422` when sopc can't read it. Its content isn't edited here (`409`): change the project and import it again. |
+| `PUT …/imports/<id>/originals` | `{originals: {agent: prompt}}`: add or replace agents' original instructions (an empty one removes them) and check fidelity again. |
 | `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, the proposal, and in repo mode the onboarding pull request (`pr_url`, `pr_state`: `open`, `merged`, `closed`; `pr_merged_at`). An open one is checked on GitHub first (at most once a minute), and by the `sopops_pr_status` cron (`sopops pr-status`): merged pulls the folder into drafts (`POST …/repo/pull`) and makes the import `applied`; if that pull fails, `error` says why. |
 | `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. The coding agent's messages (`by: agent`) carry `client` (Claude Code, Codex) when its MCP client said which it is. |
 | `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
@@ -509,7 +509,7 @@ With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one w
 | `GET /v1/onboarding/session` | The workspace, import and mode the token is for; in repo mode the repository, branch, folder, what the folder held, and `pr_url`. |
 | `GET /v1/onboarding/kickoff?server_url=` | `{instructions}`: the sopops-onboard skill and this session (what `get_kickoff` returns). |
 | `GET /v1/onboarding/guide` | `{guide, proposal_schema, finding_schema}`: the extraction rules and the JSON schemas. |
-| `POST /v1/onboarding/extraction` | `{prompts: [{name, platform, platform_id, prompt, tools}]}`: the instructions, each prompt split into numbered units for the agent to classify, and `originals` by agent id. No model is called; nothing stored. |
+| `POST /v1/onboarding/extraction` | `{prompts: [{name, platform, platform_id, prompt, tools}]}`: the extraction guide (`instructions`), each agent's instructions split into numbered units for the agent to classify, and `originals` by agent id. No model is called; nothing stored. |
 | `POST /v1/onboarding/project` | `{proposal}`: the proposal as a sopc project's files (`{files, issues, validation}`), written and checked with sopc; nothing stored. |
 | `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
 | `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
