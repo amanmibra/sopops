@@ -412,6 +412,8 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
     )
     assert k["codex"].startswith("codex mcp add sopops --env SOPOPS_URL=https://sopops.example ") and "&& codex " in k["codex"]
     assert 'SOPOPS_TOKEN = "sopops_onb_abc"' in k["codex_toml"] and "[mcp_servers.sopops]" in k["codex_toml"]
+    assert "/model opus" in k["settings_claude_code"] and "codex" not in k["settings_claude_code"].lower()
+    assert "model_reasoning_effort" in k["settings_codex"] and "Claude" not in k["settings_codex"]
     assert 'args = ["--from", "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"]' in k["codex_toml"]
     monkeypatch.setenv("SOPOPS_MCP_SOURCE", "sopops-client[mcp]==0.2.0")
     assert "-- uvx --from 'sopops-client[mcp]==0.2.0' sopops-mcp &&" in kickoff.kickoff("p", "http://x", "t")["claude_code"]

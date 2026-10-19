@@ -41,10 +41,10 @@ REPO_FINDING = {
 REPO_VALID = """Repo mode: `{repo}` already holds a sopc project at `{folder}` on `{branch}`, and sopops reads it from there. Push
 your proposal for review as usual, but don't open a pull request."""
 
-SETTINGS = (
-    "Claude Code: use the strongest model you have (for example /model opus) and accept edits automatically (Shift+Tab).\n"
-    "Codex: high reasoning effort and auto mode (codex -c model_reasoning_effort=high, then /approvals: Auto)."
-)
+SETTINGS = {
+    "claude_code": "Use the strongest model you have (for example /model opus) and accept edits automatically (Shift+Tab).",
+    "codex": "Use high reasoning effort and auto mode (codex -c model_reasoning_effort=high, then /approvals: Auto).",
+}
 
 
 def mcp_source() -> str:
@@ -107,6 +107,7 @@ def kickoff(workspace: str, server_url: str, token: str) -> dict:
         "codex": shlex.join(["codex", "mcp", "add", "sopops", *env, *run]) + " && " + shlex.join(["codex", PROMPT]),
         "codex_toml": toml,
         "prompt": PROMPT,
-        "settings": SETTINGS,
+        "settings_claude_code": SETTINGS["claude_code"],
+        "settings_codex": SETTINGS["codex"],
         "mcp_source": source,
     }

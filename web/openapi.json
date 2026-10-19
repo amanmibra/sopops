@@ -16844,10 +16844,15 @@
             "title": "Prompt",
             "description": "The prompt the commands start the agent with: call get_kickoff and follow it."
           },
-          "settings": {
+          "settings_claude_code": {
             "type": "string",
-            "title": "Settings",
-            "description": "Recommended settings, as editable text."
+            "title": "Settings Claude Code",
+            "description": "Recommended Claude Code settings, as editable text."
+          },
+          "settings_codex": {
+            "type": "string",
+            "title": "Settings Codex",
+            "description": "Recommended Codex settings, as editable text."
           },
           "mcp_source": {
             "type": "string",
@@ -16860,7 +16865,8 @@
           "codex",
           "codex_toml",
           "prompt",
-          "settings",
+          "settings_claude_code",
+          "settings_codex",
           "mcp_source"
         ],
         "title": "Kickoff"

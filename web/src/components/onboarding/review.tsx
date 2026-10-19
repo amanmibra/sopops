@@ -270,7 +270,12 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
               <CopyBlock label="config.toml" text={kickoff.codex_toml} />
             </details>
           )}
-          <EditableCopy label="Recommended settings" initial={kickoff.settings} help="Suggestions; edit them for your setup." />
+          <EditableCopy
+            key={tool}
+            label="Recommended settings"
+            initial={tool === "claude" ? kickoff.settings_claude_code : kickoff.settings_codex}
+            help="Suggestions; edit them for your setup."
+          />
         </details>
       ) : (
         <Note>

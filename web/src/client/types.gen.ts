@@ -2932,11 +2932,17 @@ export type Kickoff = {
      */
     prompt: string;
     /**
-     * Settings
+     * Settings Claude Code
      *
-     * Recommended settings, as editable text.
+     * Recommended Claude Code settings, as editable text.
      */
-    settings: string;
+    settings_claude_code: string;
+    /**
+     * Settings Codex
+     *
+     * Recommended Codex settings, as editable text.
+     */
+    settings_codex: string;
     /**
      * Mcp Source
      */

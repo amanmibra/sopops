@@ -93,7 +93,8 @@ class Kickoff(BaseModel):
     codex: str = Field(description="The same for Codex.")
     codex_toml: str = Field(description="The MCP server as ~/.codex/config.toml lines.")
     prompt: str = Field(description="The prompt the commands start the agent with: call get_kickoff and follow it.")
-    settings: str = Field(description="Recommended settings, as editable text.")
+    settings_claude_code: str = Field(description="Recommended Claude Code settings, as editable text.")
+    settings_codex: str = Field(description="Recommended Codex settings, as editable text.")
     mcp_source: str
 
 
