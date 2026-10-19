@@ -75,7 +75,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
 
     @r.get(f"{WS}/runtime/delivery", response_model=list[AgentDeliveryOut], tags=["runtime"])
     def list_delivery(workspace: str) -> list[dict]:
-        """Every agent at head, with how it gets its prompt: `pull`, `push` or `both`."""
+        """Every agent at head, with how it gets its instructions: `pull`, `push` or `both`."""
         return runtime.deliveries(workspace)
 
     @r.put(f"{WS}/runtime/delivery/{{agent}}", response_model=AgentDeliveryOut, tags=["runtime"])
@@ -128,7 +128,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
     @r.post(f"{WS}/runtime/served", response_model=ServedOut, tags=["runtime"], responses={401: {"description": "Missing or wrong runtime token."}})
     def record_served(workspace: str, req: ServedIn, credentials: HTTPAuthorizationCredentials | None = Depends(bearer)) -> dict:
         """Remember which release a call ran on, once its id is known, so the session that arrives later (an
-        ElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like prompt fetches."""
+        ElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like instructions fetches."""
         runtime.check_fetch(workspace, f"Bearer {credentials.credentials}" if credentials else None)
         served = runtime.resolve(workspace, req.platform, req.agent, req.release)
         runtime.record_serve(workspace, req.platform, [req.call_id], served, log_fetch=False)
@@ -159,9 +159,9 @@ def register(app: FastAPI, store: Store) -> Runtime:
         agent: str | None = Query(None, description="The agent; default: from `agent_id` in the body."),
         release: int | None = Query(None, description="Pin a release; default: the live one."),
     ) -> dict:
-        """ElevenLabs' conversation-initiation webhook: returns the compiled prompt as
+        """ElevenLabs' conversation-initiation webhook: returns the agent's full instructions as
         `conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.
-        The agent must allow overriding its system prompt (Security → Overrides). With Enterprise live monitoring on
+        The agent must allow overriding its system prompt (ElevenLabs' name for the instructions) under Security → Overrides. With Enterprise live monitoring on
         (Settings → Platforms), the conversation is then followed on ElevenLabs' monitor socket."""
         body = await verified(request, workspace, "elevenlabs")
 
@@ -195,7 +195,7 @@ def register(app: FastAPI, store: Store) -> Runtime:
         release: int | None = Query(None, description="Pin a release; default: the live one."),
     ) -> dict:
         """Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry
-        the compiled prompt: `model` with the system message replaced (read from the assistant with the stored API
+        the agent's full instructions: `model` with the system message replaced (read from the assistant with the stored API
         key), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.
         `metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.
 

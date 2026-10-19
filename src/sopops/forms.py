@@ -480,7 +480,7 @@ OLD_FORMAT_TEXT = (
 )
 REMOVED_FIELD_TEXT = (
     "Uses `locked`, which sopc no longer has. Run `sopc migrate --yes` on the folder "
-    "(or convert the workspace) to remove it; no prompt changes."
+    "(or convert the workspace) to remove it; no agent's instructions change."
 )
 
 

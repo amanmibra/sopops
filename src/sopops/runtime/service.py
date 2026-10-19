@@ -92,7 +92,7 @@ class Runtime:
         if row is None:
             raise NotFound(f"agent '{agent}' not found")
         if mode not in row["modes"]:
-            raise BadRequest(f"{row['platform']} agents can only pull their prompt; sopops can push to {', '.join(NAMES.values())}")
+            raise BadRequest(f"{row['platform']} agents can only pull their instructions; sopops can push to {', '.join(NAMES.values())}")
         with self._db() as db, db.begin():
             existing = db.get(AgentDelivery, (ws, agent))
             if existing:
@@ -168,7 +168,7 @@ class Runtime:
             return {"ok": False, "platform_id": platform_id, "message": _sentence(str(e))}
         prompt = platforms.live_prompt(platform, agent)
         name = agent.get("name") or platform_id
-        words = f"its prompt has {len(prompt)} characters" if prompt is not None else "its prompt isn't a single system prompt"
+        words = f"its instructions have {len(prompt)} characters" if prompt is not None else "its instructions aren't a single system prompt"
         return {"ok": True, "platform_id": platform_id, "message": f"Read {NAMES[platform]} agent '{name}': {words}."}
 
     # --- push ------------------------------------------------------------------------------

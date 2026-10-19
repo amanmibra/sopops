@@ -44,7 +44,7 @@ def router(store: Store) -> APIRouter:
 
     @r.post("/v1/lint", response_model=LintResponse, responses=INVALID, dependencies=OPEN, tags=["stateless"])
     def lint(req: FilesRequest) -> dict:
-        """Duplicated and conflicting instructions in each agent's prompt. Advisory."""
+        """Duplicated and conflicting text in each agent's full instructions. Advisory."""
         return {"findings": store.sopc.lint(without_build(req.files))}
 
     return r

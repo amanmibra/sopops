@@ -51,7 +51,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     def export_regression(workspace: str, pattern_id: str) -> Response:
         """The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript
         (`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):
-        replay the conversation against the fixed prompt; the agent should pass the rule (`expected_status`).
+        replay the conversation against the fixed instructions; the agent should pass the rule (`expected_status`).
         `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this
         transcript; the rule should come out `expected_status`. Needs a verdict."""
         rows = store.verdicts.regression(workspace_id(workspace), pattern_id)

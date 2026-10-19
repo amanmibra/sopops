@@ -433,7 +433,7 @@ def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progr
     say = progress or (lambda step, message: None)
     ids = agent_ids(sources)
     notes: list[str] = []
-    say("split", f"Splitting {len(sources)} prompt{'s' if len(sources) != 1 else ''} into agent context, shared instructions and procedures")
+    say("split", f"Splitting {len(sources)} agents' instructions into agent context, shared instructions and procedures" if len(sources) != 1 else "Splitting one agent's instructions into agent context, shared instructions and procedures")
     with ThreadPoolExecutor(max_workers=workers) as pool:
         per_agent = list(pool.map(spend.carry(lambda pair: split(ai, pair[0], pair[1], notes)), zip(sources, ids)))
     for agent, segs in zip(ids, per_agent):

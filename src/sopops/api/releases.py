@@ -45,7 +45,7 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
 
     @r.get("/v1/workspaces/{workspace}/releases/{number}", response_model=ReleaseDetail, dependencies=OPEN, tags=["releases"])
     def get_release(workspace: str, number: int) -> dict:
-        """A release with every agent's prompt. Doesn't log a fetch."""
+        """A release with every agent's instructions. Doesn't log a fetch."""
         rel = store.get_release(workspace, number)
         return {**rel, "agents": {a: released(b) for a, b in rel["build"]["agents"].items()}}
 

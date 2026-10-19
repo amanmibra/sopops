@@ -21,7 +21,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * List Delivery
  *
- * Every agent at head, with how it gets its prompt: `pull`, `push` or `both`.
+ * Every agent at head, with how it gets its instructions: `pull`, `push` or `both`.
  */
 export const listDelivery = <ThrowOnError extends boolean = false>(options: Options<ListDeliveryData, ThrowOnError>): RequestResult<ListDeliveryResponses, ListDeliveryErrors, ThrowOnError> => (options.client ?? client).get<ListDeliveryResponses, ListDeliveryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/delivery', ...options });
 
@@ -105,7 +105,7 @@ export const retryPushes = <ThrowOnError extends boolean = false>(options: Optio
  * Record Served
  *
  * Remember which release a call ran on, once its id is known, so the session that arrives later (an
- * ElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like prompt fetches.
+ * ElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like instructions fetches.
  */
 export const recordServed = <ThrowOnError extends boolean = false>(options: Options<RecordServedData, ThrowOnError>): RequestResult<RecordServedResponses, RecordServedErrors, ThrowOnError> => (options.client ?? client).post<RecordServedResponses, RecordServedErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -120,9 +120,9 @@ export const recordServed = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Elevenlabs Conversation Init
  *
- * ElevenLabs' conversation-initiation webhook: returns the compiled prompt as
+ * ElevenLabs' conversation-initiation webhook: returns the agent's full instructions as
  * `conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.
- * The agent must allow overriding its system prompt (Security → Overrides). With Enterprise live monitoring on
+ * The agent must allow overriding its system prompt (ElevenLabs' name for the instructions) under Security → Overrides. With Enterprise live monitoring on
  * (Settings → Platforms), the conversation is then followed on ElevenLabs' monitor socket.
  */
 export const elevenlabsConversationInit = <ThrowOnError extends boolean = false>(options: Options<ElevenlabsConversationInitData, ThrowOnError>): RequestResult<ElevenlabsConversationInitResponses, ElevenlabsConversationInitErrors, ThrowOnError> => (options.client ?? client).post<ElevenlabsConversationInitResponses, ElevenlabsConversationInitErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/runtime/elevenlabs/conversation-init', ...options });
@@ -131,7 +131,7 @@ export const elevenlabsConversationInit = <ThrowOnError extends boolean = false>
  * Vapi Assistant Request
  *
  * Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry
- * the compiled prompt: `model` with the system message replaced (read from the assistant with the stored API
+ * the agent's full instructions: `model` with the system message replaced (read from the assistant with the stored API
  * key), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.
  * `metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.
  *
@@ -600,7 +600,7 @@ export const migrateFiles = <ThrowOnError extends boolean = false>(options: Opti
 /**
  * Lint
  *
- * Duplicated and conflicting instructions in each agent's prompt. Advisory.
+ * Duplicated and conflicting text in each agent's full instructions. Advisory.
  */
 export const lint = <ThrowOnError extends boolean = false>(options: Options<LintData, ThrowOnError>): RequestResult<LintResponses, LintErrors, ThrowOnError> => (options.client ?? client).post<LintResponses, LintErrors, ThrowOnError>({
     url: '/v1/lint',
@@ -888,7 +888,7 @@ export const configCreateGroup = <ThrowOnError extends boolean = false>(options:
 /**
  * Config Delete Group
  *
- * Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no prompt changes.
+ * Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.
  */
 export const configDeleteGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteGroupData, ThrowOnError>): RequestResult<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups/{id}', ...options });
 
@@ -951,7 +951,7 @@ export const removeBlock = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Preview Agent
  *
- * The prompt this agent would get with these fields, compiled with the rest of head. Saves nothing.
+ * The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.
  */
 export const previewAgent = <ThrowOnError extends boolean = false>(options: Options<PreviewAgentData, ThrowOnError>): RequestResult<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError> => (options.client ?? client).post<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError>({
     url: '/v1/workspaces/{workspace}/config/agents/{id}/preview',
@@ -1034,7 +1034,7 @@ export const createRelease = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Get Release
  *
- * A release with every agent's prompt. Doesn't log a fetch.
+ * A release with every agent's instructions. Doesn't log a fetch.
  */
 export const getRelease = <ThrowOnError extends boolean = false>(options: Options<GetReleaseData, ThrowOnError>): RequestResult<GetReleaseResponses, GetReleaseErrors, ThrowOnError> => (options.client ?? client).get<GetReleaseResponses, GetReleaseErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/releases/{number}', ...options });
 
@@ -1078,7 +1078,7 @@ export const getAgent = <ThrowOnError extends boolean = false>(options: Options<
 /**
  * Get Prompt
  *
- * Just the prompt text. Logs a fetch.
+ * Just the instructions text. Logs a fetch.
  */
 export const getPrompt = <ThrowOnError extends boolean = false>(options: Options<GetPromptData, ThrowOnError>): RequestResult<GetPromptResponses, GetPromptErrors, ThrowOnError> => (options.client ?? client).get<GetPromptResponses, GetPromptErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
@@ -1100,7 +1100,7 @@ export const getSop = <ThrowOnError extends boolean = false>(options: Options<Ge
 /**
  * List Fetches
  *
- * Which release and prompt hash each agent was served, newest first.
+ * Which release and instructions hash each agent was served, newest first.
  */
 export const listFetches = <ThrowOnError extends boolean = false>(options: Options<ListFetchesData, ThrowOnError>): RequestResult<ListFetchesResponses, ListFetchesErrors, ThrowOnError> => (options.client ?? client).get<ListFetchesResponses, ListFetchesErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/fetches', ...options });
 
@@ -1384,7 +1384,7 @@ export const overrideFinding = <ThrowOnError extends boolean = false>(options: O
  *
  * The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript
  * (`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):
- * replay the conversation against the fixed prompt; the agent should pass the rule (`expected_status`).
+ * replay the conversation against the fixed instructions; the agent should pass the rule (`expected_status`).
  * `expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this
  * transcript; the rule should come out `expected_status`. Needs a verdict.
  */
@@ -1416,7 +1416,7 @@ export const listSuggestions = <ThrowOnError extends boolean = false>(options: O
 /**
  * Get Suggestion
  *
- * The file before and after, the rationale, and the plan: each agent whose prompt changes, with a diff.
+ * The file before and after, the rationale, and the plan: each agent whose instructions change, with a diff.
  */
 export const getSuggestion = <ThrowOnError extends boolean = false>(options: Options<GetSuggestionData, ThrowOnError>): RequestResult<GetSuggestionResponses, GetSuggestionErrors, ThrowOnError> => (options.client ?? client).get<GetSuggestionResponses, GetSuggestionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/suggestions/{suggestion_id}', ...options });
 
@@ -1731,7 +1731,7 @@ export const listImports = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Create Import
  *
- * Extract blocks and agents from existing prompts with sopops's model, in the background. Poll the import (or
+ * Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or
  * stream `…/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during
  * this request and is never stored.
  */
@@ -1748,7 +1748,7 @@ export const createImport = <ThrowOnError extends boolean = false>(options: Opti
  * Import Sopc Project
  *
  * Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
- * agent's original prompt optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
+ * agent's original instructions optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
  * every agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes
  * exactly its files as drafts; nothing is published.
  */
@@ -1764,7 +1764,7 @@ export const importSopcProject = <ThrowOnError extends boolean = false>(options:
 /**
  * Set Import Originals
  *
- * Add or replace agents' original prompts (an empty one removes it), and check fidelity again.
+ * Add or replace agents' original instructions (an empty one removes them), and check fidelity again.
  */
 export const setImportOriginals = <ThrowOnError extends boolean = false>(options: Options<SetImportOriginalsData, ThrowOnError>): RequestResult<SetImportOriginalsResponses, SetImportOriginalsErrors, ThrowOnError> => (options.client ?? client).put<SetImportOriginalsResponses, SetImportOriginalsErrors, ThrowOnError>({
     url: '/v1/workspaces/{workspace}/imports/{id}/originals',
@@ -1779,7 +1779,7 @@ export const setImportOriginals = <ThrowOnError extends boolean = false>(options
  * Start Agent Import
  *
  * An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the
- * commands and prompt to start one. The token is shown only in this response. Repo mode reads the connected
+ * commands and instructions to start one. The token is shown only in this response. Repo mode reads the connected
  * repository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull
  * request adding one, and to report it.
  */
@@ -1938,7 +1938,7 @@ export const onboardingSkill = <ThrowOnError extends boolean = false>(options?: 
 /**
  * Onboarding Extraction
  *
- * Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify
+ * Agents' instructions to extract: the extraction guide, and each agent's instructions split into numbered units for the coding agent to classify
  * and structure itself. No model is called. Stores nothing.
  */
 export const onboardingExtraction = <ThrowOnError extends boolean = false>(options: Options<OnboardingExtractionData, ThrowOnError>): RequestResult<OnboardingExtractionResponses, OnboardingExtractionErrors, ThrowOnError> => (options.client ?? client).post<OnboardingExtractionResponses, OnboardingExtractionErrors, ThrowOnError>({

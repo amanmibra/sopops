@@ -356,7 +356,7 @@ class Suggestions:
         name = p.name if p else s.pattern_id
         if repo is not None:
             agents = [a["agent"] for a in (s.plan or {}).get("agents", [])]
-            body = "\n\n".join(x for x in (s.rationale, f"Pattern: {name}", f"Agents whose prompt changes: {', '.join(agents) or 'none'}",
+            body = "\n\n".join(x for x in (s.rationale, f"Pattern: {name}", f"Agents whose instructions change: {', '.join(agents) or 'none'}",
                                             "Merged with changes made to the file since it was written." if merged else None, "Suggested by sopops.") if x)
             url = github.open_pull_request(self.store, ws, {s.path: text}, f"{s.procedure_id}: {name}", body)
             return self._save(s, status="pr_open", pr_url=url, reviewer=reviewer or s.reviewer, pr_opened_at=_now(), merged_into_version=merged)

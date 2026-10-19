@@ -24,13 +24,13 @@ PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff
 REPO_STEP = """Repo mode (the user opted in). sopops is connected to GitHub: `{repo}`, branch `{branch}`, folder `{folder}`, which {finding}.
 After pushing, write the same proposal as a sopc project at `{folder}` with `write_sopc_project`, run `sopc validate` there if the
 sopc CLI is installed, and open a pull request into `{branch}` from a new branch (with `gh pr create` if it's available,
-otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where each prompt was found,
+otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where each one's instructions were found,
 the blocks extracted, drift found, and each agent's fidelity score. Don't merge it. Then call `report_pull_request` with its
 URL: sopops follows it, and when the user merges it, pulls `{folder}` into drafts."""
 
 REPO_STEP_APP = """Repo mode (the user opted in). sopops is connected to GitHub through its GitHub App: `{repo}`, branch `{branch}`,
 folder `{folder}`, which {finding}. sopops opens the onboarding pull request itself, so don't run git or `gh` for it. After pushing,
-call `open_pull_request` with a description: the agents and where each prompt was found, the blocks extracted, and drift found
+call `open_pull_request` with a description: the agents and where each one's instructions were found, the blocks extracted, and drift found
 (sopops adds each agent's fidelity score). It opens a pull request into `{branch}` writing your proposal at `{folder}`; tell the user
 it's open for their review, and don't merge it. When the user merges it, sopops pulls `{folder}` into drafts."""
 

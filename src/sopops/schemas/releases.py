@@ -25,8 +25,8 @@ class DraftAgent(BaseModel):
     status: Literal["added", "changed", "removed", "unchanged"]
     hash: str | None
     released_hash: str | None
-    prompt: str | None = Field(description="The draft prompt; null if removed.")
-    released_prompt: str | None = Field(description="The prompt in the current release; null if added.")
+    prompt: str | None = Field(description="The draft instructions; null if removed.")
+    released_prompt: str | None = Field(description="The instructions in the current release; null if added.")
     components: list[Component]
 
 
@@ -101,7 +101,7 @@ class AgentOut(BaseModel):
     prompt: str
     tools: list[str]
     tool_sops: list[str] = Field(description="Ids of SOPs to fetch with `get_sop` (`/sops/{sop_id}`).")
-    components: list[Component] = Field(description="Each file the prompt was built from, at its version. Put this and `release` in call metadata.")
+    components: list[Component] = Field(description="Each file the instructions were built from, at its version. Put this and `release` in call metadata.")
 
 
 class FetchOut(BaseModel):

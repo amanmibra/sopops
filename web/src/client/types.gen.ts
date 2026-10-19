@@ -85,13 +85,13 @@ export type AgentConfig = {
     /**
      * Context
      *
-     * Text only this agent gets. It goes first in the prompt.
+     * Text only this agent gets. It goes first in the agent's instructions.
      */
     context: string;
     /**
      * Blocks
      *
-     * Shared instructions, procedures and groups, in prompt order.
+     * Shared instructions, procedures and groups, in order.
      */
     blocks: Array<string>;
     /**
@@ -150,7 +150,7 @@ export type AgentDeliveryOut = {
 /**
  * AgentFidelity
  *
- * How the agent's compiled prompt covers its original (`sopc compare`, sentence by sentence).
+ * How the agent's full instructions cover its original (`sopc compare`, sentence by sentence).
  */
 export type AgentFidelity = {
     /**
@@ -196,7 +196,7 @@ export type AgentFidelity = {
     /**
      * Rules
      *
-     * Procedure rules (steps, never rules, warning signs) the compiled prompt states.
+     * Procedure rules (steps, never rules, warning signs) the full instructions state.
      */
     rules?: number;
     /**
@@ -234,13 +234,13 @@ export type AgentFields = {
     /**
      * Context
      *
-     * Text only this agent gets. It goes first in the prompt.
+     * Text only this agent gets. It goes first in the agent's instructions.
      */
     context?: string;
     /**
      * Blocks
      *
-     * Shared instructions, procedures and groups, in prompt order.
+     * Shared instructions, procedures and groups, in order.
      */
     blocks?: Array<string>;
     /**
@@ -358,13 +358,13 @@ export type AgentIn = {
     /**
      * Context
      *
-     * Text only this agent gets. It goes first in the prompt.
+     * Text only this agent gets. It goes first in the agent's instructions.
      */
     context?: string;
     /**
      * Blocks
      *
-     * Shared instructions, procedures and groups, in prompt order.
+     * Shared instructions, procedures and groups, in order.
      */
     blocks?: Array<string>;
     /**
@@ -416,7 +416,7 @@ export type AgentOut = {
     /**
      * Components
      *
-     * Each file the prompt was built from, at its version. Put this and `release` in call metadata.
+     * Each file the instructions were built from, at its version. Put this and `release` in call metadata.
      */
     components: Array<Component>;
 };
@@ -432,19 +432,19 @@ export type AgentPromptChange = {
     /**
      * Added
      *
-     * Prompt lines added.
+     * Lines added to the agent's instructions.
      */
     added: number;
     /**
      * Removed
      *
-     * Prompt lines removed.
+     * Lines removed from the agent's instructions.
      */
     removed: number;
     /**
      * Diff
      *
-     * A unified diff of the agent's compiled prompt, now against suggested.
+     * A unified diff of the agent's full instructions, now against suggested.
      */
     diff: string;
 };
@@ -759,7 +759,7 @@ export type BlockRow = {
     /**
      * Missing
      *
-     * Agents that don't use it, though most agents' prompts have its text.
+     * Agents that don't use it, though most agents' instructions have its text.
      */
     missing: Array<string>;
 };
@@ -1305,7 +1305,7 @@ export type CreateImport = {
     /**
      * Sources
      *
-     * Pasted or uploaded prompts, one per agent.
+     * Pasted or uploaded instructions, one per agent.
      */
     sources?: Array<SourcePrompt>;
     /**
@@ -1460,13 +1460,13 @@ export type DraftAgent = {
     /**
      * Prompt
      *
-     * The draft prompt; null if removed.
+     * The draft instructions; null if removed.
      */
     prompt: string | null;
     /**
      * Released Prompt
      *
-     * The prompt in the current release; null if added.
+     * The instructions in the current release; null if added.
      */
     released_prompt: string | null;
     /**
@@ -1808,7 +1808,7 @@ export type ExtractionOut = {
     /**
      * Originals
      *
-     * Each agent's original prompt, by agent id.
+     * Each agent's original instructions, by agent id.
      */
     originals: {
         [key: string]: string;
@@ -2251,7 +2251,7 @@ export type GuideOut = {
     /**
      * Guide
      *
-     * How to turn agent prompts into a proposal.
+     * How to turn agents' instructions into a proposal.
      */
     guide: string;
     /**
@@ -2966,7 +2966,7 @@ export type Kickoff = {
     /**
      * Prompt
      *
-     * The prompt the commands start the agent with: call get_kickoff and follow it.
+     * The instructions the commands start the coding agent with: call get_kickoff and follow it.
      */
     prompt: string;
     /**
@@ -3626,13 +3626,13 @@ export type NewAgent = {
     /**
      * Context
      *
-     * Text only this agent gets. It goes first in the prompt.
+     * Text only this agent gets. It goes first in the agent's instructions.
      */
     context?: string;
     /**
      * Blocks
      *
-     * Shared instructions, procedures and groups, in prompt order.
+     * Shared instructions, procedures and groups, in order.
      */
     blocks?: Array<string>;
     /**
@@ -3760,7 +3760,7 @@ export type OpenPullRequestIn = {
     /**
      * Description
      *
-     * The pull request's description: the agents, where each prompt was found, the blocks, drift found.
+     * The pull request's description: the agents, where each one's instructions were found, the blocks, drift found.
      */
     description?: string | null;
 };
@@ -3854,7 +3854,7 @@ export type OriginalsIn = {
     /**
      * Originals
      *
-     * Original prompts by agent id; an empty one removes it.
+     * Original instructions by agent id; an empty one removes it.
      */
     originals: {
         [key: string]: string;
@@ -4533,7 +4533,7 @@ export type PreviewResponse = {
     /**
      * Prompt
      *
-     * The prompt the agent would get with these fields; null if it doesn't compile.
+     * The instructions the agent would get with these fields; null if they don't compile.
      */
     prompt: string | null;
     /**
@@ -4543,7 +4543,7 @@ export type PreviewResponse = {
     /**
      * Blocks
      *
-     * What the prompt is built from, in order, groups expanded.
+     * What the instructions are built from, in order, groups expanded.
      */
     blocks: Array<PreviewBlock>;
     /**
@@ -4553,7 +4553,7 @@ export type PreviewResponse = {
     /**
      * Released Prompt
      *
-     * The agent's prompt in the current release, to compare with.
+     * The agent's instructions in the current release, to compare with.
      */
     released_prompt: string | null;
 };
@@ -4921,7 +4921,7 @@ export type ProjectImport = {
     /**
      * Originals
      *
-     * Each agent's original prompt, by agent id, to check the project against (optional).
+     * Each agent's original instructions, by agent id, to check the project against (optional).
      */
     originals?: {
         [key: string]: string;
@@ -5011,7 +5011,7 @@ export type Proposal = {
     /**
      * Originals
      *
-     * Each agent's original prompt, by agent id.
+     * Each agent's original instructions, by agent id.
      */
     originals?: {
         [key: string]: string;
@@ -5416,7 +5416,7 @@ export type PushIn = {
     /**
      * Originals
      *
-     * Each agent's original prompt, by agent id.
+     * Each agent's original instructions, by agent id.
      */
     originals?: {
         [key: string]: string;
@@ -6426,7 +6426,7 @@ export type ReviewCounts = {
     /**
      * Below Full Fidelity
      *
-     * Agents whose compiled prompt lost or changed a sentence of the original.
+     * Agents whose full instructions lost or changed a sentence of the original.
      */
     below_full_fidelity: number;
 };
@@ -7891,7 +7891,7 @@ export type SettingsConfig = {
     /**
      * Procedures Heading
      *
-     * Heading before the first procedure in each prompt; empty for none.
+     * Heading before the first procedure in each agent's instructions; empty for none.
      */
     procedures_heading: string;
 };
@@ -7921,7 +7921,7 @@ export type SettingsIn = {
     /**
      * Procedures Heading
      *
-     * Heading before the first procedure in each prompt; empty for none.
+     * Heading before the first procedure in each agent's instructions; empty for none.
      */
     procedures_heading?: string;
 };
@@ -8056,7 +8056,7 @@ export type SkillOut = {
 /**
  * SourcePrompt
  *
- * One existing agent's prompt, as it runs today.
+ * One existing agent's instructions, as they run today.
  */
 export type SourcePrompt = {
     /**
@@ -8078,7 +8078,7 @@ export type SourcePrompt = {
     /**
      * Prompt
      *
-     * The prompt text, verbatim.
+     * The instructions, verbatim.
      */
     prompt: string;
     /**
@@ -8422,7 +8422,7 @@ export type SuggestionPlan = {
     /**
      * Agents
      *
-     * Agents whose prompt changes.
+     * Agents whose instructions change.
      */
     agents: Array<AgentPromptChange>;
 };
@@ -8936,7 +8936,7 @@ export type TokenIn = {
     /**
      * Scopes
      *
-     * `ingest`: send sessions. `runtime`: fetch prompts, report served calls, call-start webhooks.
+     * `ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks.
      */
     scopes?: Array<'ingest' | 'runtime'>;
     /**
@@ -12975,7 +12975,7 @@ export type GetPromptError = GetPromptErrors[keyof GetPromptErrors];
 
 export type GetPromptResponses = {
     /**
-     * The full prompt, with X-Sopc-Release and X-Sopc-Hash headers.
+     * The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers.
      */
     200: string;
 };
@@ -15646,7 +15646,7 @@ export type CreateImportData = {
 
 export type CreateImportErrors = {
     /**
-     * No prompts, or a platform error.
+     * No instructions, or a platform error.
      */
     400: unknown;
     /**

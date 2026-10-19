@@ -40,13 +40,13 @@ class SuggestionSummary(BaseModel):
 
 class AgentPromptChange(BaseModel):
     agent: str
-    added: int = Field(description="Prompt lines added.")
-    removed: int = Field(description="Prompt lines removed.")
-    diff: str = Field(description="A unified diff of the agent's compiled prompt, now against suggested.")
+    added: int = Field(description="Lines added to the agent's instructions.")
+    removed: int = Field(description="Lines removed from the agent's instructions.")
+    diff: str = Field(description="A unified diff of the agent's full instructions, now against suggested.")
 
 
 class SuggestionPlan(BaseModel):
-    agents: list[AgentPromptChange] = Field(description="Agents whose prompt changes.")
+    agents: list[AgentPromptChange] = Field(description="Agents whose instructions change.")
 
 
 class SuggestionPattern(BaseModel):

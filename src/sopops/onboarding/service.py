@@ -140,7 +140,7 @@ class Onboarding:
             raise AIError("No model is configured for extraction. Set SOPOPS_MODEL_REASONING (and optionally SOPOPS_MODEL_FAST) "
                            "to a LiteLLM model name and its provider key, or use Claude Code / Codex instead.")
         if not sources:
-            raise ValueError("add at least one prompt")
+            raise ValueError("add at least one agent's instructions")
         names = [s.name for s in sources]
         rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="llm", status="running", agents=names,
                            created_at=_now(), updated_at=_now(), created_by=author)
@@ -210,7 +210,7 @@ class Onboarding:
     @staticmethod
     def _fidelity_line(p: Proposal) -> str:
         if not p.fidelity:
-            return "No original prompts yet: add them to check that the project still says what each agent was told."
+            return "No original instructions yet: add them to check that the project still says what each agent was told."
         return "Fidelity: " + ", ".join(f"{f.agent} {round(f.score * 100)}% kept, {f.rules_verbatim}/{f.rules} rules word for word" for f in p.fidelity)
 
     # --- agent imports: onboarding tokens --------------------------------------------

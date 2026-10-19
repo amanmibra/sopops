@@ -1,4 +1,4 @@
-"""sopops: versioned sopc workspaces over HTTP, and the prompt each agent gets at call start.
+"""sopops: versioned sopc workspaces over HTTP, and the instructions each agent gets at call start.
 
 `create_app` builds the FastAPI app and mounts the routers in `sopops.api`. Its OpenAPI spec (/openapi.json) is what
 SDKs are generated from. Set DATABASE_URL for the database (default sqlite:///sopops.db) and SOPC_BIN for the sopc
@@ -72,7 +72,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     app = FastAPI(
         title="sopops",
         version=__version__,
-        description="Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start. "
+        description="Versioned sopc workspaces: edit files, release them, and serve each agent its full instructions at call start. "
         "Sessions (voice calls and text chats) come in through the ingest endpoints.",
         generate_unique_id_function=_operation_id,
         lifespan=lifespan,

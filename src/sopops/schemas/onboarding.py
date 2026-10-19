@@ -24,7 +24,7 @@ class PlatformImport(BaseModel):
 
 
 class CreateImport(BaseModel):
-    sources: list[SourcePrompt] = Field(default_factory=list, description="Pasted or uploaded prompts, one per agent.")
+    sources: list[SourcePrompt] = Field(default_factory=list, description="Pasted or uploaded instructions, one per agent.")
     platform: PlatformImport | None = Field(None, description="Agents to read from ElevenLabs or Vapi, with a key used only for this request.")
     author: str | None = None
 
@@ -32,12 +32,12 @@ class CreateImport(BaseModel):
 class ProjectImport(BaseModel):
     files: dict[str, str] | None = Field(None, description="The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored.")
     from_repo: bool = Field(False, description="Read the project from the workspace's GitHub repository (its branch's head, its folder) instead of `files`.")
-    originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original prompt, by agent id, to check the project against (optional).")
+    originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original instructions, by agent id, to check the project against (optional).")
     author: str | None = None
 
 
 class OriginalsIn(BaseModel):
-    originals: dict[str, str] = Field(description="Original prompts by agent id; an empty one removes it.")
+    originals: dict[str, str] = Field(description="Original instructions by agent id; an empty one removes it.")
 
 
 class PlatformAgentsRequest(BaseModel):
@@ -100,7 +100,7 @@ class Kickoff(BaseModel):
     claude_code: str = Field(description="One command: adds the sopops MCP server to Claude Code and starts it on `prompt`.")
     codex: str = Field(description="The same for Codex.")
     codex_toml: str = Field(description="The MCP server as ~/.codex/config.toml lines.")
-    prompt: str = Field(description="The prompt the commands start the agent with: call get_kickoff and follow it.")
+    prompt: str = Field(description="The instructions the commands start the coding agent with: call get_kickoff and follow it.")
     settings_claude_code: str = Field(description="Recommended Claude Code settings, as editable text.")
     settings_codex: str = Field(description="Recommended Codex settings, as editable text.")
     mcp_source: str
@@ -166,7 +166,7 @@ class PullRequestIn(BaseModel):
 
 
 class OpenPullRequestIn(BaseModel):
-    description: str | None = Field(None, max_length=20000, description="The pull request's description: the agents, where each prompt was found, the blocks, drift found.")
+    description: str | None = Field(None, max_length=20000, description="The pull request's description: the agents, where each one's instructions were found, the blocks, drift found.")
 
 
 class ProgressIn(BaseModel):
@@ -176,7 +176,7 @@ class ProgressIn(BaseModel):
 
 class PushIn(BaseModel):
     proposal: ProposalContent
-    originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original prompt, by agent id.")
+    originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original instructions, by agent id.")
     findings: list[Finding] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
 
@@ -201,7 +201,7 @@ class KickoffOut(BaseModel):
 
 
 class GuideOut(BaseModel):
-    guide: str = Field(description="How to turn agent prompts into a proposal.")
+    guide: str = Field(description="How to turn agents' instructions into a proposal.")
     proposal_schema: dict[str, Any]
     finding_schema: dict[str, Any]
 
@@ -233,7 +233,7 @@ class ExtractionOut(BaseModel):
     mode: Literal["host"]
     instructions: str = Field(description="The guide, then how to classify units and structure procedures.")
     inputs: list[ExtractionInput]
-    originals: dict[str, str] = Field(description="Each agent's original prompt, by agent id.")
+    originals: dict[str, str] = Field(description="Each agent's original instructions, by agent id.")
     proposal_schema: dict[str, Any]
     next: str
 
@@ -258,7 +258,7 @@ class ReviewCounts(BaseModel):
     disagreements: int
     undecided: int = Field(description="Disagreements with no decision yet.")
     agents_with_unique: int = Field(description="Agents with text no other agent has.")
-    below_full_fidelity: int = Field(description="Agents whose compiled prompt lost or changed a sentence of the original.")
+    below_full_fidelity: int = Field(description="Agents whose full instructions lost or changed a sentence of the original.")
 
 
 class WordingGroup(BaseModel):
@@ -288,7 +288,7 @@ class BlockRow(BaseModel):
     id: str
     title: str
     agents: list[str] = Field(description="The agents that use it.")
-    missing: list[str] = Field(description="Agents that don't use it, though most agents' prompts have its text.")
+    missing: list[str] = Field(description="Agents that don't use it, though most agents' instructions have its text.")
 
 
 class UniqueText(BaseModel):

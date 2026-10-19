@@ -16,7 +16,7 @@ class TokenIn(BaseModel):
     name: str = Field("", max_length=128, description="What it's for, e.g. 'LiveKit agents'.")
     scopes: list[Literal["ingest", "runtime"]] = Field(
         default_factory=lambda: ["ingest", "runtime"], min_length=1,
-        description="`ingest`: send sessions. `runtime`: fetch prompts, report served calls, call-start webhooks.",
+        description="`ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks.",
     )
     expires_in_days: int | None = Field(None, ge=1, le=3650, description="Default: never expires.")
 

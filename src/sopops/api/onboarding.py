@@ -94,9 +94,9 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     def list_imports(workspace: str) -> list[dict]:
         return onboarding.list(workspace)
 
-    @r.post(base, response_model=ImportOut, status_code=201, responses={400: {"description": "No prompts, or a platform error."}, 503: {"description": "No model configured."}})
+    @r.post(base, response_model=ImportOut, status_code=201, responses={400: {"description": "No instructions, or a platform error."}, 503: {"description": "No model configured."}})
     def create_import(workspace: str, req: CreateImport) -> dict:
-        """Extract blocks and agents from existing prompts with sopops's model, in the background. Poll the import (or
+        """Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or
         stream `…/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during
         this request and is never stored."""
         sources = list(req.sources)
@@ -105,7 +105,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
                 for agent_id in req.platform.agent_ids:
                     got = platforms.get_agent(req.platform.platform, req.platform.api_key, agent_id)
                     if not got["prompt"].strip():
-                        raise HTTPException(400, f"{got['name']} has no prompt to import")
+                        raise HTTPException(400, f"{got['name']} has no instructions to import")
                     sources.append(SourcePrompt(name=got["name"], platform=got["platform"], platform_id=got["platform_id"], prompt=got["prompt"], tools=got["tools"]))
             except platforms.PlatformError as e:
                 raise HTTPException(400, str(e)) from None
@@ -120,7 +120,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             responses={400: {"description": "No files and no repository, or no sopc.yaml."}, 422: {"description": "sopc can't read the project."}})
     def import_sopc_project(workspace: str, req: ProjectImport) -> dict:
         """Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
-        agent's original prompt optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
+        agent's original instructions optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
         every agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes
         exactly its files as drafts; nothing is published."""
         origin = None
@@ -137,7 +137,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.put(f"{base}/{{id}}/originals", response_model=ImportOut, responses={400: {"description": "An agent that isn't in the import."}})
     def set_import_originals(workspace: str, id: str, req: OriginalsIn) -> dict:
-        """Add or replace agents' original prompts (an empty one removes it), and check fidelity again."""
+        """Add or replace agents' original instructions (an empty one removes them), and check fidelity again."""
         try:
             return onboarding.set_originals(workspace, id, req.originals)
         except ValueError as e:
@@ -147,7 +147,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             responses={**GITHUB, 400: {"description": "Repo mode without a GitHub repository connected, or GitHub refused the token."}})
     def start_agent_import(workspace: str, req: AgentImportRequest, request: Request) -> dict:
         """An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the
-        commands and prompt to start one. The token is shown only in this response. Repo mode reads the connected
+        commands and instructions to start one. The token is shown only in this response. Repo mode reads the connected
         repository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull
         request adding one, and to report it."""
         server = (req.server_url or str(request.base_url)).rstrip("/")
@@ -268,7 +268,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.post("/v1/onboarding/extraction", response_model=ExtractionOut)
     def onboarding_extraction(req: ExtractionIn, rec: ImportRecord = Depends(caller)) -> dict:
-        """Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify
+        """Agents' instructions to extract: the extraction guide, and each agent's instructions split into numbered units for the coding agent to classify
         and structure itself. No model is called. Stores nothing."""
         return host_extraction(req.prompts)
 

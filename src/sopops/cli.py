@@ -45,7 +45,7 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def serve(argv: list[str]) -> None:
-    parser = argparse.ArgumentParser(prog="sopops", description="Versioned sopc workspaces, each agent's prompt at session start, and sessions.")
+    parser = argparse.ArgumentParser(prog="sopops", description="Versioned sopc workspaces, each agent's instructions at session start, and sessions.")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8484)))
     parser.add_argument("--database-url", default=database_url())

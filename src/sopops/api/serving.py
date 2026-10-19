@@ -1,4 +1,4 @@
-"""Serving: what each agent loads at call start (prompt fetches take a runtime-scoped token once the workspace has one, or\nalways with sign-in on, unless someone signed in is looking), and the fetch log."""
+"""Serving: what each agent loads at call start (instructions fetches take a runtime-scoped token once the workspace has one, or\nalways with sign-in on, unless someone signed in is looking), and the fetch log."""
 
 from __future__ import annotations
 
@@ -45,10 +45,10 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         response_class=PlainTextResponse,
         dependencies=fetch_auth,
         tags=["serving"],
-        responses={200: {"content": {"text/plain": {}}, "description": "The full prompt, with X-Sopc-Release and X-Sopc-Hash headers."}},
+        responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers."}},
     )
     def get_prompt(workspace: str, agent: str, response: Response, release: int | None = None) -> str:
-        """Just the prompt text. Logs a fetch."""
+        """Just the instructions text. Logs a fetch."""
         served = store.agent(workspace, agent, release)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
         response.headers["X-Sopc-Release"] = str(served["release"])
@@ -65,7 +65,7 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
 
     @r.get("/v1/workspaces/{workspace}/fetches", response_model=list[FetchOut], dependencies=OPEN, tags=["serving"])
     def list_fetches(workspace: str, agent: str | None = Query(None, description="sopc agent id."), limit: int = Query(100, ge=1, le=1000)) -> list[dict]:
-        """Which release and prompt hash each agent was served, newest first."""
+        """Which release and instructions hash each agent was served, newest first."""
         return store.fetches(workspace, agent, limit)
 
     return r

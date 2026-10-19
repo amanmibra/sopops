@@ -22,7 +22,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.get("/v1/workspaces/{workspace}/suggestions/{suggestion_id}", response_model=SuggestionDetail, dependencies=OPEN, tags=["suggestions"])
     def get_suggestion(workspace: str, suggestion_id: str) -> dict:
-        """The file before and after, the rationale, and the plan: each agent whose prompt changes, with a diff."""
+        """The file before and after, the rationale, and the plan: each agent whose instructions change, with a diff."""
         return store.suggestions.get(workspace_id(workspace), suggestion_id)
 
     @r.post("/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest", response_model=SuggestionDetail, dependencies=OPEN, tags=["suggestions"])

@@ -109,7 +109,7 @@ def router(store: Store) -> APIRouter:
         "agent": "Nothing else changes.",
         "instruction": "It's taken out of every agent and group that lists it.",
         "procedure": "It's taken out of every agent and group that lists it.",
-        "group": "Wherever it's listed, its blocks are listed in its place, so no prompt changes.",
+        "group": "Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.",
     }
     item_routes("agent", "agents", AgentIn, NewAgent, AgentConfig)
     item_routes("instruction", "instructions", InstructionIn, NewInstruction, InstructionConfig)
@@ -130,7 +130,7 @@ def router(store: Store) -> APIRouter:
 
     @r.post("/v1/workspaces/{workspace}/config/agents/{id}/preview", response_model=PreviewResponse, dependencies=OPEN, tags=["config"])
     def preview_agent(workspace: str, id: str, req: AgentFields) -> dict:
-        """The prompt this agent would get with these fields, compiled with the rest of head. Saves nothing."""
+        """The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing."""
         return store.preview_agent(workspace, id, req.model_dump())
 
     @r.post("/v1/workspaces/{workspace}/migrate", response_model=MigrateResponse, responses=INVALID, dependencies=OPEN, tags=["config"])

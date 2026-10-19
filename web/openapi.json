@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "sopops",
-    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its compiled prompt at call start. Sessions (voice calls and text chats) come in through the ingest endpoints.",
+    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its full instructions at call start. Sessions (voice calls and text chats) come in through the ingest endpoints.",
     "version": "0.1.0"
   },
   "paths": {
@@ -12,7 +12,7 @@
           "runtime"
         ],
         "summary": "List Delivery",
-        "description": "Every agent at head, with how it gets its prompt: `pull`, `push` or `both`.",
+        "description": "Every agent at head, with how it gets its instructions: `pull`, `push` or `both`.",
         "operationId": "list_delivery",
         "parameters": [
           {
@@ -508,7 +508,7 @@
           "runtime"
         ],
         "summary": "Record Served",
-        "description": "Remember which release a call ran on, once its id is known, so the session that arrives later (an\nElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like prompt fetches.",
+        "description": "Remember which release a call ran on, once its id is known, so the session that arrives later (an\nElevenLabs post-call webhook) links to it. Takes a runtime-scoped token, like instructions fetches.",
         "operationId": "record_served",
         "security": [
           {
@@ -569,7 +569,7 @@
           "runtime"
         ],
         "summary": "Elevenlabs Conversation Init",
-        "description": "ElevenLabs' conversation-initiation webhook: returns the compiled prompt as\n`conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.\nThe agent must allow overriding its system prompt (Security \u2192 Overrides). With Enterprise live monitoring on\n(Settings \u2192 Platforms), the conversation is then followed on ElevenLabs' monitor socket.",
+        "description": "ElevenLabs' conversation-initiation webhook: returns the agent's full instructions as\n`conversation_config_override.agent.prompt.prompt`, and the release as the dynamic variable `sopops_release`.\nThe agent must allow overriding its system prompt (ElevenLabs' name for the instructions) under Security \u2192 Overrides. With Enterprise live monitoring on\n(Settings \u2192 Platforms), the conversation is then followed on ElevenLabs' monitor socket.",
         "operationId": "elevenlabs_conversation_init",
         "parameters": [
           {
@@ -653,7 +653,7 @@
           "runtime"
         ],
         "summary": "Vapi Assistant Request",
-        "description": "Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry\nthe compiled prompt: `model` with the system message replaced (read from the assistant with the stored API\nkey), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.\n`metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.\n\nIt also brings sessions back: `end-of-call-report` is stored as a finished session, and `conversation-update`\nand final `transcript` messages stream into it while the call runs (turn them on under Server Messages).\nThese and other server messages get an empty 200.",
+        "description": "Vapi's server URL. For `assistant-request` it returns the agent's assistant id with overrides that carry\nthe agent's full instructions: `model` with the system message replaced (read from the assistant with the stored API\nkey), and `variableValues.sopops_prompt` for assistants whose system message is `{{sopops_prompt}}`.\n`metadata` and `variableValues` also carry `sopops_release` and `sopops_agent`.\n\nIt also brings sessions back: `end-of-call-report` is stored as a finished session, and `conversation-update`\nand final `transcript` messages stream into it while the call runs (turn them on under Server Messages).\nThese and other server messages get an empty 200.",
         "operationId": "vapi_assistant_request",
         "parameters": [
           {
@@ -2248,7 +2248,7 @@
           "stateless"
         ],
         "summary": "Lint",
-        "description": "Duplicated and conflicting instructions in each agent's prompt. Advisory.",
+        "description": "Duplicated and conflicting text in each agent's full instructions. Advisory.",
         "operationId": "lint",
         "requestBody": {
           "content": {
@@ -4147,7 +4147,7 @@
           "config"
         ],
         "summary": "Config Delete Group",
-        "description": "Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no prompt changes.",
+        "description": "Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.",
         "operationId": "config_delete_group",
         "parameters": [
           {
@@ -4529,7 +4529,7 @@
           "config"
         ],
         "summary": "Preview Agent",
-        "description": "The prompt this agent would get with these fields, compiled with the rest of head. Saves nothing.",
+        "description": "The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.",
         "operationId": "preview_agent",
         "parameters": [
           {
@@ -4989,7 +4989,7 @@
           "releases"
         ],
         "summary": "Get Release",
-        "description": "A release with every agent's prompt. Doesn't log a fetch.",
+        "description": "A release with every agent's instructions. Doesn't log a fetch.",
         "operationId": "get_release",
         "parameters": [
           {
@@ -5279,7 +5279,7 @@
           "serving"
         ],
         "summary": "Get Prompt",
-        "description": "Just the prompt text. Logs a fetch.",
+        "description": "Just the instructions text. Logs a fetch.",
         "operationId": "get_prompt",
         "security": [
           {
@@ -5324,7 +5324,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The full prompt, with X-Sopc-Release and X-Sopc-Hash headers.",
+            "description": "The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers.",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5436,7 +5436,7 @@
           "serving"
         ],
         "summary": "List Fetches",
-        "description": "Which release and prompt hash each agent was served, newest first.",
+        "description": "Which release and instructions hash each agent was served, newest first.",
         "operationId": "list_fetches",
         "parameters": [
           {
@@ -7532,7 +7532,7 @@
           "review"
         ],
         "summary": "Export Regression",
-        "description": "The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript\n(`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):\nreplay the conversation against the fixed prompt; the agent should pass the rule (`expected_status`).\n`expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this\ntranscript; the rule should come out `expected_status`. Needs a verdict.",
+        "description": "The pattern's sessions as regression cases, as JSON Lines: per finding, the session, its transcript\n(`transcript_ref`), the rule, and what should happen once it's fixed. `expect: agent` (a `real` mistake):\nreplay the conversation against the fixed instructions; the agent should pass the rule (`expected_status`).\n`expect: checker` (acceptable, sop_wrong, checker_wrong, or a finding overridden as wrong): re-check this\ntranscript; the rule should come out `expected_status`. Needs a verdict.",
         "operationId": "export_regression",
         "parameters": [
           {
@@ -7708,7 +7708,7 @@
           "suggestions"
         ],
         "summary": "Get Suggestion",
-        "description": "The file before and after, the rationale, and the plan: each agent whose prompt changes, with a diff.",
+        "description": "The file before and after, the rationale, and the plan: each agent whose instructions change, with a diff.",
         "operationId": "get_suggestion",
         "parameters": [
           {
@@ -10253,7 +10253,7 @@
           "onboarding"
         ],
         "summary": "Create Import",
-        "description": "Extract blocks and agents from existing prompts with sopops's model, in the background. Poll the import (or\nstream `\u2026/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during\nthis request and is never stored.",
+        "description": "Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or\nstream `\u2026/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during\nthis request and is never stored.",
         "operationId": "create_import",
         "parameters": [
           {
@@ -10288,7 +10288,7 @@
             }
           },
           "400": {
-            "description": "No prompts, or a platform error."
+            "description": "No instructions, or a platform error."
           },
           "503": {
             "description": "No model configured."
@@ -10312,7 +10312,7 @@
           "onboarding"
         ],
         "summary": "Import Sopc Project",
-        "description": "Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each\nagent's original prompt optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for\nevery agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes\nexactly its files as drafts; nothing is published.",
+        "description": "Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each\nagent's original instructions optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for\nevery agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes\nexactly its files as drafts; nothing is published.",
         "operationId": "import_sopc_project",
         "parameters": [
           {
@@ -10361,7 +10361,7 @@
           "onboarding"
         ],
         "summary": "Set Import Originals",
-        "description": "Add or replace agents' original prompts (an empty one removes it), and check fidelity again.",
+        "description": "Add or replace agents' original instructions (an empty one removes them), and check fidelity again.",
         "operationId": "set_import_originals",
         "parameters": [
           {
@@ -10426,7 +10426,7 @@
           "onboarding"
         ],
         "summary": "Start Agent Import",
-        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and prompt to start one. The token is shown only in this response. Repo mode reads the connected\nrepository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull\nrequest adding one, and to report it.",
+        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and instructions to start one. The token is shown only in this response. Repo mode reads the connected\nrepository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull\nrequest adding one, and to report it.",
         "operationId": "start_agent_import",
         "parameters": [
           {
@@ -11481,7 +11481,7 @@
           "onboarding"
         ],
         "summary": "Onboarding Extraction",
-        "description": "Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify\nand structure itself. No model is called. Stores nothing.",
+        "description": "Agents' instructions to extract: the extraction guide, and each agent's instructions split into numbered units for the coding agent to classify\nand structure itself. No model is called. Stores nothing.",
         "operationId": "onboarding_extraction",
         "parameters": [
           {
@@ -12359,7 +12359,7 @@
           "context": {
             "type": "string",
             "title": "Context",
-            "description": "Text only this agent gets. It goes first in the prompt.",
+            "description": "Text only this agent gets. It goes first in the agent's instructions.",
             "default": ""
           },
           "blocks": {
@@ -12368,7 +12368,7 @@
             },
             "type": "array",
             "title": "Blocks",
-            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "description": "Shared instructions, procedures and groups, in order.",
             "default": []
           },
           "variables": {
@@ -12522,7 +12522,7 @@
           "rules": {
             "type": "integer",
             "title": "Rules",
-            "description": "Procedure rules (steps, never rules, warning signs) the compiled prompt states.",
+            "description": "Procedure rules (steps, never rules, warning signs) the full instructions state.",
             "default": 0
           },
           "rules_verbatim": {
@@ -12560,7 +12560,7 @@
           "sentences"
         ],
         "title": "AgentFidelity",
-        "description": "How the agent's compiled prompt covers its original (`sopc compare`, sentence by sentence)."
+        "description": "How the agent's full instructions cover its original (`sopc compare`, sentence by sentence)."
       },
       "AgentFields": {
         "properties": {
@@ -12582,7 +12582,7 @@
           "context": {
             "type": "string",
             "title": "Context",
-            "description": "Text only this agent gets. It goes first in the prompt.",
+            "description": "Text only this agent gets. It goes first in the agent's instructions.",
             "default": ""
           },
           "blocks": {
@@ -12591,7 +12591,7 @@
             },
             "type": "array",
             "title": "Blocks",
-            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "description": "Shared instructions, procedures and groups, in order.",
             "default": []
           },
           "variables": {
@@ -12812,7 +12812,7 @@
           "context": {
             "type": "string",
             "title": "Context",
-            "description": "Text only this agent gets. It goes first in the prompt.",
+            "description": "Text only this agent gets. It goes first in the agent's instructions.",
             "default": ""
           },
           "blocks": {
@@ -12821,7 +12821,7 @@
             },
             "type": "array",
             "title": "Blocks",
-            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "description": "Shared instructions, procedures and groups, in order.",
             "default": []
           },
           "variables": {
@@ -12885,7 +12885,7 @@
             },
             "type": "array",
             "title": "Components",
-            "description": "Each file the prompt was built from, at its version. Put this and `release` in call metadata."
+            "description": "Each file the instructions were built from, at its version. Put this and `release` in call metadata."
           }
         },
         "type": "object",
@@ -12910,17 +12910,17 @@
           "added": {
             "type": "integer",
             "title": "Added",
-            "description": "Prompt lines added."
+            "description": "Lines added to the agent's instructions."
           },
           "removed": {
             "type": "integer",
             "title": "Removed",
-            "description": "Prompt lines removed."
+            "description": "Lines removed from the agent's instructions."
           },
           "diff": {
             "type": "string",
             "title": "Diff",
-            "description": "A unified diff of the agent's compiled prompt, now against suggested."
+            "description": "A unified diff of the agent's full instructions, now against suggested."
           }
         },
         "type": "object",
@@ -13469,7 +13469,7 @@
             },
             "type": "array",
             "title": "Missing",
-            "description": "Agents that don't use it, though most agents' prompts have its text."
+            "description": "Agents that don't use it, though most agents' instructions have its text."
           }
         },
         "type": "object",
@@ -14494,7 +14494,7 @@
             },
             "type": "array",
             "title": "Sources",
-            "description": "Pasted or uploaded prompts, one per agent."
+            "description": "Pasted or uploaded instructions, one per agent."
           },
           "platform": {
             "anyOf": [
@@ -14740,7 +14740,7 @@
               }
             ],
             "title": "Prompt",
-            "description": "The draft prompt; null if removed."
+            "description": "The draft instructions; null if removed."
           },
           "released_prompt": {
             "anyOf": [
@@ -14752,7 +14752,7 @@
               }
             ],
             "title": "Released Prompt",
-            "description": "The prompt in the current release; null if added."
+            "description": "The instructions in the current release; null if added."
           },
           "components": {
             "items": {
@@ -15337,7 +15337,7 @@
             },
             "type": "object",
             "title": "Originals",
-            "description": "Each agent's original prompt, by agent id."
+            "description": "Each agent's original instructions, by agent id."
           },
           "proposal_schema": {
             "additionalProperties": true,
@@ -16119,7 +16119,7 @@
           "guide": {
             "type": "string",
             "title": "Guide",
-            "description": "How to turn agent prompts into a proposal."
+            "description": "How to turn agents' instructions into a proposal."
           },
           "proposal_schema": {
             "additionalProperties": true,
@@ -17278,7 +17278,7 @@
           "prompt": {
             "type": "string",
             "title": "Prompt",
-            "description": "The prompt the commands start the agent with: call get_kickoff and follow it."
+            "description": "The instructions the commands start the coding agent with: call get_kickoff and follow it."
           },
           "settings_claude_code": {
             "type": "string",
@@ -18318,7 +18318,7 @@
           "context": {
             "type": "string",
             "title": "Context",
-            "description": "Text only this agent gets. It goes first in the prompt.",
+            "description": "Text only this agent gets. It goes first in the agent's instructions.",
             "default": ""
           },
           "blocks": {
@@ -18327,7 +18327,7 @@
             },
             "type": "array",
             "title": "Blocks",
-            "description": "Shared instructions, procedures and groups, in prompt order.",
+            "description": "Shared instructions, procedures and groups, in order.",
             "default": []
           },
           "variables": {
@@ -18542,7 +18542,7 @@
               }
             ],
             "title": "Description",
-            "description": "The pull request's description: the agents, where each prompt was found, the blocks, drift found."
+            "description": "The pull request's description: the agents, where each one's instructions were found, the blocks, drift found."
           }
         },
         "type": "object",
@@ -18686,7 +18686,7 @@
             },
             "type": "object",
             "title": "Originals",
-            "description": "Original prompts by agent id; an empty one removes it."
+            "description": "Original instructions by agent id; an empty one removes it."
           }
         },
         "type": "object",
@@ -19924,7 +19924,7 @@
               }
             ],
             "title": "Prompt",
-            "description": "The prompt the agent would get with these fields; null if it doesn't compile."
+            "description": "The instructions the agent would get with these fields; null if they don't compile."
           },
           "hash": {
             "anyOf": [
@@ -19943,7 +19943,7 @@
             },
             "type": "array",
             "title": "Blocks",
-            "description": "What the prompt is built from, in order, groups expanded."
+            "description": "What the instructions are built from, in order, groups expanded."
           },
           "release": {
             "anyOf": [
@@ -19966,7 +19966,7 @@
               }
             ],
             "title": "Released Prompt",
-            "description": "The agent's prompt in the current release, to compare with."
+            "description": "The agent's instructions in the current release, to compare with."
           }
         },
         "type": "object",
@@ -20682,7 +20682,7 @@
             },
             "type": "object",
             "title": "Originals",
-            "description": "Each agent's original prompt, by agent id, to check the project against (optional)."
+            "description": "Each agent's original instructions, by agent id, to check the project against (optional)."
           },
           "author": {
             "anyOf": [
@@ -20816,7 +20816,7 @@
             },
             "type": "object",
             "title": "Originals",
-            "description": "Each agent's original prompt, by agent id."
+            "description": "Each agent's original instructions, by agent id."
           },
           "decisions": {
             "additionalProperties": {
@@ -21405,7 +21405,7 @@
             },
             "type": "object",
             "title": "Originals",
-            "description": "Each agent's original prompt, by agent id."
+            "description": "Each agent's original instructions, by agent id."
           },
           "findings": {
             "items": {
@@ -23012,7 +23012,7 @@
           "below_full_fidelity": {
             "type": "integer",
             "title": "Below Full Fidelity",
-            "description": "Agents whose compiled prompt lost or changed a sentence of the original."
+            "description": "Agents whose full instructions lost or changed a sentence of the original."
           }
         },
         "type": "object",
@@ -25817,7 +25817,7 @@
           "procedures_heading": {
             "type": "string",
             "title": "Procedures Heading",
-            "description": "Heading before the first procedure in each prompt; empty for none.",
+            "description": "Heading before the first procedure in each agent's instructions; empty for none.",
             "default": "## Procedures"
           }
         },
@@ -25869,7 +25869,7 @@
           "procedures_heading": {
             "type": "string",
             "title": "Procedures Heading",
-            "description": "Heading before the first procedure in each prompt; empty for none.",
+            "description": "Heading before the first procedure in each agent's instructions; empty for none.",
             "default": "## Procedures"
           }
         },
@@ -26125,7 +26125,7 @@
             "type": "string",
             "minLength": 1,
             "title": "Prompt",
-            "description": "The prompt text, verbatim."
+            "description": "The instructions, verbatim."
           },
           "tools": {
             "items": {
@@ -26142,7 +26142,7 @@
           "prompt"
         ],
         "title": "SourcePrompt",
-        "description": "One existing agent's prompt, as it runs today."
+        "description": "One existing agent's instructions, as they run today."
       },
       "SparkPoint": {
         "properties": {
@@ -26790,7 +26790,7 @@
             },
             "type": "array",
             "title": "Agents",
-            "description": "Agents whose prompt changes."
+            "description": "Agents whose instructions change."
           }
         },
         "type": "object",
@@ -27627,7 +27627,7 @@
             "type": "array",
             "minItems": 1,
             "title": "Scopes",
-            "description": "`ingest`: send sessions. `runtime`: fetch prompts, report served calls, call-start webhooks."
+            "description": "`ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks."
           },
           "expires_in_days": {
             "anyOf": [

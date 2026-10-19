@@ -88,7 +88,7 @@ def vapi_model_with_prompt(assistant: dict, prompt: str) -> dict:
     """The assistant's `model` with its system message replaced (or added first), every other field kept."""
     model = copy.deepcopy(assistant.get("model") or {})
     if not model.get("provider") or not model.get("model"):
-        raise PlatformError("the Vapi assistant has no model (provider and model) to put the prompt in")
+        raise PlatformError("the Vapi assistant has no model (provider and model) to put the instructions in")
     messages = list(model.get("messages") or [])
     system = [i for i, m in enumerate(messages) if m.get("role") == "system"]
     if len(system) > 1:
@@ -106,7 +106,7 @@ def push(platform: str, key: str, platform_id: str, prompt: str) -> Pushed:
     current = get_agent(platform, key, platform_id)
     if platform == "elevenlabs":
         if routed := elevenlabs_routed(current):
-            raise PlatformError(f"the ElevenLabs agent is a workflow with {routed} node(s); its main prompt isn't the whole prompt")
+            raise PlatformError(f"the ElevenLabs agent is a workflow with {routed} node(s); its main prompt isn't all of its instructions")
         if live_prompt(platform, current) == prompt:
             return Pushed("unchanged", _version(current))
         # A nested PATCH: ElevenLabs merges conversation_config, so only the prompt text changes.

@@ -33,8 +33,8 @@ class ItemMeta(BaseModel):
 class AgentFields(BaseModel):
     platform: Literal["livekit", "vapi", "elevenlabs", "retell"]
     platform_id: str = Field(description="The agent's id on its platform, e.g. LiveKit agent_name.")
-    context: str = Field("", description="Text only this agent gets. It goes first in the prompt.")
-    blocks: list[str] = Field([], description="Shared instructions, procedures and groups, in prompt order.")
+    context: str = Field("", description="Text only this agent gets. It goes first in the agent's instructions.")
+    blocks: list[str] = Field([], description="Shared instructions, procedures and groups, in order.")
     variables: dict[str, str] = Field({}, description="Values for {{placeholders}}; override the defaults in settings.")
 
 
@@ -59,7 +59,7 @@ class GroupFields(BaseModel):
 
 class SettingsFields(BaseModel):
     variables: dict[str, str] = Field({}, description="Default values for {{placeholders}}, for every agent.")
-    procedures_heading: str = Field(forms.DEFAULT_HEADING, description="Heading before the first procedure in each prompt; empty for none.")
+    procedures_heading: str = Field(forms.DEFAULT_HEADING, description="Heading before the first procedure in each agent's instructions; empty for none.")
 
 
 class AgentIn(AgentFields, Saved):
@@ -159,11 +159,11 @@ class PreviewBlock(BaseModel):
 class PreviewResponse(BaseModel):
     valid: bool
     issues: list[IssueOut]
-    prompt: str | None = Field(description="The prompt the agent would get with these fields; null if it doesn't compile.")
+    prompt: str | None = Field(description="The instructions the agent would get with these fields; null if they don't compile.")
     hash: str | None
-    blocks: list[PreviewBlock] = Field(description="What the prompt is built from, in order, groups expanded.")
+    blocks: list[PreviewBlock] = Field(description="What the instructions are built from, in order, groups expanded.")
     release: int | None
-    released_prompt: str | None = Field(description="The agent's prompt in the current release, to compare with.")
+    released_prompt: str | None = Field(description="The agent's instructions in the current release, to compare with.")
 
 
 class MigrateRequest(Saved):

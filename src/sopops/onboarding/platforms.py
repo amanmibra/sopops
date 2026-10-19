@@ -26,7 +26,7 @@ def base_url(platform: str) -> str:
         return os.environ.get("SOPC_ELEVENLABS_URL", "https://api.elevenlabs.io").rstrip("/")
     if platform == "vapi":
         return os.environ.get("SOPC_VAPI_URL", "https://api.vapi.ai").rstrip("/")
-    raise PlatformError(f"sopops can't read agents from '{platform}'; paste or upload the prompt instead")
+    raise PlatformError(f"sopops can't read agents from '{platform}'; paste or upload its instructions instead")
 
 
 def _client(platform: str, api_key: str, transport: httpx.BaseTransport | None) -> httpx.Client:
@@ -87,7 +87,7 @@ def _elevenlabs(c: httpx.Client, agent_id: str) -> dict:
     notes = []
     workflow = body.get("workflow") or {}
     if any((n or {}).get("type") in ("override_agent", "subagent") for n in (workflow.get("nodes") or {}).values()):
-        notes.append("This agent is a workflow with subagent nodes; only its main prompt is imported.")
+        notes.append("This agent is a workflow with subagent nodes; only its main instructions are imported.")
     return {
         "name": body.get("name") or agent_id, "platform": "elevenlabs", "platform_id": agent_id,
         "prompt": prompt_cfg.get("prompt") or "", "tools": list(dict.fromkeys(tools)), "notes": notes,
