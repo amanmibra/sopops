@@ -144,13 +144,13 @@ Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`
 
 | Kind | Needs | Endpoints |
 |---|---|---|
-| open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/email`, `POST /v1/auth/email/confirm`, `POST /v1/auth/invites/lookup`, `POST /v1/auth/invites/join`, `POST /v1/auth/password/{login,first-account,email,link,set}`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
+| open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/email`, `POST /v1/auth/email/confirm`, `POST /v1/auth/invites/lookup`, `POST /v1/auth/invites/join`, `POST /v1/auth/password/{login,first-account,email,link,set}`, `POST /v1/auth/join/lookup`, `POST /v1/auth/join`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
 | token | the endpoint's own token, no login | `POST …/sessions` (and `…/open`, `…/events`, `…/close`): `ingest`. `POST …/runtime/served`: `runtime`. `/v1/onboarding/{session,progress,proposal,pull-request,pull-request/open,fidelity}`: `onboarding:write` |
 | webhook | the sender's signature or secret, no login | `POST /v1/github/webhook`, `…/capture/livekit/webhook`, `…/capture/elevenlabs/post-call`, `…/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` |
 | token or session | a `runtime` token, or a login session | `GET …/agents/<agent>`, `…/prompt`, `…/sops/<id>`. With sign-in on these always need one, even before the workspace has a runtime token |
-| signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept`, `POST /v1/auth/password/change` |
-| admin | a login session as an owner or admin | `PATCH /v1/org`, `POST /v1/org/members`, `PATCH/DELETE /v1/org/members/<user_id>`, `POST /v1/org/members/<user_id>/password-link`, `GET/POST /v1/org/invites`, `POST /v1/org/invites/<id>/resend`, `DELETE /v1/org/invites/<id>`, `POST /v1/github/app/manifest` and its callback |
-| session | a login session as a member of the workspace's org | everything else |
+| signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept`, `POST /v1/auth/join/accept`, `POST /v1/auth/password/change` |
+| admin | a login session as an owner or admin | `PATCH /v1/org`, `POST /v1/org/members`, `PATCH/DELETE /v1/org/members/<user_id>`, `POST /v1/org/members/<user_id>/password-link`, `GET/POST /v1/org/invites`, `POST /v1/org/invites/<id>/resend`, `DELETE /v1/org/invites/<id>`, `POST /v1/org/setup`, `GET/POST/DELETE /v1/org/join-link`, `POST /v1/github/app/manifest` and its callback |
+| session | a login session as a member of the workspace's org | everything else, including `POST /v1/orgs` and `PATCH /v1/org/platforms` |
 
 Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `403`. A workspace in an org you're not in answers `404`. A new workspace goes into the org you're working in.
 
@@ -162,7 +162,7 @@ Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `
 
 | Endpoint | What it does |
 |---|---|
-| `GET /v1/auth/session` | `{required, providers: [{id, label, redirects}], user, org, orgs, first_account, password_email, sign_up}`: whether sign-in is on, how to sign in, who's signed in (`user.has_password`) and the org they're working in (`org` is null with no membership). `providers` has `email` only with SMTP set up or `SOPOPS_EMAIL_DEV=1`, and `password` whenever sign-in is on. `first_account`: nobody has an account yet. `password_email`: "Forgot password?" can email a link. `sign_up`: people at `SOPOPS_ALLOWED_EMAIL_DOMAINS` can make an account by asking for that link. |
+| `GET /v1/auth/session` | `{required, providers: [{id, label, redirects}], user, org, orgs, first_account, password_email, sign_up, platforms}`: whether sign-in is on, how to sign in, who's signed in (`user.has_password`) and the org they're working in (`org` is null with no membership). `providers` has `email` only with SMTP set up or `SOPOPS_EMAIL_DEV=1`, and `password` whenever sign-in is on. `first_account`: nobody has an account yet. `password_email`: "Forgot password?" can email a link. `sign_up`: people at `SOPOPS_ALLOWED_EMAIL_DOMAINS` can make an account by asking for that link. Each org in `org` and `orgs` has `workspace`: the team's workspace (the one changed most recently, if it has several; null until it has one). `platforms`: `{selected, shown}` for the org you're working in (with sign-in off, the first org's): `selected` is what the team picked (`livekit`, `elevenlabs`, `vapi`, `other`), null until someone picks; `shown` is the platforms the UI shows, all three when none of them was picked. |
 | `GET /v1/auth/login/<provider>?next=/path` | Redirects to GitHub or Google with `state` and a PKCE challenge (kept in a 10-minute HttpOnly cookie). `404` for a provider that isn't set up, or `email` (it doesn't redirect). |
 | `GET /v1/auth/callback/<provider>` | Where the provider sends the browser back. Checks `state`, signs in and redirects to `next`; on failure, to `/sign-in?error=…`. Refused: no verified email, or a domain outside `SOPOPS_ALLOWED_EMAIL_DOMAINS`. |
 | `POST /v1/auth/email` | `{email, next?}` → `202 {message}`: emails a sign-in link, `<SOPOPS_PUBLIC_URL>/sign-in/email#<token>`, that works once, for 15 minutes. The answer is the same whether a link went or not: none goes to a domain outside `SOPOPS_ALLOWED_EMAIL_DOMAINS`, or past 5 per address or 20 per client IP in 15 minutes. `400` for something that isn't an address; `404` when email sign-in is off. With `SOPOPS_EMAIL_DEV=1` the link is logged at INFO instead of sent. |
@@ -178,6 +178,15 @@ Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `
 | `POST /v1/auth/invites/lookup` | `{token}` → `{org_id, org_name, email, role, expires_at, accepted, has_account}`. `404` once it's expired, withdrawn or used by someone else. |
 | `POST /v1/auth/invites/join` | `{token, name?, password}` → `{...session, next}`: makes the account with a password and joins. Only for an email with no account yet (else `409`: sign in instead). |
 | `POST /v1/auth/invites/accept` | `{token}`: join, when you're signed in with the invite's email (else `403`). |
+| `POST /v1/auth/join/lookup` | `{token}` (from a join link, `<SOPOPS_PUBLIC_URL>/join#<token>`) → `{org_id, org_name, role, expires_at, member, needs_platforms}`. `404` once it's expired or turned off. |
+| `POST /v1/auth/join` | `{token, name?, email, password}` → `{...session, next}`: makes the account with a password, joins the link's team with its role, and works in it. Only for an email with no account (else `409`: sign in, then join). Counts against the password rate limits (`429`). |
+| `POST /v1/auth/join/accept` | `{token}` → the session: join the link's team, signed in, and work in it. Your other teams stay as they are; joining one you're in changes nothing. |
+| `POST /v1/orgs` | `{name}` → `201 {org, workspace}`: a new team you own, with its one workspace (named after it: `northwind`, or `northwind-2` when taken), and you work in it now. |
+| `POST /v1/org/setup` | `{team}` → `{org, workspace}`: names the org after the team (and its slug, when free), and makes its workspace unless it has one. The first run calls it right after `first-account`. |
+| `PATCH /v1/org/platforms` | `{platforms: [...]}` (`livekit`, `elevenlabs`, `vapi`, `other`) → `{selected, shown}`. Anyone in the team makes the first pick; after that owners and admins (`403`). With sign-in off, the first org's. |
+| `GET /v1/org/join-link` | The team's join link that works, `{id, role, joined, created_at, expires_at}`, or null. Its address was shown once. |
+| `POST /v1/org/join-link` | `{role?: member or admin, days?: 1 to 90, default 7}` → `201` with `link`, shown once. Anyone who opens it can make an account, or sign in, and join with that role, until it expires. The team's old link stops working. Stored as a hash. |
+| `DELETE /v1/org/join-link` | Turn it off (`204`). |
 | `GET /v1/org` | The org you're working in: `{id, name, slug, allowed_domains, role, sends_email}`. `sends_email`: SMTP is set up (and dev mode off), so invites are emailed. |
 | `PATCH /v1/org` | `{name?, allowed_domains?}`. People with a verified email at an allowed domain join as members when they sign in. |
 | `GET /v1/org/members` | `[{user_id, email, name, avatar_url, role, joined_at, last_login_at}]`. |
