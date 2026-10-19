@@ -1,5 +1,5 @@
 // Importing an existing sopc project: pick its folder (or read it from the connected GitHub repository), then on the
-// import page add each agent's original prompt, read the fidelity check, and apply the files as drafts.
+// import page add each agent's original instructions, read the fidelity check, and apply the files as drafts.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderUp, GitBranch } from "lucide-react";
 import { useRef, useState } from "react";
@@ -63,8 +63,8 @@ export function SopcSource() {
     <div className="grid gap-4">
       <Panel title="Your sopc project" className="mb-0">
         <p className="text-muted-foreground mb-3 text-[13px]">
-          Already keep your instructions as a sopc project, or exported one from wherever your prompts live? Bring it in as it is: sopops checks it with sopc, and next you can add each
-          agent's original prompt to check nothing was lost. Applying saves exactly these files as drafts. Nothing is published.
+          Already keep your instructions as a sopc project, or exported one from wherever your agents' instructions live? Bring it in as it is: sopops checks it with sopc, and next you can add each
+          agent's original instructions to check nothing was lost. Applying saves exactly these files as drafts. Nothing is published.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => pick.current?.click()}>
@@ -152,8 +152,8 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
     });
   const discard = () => act("discard", async () => (await call(sdk.discardImport({ path: { workspace: ws, id: imp.id } })), reload()));
   const counts: [string, number, string][] = [
-    ["agents", (proposal.agents ?? []).length, "Agents in the project, each compiled into one prompt."],
-    ["shared instructions", (proposal.instructions ?? []).length, "Instruction blocks: prompt text agents include."],
+    ["agents", (proposal.agents ?? []).length, "Agents in the project, each compiled into its full instructions."],
+    ["shared instructions", (proposal.instructions ?? []).length, "Blocks of text agents include in their instructions."],
     ["procedures", (proposal.procedures ?? []).length, "SOPs: steps, never rules and warning signs, checked on every session they apply to."],
     ["groups", (proposal.groups ?? []).length, "Named lists of blocks that agents include as one."],
     ["files", files.length, "What applying writes, exactly as they are (build/ is left out)."],
@@ -187,7 +187,7 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
       )}
       <Panel title="Fidelity">
         <p className="text-muted-foreground mb-3 text-[13px]">
-          Add the prompt each agent runs today, and sopops compares it with what the project compiles to: the share of its sentences kept, whether every rule appears word for word, how
+          Add the instructions each agent runs today, and sopops compares them with what the project compiles to: the share of its sentences kept, whether every rule appears word for word, how
           similar the two texts are, and the lines that are missing.
         </p>
         <div className="overflow-x-auto rounded-md border">
@@ -233,10 +233,10 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
       <Dialog open={!!editing} onOpenChange={(open) => !open && !busy && setEditing(null)}>
         <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editing}: the original prompt</DialogTitle>
-            <DialogDescription>Paste the full prompt this agent runs today, exactly as its model gets it. Leave it empty to remove it.</DialogDescription>
+            <DialogTitle>{editing}: the original instructions</DialogTitle>
+            <DialogDescription>Paste the full instructions this agent runs today, exactly as its model gets them. Leave it empty to remove it.</DialogDescription>
           </DialogHeader>
-          <Textarea aria-label="Original prompt" className="max-h-[50vh] min-h-56 font-mono text-[13px]" value={text} onChange={(e) => setText(e.target.value)} />
+          <Textarea aria-label="Original instructions" className="max-h-[50vh] min-h-56 font-mono text-[13px]" value={text} onChange={(e) => setText(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" disabled={!!busy} onClick={() => setEditing(null)}>
               Cancel
@@ -274,7 +274,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
         </td>
         <td className={cn("px-3 py-1.5 text-right tabular-nums", f && verbatim < rules && "text-warn")}>
           {f ? (
-            <Hint focusable={false} tip={<TipBody head={`${verbatim} of ${rules} rules word for word`}>Steps, never rules and warning signs the compiled prompt states, found in the original exactly (spacing and case aside).</TipBody>}>
+            <Hint focusable={false} tip={<TipBody head={`${verbatim} of ${rules} rules word for word`}>Steps, never rules and warning signs the full instructions state, found in the original exactly (spacing and case aside).</TipBody>}>
               <span>
                 {verbatim} of {rules}
               </span>
@@ -294,7 +294,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
         </td>
         <td className="px-3 py-1.5 text-right tabular-nums">
           {f ? (
-            <Hint focusable={false} tip={<TipBody head={plural(missing.length, "line missing", "lines missing")}>Sentences of the original the compiled prompt doesn't have{changed.length ? `; ${changed.length} more changed` : ""}.</TipBody>}>
+            <Hint focusable={false} tip={<TipBody head={plural(missing.length, "line missing", "lines missing")}>Sentences of the original the full instructions don't have{changed.length ? `; ${changed.length} more changed` : ""}.</TipBody>}>
               <span>{missing.length}</span>
             </Hint>
           ) : (

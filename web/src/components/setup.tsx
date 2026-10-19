@@ -425,7 +425,7 @@ function BlocksStep({ flow }: { flow: Flow }) {
     <StepShell
       flow={flow}
       step="blocks"
-      sub="Before you bring in your agents, here's how sopops stores their prompts. You'll see your own agents this way after the import."
+      sub="Before you bring in your agents, here's how sopops stores their instructions (what your platform may call the prompt or system prompt). You'll see your own agents this way after the import."
       back={s.back}
       exit={s.exit}
       primary={{ label: "Continue", run: s.next }}
@@ -443,7 +443,7 @@ function AgentsStep({ flow }: { flow: Flow }) {
     <StepShell
       flow={flow}
       step="agents"
-      sub="Import the prompts your agents run today. sopops splits each one into shared instructions and procedures. You review everything before it's saved."
+      sub="Import each agent's full instructions as they run today. sopops splits them into shared instructions and procedures. You review everything before it's saved."
       back={s.back}
       exit={s.exit}
       aside={!n && s.skip()}
@@ -468,7 +468,7 @@ function PublishStep({ flow }: { flow: Flow }) {
     <StepShell
       flow={flow}
       step="publish"
-      sub="Agents get their prompts from a release. Look over the drafts, then publish them."
+      sub="Agents get their instructions from a release. Look over the drafts, then publish them."
       back={s.back}
       exit={s.exit}
       aside={!done && !nothing && s.skip()}
@@ -500,7 +500,7 @@ function ConnectStep({ flow }: { flow: Flow }) {
       wide
       sub={
         <>
-          Each agent gets its prompt from sopops and sends its calls back to be checked. Here's what {listNames(plats.shown.map(platformName), "and")}{" "}
+          Each agent gets its instructions from sopops and sends its calls back to be checked. Here's what {listNames(plats.shown.map(platformName), "and")}{" "}
           {plats.shown.length === 1 ? "needs" : "need"}.
         </>
       }

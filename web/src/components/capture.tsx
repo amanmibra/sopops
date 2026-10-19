@@ -411,7 +411,7 @@ function VapiBack() {
   const v = q.data?.vapi;
   if (!v) return null;
   const why: Record<string, string> = {
-    "assistant-request": "gets the prompt when a call starts",
+    "assistant-request": "gets the instructions when a call starts",
     "end-of-call-report": "sends each call when it ends",
     "conversation-update": "sends each turn as it happens",
     transcript: "sends what's said as it happens",

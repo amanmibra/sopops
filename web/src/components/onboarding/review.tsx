@@ -71,7 +71,7 @@ export function ImportView({ id }: { id: string }) {
       {(d.status === "applied" || d.pr_state === "merged") && (
         <Panel title="Connect your agents">
           <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
-            After you publish, each agent needs two things: its prompt from sopops, and a way to send its sessions back for checks. Here's what each
+            After you publish, each agent needs two things: its instructions from sopops, and a way to send its sessions back for checks. Here's what each
             platform needs.
           </p>
           <ConnectGuide />
@@ -274,7 +274,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
     >
       {kickoff && token ? (
         <details open={!imp.proposal}>
-          <summary className="text-muted-foreground mb-2 cursor-pointer text-[13px]">{imp.proposal ? "Commands and prompt" : "How to start"}</summary>
+          <summary className="text-muted-foreground mb-2 cursor-pointer text-[13px]">{imp.proposal ? "Commands and instructions" : "How to start"}</summary>
           <p className="mb-3 max-w-[80ch] text-[13px]">
             In a terminal at the root of your agents' repo, run this. It adds the sopops tools to your coding agent and starts it on the onboarding instructions. The token in it is shown only now.
           </p>
@@ -319,7 +319,7 @@ export function ImportCard({ children }: { children?: ReactNode }) {
   return (
     <Panel title="Import agents">
       <p className="mb-3 text-[13px]">
-        Bring the prompts your agents run today: from {listNames(from)}. You review the result before it's saved as drafts.
+        Bring in the instructions your agents run today: from {listNames(from)}. You review the result before it's saved as drafts.
       </p>
       {children}
       <HrefLink href={wsHref(ws, "import")}>Import agents</HrefLink>

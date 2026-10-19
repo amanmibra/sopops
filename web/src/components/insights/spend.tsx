@@ -27,7 +27,7 @@ const PURPOSE: Record<PurposeSpend["purpose"], { label: string; help: string }> 
   theme: { label: "Themes", help: "Grouping a procedure's patterns by the phase of the call." },
   suggestion: { label: "Suggestions", help: "Writing suggested edits from verdicts." },
   calibrate: { label: "Calibration", help: "Fitting the check thresholds to your labels." },
-  onboarding: { label: "Import", help: "Extracting procedures from existing prompts." },
+  onboarding: { label: "Import", help: "Extracting procedures from existing instructions." },
 };
 
 function callsTip(t: SpendTotals) {

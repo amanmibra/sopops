@@ -81,7 +81,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
   const { errors, banner, onSave, remove } = useOnSave("agent", id, isNew, dirty);
   const plat = PLATFORMS.find((p) => p.value === m.platform) ?? PLATFORMS[0];
 
-  // The draft prompt, rebuilt a moment after each edit.
+  // The draft instructions, rebuilt a moment after each edit.
   const [preview, setPreview] = useState<Preview | null>(null);
   const seq = useRef(0);
   const body = { platform: m.platform, platform_id: m.platform_id || "(not set)", context: m.context, blocks: m.blocks, variables: m.variables };
@@ -128,10 +128,10 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
               <Input id="f-platform_id" value={m.platform_id} placeholder={plat.idLabel} onChange={(e) => set({ platform_id: e.target.value })} />
             </Field>
           </div>
-          <Field id="context" name="About this agent" help="Goes first in the prompt. Facts only this agent needs: the location, hours, what it doesn't offer." errors={errors}>
+          <Field id="context" name="About this agent" help="Goes first in the agent's instructions. Facts only this agent needs: the location, hours, what it doesn't offer." errors={errors}>
             <Textarea id="f-context" className="min-h-28" value={m.context} onChange={(e) => set({ context: e.target.value })} />
           </Field>
-          <Field id="blocks" name="Blocks" help="Shared instructions, procedures and groups, in prompt order. Drag or use the arrows to reorder; open a block to read or edit it." errors={errors}>
+          <Field id="blocks" name="Blocks" help="Shared instructions, procedures and groups, in order. Drag or use the arrows to reorder; open a block to read or edit it." errors={errors}>
             <BlockStack value={m.blocks} onChange={(blocks) => set({ blocks })} errors={errors} />
           </Field>
           <Field id="variables" name="Variables" help="Values for the {{placeholders}} in this agent's blocks. Leave one empty to use the default from Settings." errors={errors}>
@@ -150,7 +150,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
 function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { kind: Kind; id: string } }) {
   const [chosen, setChosen] = useState<"prompt" | "changes" | null>(() => (prefs.get("previewmode") as "prompt" | "changes" | null) ?? null);
   const frame = (head: React.ReactNode, body: React.ReactNode) => (
-    <section className="bg-card min-w-0 overflow-hidden rounded-xl border" aria-label="Draft prompt">
+    <section className="bg-card min-w-0 overflow-hidden rounded-xl border" aria-label="Draft instructions">
       <header className="flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5">{head}</header>
       {body}
     </section>
@@ -160,7 +160,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
     const why = r.released_prompt == null ? "Not published yet" : `Same as live (release #${r.release})`;
     return frame(
       <>
-        <b className="mr-auto">Draft prompt</b>
+        <b className="mr-auto">Draft instructions</b>
         <span className="text-muted-foreground text-[13px]">{why}</span>
       </>,
       <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>,
@@ -172,14 +172,14 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
   const c = r && r.valid ? textCount(r.released_prompt, r.prompt) : null;
   return frame(
     <>
-      <b className="mr-auto">Draft prompt</b>
+      <b className="mr-auto">Draft instructions</b>
       {shown === "prompt" && c && (c.add || c.del) ? <Counts {...c} /> : null}
       <Segmented
         small
         label="Preview"
         value={shown}
         options={[
-          ["prompt", "Prompt"],
+          ["prompt", "Instructions"],
           ["changes", "Changes vs live"],
         ]}
         onChange={(v) => {
@@ -201,7 +201,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
       <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>
     ) : (
       <div className="px-3.5 py-3 [&_.dv]:max-h-[calc(100vh-220px)]">
-        <DiffView before={r.released_prompt} after={r.prompt} empty="Same as the live prompt." />
+        <DiffView before={r.released_prompt} after={r.prompt} empty="Same as the live instructions." />
       </div>
     ),
   );
@@ -397,7 +397,7 @@ function SettingsForm() {
   return (
     <Page>
       {notice}
-      <SectionHead title="Set the defaults every agent's prompt uses" aside={c && <Tag tone={c.change}>{c.change}, not published</Tag>}>
+      <SectionHead title="Set the defaults every agent's instructions use" aside={c && <Tag tone={c.change}>{c.change}, not published</Tag>}>
         Changes here are saved as drafts and go live when you publish, like any other edit.
       </SectionHead>
       {banner}
@@ -405,7 +405,7 @@ function SettingsForm() {
         <Field id="variables" name="Default variables" help="Values for placeholders every agent gets unless the agent sets its own." errors={errors}>
           <VarRows id="variables" value={m.variables} onChange={(variables) => set({ variables })} placeholder="default value" />
         </Field>
-        <Field id="procedures_heading" name="Procedures heading" help="Placed once, right before the first procedure in every prompt. Leave it empty for none." errors={errors}>
+        <Field id="procedures_heading" name="Procedures heading" help="Placed once, right before the first procedure in every agent's instructions. Leave it empty for none." errors={errors}>
           <Input id="f-procedures_heading" value={m.procedures_heading} onChange={(e) => set({ procedures_heading: e.target.value })} />
         </Field>
       </div>

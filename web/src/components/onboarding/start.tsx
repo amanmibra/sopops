@@ -1,4 +1,4 @@
-// Import agents, step 1: choose where the prompts come from, then start the import.
+// Import agents, step 1: choose where the instructions come from, then start the import.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
@@ -29,18 +29,18 @@ type Row = { name: string; platform: Platform; platform_id: string; tools: strin
 const IMPORT_PLATFORMS = PLATFORMS.filter((p) => p.value !== "retell");
 const blank = (platform: Platform = "livekit"): Row => ({ name: "", platform, platform_id: "", tools: "", prompt: "" });
 
-/** Where prompts can come from: ElevenLabs and Vapi only for a team that uses them. */
+/** Where instructions can come from: ElevenLabs and Vapi only for a team that uses them. */
 function sources(plats: Platforms): { value: Source; title: string; text: string }[] {
   return [
     { value: "agent", title: "Claude Code or Codex", text: "Recommended. Your coding agent finds the instructions wherever they live (code, config, a database) and sends them here." },
     {
       value: "paste",
       title: "Paste or upload",
-      text: plats.has("livekit") ? "LiveKit prompts from your code, or any prompt as text. One agent per prompt or file." : "Any prompt as text. One agent per prompt or file.",
+      text: plats.has("livekit") ? "LiveKit instructions from your code, or any instructions as text. One agent per text or file." : "Any instructions as text. One agent per text or file.",
     },
-    ...(plats.has("elevenlabs") ? [{ value: "elevenlabs" as const, title: "ElevenLabs", text: "Read your agents' prompts and tools with an API key." }] : []),
-    ...(plats.has("vapi") ? [{ value: "vapi" as const, title: "Vapi", text: "Read your assistants' prompts and tools with an API key." }] : []),
-    { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's prompt." },
+    ...(plats.has("elevenlabs") ? [{ value: "elevenlabs" as const, title: "ElevenLabs", text: "Read your agents' instructions and tools with an API key." }] : []),
+    ...(plats.has("vapi") ? [{ value: "vapi" as const, title: "Vapi", text: "Read your assistants' instructions and tools with an API key." }] : []),
+    { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's instructions." },
   ];
 }
 
@@ -55,8 +55,8 @@ export function ImportStart() {
     <Page>
       <PageTitle>Import agents</PageTitle>
       <Sub>
-        Bring in the prompts your agents run today. sopops splits each one into the agent's own text, shared instructions and procedures, merges what agents share, and
-        shows where they differ. You review everything before it's saved, as drafts.
+        Bring in the instructions each agent runs today (what your platform may call its prompt or system prompt). sopops splits them into the agent's own text, shared
+        instructions and procedures, merges what agents share, and shows where they differ. You review everything before it's saved, as drafts.
       </Sub>
       {open.length > 0 && (
         <Panel title="In progress">
@@ -71,7 +71,7 @@ export function ImportStart() {
           </ul>
         </Panel>
       )}
-      <div role="radiogroup" aria-label="Where the prompts are" className="mb-6 grid gap-2.5 sm:grid-cols-2">
+      <div role="radiogroup" aria-label="Where the instructions are" className="mb-6 grid gap-2.5 sm:grid-cols-2">
         {SOURCES.map((s) => (
           <button
             key={s.value}
@@ -181,9 +181,9 @@ function PasteSource() {
               </Button>
             </div>
             <Textarea
-              aria-label={`Agent ${i + 1} prompt`}
+              aria-label={`Agent ${i + 1} instructions`}
               className="min-h-40 font-mono text-[13px]"
-              placeholder="The agent's full prompt, exactly as the model gets it"
+              placeholder="The agent's full instructions, exactly as the model gets them"
               value={r.prompt}
               onChange={(e) => set(i, { prompt: e.target.value })}
             />
@@ -262,7 +262,7 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
             {label} API key
           </label>
           <p className="text-muted-foreground mb-2 max-w-[72ch] text-[13px]">
-            Used for this import only: sopops reads your agents' prompts and tool names with it, then forgets it. It isn't stored or logged. A read-only key is enough.
+            Used for this import only: sopops reads your agents' instructions and tool names with it, then forgets it. It isn't stored or logged. A read-only key is enough.
           </p>
           <div className="flex flex-wrap gap-2">
             <Input id="f-key" type="password" autoComplete="off" className="max-w-md" value={key} onChange={(e) => setKey(e.target.value)} placeholder={platform === "vapi" ? "Private key" : "xi-api-key"} />
@@ -302,7 +302,7 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
         {agents && (
           <div>
             <Button disabled={busy || !picked.size} onClick={() => run({ author: author(), platform: { platform, api_key: key, agent_ids: [...picked] } })}>
-              {busy ? "Reading prompts…" : `Import ${plural(picked.size, "agent", "agents")}`}
+              {busy ? "Reading instructions…" : `Import ${plural(picked.size, "agent", "agents")}`}
             </Button>
           </div>
         )}
@@ -344,7 +344,7 @@ function AgentSource() {
   return (
     <div className="grid gap-4">
       <p className="max-w-[75ch]">
-        You start Claude Code or Codex in your agents' repo with one command and one prompt. It finds every agent's instructions, extracts them with the sopops tools, checks
+        You start Claude Code or Codex in your agents' repo with one command. It finds every agent's instructions, extracts them with the sopops tools, checks
         nothing was lost, and sends them here, where you watch it work and review the result.
       </p>
       <div>

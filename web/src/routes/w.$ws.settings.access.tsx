@@ -10,7 +10,7 @@ function Access() {
   return (
     <>
       <SectionHead title="Let your agents and webhooks reach sopops">
-        Make a token for each agent or service that sends sessions or fetches prompts.{" "}
+        Make a token for each agent or service that sends sessions or fetches instructions.{" "}
         {required ? "People sign in instead: manage them under Members." : "People don't sign in on this sopops."}
       </SectionHead>
       <TokensPanel />

@@ -1,4 +1,4 @@
-// Publishing: a dialog that lists every saved draft change, with its diff and how each agent's prompt changes,
+// Publishing: a dialog that lists every saved draft change, with its diff and how each agent's instructions change,
 // names any form with edits that aren't saved yet (they aren't part of the release), and only then publishes.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
@@ -59,7 +59,7 @@ function PublishBody({ onDone }: { onDone: () => void }) {
         <DialogTitle>{d.items.length ? "Publish these changes?" : "Nothing to publish"}</DialogTitle>
         <DialogDescription>
           {d.items.length
-            ? `${plural(d.items.length, "saved draft change", "saved draft changes")}${changed.length ? `, changing ${plural(changed.length, "agent's prompt", "agents' prompts")}` : ", no prompt changes"}. ${d.release ? `Agents are on release #${d.release} until you publish.` : "Nothing is live yet."}`
+            ? `${plural(d.items.length, "saved draft change", "saved draft changes")}${changed.length ? `, changing ${plural(changed.length, "agent's instructions", "agents' instructions")}` : ", no agent's instructions change"}. ${d.release ? `Agents are on release #${d.release} until you publish.` : "Nothing is live yet."}`
             : "There are no saved draft changes since the live release."}
         </DialogDescription>
       </DialogHeader>
@@ -77,7 +77,7 @@ function PublishBody({ onDone }: { onDone: () => void }) {
             {d.items.map((i) => (
               <ChangedItem key={`${i.kind}:${i.id}`} i={i} open={d.items.length === 1} />
             ))}
-            <h3 className="mt-4 mb-2 text-sm font-semibold">{changed.length ? "How prompts change" : "No agent's prompt changes"}</h3>
+            <h3 className="mt-4 mb-2 text-sm font-semibold">{changed.length ? "How agents' instructions change" : "No agent's instructions change"}</h3>
             {changed.length ? changed.map((a) => <ChangedAgent key={a.agent} a={a} open={changed.length === 1} />) : <Note>The saved edits don't change what any agent is told.</Note>}
           </>
         )}

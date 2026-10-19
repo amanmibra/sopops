@@ -222,7 +222,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
         )}
         {current.id === "notes" && (
           <>
-            <Intro>{capital(who)} left these notes while it read your prompts.</Intro>
+            <Intro>{capital(who)} left these notes while it read your agents' instructions.</Intro>
             <Panel>
               <ul className="grid list-disc gap-1.5 pl-5">
                 {notes.map((n, i) => (
@@ -328,7 +328,7 @@ function Found({ draft, fidelity, onAgent }: { draft: Draft; fidelity: AgentFide
   const failing = failingOf(fidelity);
   return (
     <>
-      <Intro>Click an agent to read its full prompt.</Intro>
+      <Intro>Click an agent to read its full instructions.</Intro>
       <Panel>
         <BlocksDiagram
           blocks={{
@@ -392,8 +392,8 @@ function BlocksStep({
   return (
     <>
       <Intro>
-        These are the blocks sopops made from your prompts, and the agents that use them. Fix anything that reads wrong. Before you go on, sopops checks your edits
-        against the original prompts.
+        These are the blocks sopops made from your agents' instructions, and the agents that use them. Fix anything that reads wrong. Before you go on, sopops checks your edits
+        against the original instructions.
       </Intro>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented
@@ -609,7 +609,7 @@ function AgentCard({
           <Field id="platform_id" name="Platform id" help="The agent's id on its platform." errors={[]}>
             <Input aria-label={`${a.id} platform id`} value={a.platform_id ?? ""} onChange={(e) => onChange({ ...a, platform_id: e.target.value })} />
           </Field>
-          <Field id="blocks" name="Blocks, in prompt order" errors={[]}>
+          <Field id="blocks" name="Blocks, in order" errors={[]}>
             <ol className="list-decimal pl-5 text-[13px]">
               {(a.blocks ?? []).map((b) => (
                 <li key={b}>{blockName(b)}</li>
@@ -617,7 +617,7 @@ function AgentCard({
             </ol>
           </Field>
         </div>
-        <Field id="context" name="The agent's own text" help="Facts about this agent only. It goes first in its prompt." errors={[]}>
+        <Field id="context" name="The agent's own text" help="Facts about this agent only. It goes first in its instructions." errors={[]}>
           <Textarea aria-label={`${a.id} context`} value={a.context ?? ""} onChange={(e) => onChange({ ...a, context: e.target.value })} />
         </Field>
         {Object.keys(a.variables ?? {}).length > 0 && (
@@ -643,12 +643,12 @@ function AgentCard({
         {f && (
           <div>
             <Button size="sm" variant="outline" onClick={() => setDiff(!diff)}>
-              {diff ? "Hide" : "Compare with"} the original prompt
+              {diff ? "Hide" : "Compare with"} the original instructions
             </Button>
             {(f.reworded ?? []).length > 0 && <Note className="ml-2">{plural((f.reworded ?? []).length, "sentence", "sentences")} reworded into procedure steps</Note>}
             {diff && (
               <div className="mt-3">
-                <DiffView before={original ?? ""} after={f.compiled ?? ""} empty="The compiled prompt is the original, word for word." />
+                <DiffView before={original ?? ""} after={f.compiled ?? ""} empty="The full instructions match the original, word for word." />
               </div>
             )}
           </div>

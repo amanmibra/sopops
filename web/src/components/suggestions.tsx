@@ -1,5 +1,5 @@
 // Suggestions: SOP changes written from a pattern's verdict, by status, and one with its rationale, the source
-// pattern, the block diff, how each affected agent's prompt changes, and apply / dismiss / regenerate. A proposed one
+// pattern, the block diff, how each affected agent's instructions change, and apply / dismiss / regenerate. A proposed one
 // says how it fits the procedure as it is now: unchanged, changed but merging cleanly, or in conflict (then it can be
 // rewritten against the current text, as a new suggestion).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -39,7 +39,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
     <Page wide>
       <PageTitle>Suggestions</PageTitle>
       <Sub className="max-w-[90ch]">
-        SOP changes written from a pattern's verdict. Review the diff and how each agent's prompt changes, then apply it as a draft (or a pull request, with a connected repo) or dismiss it.
+        SOP changes written from a pattern's verdict. Review the diff and how each agent's instructions change, then apply it as a draft (or a pull request, with a connected repo) or dismiss it.
       </Sub>
       <nav className="mb-4 flex gap-0.5 overflow-x-auto border-b" aria-label="Suggestion status">
         {([...SUGGESTION_STATUSES, "all"] as Tab[]).map((t) => (
@@ -107,12 +107,12 @@ function AgentChange({ a, open }: { a: PlanAgent; open: boolean }) {
       open={open}
       summary={
         <>
-          <Tag tone="changed">Prompt changes</Tag>
+          <Tag tone="changed">Instructions change</Tag>
           <b>{a.agent}</b>
           <Counts add={a.added} del={a.removed} />
           <span className="flex-1" />
           <HrefLink href={href("agent", a.agent, "prompt")} className="text-[13px]" onClick={(e) => e.stopPropagation()}>
-            Full prompts
+            Full instructions
           </HrefLink>
         </>
       }
@@ -310,7 +310,7 @@ export function SuggestionView({ id }: { id: string }) {
       <PageTitle aside={<SuggestionStatusTag status={s.status} big />}>{patternName ? `Fix for “${patternName}”` : "Suggested change"}</PageTitle>
       <Sub>
         An edit to procedure <HrefLink href={href("procedure", s.block_id ?? s.procedure_id ?? undefined)}>{procName}</HrefLink>, written {when(s.created_at)}
-        {agents.length > 0 && `, changing ${plural(agents.length, "agent's prompt", "agents' prompts")}`}
+        {agents.length > 0 && `, changing ${plural(agents.length, "agent's instructions", "agents' instructions")}`}
         {s.attempts > 1 && ` (took ${s.attempts} tries to compile)`}.
         {s.rewrite_of && (
           <>
@@ -413,8 +413,8 @@ export function SuggestionView({ id }: { id: string }) {
           </section>
           {s.new_text != null && (
             <section className="min-w-0">
-              <h2 className="mb-2.5 text-base font-semibold">{agents.length ? `How ${agents.length === 1 ? "the agent's prompt changes" : "agents' prompts change"}` : "No agent's prompt changes"}</h2>
-              {agents.length ? agents.map((a, i) => <AgentChange key={a.agent} a={a} open={i < 2} />) : <Note>The edit doesn't reach any agent's prompt as it stands.</Note>}
+              <h2 className="mb-2.5 text-base font-semibold">{agents.length ? `How ${agents.length === 1 ? "the agent's instructions change" : "agents' instructions change"}` : "No agent's instructions change"}</h2>
+              {agents.length ? agents.map((a, i) => <AgentChange key={a.agent} a={a} open={i < 2} />) : <Note>The edit doesn't reach any agent's instructions as it stands.</Note>}
             </section>
           )}
         </div>

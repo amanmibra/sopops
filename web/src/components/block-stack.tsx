@@ -257,7 +257,7 @@ export function BlockStack({ field = "blocks", value, onChange, errors, owner }:
       {value.length ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={value} strategy={verticalListSortingStrategy}>
-            <ol className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Blocks, in prompt order">
+            <ol className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Blocks, in order">
               {value.map((id, i) => (
                 <Card key={id} id={id} index={i} count={value.length} errors={errors} field={field} onMove={(to) => move(i, to)} onRemove={() => onChange(value.filter((_, j) => j !== i))} />
               ))}

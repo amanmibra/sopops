@@ -1,4 +1,4 @@
-// What each platform needs to get prompts from sopops and send sessions back, and which of it takes code in the agent.
+// What each platform needs to get instructions from sopops and send sessions back, and which of it takes code in the agent.
 // Shown in Settings and once an import is applied. A cell marked `next` describes a path that isn't built yet, with
 // what works until then.
 
@@ -22,7 +22,7 @@ type Cell = { need: Need; how: ReactNode; next?: ReactNode };
 const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
   {
     platform: "livekit",
-    prompt: { need: "sdk", how: <>Add <code>attach()</code> where your agent starts a call, and it loads the prompt from sopops.</> },
+    prompt: { need: "sdk", how: <>Add <code>attach()</code> where your agent starts a call, and it loads its instructions from sopops.</> },
     after: {
       need: "none",
       how: <>Add your LiveKit project key and a webhook in LiveKit Cloud. sopops joins each call and records it.</>,
@@ -36,7 +36,7 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
     platform: "elevenlabs",
     prompt: {
       need: "none",
-      how: <>Add an API key, and sopops updates the agent when you publish. For phone calls, you can also add a webhook so every call gets the newest prompt.</>,
+      how: <>Add an API key, and sopops updates the agent when you publish. For phone calls, you can also add a webhook so every call gets the newest instructions.</>,
     },
     after: {
       need: "none",
@@ -83,7 +83,7 @@ function CellView({ cell }: { cell: Cell }) {
   );
 }
 
-/** Per platform the team uses: what it takes to get a prompt from sopops, and to send sessions back after a call and in real time. */
+/** Per platform the team uses: what it takes to get instructions from sopops, and to send sessions back after a call and in real time. */
 export function ConnectGuide({ className }: { className?: string }) {
   const plats = usePlatforms();
   return (
@@ -92,7 +92,7 @@ export function ConnectGuide({ className }: { className?: string }) {
         <thead>
           <tr className="text-muted-foreground text-xs">
             <th className="border-b px-2.5 py-1.5 font-medium">Platform</th>
-            <th className="border-b px-2.5 py-1.5 font-medium">Prompt</th>
+            <th className="border-b px-2.5 py-1.5 font-medium">Instructions</th>
             <th className="border-b px-2.5 py-1.5 font-medium">Sessions, after a call</th>
             <th className="border-b px-2.5 py-1.5 font-medium">Real-time, during a call</th>
           </tr>

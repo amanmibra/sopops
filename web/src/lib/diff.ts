@@ -1,4 +1,4 @@
-// Line and word diffs by longest common subsequence, shared by prompt diffs, history and field changes.
+// Line and word diffs by longest common subsequence, shared by instructions diffs, history and field changes.
 
 export type Op = { op: " " | "-" | "+"; text: string };
 export type Seg = { t: string; mark: boolean };

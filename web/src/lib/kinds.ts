@@ -25,13 +25,13 @@ export const PLATFORMS = [
 export const platformName = (p: string) => PLATFORMS.find((x) => x.value === p)?.label ?? p;
 
 export const DELIVERY = [
-  { value: "prompt", label: "Whole procedure in the prompt", help: "Everything goes in the agent's prompt. Use this unless the agent has a get_sop tool." },
+  { value: "prompt", label: "Whole procedure in the instructions", help: "Everything goes in the agent's instructions. Use this unless the agent has a get_sop tool." },
   {
     value: "auto",
-    label: "Rules in the prompt, steps on request",
-    help: "The name, when it applies, never and warning signs stay in the prompt. The goal, guidance and steps are fetched with the agent's get_sop tool.",
+    label: "Rules in the instructions, steps on request",
+    help: "The name, when it applies, never and warning signs stay in the instructions. The goal, guidance and steps are fetched with the agent's get_sop tool.",
   },
-  { value: "tool", label: "Only the name in the prompt, the rest on request", help: "The prompt names the procedure and when it applies. Everything else is fetched with the agent's get_sop tool." },
+  { value: "tool", label: "Only the name in the instructions, the rest on request", help: "The instructions name the procedure and when it applies. Everything else is fetched with the agent's get_sop tool." },
 ] as const;
 export const deliveryName = (d: string) => DELIVERY.find((x) => x.value === d)?.label ?? d;
 

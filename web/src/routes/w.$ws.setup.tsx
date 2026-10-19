@@ -15,7 +15,7 @@ export const Route = createFileRoute("/w/$ws/setup")({
   component: Setup,
 });
 
-/** The setup steps inside a team: people, platforms, how a prompt is built, agents, publishing and calls. */
+/** The setup steps inside a team: people, platforms, how an agent's instructions are built, agents, publishing and calls. */
 function Setup() {
   const { ws } = Route.useParams();
   const { step, flow } = Route.useSearch();

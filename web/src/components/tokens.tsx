@@ -17,7 +17,7 @@ type Scope = "ingest" | "runtime";
 
 const SCOPES: { scope: Scope; label: string; help: string }[] = [
   { scope: "ingest", label: "ingest", help: "send sessions" },
-  { scope: "runtime", label: "runtime", help: "fetch prompts, report served calls, call-start webhooks" },
+  { scope: "runtime", label: "runtime", help: "fetch instructions, report served calls, call-start webhooks" },
 ];
 
 export function TokensPanel() {
@@ -80,7 +80,7 @@ export function TokensPanel() {
             <b className="text-foreground">ingest</b> sends sessions to <code className="break-all">{url}/sessions</code>.
           </li>
           <li>
-            <b className="text-foreground">runtime</b> fetches prompts (<code>…/agents/&lt;agent&gt;</code>) and answers call-start webhooks. Once your
+            <b className="text-foreground">runtime</b> fetches instructions (<code>…/agents/&lt;agent&gt;</code>) and answers call-start webhooks. Once your
             team has a runtime token, every fetch needs one.
           </li>
         </ul>
@@ -130,7 +130,7 @@ export function TokensPanel() {
           </tbody>
         </table>
       ) : (
-        list.isSuccess && <Note>No tokens yet. Prompt fetches are open and sessions are refused until you make one.</Note>
+        list.isSuccess && <Note>No tokens yet. Anyone can fetch instructions, and sessions are refused until you make one.</Note>
       )}
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="grid gap-1">

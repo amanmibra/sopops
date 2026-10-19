@@ -19,7 +19,7 @@ export const STEP_TITLE: Record<StepKey, string> = {
   team: "What's your team called?",
   people: "Want anyone else on your team?",
   platforms: "Which platforms do you use?",
-  blocks: "How sopops builds a prompt",
+  blocks: "How sopops builds an agent's instructions",
   agents: "Bring in your agents",
   publish: "Publish your first release",
   connect: "Connect your calls",

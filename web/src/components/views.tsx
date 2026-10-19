@@ -1,4 +1,4 @@
-// The pages that aren't forms: lists, overview, prompt, unpublished changes, releases, convert, home.
+// The pages that aren't forms: lists, overview, instructions, unpublished changes, releases, convert, home.
 import { UsageGrid } from "./usage-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
@@ -22,7 +22,7 @@ import { Button } from "./ui/button";
 // --- lists ---------------------------------------------------------------------------
 
 const INTRO: Record<ListKind, string> = {
-  agent: "One per voice agent. Each agent's prompt is its own text, then the blocks it lists, in that order.",
+  agent: "One per voice agent. An agent's full instructions are its own text, then the blocks it lists, in that order.",
   instruction: "Text several agents get, such as identity, voice and policies. Edit it once and every agent that lists it changes.",
   procedure: "Step-by-step procedures the agents follow, with things they must never do and signs that a call needs a person.",
   group: "A named, ordered set of blocks that several agents share. An agent lists a group like any block, and it expands in place.",
@@ -106,8 +106,8 @@ export function ListView({ kind }: { kind: ListKind }) {
 // --- overview: which agent uses which block ------------------------------------------
 
 const TERMS: [string, string][] = [
-  ["Agents", "One per deployed agent: its platform id, its own context, and the blocks it uses, in prompt order. sopops compiles them into its prompt."],
-  ["Shared instructions", "Prompt text written once and used by many agents: role, tone, policies, facts. Not step by step."],
+  ["Agents", "One per deployed agent: its platform id, its own context, and the blocks it uses, in order. sopops joins them into its full instructions."],
+  ["Shared instructions", "Text written once and used by many agents: role, tone, policies, facts. Not step by step."],
   ["Procedures", "What to do in one situation: a goal, when it applies, steps, never rules and warning signs. QA checks sessions against them."],
   ["Groups", "A named list of blocks that many agents share. An agent lists a group like one block, and it expands in place."],
 ];
@@ -216,7 +216,7 @@ export function OverviewView() {
   );
 }
 
-// --- an agent's prompt: draft and live --------------------------------------------
+// --- an agent's instructions: draft and live --------------------------------------------
 
 function Parts({ components }: { components: Component[] }) {
   const { href, model } = useWs();
@@ -283,7 +283,7 @@ export function PromptView({ id }: { id: string }) {
       <Page wide>
         {head}
         <PromptBox
-          title={livePrompt === null ? "Draft" : "Prompt"}
+          title={livePrompt === null ? "Draft" : "Instructions"}
           aside={
             <>
               <Note>{why}</Note>
@@ -300,10 +300,10 @@ export function PromptView({ id }: { id: string }) {
   const sub = !d.valid
     ? "The draft has errors, so it can't be built. See Unpublished changes."
     : status === "unchanged"
-      ? "The draft gives this agent the same prompt as the live release."
+      ? "The draft gives this agent the same instructions as the live release."
       : status === "added"
-        ? "This agent isn't live yet. It gets this prompt once you publish."
-        : "The draft changes this agent's prompt. The agent gets it once you publish.";
+        ? "This agent isn't live yet. It gets these instructions once you publish."
+        : "The draft changes this agent's instructions. The agent gets it once you publish.";
   return (
     <Page wide>
       {head}
@@ -316,7 +316,7 @@ export function PromptView({ id }: { id: string }) {
           value={showing}
           options={[
             ["changes", "What changes"],
-            ["full", "Full prompts"],
+            ["full", "Full instructions"],
           ]}
           onChange={setShowing}
         />
@@ -337,7 +337,7 @@ export function PromptView({ id }: { id: string }) {
               </div>
             )}
           </div>
-          <DiffView before={livePrompt} after={draftPrompt} empty="The draft prompt is the same as the live one." />
+          <DiffView before={livePrompt} after={draftPrompt} empty="The draft instructions are the same as the live ones." />
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">
@@ -411,14 +411,14 @@ export function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
       open={open}
       summary={
         <>
-          <Tag tone={a.status}>{{ added: "New agent", changed: "Prompt changes", removed: "Removed", unchanged: "Unchanged" }[a.status]}</Tag>
+          <Tag tone={a.status}>{{ added: "New agent", changed: "Instructions change", removed: "Removed", unchanged: "Unchanged" }[a.status]}</Tag>
           <b>{a.agent}</b>
           <span className="text-muted-foreground">{a.platform_ref}</span>
           <Counts {...textCount(a.released_prompt, a.prompt)} />
           <span className="flex-1" />
           {a.status !== "removed" && (
             <HrefLink href={href("agent", a.agent, "prompt")} className="text-[13px]" onClick={(e) => e.stopPropagation()}>
-              Full prompts
+              Full instructions
             </HrefLink>
           )}
         </>
@@ -465,11 +465,11 @@ export function ChangesView() {
       )}
       <PublishDialog open={publishing} onOpenChange={setPublishing} />
       <h2 className="mt-6 mb-2.5 text-base font-semibold">{d.items.length ? "What was edited" : "Nothing to publish"}</h2>
-      {d.items.length ? d.items.map((i) => <ChangedItem key={`${i.kind}:${i.id}`} i={i} />) : <Note>Edits you save show up here, with what changed in each field and in each agent's prompt.</Note>}
+      {d.items.length ? d.items.map((i) => <ChangedItem key={`${i.kind}:${i.id}`} i={i} />) : <Note>Edits you save show up here, with what changed in each field and in each agent's instructions.</Note>}
       {d.items.length > 0 && (
         <>
           <h2 className="mt-6 mb-2.5 text-base font-semibold">
-            {changed.length ? `How ${changed.length === 1 ? "the agent's prompt changes" : "agents' prompts change"}` : "No agent's prompt changes"}
+            {changed.length ? `How ${changed.length === 1 ? "the agent's instructions change" : "agents' instructions change"}` : "No agent's instructions change"}
           </h2>
           {changed.length ? changed.map((a, i) => <ChangedAgent key={a.agent} a={a} open={i < 3} />) : <Note>The saved edits don't change what any agent is told.</Note>}
         </>
@@ -641,8 +641,8 @@ export function ConvertView() {
       <PageTitle>Convert your team's files</PageTitle>
       <Sub>
         {legacy === "removed_field"
-          ? `Some shared instructions or procedures here are marked locked, a setting sopc no longer has. Converting runs sopc migrate, which removes it. No agent's prompt changes.`
-          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sopc migrate: every agent's prompt stays the same, except that its own text moves to the top.`}
+          ? `Some shared instructions or procedures here are marked locked, a setting sopc no longer has. Converting runs sopc migrate, which removes it. No agent's instructions change.`
+          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sopc migrate: every agent's instructions stay the same, except that its own text moves to the top.`}
       </Sub>
       {plan.isPending ? (
         <p className="text-muted-foreground">Checking what converting changes…</p>
@@ -681,9 +681,9 @@ export function EmptyWorkspace() {
     <div className="max-w-[60ch] py-10">
       <h1 className="mb-2 text-[22px] font-semibold tracking-tight">Your team has no agents yet</h1>
       <p className="mb-4">
-        Already have agents running? Import their prompts: sopops splits them into shared instructions and procedures and shows where they differ. Or write the text several
+        Already have agents running? Import them: sopops splits each agent's instructions into shared instructions and procedures and shows where they differ. Or write the text several
         agents share as shared instructions, and each procedure they follow. Then build each agent (one per location or phone line) from those
-        blocks, in the order its prompt should have them.
+        blocks, in the order its instructions should have them.
       </p>
       <div className="flex flex-wrap gap-2">
         <Button onClick={() => go(wsHref(ws, "import"))}>Import agents</Button>

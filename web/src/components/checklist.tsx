@@ -28,8 +28,8 @@ function useItems(): Item[] | null {
   if (session === undefined) return null;
   const names = listNames(plats.shown.map(platformName));
   const items: Item[] = [
-    { key: "agents", title: "Import your agents", text: "Bring in the prompts they run today.", href: wsHref(ws, "import"), done: cfg.agents.length > 0 },
-    { key: "publish", title: "Publish your first release", text: "Agents get their prompts from it.", href: wsHref(ws, "changes"), done: releases.length > 0 },
+    { key: "agents", title: "Import your agents", text: "Bring in the instructions they run today.", href: wsHref(ws, "import"), done: cfg.agents.length > 0 },
+    { key: "publish", title: "Publish your first release", text: "Agents get their instructions from it.", href: wsHref(ws, "changes"), done: releases.length > 0 },
     {
       key: "connect",
       title: `Connect calls from ${names}`,

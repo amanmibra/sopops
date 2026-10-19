@@ -31,7 +31,7 @@ const WEBHOOK: Record<Platform, { path: string; steps: ReactNode[] }> = {
     steps: [
       <>In the agent's settings on ElevenLabs, set <b>Conversation initiation webhook</b> to this address.</>,
       <>Add the header <code>X-Sopops-Secret</code> with the webhook secret. Save it as a workspace secret on ElevenLabs first.</>,
-      <>Under <b>Security → Overrides</b>, let the system prompt be overridden.</>,
+      <>Under <b>Security → Overrides</b>, turn on <b>System prompt</b> (ElevenLabs' name for the agent's instructions) so sopops can set it.</>,
     ],
   },
   vapi: {
@@ -76,7 +76,7 @@ function DeliveryPanel() {
     try {
       await call(sdk.setDelivery({ path: { workspace: ws, agent }, body: { mode } }));
       await qc.invalidateQueries({ queryKey: keyOf(ws, "delivery") });
-      toast.success(mode === "pull" ? `${agent} fetches its prompt at call start.` : `${agent} is updated on its platform at every publish.`);
+      toast.success(mode === "pull" ? `${agent} fetches its instructions at call start.` : `${agent} is updated on its platform at every publish.`);
     } catch (e) {
       toast.error(msg(e));
     }
@@ -90,7 +90,7 @@ function DeliveryPanel() {
       }
     >
       <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
-        <p>Pick how each agent gets its prompt.</p>
+        <p>Pick how each agent gets its instructions.</p>
         <ul className="grid list-disc gap-1 pl-5">
           <li>
             <b className="text-foreground">Pull at call start</b>: the agent, or its platform's call-start webhook, fetches the live release when a call
@@ -98,7 +98,7 @@ function DeliveryPanel() {
           </li>
           {pushers.length > 0 && (
             <li>
-              <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the prompt into the agent on {listNames(pushers)}.
+              <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the instructions into the agent on {listNames(pushers)}.
             </li>
           )}
         </ul>
@@ -228,7 +228,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="grid w-48 text-[13px]">
-            API key <span className="text-muted-foreground text-xs">Pushes prompts on publish</span>
+            API key <span className="text-muted-foreground text-xs">Pushes instructions on publish</span>
           </span>
           {creds.api_key.set ? (
             <>
@@ -267,7 +267,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
           <span className="grid w-48 text-[13px]">
-            Webhook secret <span className="text-muted-foreground text-xs">Fetches prompts at call start</span>
+            Webhook secret <span className="text-muted-foreground text-xs">Fetches instructions at call start</span>
           </span>
           {creds.webhook_secret.set ? (
             <>

@@ -14,7 +14,7 @@ export function ItemHeader({ kind, id, title, tab }: { kind: Kind; id: string; t
     kind === "agent"
       ? [
           ["", "Builder"],
-          ["prompt", "Prompt"],
+          ["prompt", "Instructions"],
           ["history", "History"],
         ]
       : [

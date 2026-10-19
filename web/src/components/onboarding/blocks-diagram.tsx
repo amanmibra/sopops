@@ -1,4 +1,4 @@
-// How sopops builds a prompt, as a picture: blocks written once, agents that list them in order, and the full prompt
+// How sopops builds an agent's instructions, as a picture: blocks written once, agents that list them in order, and the full instructions
 // each agent gets. The import page shows it with an example before anything is imported, and the review's first step
 // draws the same picture with what the import found.
 import { ArrowDown, ArrowRight } from "lucide-react";
@@ -167,7 +167,7 @@ export function BlocksDiagram({
           </div>
         </Column>
         <Arrow />
-        <Column title="Full prompts" text="sopops joins the blocks into one prompt per agent, and your platform gets that prompt.">
+        <Column title="Full instructions" text="sopops joins the blocks into one set of instructions per agent, and your platform gets them.">
           <div className="grid gap-2.5">
             {prompts.map((p) => (
               <div key={p.agent} className="bg-muted min-w-0 rounded-lg px-3 py-2.5 font-mono text-[12px] leading-relaxed">
@@ -239,7 +239,7 @@ const EXAMPLE_PROMPTS: DiagramPrompt[] = [
   },
 ];
 
-/** "How sopops builds a prompt" with example restaurants, for the setup step before importing. */
+/** "How sopops builds an agent's instructions" with example restaurants, for the setup step before importing. */
 export function BlocksExample() {
   const plats = usePlatforms();
   return (

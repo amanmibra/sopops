@@ -67,7 +67,7 @@ export function ProjectFinding({ repo, mode, useAgent, onAgent }: { repo: RepoOu
           <div>
             <b>Found a sopc project at {where}</b>: {plural(p.agents.length, "agent", "agents")} ({p.agents.join(", ")}), {plural(p.files, "file", "files")}.
           </div>
-          <div>Import it as it is. sopops checks it with sopc, and you can compare each agent with its original prompt. Nothing is published.</div>
+          <div>Import it as it is. sopops checks it with sopc, and you can compare each agent with its original instructions. Nothing is published.</div>
           <div className="flex flex-wrap items-center gap-2">
             <ImportFromRepo label="Import it" />
             {recheck}

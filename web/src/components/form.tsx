@@ -245,7 +245,7 @@ export function AgentVars({
     <div id="f-variables">
       {unset.length > 0 && (
         <div className="text-warn mb-2 text-[13px]">
-          {plural(unset.length, "variable needs", "variables need")} a value: the prompt can't be built without {unset.length === 1 ? "it" : "them"}.
+          {plural(unset.length, "variable needs", "variables need")} a value: the instructions can't be built without {unset.length === 1 ? "it" : "them"}.
         </div>
       )}
       <div className="grid gap-1.5">
@@ -311,7 +311,7 @@ export const author = () => (signedIn() ? null : prefs.get("author")?.trim() || 
 const DELETED: Record<ListKind, string> = {
   instruction: "and took it out of every agent and group that listed it",
   procedure: "and took it out of every agent and group that listed it",
-  group: "and listed its blocks in its place wherever it was used, so no prompt changes",
+  group: "and listed its blocks in its place wherever it was used, so no agent's instructions change",
   agent: "",
 };
 
