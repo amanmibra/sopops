@@ -1,6 +1,6 @@
 """sopops-mcp: an MCP server (stdio) for onboarding voice agents from a coding agent such as Claude Code or Codex.
 
-The coding agent finds each agent's prompt wherever it lives (code, config, a database, a platform), turns the prompts
+The coding agent finds each agent's instructions wherever they live (code, config, a database, a platform), turns them
 into a proposal (agent context, shared instructions, procedures, variables), checks fidelity, and pushes the proposal to
 sopops for review. Optionally it writes the same proposal as a sopc project into the repo. sopops does the compiling and
 checking over its HTTP API (`/v1/onboarding`); this server only reads platforms and writes files locally.
@@ -103,10 +103,10 @@ def _client_info(context: Context[Any, Any] | None) -> tuple[str, str] | None:
 def _key(platform: str, env: dict[str, str]) -> str:
     var = {"elevenlabs": "ELEVENLABS_API_KEY", "vapi": "VAPI_API_KEY"}.get(platform)
     if var is None:
-        raise ValueError("LiveKit agents keep their prompt in code: read it from the repo (Agent(instructions=...) or the files it loads).")
+        raise ValueError("LiveKit agents keep their instructions in code: read them from the repo (Agent(instructions=...) or the files it loads).")
     key = env.get(var, "").strip()
     if not key:
-        raise ValueError(f"{var} isn't set in the MCP server's environment. Ask the user to add it (read-only is enough), or to paste the prompts.")
+        raise ValueError(f"{var} isn't set in the MCP server's environment. Ask the user to add it (read-only is enough), or to paste the agents' instructions.")
     return key
 
 
@@ -139,7 +139,7 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     @server.tool()
     @_explained
     def get_extraction_guide() -> dict[str, Any]:
-        """How to turn agent prompts into a sopops proposal (context, shared instructions, procedures, variables, drift),
+        """How to turn agents' instructions into a sopops proposal (context, shared instructions, procedures, variables, drift),
         the proposal's JSON schema, and the onboarding session (workspace, hosted or repo mode)."""
         guide: dict[str, Any] = sopops.call("GET", "/v1/onboarding/guide")
         return {**guide, "session": sopops.call("GET", "/v1/onboarding/session"), "connected": True}
@@ -153,21 +153,22 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     @server.tool()
     @_explained
     def get_agent_prompt(platform: str, id: str) -> dict[str, Any]:
-        """One ElevenLabs or Vapi agent's prompt and tool names: {name, platform, platform_id, prompt, tools, notes}. Read-only."""
+        """One ElevenLabs or Vapi agent's instructions (its system prompt) and tool names: {name, platform, platform_id, prompt, tools, notes}. Read-only."""
         return platforms.get_agent(platform, _key(platform, env), id, platform_transport)
 
     @server.tool()
     @_explained
     def propose_extraction(prompts: list[dict[str, Any]]) -> dict[str, Any]:
-        """Start a proposal from agent prompts: [{name, platform, platform_id, prompt, tools}]. Returns `instructions`
-        and the prompts split into numbered units for you to classify, and each agent's original prompt (`originals`)."""
+        """Start a proposal from agents' instructions: [{name, platform, platform_id, prompt, tools}]. Returns `instructions`
+        (the extraction guide) and each agent's instructions split into numbered units for you to classify, and each agent's
+        original instructions (`originals`)."""
         out: dict[str, Any] = sopops.call("POST", "/v1/onboarding/extraction", {"prompts": prompts})
         return out
 
     @server.tool()
     @_explained
     def check_fidelity(proposal: dict[str, Any], originals: dict[str, str]) -> dict[str, Any]:
-        """Compile each proposed agent with sopc and compare it with its original prompt, sentence by sentence.
+        """Compile each proposed agent with sopc and compare it with its original instructions, sentence by sentence.
         Returns per agent: ok, score (share of sentences kept), missing and changed sentences, and sopc's issues."""
         out: dict[str, Any] = sopops.call("POST", "/v1/onboarding/fidelity", {"proposal": proposal, "originals": originals})
         return out

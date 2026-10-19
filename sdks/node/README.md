@@ -16,13 +16,13 @@ const s = await elevenLabsSession(sopops, { agent: "front-desk" });   // or { ag
 const conversation = await Conversation.startSession({ ...s.sessionOptions, onMessage: console.log });
 ```
 
-`sessionOptions` is `{agentId, overrides: {agent: {prompt: {prompt}}}, dynamicVariables, onConnect}`: the compiled prompt as a client-side override, `sopops_release` and `sopops_agent` as dynamic variables, and an `onConnect` that reports the conversation id to sopops so the post-call session links to the release it ran on. With your own `onConnect`, call `s.link(conversationId)` from it. `@elevenlabs/react` takes the same options in `startSession`.
+`sessionOptions` is `{agentId, overrides: {agent: {prompt: {prompt}}}, dynamicVariables, onConnect}`: the agent's full instructions as a client-side override, `sopops_release` and `sopops_agent` as dynamic variables, and an `onConnect` that reports the conversation id to sopops so the post-call session links to the release it ran on. With your own `onConnect`, call `s.link(conversationId)` from it. `@elevenlabs/react` takes the same options in `startSession`.
 
-**Turn on overrides first:** in ElevenLabs, the agent's Security tab → Overrides → System prompt. Without it, ElevenLabs refuses the session.
+**Turn on overrides first:** in ElevenLabs, the agent's Security tab → Overrides → System prompt (ElevenLabs' name for the instructions). Without it, ElevenLabs refuses the session.
 
-**Tokens in browsers.** A token with the `runtime` scope can read the workspace's prompts (and with `ingest`, send sessions). Give a browser a runtime-only token. In a web app, build the options on your server and pass them to the page, or put sopops behind your own auth. For a browser to call sopops directly, set `SOPOPS_CORS_ORIGINS` on the server.
+**Tokens in browsers.** A token with the `runtime` scope can read the workspace's instructions (and with `ingest`, send sessions). Give a browser a runtime-only token. In a web app, build the options on your server and pass them to the page, or put sopops behind your own auth. For a browser to call sopops directly, set `SOPOPS_CORS_ORIGINS` on the server.
 
-Phone calls don't run this code: for those, sopops answers ElevenLabs' conversation-initiation webhook, or pushes the prompt to the agent on publish (see the main README).
+Phone calls don't run this code: for those, sopops answers ElevenLabs' conversation-initiation webhook, or pushes the instructions to the agent on publish (see the main README).
 
 ## Any framework
 

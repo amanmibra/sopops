@@ -87,7 +87,7 @@ def test_platform_tools_need_no_server():
 
     server = make_server({"VAPI_API_KEY": "vapi-key"}, platform_transport=httpx.MockTransport(handler))
     assert call(server, "list_platform_agents", platform="vapi") == [{"id": "v1", "name": "Golden Wok"}]
-    with pytest.raises(ToolError, match="LiveKit agents keep their prompt in code"):
+    with pytest.raises(ToolError, match="LiveKit agents keep their instructions in code"):
         call(server, "list_platform_agents", platform="livekit")
 
 
