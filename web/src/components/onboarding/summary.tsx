@@ -1,16 +1,14 @@
-// The import review as summaries, the same at 5 agents or 100: one line of counts, then disagreements, variables,
-// blocks by agent, each agent's unique text, and fidelity. Decisions are kept by the group's id.
+// The parts of the import review that read the same at 5 agents or 100: disagreements, variables and each agent's
+// unique text, paged. Decisions are kept by the group's id.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
-import type { AgentFidelity, Disagreement, ReviewOut, UniqueText, VariableRow } from "@/client/types.gen";
+import type { Disagreement, ReviewOut, UniqueText, VariableRow } from "@/client/types.gen";
 import { call, sdk } from "@/lib/api";
-import { plural } from "@/lib/kinds";
-import { pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
-import { ErrorBanner, KindBadge, Note, Panel, Tag } from "../bits";
+import { Tag } from "../bits";
+import { Hint, TipBody } from "../insights/kit";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
-import { UsageGrid } from "../usage-grid";
 
 const PAGE = 10;
 const AGENT_PAGE = 20;
@@ -20,15 +18,12 @@ export const reviewQuery = (ws: string, id: string) => ({
   queryFn: () => call(sdk.getImportReview({ path: { workspace: ws, id } })),
 });
 
-export function ReviewSummary({ ws, id, disabled }: { ws: string; id: string; disabled: boolean }) {
+/** The review and the calls that change it: deciding a disagreement or a unique text, and editing a variable. */
+export function useReview(ws: string, id: string) {
   const qc = useQueryClient();
   const q = useQuery(reviewQuery(ws, id));
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
-  if (q.error) return <ErrorBanner error={q.error} lead="The review couldn't be loaded:" />;
-  const r = q.data;
-  if (!r) return <Note>Loading the review…</Note>;
-
   const update = async (label: string, fn: () => Promise<ReviewOut>) => {
     setBusy(label);
     setError(null);
@@ -44,28 +39,7 @@ export function ReviewSummary({ ws, id, disabled }: { ws: string; id: string; di
   const decide = (group: string, choice: string) => update(group, () => call(sdk.decideImportGroup({ path: { workspace: ws, id, group }, body: { choice } })));
   const editVariable = (name: string, body: { name?: string; values?: Record<string, string> }) =>
     update(`var:${name}`, () => call(sdk.editImportVariable({ path: { workspace: ws, id, name }, body: { name: body.name ?? null, values: body.values ?? {} } })));
-  const off = disabled || !!busy;
-  const c = r.counts;
-
-  return (
-    <>
-      <Panel title="What was found">
-        <p className="text-[15px]">
-          {plural(c.agents, "agent", "agents")} → {plural(c.shared_blocks, "shared block", "shared blocks")}, {plural(c.variables, "variable", "variables")},{" "}
-          <b className={cn(c.undecided && "text-warn")}>{plural(c.disagreements, "disagreement", "disagreements")}</b>
-          {c.undecided ? ` (${c.undecided} to decide)` : ""}, {plural(c.agents_with_unique, "agent", "agents")} with unique content,{" "}
-          <b className={cn(c.below_full_fidelity ? "text-err" : "text-ok")}>{c.below_full_fidelity} below 100% fidelity</b>
-        </p>
-        {disabled && <Note className="mt-2">Save your edits before deciding.</Note>}
-      </Panel>
-      {error ? <ErrorBanner error={error} lead="That didn't work:" /> : null}
-      <Disagreements items={r.disagreements} disabled={off} onDecide={decide} />
-      <Variables rows={r.variables} disabled={off} onEdit={editVariable} />
-      <Blocks r={r} />
-      <Unique items={r.unique} disabled={off} onDecide={decide} />
-      <Fidelity rows={r.fidelity} />
-    </>
-  );
+  return { q, r: q.data, busy, error, decide, editVariable };
 }
 
 function Pager({ page, pages, onPage, what }: { page: number; pages: number; onPage: (p: number) => void; what: string }) {
@@ -94,12 +68,11 @@ function usePage<T>(items: T[], size: number) {
 
 const agentList = (agents: string[], max = 6) => (agents.length <= max ? agents.join(", ") : `${agents.slice(0, max).join(", ")} and ${agents.length - max} more`);
 
-function Disagreements({ items, disabled, onDecide }: { items: Disagreement[]; disabled: boolean; onDecide: (group: string, choice: string) => void }) {
+export function Disagreements({ items, disabled, onDecide }: { items: Disagreement[]; disabled: boolean; onDecide: (group: string, choice: string) => void }) {
   const { page, pages, setPage, slice } = usePage(items, PAGE);
   if (!items.length) return null;
   return (
-    <Panel title={`Disagreements (${items.length})`}>
-      <p className="text-muted-foreground mb-3 text-[13px]">A rule word differs between agents (a count, a never, a must). Until you decide, each agent keeps what it says today. Smallest minorities first.</p>
+    <div>
       <div className="grid gap-3">
         {slice.map((d) => (
           <div key={d.id} className={cn("rounded-lg border px-3.5 py-3", d.decision ? "bg-muted" : "bg-warn-soft border-transparent")}>
@@ -129,14 +102,14 @@ function Disagreements({ items, disabled, onDecide }: { items: Disagreement[]; d
         ))}
       </div>
       <Pager page={page} pages={pages} onPage={setPage} what="Page" />
-    </Panel>
+    </div>
   );
 }
 
 function Wording({ label, text, children }: { label: string; text: string; agents: string[]; children: ReactNode }) {
   return (
     <div className="bg-card mb-2 flex flex-wrap items-start gap-3 rounded-md border px-3 py-2">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[min(16rem,100%)] flex-1">
         <div className="text-muted-foreground mb-0.5 text-[12px]">{label}</div>
         <div className="text-[13px] whitespace-pre-wrap">{text}</div>
       </div>
@@ -145,13 +118,12 @@ function Wording({ label, text, children }: { label: string; text: string; agent
   );
 }
 
-function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; disabled: boolean; onEdit: (name: string, body: { name?: string; values?: Record<string, string> }) => void }) {
+export function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; disabled: boolean; onEdit: (name: string, body: { name?: string; values?: Record<string, string> }) => void }) {
   const agents = Object.keys(rows[0]?.values ?? {});
   const { page, pages, setPage, slice } = usePage(agents, AGENT_PAGE);
   if (!rows.length) return null;
   return (
-    <Panel title={`Variables (${rows.length})`}>
-      <p className="text-muted-foreground mb-3 text-[13px]">Values that differ between agents. Edit a value or rename a variable; names marked “found by sopc” are defaults.</p>
+    <div>
       <div className="max-h-[60vh] overflow-auto rounded-md border">
         <table className="min-w-full border-collapse text-[13px]">
           <thead>
@@ -169,7 +141,11 @@ function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; disabled: 
               <tr key={v.name}>
                 <th className="bg-card sticky left-0 border-b px-2 py-1 text-left font-medium">
                   <EditText value={v.name} disabled={disabled || v.source !== "proposal"} onSave={(name) => onEdit(v.name, { name })} mono />
-                  {v.source === "overlap" && <Tag>found by sopc</Tag>}
+                  {v.source === "overlap" && (
+                    <Hint tip={<TipBody>sopops saw this text is the same in every agent except for this value, so it made it a variable. Its name is a placeholder.</TipBody>} className="mt-1 inline-block cursor-help">
+                      <Tag>Spotted automatically</Tag>
+                    </Hint>
+                  )}
                 </th>
                 {slice.map((a) => (
                   <td key={a} className="min-w-[140px] border-b border-l px-1 py-1">
@@ -182,7 +158,7 @@ function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; disabled: 
         </table>
       </div>
       <Pager page={page} pages={pages} onPage={setPage} what="Agents page" />
-    </Panel>
+    </div>
   );
 }
 
@@ -205,52 +181,15 @@ function EditText({ value, disabled, onSave, mono }: { value: string; disabled: 
   );
 }
 
-function Blocks({ r }: { r: ReviewOut }) {
-  const agents = r.fidelity.map((f) => f.agent);
-  const all = agents.length ? agents : [...new Set(r.blocks.flatMap((b) => b.agents))];
-  const { page, pages, setPage, slice } = usePage(all, AGENT_PAGE);
-  if (!r.blocks.length) return null;
-  const sections = (["instruction", "procedure"] as const).map((kind) => ({
-    key: kind,
-    title: kind === "instruction" ? "Shared instructions" : "Procedures",
-    rows: r.blocks
-      .filter((b) => b.kind === kind)
-      .map((b) => ({
-        id: b.id,
-        head: (
-          <>
-            <KindBadge kind={kind} /> {b.title}
-          </>
-        ),
-        cell: (agent: string) =>
-          b.agents.includes(agent) ? (
-            <span className="text-primary font-bold">✓</span>
-          ) : b.missing.includes(agent) ? (
-            <span className="text-warn text-[12px] font-semibold" title="Most agents have this text; this one doesn't.">
-              missing
-            </span>
-          ) : null,
-      })),
-  }));
-  return (
-    <Panel title="Blocks by agent">
-      <p className="text-muted-foreground mb-3 text-[13px]">Who uses each proposed block, and who lacks text most agents have.</p>
-      <UsageGrid columns={slice.map((a) => ({ id: a, head: a }))} sections={sections} cellClass="min-w-[90px]" />
-      <Pager page={page} pages={pages} onPage={setPage} what="Agents page" />
-    </Panel>
-  );
-}
-
-function Unique({ items, disabled, onDecide }: { items: UniqueText[]; disabled: boolean; onDecide: (group: string, choice: string) => void }) {
+export function Unique({ items, disabled, onDecide }: { items: UniqueText[]; disabled: boolean; onDecide: (group: string, choice: string) => void }) {
   const { page, pages, setPage, slice } = usePage(items, PAGE);
   if (!items.length) return null;
   return (
-    <Panel title={`Unique to one agent (${items.length})`}>
-      <p className="text-muted-foreground mb-3 text-[13px]">Text no other agent has. It stays in the agent's own context unless you make it a block.</p>
+    <div>
       <div className="grid gap-2">
         {slice.map((u) => (
           <div key={u.id} className="bg-card flex flex-wrap items-start gap-3 rounded-md border px-3 py-2">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-[min(16rem,100%)] flex-1">
               <div className="text-muted-foreground mb-0.5 text-[12px]">{u.agent}</div>
               <div className="text-[13px] whitespace-pre-wrap">{u.text}</div>
             </div>
@@ -264,86 +203,6 @@ function Unique({ items, disabled, onDecide }: { items: UniqueText[]; disabled: 
         ))}
       </div>
       <Pager page={page} pages={pages} onPage={setPage} what="Page" />
-    </Panel>
-  );
-}
-
-function Fidelity({ rows }: { rows: AgentFidelity[] }) {
-  const [all, setAll] = useState(false);
-  const failing = rows.filter((f) => !f.ok || f.score < 1);
-  const shown = all ? rows : failing;
-  const { page, pages, setPage, slice } = usePage(shown, AGENT_PAGE);
-  if (!rows.length) return null;
-  return (
-    <Panel title="Fidelity">
-      <div className="mb-3 flex items-center gap-3 text-[13px]">
-        <span>{failing.length ? `${plural(failing.length, "agent loses", "agents lose")} or change text.` : "Every agent keeps all of its text."}</span>
-        <Button size="xs" variant="outline" onClick={() => setAll(!all)}>
-          {all ? "Only failing agents" : `Show all ${rows.length}`}
-        </Button>
-      </div>
-      {shown.length > 0 && (
-        <div className="overflow-x-auto rounded-md border">
-          <table className="min-w-full border-collapse text-[13px]">
-            <thead>
-              <tr className="text-left">
-                <th className="border-b px-3 py-2">Agent</th>
-                <th className="border-b px-3 py-2">Kept</th>
-                <th className="border-b px-3 py-2">Lost</th>
-                <th className="border-b px-3 py-2">Changed</th>
-                <th className="border-b px-3 py-2" />
-              </tr>
-            </thead>
-            <tbody>
-              {slice.map((f) => (
-                <FidelityRow key={f.agent} f={f} />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <Pager page={page} pages={pages} onPage={setPage} what="Page" />
-    </Panel>
-  );
-}
-
-function FidelityRow({ f }: { f: AgentFidelity }) {
-  const [open, setOpen] = useState(false);
-  const missing = f.missing ?? [];
-  const changed = f.changed ?? [];
-  return (
-    <>
-      <tr>
-        <td className="border-b px-3 py-1.5 font-medium">{f.agent}</td>
-        <td className={cn("border-b px-3 py-1.5", f.ok ? "text-ok" : "text-err")}>{pct(f.score)}</td>
-        <td className="border-b px-3 py-1.5">{missing.length}</td>
-        <td className="border-b px-3 py-1.5">{changed.length}</td>
-        <td className="border-b px-3 py-1.5 text-right">
-          {missing.length + changed.length > 0 && (
-            <Button size="xs" variant="ghost" onClick={() => setOpen(!open)}>
-              {open ? "Hide" : "Show"}
-            </Button>
-          )}
-        </td>
-      </tr>
-      {open && (
-        <tr>
-          <td colSpan={5} className="bg-muted border-b px-3 py-2">
-            <ul className="grid gap-1">
-              {missing.map((m, i) => (
-                <li key={`m${i}`}>
-                  <Tag tone="err">lost</Tag> {m}
-                </li>
-              ))}
-              {changed.map((c, i) => (
-                <li key={`c${i}`}>
-                  <Tag tone="warn">changed</Tag> <s className="text-muted-foreground">{c.original}</s> → {c.now}
-                </li>
-              ))}
-            </ul>
-          </td>
-        </tr>
-      )}
-    </>
+    </div>
   );
 }
