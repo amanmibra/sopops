@@ -707,6 +707,12 @@ export type AuthState = {
      */
     sign_up: boolean;
     /**
+     * Open Signup
+     *
+     * SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.
+     */
+    open_signup: boolean;
+    /**
      * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
      */
     platforms: PlatformsOut | null;
@@ -7938,6 +7944,32 @@ export type SettingsSaved = {
 };
 
 /**
+ * SignUpIn
+ */
+export type SignUpIn = {
+    /**
+     * Name
+     */
+    name?: string;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     *
+     * 10 to 256 characters, not the email address.
+     */
+    password: string;
+    /**
+     * Team
+     *
+     * What the new team is called.
+     */
+    team: string;
+};
+
+/**
  * SignedIn
  */
 export type SignedIn = {
@@ -7985,6 +8017,12 @@ export type SignedIn = {
      * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
      */
     sign_up: boolean;
+    /**
+     * Open Signup
+     *
+     * SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.
+     */
+    open_signup: boolean;
     /**
      * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
      */
@@ -10259,6 +10297,43 @@ export type FirstAccountResponses = {
 };
 
 export type FirstAccountResponse = FirstAccountResponses[keyof FirstAccountResponses];
+
+export type SignUpData = {
+    body: SignUpIn;
+    path?: never;
+    query?: never;
+    url: '/v1/auth/sign-up';
+};
+
+export type SignUpErrors = {
+    /**
+     * Open sign-up is off.
+     */
+    404: unknown;
+    /**
+     * The email has an account (sign in instead), or nobody has one yet.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * Too many tries.
+     */
+    429: unknown;
+};
+
+export type SignUpError = SignUpErrors[keyof SignUpErrors];
+
+export type SignUpResponses = {
+    /**
+     * Successful Response
+     */
+    200: SignedIn;
+};
+
+export type SignUpResponse = SignUpResponses[keyof SignUpResponses];
 
 export type JoinWithPasswordData = {
     body: InviteJoinIn;

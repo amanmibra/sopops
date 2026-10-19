@@ -14,6 +14,7 @@ import { Route as InviteRouteImport } from './routes/invite'
 import { Route as JoinRouteImport } from './routes/join'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as SignInEmailRouteImport } from './routes/sign-in_.email'
 import { Route as WWsRouteImport } from './routes/w.$ws'
@@ -83,6 +84,11 @@ const SetPasswordRoute = SetPasswordRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SignUpRoute = SignUpRouteImport.update({
+  id: '/sign-up',
+  path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -320,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
@@ -372,6 +379,7 @@ export interface FileRoutesByTo {
   '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws/changes': typeof WWsChangesRoute
@@ -423,6 +431,7 @@ export interface FileRoutesById {
   '/join': typeof JoinRoute
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
+  '/sign-up': typeof SignUpRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in_/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
@@ -477,6 +486,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/sign-up'
     | '/welcome'
     | '/sign-in/email'
     | '/w/$ws'
@@ -529,6 +539,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/sign-up'
     | '/welcome'
     | '/sign-in/email'
     | '/w/$ws/changes'
@@ -579,6 +590,7 @@ export interface FileRouteTypes {
     | '/join'
     | '/set-password'
     | '/sign-in'
+    | '/sign-up'
     | '/welcome'
     | '/sign-in_/email'
     | '/w/$ws'
@@ -632,6 +644,7 @@ export interface RootRouteChildren {
   JoinRoute: typeof JoinRoute
   SetPasswordRoute: typeof SetPasswordRoute
   SignInRoute: typeof SignInRoute
+  SignUpRoute: typeof SignUpRoute
   WelcomeRoute: typeof WelcomeRoute
   SignInEmailRoute: typeof SignInEmailRoute
   WWsRoute: typeof WWsRouteWithChildren
@@ -672,6 +685,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sign-up': {
+      id: '/sign-up'
+      path: '/sign-up'
+      fullPath: '/sign-up'
+      preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/welcome': {
@@ -1101,6 +1121,7 @@ const rootRouteChildren: RootRouteChildren = {
   JoinRoute: JoinRoute,
   SetPasswordRoute: SetPasswordRoute,
   SignInRoute: SignInRoute,
+  SignUpRoute: SignUpRoute,
   WelcomeRoute: WelcomeRoute,
   SignInEmailRoute: SignInEmailRoute,
   WWsRoute: WWsRouteWithChildren,

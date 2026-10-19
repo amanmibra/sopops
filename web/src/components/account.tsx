@@ -1,6 +1,6 @@
 // Signing in: the gate every page goes through, the sign-in buttons, the password and email forms, the "ask your team"
 // page, and the user menu in the top bar (avatar, name, your teams and making one, change password, sign out). The
-// first account on a fresh install is made on /welcome.
+// first account on a fresh install is made on /welcome, and anyone else's on /sign-up (components/new-account.tsx).
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
 import { Check, KeyRound, LogOut, Mail, Plus } from "lucide-react";
@@ -18,8 +18,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 
-/** Pages anyone can open: signing in, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
-const OPEN_PAGES = ["/sign-in", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
+/** Pages anyone can open: signing in, signing up, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
+const OPEN_PAGES = ["/sign-in", "/sign-up", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
 
 /**
  * With sign-in on: send people who aren't signed in to the sign-in page, and people in no org to "ask an owner".
@@ -96,7 +96,7 @@ export function RedirectButtons({ auth, next }: { auth: AuthState; next: string 
   );
 }
 
-type Form = "password" | "link" | "forgot" | "sign-up";
+type Form = "password" | "link" | "forgot";
 
 /**
  * The ways to sign in here: GitHub and Google buttons, then an email and password. With email set up, "Forgot
@@ -119,7 +119,7 @@ export function SignInButtons({ auth, next, password = true }: { auth: AuthState
       {redirects && (byPassword || byEmail) && <Or />}
       {form === "password" && byPassword && <PasswordSignIn next={next} />}
       {form === "link" && byEmail && <EmailSignIn next={after} onBack={back} />}
-      {(form === "forgot" || form === "sign-up") && <PasswordEmail signUp={form === "sign-up"} onBack={() => setForm("password")} />}
+      {form === "forgot" && <PasswordEmail signUp={false} onBack={() => setForm("password")} />}
       {form === "password" && byPassword && (
         <div className="text-muted-foreground mt-1 grid gap-1 text-center text-[13px]">
           {auth.password_email ? (
@@ -128,7 +128,6 @@ export function SignInButtons({ auth, next, password = true }: { auth: AuthState
             <span>Forgot your password? Ask an owner or admin for a reset link.</span>
           )}
           {byEmail && <TextButton onClick={() => setForm("link")}>Email me a sign-in link instead</TextButton>}
-          {auth.sign_up && <TextButton onClick={() => setForm("sign-up")}>New here? Make an account with your work email</TextButton>}
         </div>
       )}
     </div>
@@ -202,7 +201,7 @@ function PasswordSignIn({ next }: { next: string }) {
 }
 
 /** Email a link that sets a password: "Forgot password?", or making an account at an allowed domain. */
-function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () => void }) {
+export function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () => void }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

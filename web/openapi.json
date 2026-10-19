@@ -991,6 +991,57 @@
         }
       }
     },
+    "/v1/auth/sign-up": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Sign Up",
+        "description": "With SOPOPS_OPEN_SIGNUP on: make an account with a name, email and password, and a new team, which it owns,\nwith its one workspace. This browser signs in, working in that team. Counts as a try against the password\nlimits (10 per address and 30 per client in 15 minutes).",
+        "operationId": "sign_up",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignUpIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedIn"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Open sign-up is off."
+          },
+          "409": {
+            "description": "The email has an account (sign in instead), or nobody has one yet."
+          },
+          "429": {
+            "description": "Too many tries."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/auth/invites/join": {
       "post": {
         "tags": [
@@ -13374,6 +13425,12 @@
             "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
             "default": false
           },
+          "open_signup": {
+            "type": "boolean",
+            "title": "Open Signup",
+            "description": "SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.",
+            "default": false
+          },
           "platforms": {
             "anyOf": [
               {
@@ -13396,6 +13453,7 @@
           "first_account",
           "password_email",
           "sign_up",
+          "open_signup",
           "platforms"
         ],
         "title": "AuthState"
@@ -25896,6 +25954,41 @@
         ],
         "title": "SettingsSaved"
       },
+      "SignUpIn": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "title": "Name",
+            "default": ""
+          },
+          "email": {
+            "type": "string",
+            "maxLength": 320,
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "maxLength": 1024,
+            "title": "Password",
+            "description": "10 to 256 characters, not the email address."
+          },
+          "team": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Team",
+            "description": "What the new team is called."
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password",
+          "team"
+        ],
+        "title": "SignUpIn"
+      },
       "SignedIn": {
         "properties": {
           "required": {
@@ -25959,6 +26052,12 @@
             "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
             "default": false
           },
+          "open_signup": {
+            "type": "boolean",
+            "title": "Open Signup",
+            "description": "SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.",
+            "default": false
+          },
           "platforms": {
             "anyOf": [
               {
@@ -25986,6 +26085,7 @@
           "first_account",
           "password_email",
           "sign_up",
+          "open_signup",
           "platforms",
           "next"
         ],
