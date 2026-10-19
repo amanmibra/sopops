@@ -5,7 +5,7 @@ import httpx
 import pytest
 import respx
 
-from sopops_client import Sopops, SopopsError, SopopsUnavailable, release_pin
+from sopops import Sopops, SopopsError, SopopsUnavailable, release_pin
 
 URL = "http://sopops.test/v1/workspaces/prod"
 AGENT = {

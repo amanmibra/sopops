@@ -11,15 +11,15 @@ from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
-from sopops import Sopc, Store, create_app
-from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops.ai.signatures import CheckRules, field_name
-from sopops.jobs import Jobs
-from sopops.orm import Finding, ProcedureCheck, RuleResult
-from sopops.pipeline.process import process_session
-from sopops.pipeline.rollup import Judged, mark_out_of_order, rollup
-from sopops.pipeline.transcript import verify_evidence
-from sopops.pipeline.types import SessionRef
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.fakes import FakeModels, FakeSystemOne
+from sopops_server.ai.signatures import CheckRules, field_name
+from sopops_server.jobs import Jobs
+from sopops_server.orm import Finding, ProcedureCheck, RuleResult
+from sopops_server.pipeline.process import process_session
+from sopops_server.pipeline.rollup import Judged, mark_out_of_order, rollup
+from sopops_server.pipeline.transcript import verify_evidence
+from sopops_server.pipeline.types import SessionRef
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 ALLERGEN, DELIVERY, LARGE = "allergen-check", "delivery-handling", "large-orders"

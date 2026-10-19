@@ -7,8 +7,8 @@ from types import SimpleNamespace
 import httpx
 import respx
 
-from sopops_client import SessionStream, Sopops
-from sopops_client.livekit import attach, from_livekit
+from sopops import SessionStream, Sopops
+from sopops.livekit import attach, from_livekit
 
 URL = "http://sopops.test/v1/workspaces/prod"
 AGENT = {"agent": "tonys-pizza", "platform_ref": "livekit:tonys-pizza", "release": 3, "hash": "abc", "prompt": "You are Tony's.", "tools": [], "tool_sops": [], "components": []}

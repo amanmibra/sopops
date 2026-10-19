@@ -12,12 +12,12 @@ from sqlalchemy import text
 from sqlmodel import Session, select
 from test_review import ALLERGEN, PATH, SAFE, Model, env, queue, state_of, verdict  # noqa: F401  (env is a fixture)
 
-from sopops import Sopc, Store
-from sopops.ai import programs
-from sopops.cli import main as cli
-from sopops.lineage import ANYWHERE_MIN, SAME_POSITION_MIN, match, similarity
-from sopops.orm import Finding, Pattern, RuleLineage, Verdict
-from sopops.patterns import rekey
+from sopops_server import Sopc, Store
+from sopops_server.ai import programs
+from sopops_server.cli import main as cli
+from sopops_server.lineage import ANYWHERE_MIN, SAME_POSITION_MIN, match, similarity
+from sopops_server.orm import Finding, Pattern, RuleLineage, Verdict
+from sopops_server.patterns import rekey
 
 # Every procedure of the test fixture and the walkthrough, by kind: two different rules of one procedure must never
 # match at their position.

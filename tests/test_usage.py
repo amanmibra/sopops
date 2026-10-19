@@ -9,12 +9,12 @@ from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 from test_review import ALLERGEN, env, rule_pattern, verdict  # noqa: F401  (env is a fixture)
 
-from sopops import Sopc, Store
-from sopops.ai import spend
-from sopops.ai.fakes import FakeEngine
-from sopops.ai.lm import Models
-from sopops.ai.signatures import SplitRule
-from sopops.orm import ModelCall
+from sopops_server import Sopc, Store
+from sopops_server.ai import spend
+from sopops_server.ai.fakes import FakeEngine
+from sopops_server.ai.lm import Models
+from sopops_server.ai.signatures import SplitRule
+from sopops_server.orm import ModelCall
 
 PRICED = '{"fake/reasoning": [3, 15]}'  # the fake decisions (fake-jev) stay unpriced
 

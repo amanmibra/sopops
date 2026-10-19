@@ -4,7 +4,7 @@
 
 | Variable | Default | |
 |---|---|---|
-| `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgresql://`, needs `pip install 'sopops[postgres]'`) or SQLite. Alembic migrates on startup. |
+| `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgresql://`, needs `pip install 'sopops-server[postgres]'`) or SQLite. Alembic migrates on startup. |
 | `SOPC_BIN` | `sopc` on `PATH` | The sopc binary, v0.0.17 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 | `SOPOPS_SECRET_KEY` | unset | Fernet key that encrypts platform keys, webhook secrets and GitHub tokens. Required to store them. |
@@ -53,7 +53,7 @@ See [Sign in](sign-in.md).
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | A streamed session with no events this long closes as incomplete. |
 | `SOPOPS_POSTCALL_GRACE_SECONDS` | `120` | After ElevenLabs' monitor socket ends, how long to wait for the post-call webhook (if set up) before closing and checking. |
 | `SOPOPS_LIVEKIT_ANY_HOST` | `false` | Allow a self-hosted LiveKit URL, not only LiveKit Cloud. |
-| `SOPOPS_MCP_SOURCE` | `sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python` | What the onboarding command's `uvx --from` installs: the client SDK with its `mcp` extra. From a clone: `/path/to/sopops/sdks/python[mcp]`. |
+| `SOPOPS_MCP_SOURCE` | `sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python` | What the onboarding command's `uvx --from` installs: the client SDK with its `mcp` extra. From a clone: `/path/to/sopops/sdks/python[mcp]`. |
 
 ## GitHub
 
@@ -66,7 +66,7 @@ See [Sign in](sign-in.md).
 
 | Variable | Default | |
 |---|---|---|
-| `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet. Needs `pip install 'sopops[hatchet]'` and `sopops worker`. |
+| `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet. Needs `pip install 'sopops-server[hatchet]'` and `sopops worker`. |
 | `SOPOPS_RATE_LIMIT_PER_MINUTE` | `60` | Model calls per minute per model. |
 | `SOPOPS_WORKSPACE_CONCURRENCY` | `4` | Runs per workspace at once. |
 | `SOPOPS_WORKER_SLOTS` | `20` | Worker slots. |

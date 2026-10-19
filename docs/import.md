@@ -8,7 +8,7 @@ The Import page gives you a 2-hour onboarding token (this workspace only, can se
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 

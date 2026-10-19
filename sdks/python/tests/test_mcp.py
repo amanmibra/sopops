@@ -10,7 +10,7 @@ from mcp import Client
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import Implementation
 
-from sopops_client.mcp import install_skill, main, make_server
+from sopops.mcp import install_skill, main, make_server
 
 URL = "http://sopops.test"
 ENV = {"SOPOPS_URL": URL, "SOPOPS_TOKEN": "sopops_onb_test"}

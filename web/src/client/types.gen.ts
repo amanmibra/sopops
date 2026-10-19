@@ -3318,7 +3318,7 @@ export type LiveKitCapture = {
     /**
      * Recorder Installed
      *
-     * This server can join rooms (`pip install 'sopops[livekit]'`).
+     * This server can join rooms (`pip install 'sopops-server[livekit]'`).
      */
     recorder_installed: boolean;
 };

@@ -12,10 +12,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, create_app
-from sopops.auth import access
-from sopops.db import upgrade
-from sopops.orm import FileVersion, JoinLink, LoginAttempt, Membership, Org, User, Workspace
+from sopops_server import Sopc, Store, create_app
+from sopops_server.auth import access
+from sopops_server.db import upgrade
+from sopops_server.orm import FileVersion, JoinLink, LoginAttempt, Membership, Org, User, Workspace
 
 PW = "correct horse battery"
 ALL = ["livekit", "elevenlabs", "vapi"]

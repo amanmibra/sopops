@@ -1,7 +1,7 @@
 /**
  * sopops client: fetch an agent's instructions at call start, and send each finished session back.
  * Runs on Node 18+, browsers and edge runtimes (it uses only `fetch`). Platform adapters are subpaths:
- * `sopops-client/elevenlabs`, `sopops-client/livekit`. A file cache for Node is in `sopops-client/node`.
+ * `sopops/elevenlabs`, `sopops/livekit`. A file cache for Node is in `sopops/node`.
  */
 
 export type Source = "live" | "cache" | "fallback";

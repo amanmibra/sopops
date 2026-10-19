@@ -1,8 +1,8 @@
-"""The three-way line merge (`sopops.merge`): edits on different lines merge, neighbouring lines included; the same
+"""The three-way line merge (`sopops_server.merge`): edits on different lines merge, neighbouring lines included; the same
 lines changed two ways, or two insertions at one place, conflict; deletions; a change made the same way on both sides;
 and `contains`, which finds an edit in a file that has others too. The merged file not compiling is in test_review."""
 
-from sopops.merge import Conflict, contains, merge
+from sopops_server.merge import Conflict, contains, merge
 
 BASE = "name: Allergen check\nsteps:\n  - Ask about allergies\n  - Name the allergen back\n  - Check each item\nnever:\n  - Never say safe\n"
 

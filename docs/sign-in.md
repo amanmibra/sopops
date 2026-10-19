@@ -103,7 +103,7 @@ Only addresses Google marks `email_verified` count.
 - Sessions are random tokens in an HttpOnly, SameSite=Lax cookie, stored hashed. They last 30 days from the last visit and end on sign out.
 - Cookie requests that change something send `X-CSRF-Token`, the `sopops_csrf` cookie's value. Other sites can't read it. The web UI does this.
 - With sign-in on, fetching instructions needs the workspace's runtime token or a signed-in person, even with no token yet. Make one in Settings → Access.
-- Every route's rule is in [`src/sopops/auth/access.py`](../src/sopops/auth/access.py).
+- Every route's rule is in [`src/sopops_server/auth/access.py`](../src/sopops_server/auth/access.py).
 
 ## Add a login provider
 

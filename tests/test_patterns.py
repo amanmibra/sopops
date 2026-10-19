@@ -12,15 +12,15 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, create_app
-from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops.ai.lm import set_ai
-from sopops.ai.programs import rule_phrase
-from sopops.ai.signatures import CheckRules, ClusterFindings, GroupThemes, NameRulePattern, field_name
-from sopops.cli import main as cli
-from sopops.jobs import Jobs
-from sopops.orm import Finding, Pattern, Theme
-from sopops.patterns import OTHER_MIN_NEW, RECLUSTER_NEW, SPLIT_AT, jaccard, reason_due
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.fakes import FakeModels, FakeSystemOne
+from sopops_server.ai.lm import set_ai
+from sopops_server.ai.programs import rule_phrase
+from sopops_server.ai.signatures import CheckRules, ClusterFindings, GroupThemes, NameRulePattern, field_name
+from sopops_server.cli import main as cli
+from sopops_server.jobs import Jobs
+from sopops_server.orm import Finding, Pattern, Theme
+from sopops_server.patterns import OTHER_MIN_NEW, RECLUSTER_NEW, SPLIT_AT, jaccard, reason_due
 
 NEVER_1 = 'Never say an item is "allergen-free" or "safe"'  # the rule pattern's name: the rule's text, without a model
 
@@ -249,7 +249,7 @@ def test_pattern_api_and_recluster_endpoint(env):
 
 
 def test_recluster_cli(env, capsys):
-    from sopops.cli import main as cli
+    from sopops_server.cli import main as cli
 
     url = env.store.engine.url.render_as_string(hide_password=False)
     for mode in "AAAABBB":

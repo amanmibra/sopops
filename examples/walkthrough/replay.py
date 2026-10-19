@@ -27,8 +27,8 @@ from types import SimpleNamespace
 from typing import Any, Awaitable, Callable
 
 from common import API, OUT, client, ingest_token, wait_for_pipeline, wait_until_up
-from sopops_client import Sopops
-from sopops_client.livekit import attach
+from sopops import Sopops
+from sopops.livekit import attach
 
 
 class History:

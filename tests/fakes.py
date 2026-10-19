@@ -9,8 +9,8 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 
-from sopops.ai.fakes import default_reply
-from sopops.ai.signatures import ClusterFindings, GroupThemes
+from sopops_server.ai.fakes import default_reply
+from sopops_server.ai.signatures import ClusterFindings, GroupThemes
 
 
 def mode_of(reason: str) -> str | None:

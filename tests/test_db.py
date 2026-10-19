@@ -8,9 +8,9 @@ from conftest import SOPC_BIN, WS
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 
-from sopops import Sopc, Store, create_app
-from sopops.db import INITIAL, alembic_config, current_revision, upgrade
-from sopops.orm import metadata
+from sopops_server import Sopc, Store, create_app
+from sopops_server.db import INITIAL, alembic_config, current_revision, upgrade
+from sopops_server.orm import metadata
 
 
 def test_migrations_match_the_models(tmp_path):

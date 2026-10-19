@@ -13,14 +13,14 @@ import pytest
 import respx
 from conftest import WS
 from cryptography.fernet import Fernet
-from sopops_client.mcp import make_server
+from sopops.mcp import make_server
 from sqlmodel import Session
 
-from sopops import github
-from sopops.errors import NotFound
-from sopops.github import GitHubError
-from sopops.onboarding import kickoff, pulls
-from sopops.orm import RepoConnection
+from sopops_server import github
+from sopops_server.errors import NotFound
+from sopops_server.github import GitHubError
+from sopops_server.onboarding import kickoff, pulls
+from sopops_server.orm import RepoConnection
 from test_mcp import call as mcp_call
 from test_mcp import to_app
 from test_review import PATH, SAFE, env, rule_pattern  # noqa: F401 (env is a fixture)
@@ -429,7 +429,7 @@ def test_onboarding_connects_before_there_is_a_project(client, bare):
     started = start_repo_onboarding(client)
     imp = started["import"]
     assert (imp["repo"], imp["repo_branch"], imp["repo_path"], imp["repo_project"], imp["pr_url"]) == ("acme/agents", "main", "sops", "missing", None)
-    assert "uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp" in started["kickoff"]["claude_code"]
+    assert "uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp" in started["kickoff"]["claude_code"]
     events = client.get(f"{WS}/imports/{imp['id']}/events").json()
     assert "propose a pull request adding a sopc project at sops/ on main. Nothing merges without you." in events[-1]["message"]
     session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()

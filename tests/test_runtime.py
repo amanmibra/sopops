@@ -365,7 +365,7 @@ def test_cors_for_browser_clients(monkeypatch, tmp_path):
     from conftest import SOPC_BIN
     from fastapi.testclient import TestClient
 
-    from sopops import Sopc, Store, create_app
+    from sopops_server import Sopc, Store, create_app
 
     monkeypatch.setenv("SOPOPS_CORS_ORIGINS", "https://app.example.com")
     c = TestClient(create_app(Store(f"sqlite:///{tmp_path / 'c.db'}", Sopc(SOPC_BIN))))

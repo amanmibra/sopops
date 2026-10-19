@@ -14,15 +14,15 @@ pnpm -C web install && pnpm -C web dev   # UI on :5173, proxying /v1 to :8484
 
 | Path | |
 |---|---|
-| `src/sopops/api/` | HTTP routers, one per area; `app.py` mounts them |
-| `src/sopops/schemas/` | Request and response shapes, one module per area |
-| `src/sopops/orm/` | Database tables, one module per table; migrations in `migrations/` |
-| `src/sopops/ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide`, `programs`, `calibration`, `fakes` (for tests) |
-| `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
-| `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing agents; delivering instructions to platforms; inline or Hatchet runs |
-| `src/sopops/auth/` | Sign-in, teams and access; `access.py` holds every route's rule in one table |
-| `src/sopops/store.py` and the modules beside it | The data layer and services, by area |
-| `src/sopops/cli.py` | The `sopops` command |
+| `src/sopops_server/api/` | HTTP routers, one per area; `app.py` mounts them |
+| `src/sopops_server/schemas/` | Request and response shapes, one module per area |
+| `src/sopops_server/orm/` | Database tables, one module per table; migrations in `migrations/` |
+| `src/sopops_server/ai/` | Model calls: `signatures` (every DSPy signature), `lm` (models per role), `decide`, `programs`, `calibration`, `fakes` (for tests) |
+| `src/sopops_server/pipeline/` | The session pipeline: normalize, route, check, rollup |
+| `src/sopops_server/onboarding/`, `runtime/`, `jobs/` | Importing agents; delivering instructions to platforms; inline or Hatchet runs |
+| `src/sopops_server/auth/` | Sign-in, teams and access; `access.py` holds every route's rule in one table |
+| `src/sopops_server/store.py` and the modules beside it | The data layer and services, by area |
+| `src/sopops_server/cli.py` | The `sopops` command |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |
 | `sdks/python`, `sdks/node` | Client SDKs; `sdks/python` also holds `sopops-mcp` (the `mcp` extra) |
 | `skills/sopops-onboard` | The onboarding skill coding agents follow |

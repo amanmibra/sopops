@@ -12,14 +12,14 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from test_checks import ALLERGEN, DELIVERY, checks_by_id, rules_by_key, session
 
-from sopops import Sopc, Store, create_app
-from sopops.ai import calibration, decide
-from sopops.ai.decide import Band, DecisionConfig, Line, segments
-from sopops.ai.fakes import FakeEngine, FakeModels, FakeSystemOne
-from sopops.ai.lm import Models, jev_enabled
-from sopops.ai.signatures import CheckRules, LocateEvidence, SplitRule, field_name
-from sopops.jobs import Jobs
-from sopops.orm import RuleChecks
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai import calibration, decide
+from sopops_server.ai.decide import Band, DecisionConfig, Line, segments
+from sopops_server.ai.fakes import FakeEngine, FakeModels, FakeSystemOne
+from sopops_server.ai.lm import Models, jev_enabled
+from sopops_server.ai.signatures import CheckRules, LocateEvidence, SplitRule, field_name
+from sopops_server.jobs import Jobs
+from sopops_server.orm import RuleChecks
 
 NEVER_SAFE = 'Never say an item is "allergen-free" or "safe"'
 
@@ -240,7 +240,7 @@ def test_models_count_tokens_and_cost_per_role():
 
 def _calibration_setup(env, probs, done_above):
     """Labeled sessions whose step 1 probability is `probs[i]`; step 1 counts as done only above `done_above`."""
-    from sopops.pipeline.procedures import candidates
+    from sopops_server.pipeline.procedures import candidates
 
     env.send(session("seed"))
     rec = env.store.sessions.load("demo", env.send(session("seed2"))["id"])
@@ -266,7 +266,7 @@ def _calibration_setup(env, probs, done_above):
 
 def test_calibration_fits_thresholds_offline_against_a_corpus_objective_and_stores_them(env):
     """Step 1 counts as done only when it's clearly there: the fit raises its threshold, from one answer per session."""
-    from sopops.ai import programs
+    from sopops_server.ai import programs
 
     p, splits, cand, step1, decider, trainset = _calibration_setup(env, [0.85, 0.8, 0.6, 0.55, 0.88, 0.58], 0.7)
     program = programs.CheckDecisions(p, splits, cand.variables, DecisionConfig(), decider)
@@ -279,7 +279,7 @@ def test_calibration_fits_thresholds_offline_against_a_corpus_objective_and_stor
 
 
 def test_calibration_keeps_thresholds_within_bounds_and_needs_labeled_failures(env):
-    from sopops.ai import programs
+    from sopops_server.ai import programs
 
     p, splits, cand, step1, decider, trainset = _calibration_setup(env, [0.97, 0.98, 0.95, 0.99, 0.96, 0.93], 0.955)
     program = programs.CheckDecisions(p, splits, cand.variables, DecisionConfig(), decider)
@@ -303,8 +303,8 @@ def test_a_calibrated_threshold_widens_the_review_band_but_never_narrows_it():
 def test_decision_requests_on_a_generative_model_are_built_once_and_match_dspy():
     from dspy.adapters.decision import resolve_adapter
 
-    from sopops.ai import dspy_fixes
-    from sopops.ai.signatures import ProcedureBrief, Utterance, action_question, check_signature, decision_predict
+    from sopops_server.ai import dspy_fixes
+    from sopops_server.ai.signatures import ProcedureBrief, Utterance, action_question, check_signature, decision_predict
 
     names = [f"step{i}_a0" for i in range(12)]
     pred = decision_predict(check_signature(names), {n: action_question(f"The agent does {n}.") for n in names})

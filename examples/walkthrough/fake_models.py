@@ -1,7 +1,7 @@
 """Fake mode: scripted stand-ins for every model call, so the walkthrough runs offline, free and deterministic.
 
 This is not a model and doesn't pretend to be one. It's a keyword checker that knows the phrasings the walkthrough's
-generator uses, wired in through `sopops.ai.fakes` so the real pipeline runs around it: routing, rule checks, rollup,
+generator uses, wired in through `sopops_server.ai.fakes` so the real pipeline runs around it: routing, rule checks, rollup,
 findings, patterns (split, assignment, reclustering), themes, Insights. What it shows is the plumbing and the UI on
 data with a known answer; how well a real model finds the failures is what real mode is for.
 
@@ -14,7 +14,7 @@ data with a known answer; how well a real model finds the failures is what real 
   the mode whose name is the finding's reason. Themes: one per rule kind. Rule patterns (`NameRulePattern`) get a
   scripted name for each of the walkthrough's rules, and the rule's text trimmed for any other.
 - Onboarding's extraction (`SegmentPrompt`, `StructureProcedure`, `NameVariables`) is answered by sopops's own
-  model-free rules mode (`sopops.onboarding.rules`), so Import → Paste works too.
+  model-free rules mode (`sopops_server.onboarding.rules`), so Import → Paste works too.
 - Any other signature (one added after this was written) gets a plain reply built from its output fields' types.
 """
 
@@ -27,8 +27,8 @@ from typing import Any
 import dspy
 from pydantic import BaseModel
 
-from sopops.ai.fakes import FakeModels, FakeSystemOne, default_reply
-from sopops.ai.signatures import (
+from sopops_server.ai.fakes import FakeModels, FakeSystemOne, default_reply
+from sopops_server.ai.signatures import (
     CheckRules,
     ClusterFindings,
     GroupThemes,
@@ -38,7 +38,7 @@ from sopops.ai.signatures import (
     StructureProcedure,
     SuggestEdit,
 )
-from sopops.onboarding.rules import RulesModels
+from sopops_server.onboarding.rules import RulesModels
 
 TOPICS = {
     "allergen": re.compile(r"allerg|celiac|epipen|anaphyla", re.I),
@@ -258,7 +258,7 @@ def plain(signature: type[dspy.Signature]) -> dict[str, Any]:
 
 
 class WalkthroughModels(FakeModels):
-    """`sopops.ai.fakes.FakeModels` with the walkthrough's scripted replies."""
+    """`sopops_server.ai.fakes.FakeModels` with the walkthrough's scripted replies."""
 
     def __init__(self) -> None:
         super().__init__(self.respond, FakeSystemOne(self.decide, model="fake-decisions"), {"fast": "fake/fast", "reasoning": "fake/reviewer"})

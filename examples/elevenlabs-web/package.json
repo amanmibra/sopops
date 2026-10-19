@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@elevenlabs/client": "^1.28.0",
-    "sopops-client": "file:../../sdks/node"
+    "sopops": "file:../../sdks/node"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

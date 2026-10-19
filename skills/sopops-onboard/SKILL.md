@@ -16,20 +16,20 @@ The sopops **Import agents** page (Use Claude Code / Codex) gives you one comman
 ```sh
 # Claude Code
 claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
 # Codex
 codex mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
 ```
 
 Cursor (`.cursor/mcp.json`):
 
 ```json
-{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"],
+{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"],
   "env": {"SOPOPS_URL": "https://sopops.example", "SOPOPS_TOKEN": "sopops_onb_..."}}}}
 ```
 
-`sopops-mcp` is in the sopops client SDK (`sopops-client`, its `mcp` extra) and does its compiling and checking through the sopops server, so it needs `SOPOPS_URL` and `SOPOPS_TOKEN`; without them only the platform tools work. Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from those platforms (read-only keys are enough).
+`sopops-mcp` is in the sopops client SDK (`sopops`, its `mcp` extra) and does its compiling and checking through the sopops server, so it needs `SOPOPS_URL` and `SOPOPS_TOKEN`; without them only the platform tools work. Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from those platforms (read-only keys are enough).
 
 ## Tools
 

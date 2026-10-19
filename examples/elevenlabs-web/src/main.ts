@@ -1,7 +1,7 @@
 // A web call to an ElevenLabs agent whose prompt comes from sopops.
 import { Conversation } from "@elevenlabs/client";
-import { Sopops } from "sopops-client";
-import { elevenLabsSession } from "sopops-client/elevenlabs";
+import { Sopops } from "sopops";
+import { elevenLabsSession } from "sopops/elevenlabs";
 
 const sopops = new Sopops({ url: import.meta.env.VITE_SOPOPS_URL, token: import.meta.env.VITE_SOPOPS_TOKEN });
 const agent = import.meta.env.VITE_SOPOPS_AGENT || "sakura-sushi";

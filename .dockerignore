@@ -7,5 +7,5 @@ tests/
 .git/
 web/node_modules/
 web/dist/
-src/sopops/static/
+src/sopops_server/static/
 .env

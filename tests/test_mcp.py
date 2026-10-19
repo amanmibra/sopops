@@ -1,4 +1,4 @@
-"""sopops-mcp (in the client SDK, sopops_client.mcp): every tool, against a sopops app in-process and fake platforms.
+"""sopops-mcp (in the client SDK, sopops.mcp): every tool, against a sopops app in-process and fake platforms.
 No network, no real keys."""
 
 import asyncio
@@ -11,11 +11,11 @@ from fastapi.testclient import TestClient
 from mcp import Client
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import Implementation
-from sopops_client.mcp import install_skill, make_server
+from sopops.mcp import install_skill, make_server
 from test_onboarding import FIXTURES, sources
 
-from sopops.onboarding.pipeline import extract
-from sopops.onboarding.rules import RulesModels
+from sopops_server.onboarding.pipeline import extract
+from sopops_server.onboarding.rules import RulesModels
 
 TOOLS = {"get_kickoff", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project"}
 

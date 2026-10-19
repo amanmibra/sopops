@@ -125,7 +125,7 @@ export function LiveKitCapture() {
       {q.isError && <ErrorBanner error={q.error} />}
       {lk && !lk.recorder_installed && (
         <Banner tone="warn">
-          This server can't join LiveKit calls yet. Install it with <code>pip install 'sopops[livekit]'</code> where sopops and its worker run, then
+          This server can't join LiveKit calls yet. Install it with <code>pip install 'sopops-server[livekit]'</code> where sopops and its worker run, then
           restart.
         </Banner>
       )}

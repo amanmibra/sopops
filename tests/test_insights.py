@@ -11,11 +11,11 @@ from conftest import SOPC_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 
-from sopops import Sopc, Store, create_app
-from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops.ai.signatures import CheckRules, field_name
-from sopops.insights import Filters, compare_flag, delta_points, pct, wilson
-from sopops.jobs import Jobs
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.fakes import FakeModels, FakeSystemOne
+from sopops_server.ai.signatures import CheckRules, field_name
+from sopops_server.insights import Filters, compare_flag, delta_points, pct, wilson
+from sopops_server.jobs import Jobs
 
 NEVER_1 = 'Never say an item is "allergen-free" or "safe"'  # the rule pattern's name: the rule's text, without a model
 

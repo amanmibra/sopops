@@ -16,7 +16,7 @@ No-code session capture lives under the gear icon → Agents and platforms → P
 **Instructions:** the Python SDK's `attach` (`fetchInstructions` in TypeScript). Install with `pip install "./sdks/python[livekit]"` ([sdks/python](../sdks/python)). Set `SOPOPS_URL` to the workspace URL and `SOPOPS_TOKEN` to a token with the `runtime` and `ingest` scopes.
 
 ```python
-from sopops_client.livekit import attach
+from sopops.livekit import attach
 
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
@@ -30,7 +30,7 @@ async def entrypoint(ctx: JobContext):
 **Sessions with no code** (no tool calls):
 
 1. In Settings, connect the project: URL, an API key and its secret.
-2. Run `pip install 'sopops[livekit]'` where sopops and its worker run.
+2. Run `pip install 'sopops-server[livekit]'` where sopops and its worker run.
 3. In LiveKit Cloud → Settings → Webhooks, add `/v1/workspaces/{ws}/capture/livekit/webhook`, signed with that key.
 
 sopops joins each room an agent joins, hidden and subscribe-only. It streams the transcript from `lk.transcription` into a session keyed by the job id (as `attach` does), closed when the call ends. The agent is the dispatch name, else `{"sopops": {"agent": "<id>"}}` in job or room metadata, else the mapping in Settings.
@@ -67,8 +67,8 @@ Coming later. You can mark agents as Retell, but nothing is delivered yet.
 [sdks/node](../sdks/node): ESM, no dependencies, Node 18+, browsers and edge runtimes.
 
 ```ts
-import { Sopops } from "sopops-client";
-import { elevenLabsSession } from "sopops-client/elevenlabs";
+import { Sopops } from "sopops";
+import { elevenLabsSession } from "sopops/elevenlabs";
 
 const sopops = new Sopops({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
 const s = await elevenLabsSession(sopops, { agent: "front-desk", stream: true });

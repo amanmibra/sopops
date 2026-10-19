@@ -16,7 +16,7 @@ In sopc's example, each restaurant's prompt is built into `sops/build/` and ship
 livekit-restaurant/
   agent.py          the LiveKit agent; one codebase, deployed once per restaurant
   tools.py          mock versions of the tools the SOPs name (lookup_allergens, transfer_to_staff, ...)
-  pyproject.toml    livekit-agents, and sopops-client from ../../sdks/python
+  pyproject.toml    livekit-agents, and sopops from ../../sdks/python
   .env.example      LiveKit and sopops settings
 ```
 

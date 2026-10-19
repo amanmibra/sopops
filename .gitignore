@@ -6,6 +6,6 @@ __pycache__/
 dist/
 node_modules/
 web/dist/
-src/sopops/static/
+src/sopops_server/static/
 *.tsbuildinfo
 .env

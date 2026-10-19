@@ -1,19 +1,19 @@
-# sopops-client
+# sopops
 
 The Python client for [sopops](../../README.md): fetch an agent's instructions when a call starts, and send each finished session back.
 
 ```sh
-pip install "sopops-client[livekit]"     # or plain sopops-client without the LiveKit adapter
-pip install "sopops-client[mcp]"         # sopops-mcp, the onboarding MCP server for Claude Code or Codex
+pip install "sopops[livekit]"     # or plain sopops without the LiveKit adapter
+pip install "sopops[mcp]"         # sopops-mcp, the onboarding MCP server for Claude Code or Codex
 ```
 
-It's not on PyPI yet; install from a clone with `pip install "./sdks/python[livekit]"`. The import name is `sopops_client` (the `sopops` name is the server).
+It's not on PyPI yet; install from a clone with `pip install "./sdks/python[livekit]"`. The server is a separate package, `sopops-server`.
 
 ## LiveKit
 
 ```python
 from livekit.agents import Agent, AgentSession, JobContext
-from sopops_client.livekit import attach
+from sopops.livekit import attach
 
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
@@ -27,7 +27,7 @@ async def entrypoint(ctx: JobContext):
 ## Any framework
 
 ```python
-from sopops_client import Sopops
+from sopops import Sopops
 
 sopops = Sopops()                                    # SOPOPS_URL, SOPOPS_TOKEN
 ins = await sopops.fetch_instructions("tonys-pizza", release=None, fallback="You are a helpful host.")
@@ -56,7 +56,7 @@ With `stream=True`, `attach` opens the session when the call starts and sends ea
 Outside LiveKit, use `SessionStream` directly:
 
 ```python
-from sopops_client import SessionStream
+from sopops import SessionStream
 
 stream = SessionStream(sopops, {"platform": "api", "external_id": call_id, "agent": "tonys-pizza", "release": ins.release})
 stream.start()
@@ -68,7 +68,7 @@ await sopops.post_session(full_session)
 
 `Sopops.open_session` and `Sopops.append_events` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`). Streaming needs the `ingest` scope, like posting.
 
-The session format is in [API.md](../../API.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops_client.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
+The session format is in [API.md](../../API.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
 
 ## sopops-mcp (onboarding)
 
@@ -76,7 +76,7 @@ The session format is in [API.md](../../API.md#the-canonical-format). Adapters f
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
 ```
 
 It reads ElevenLabs and Vapi agents locally (`ELEVENLABS_API_KEY`, `VAPI_API_KEY`, read-only) and writes the sopc project into the repo; everything else (the kickoff, the extraction guide, compiling, fidelity, pushing) goes to the sopops server's `/v1/onboarding` endpoints with `SOPOPS_URL` and `SOPOPS_TOKEN`. `sopops-mcp install-skill --url URL` copies the server's sopops-onboard skill into the repo (`--claude`, `--codex`).

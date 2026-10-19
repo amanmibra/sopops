@@ -11,23 +11,23 @@ import pytest
 from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 
-from sopops import Sopc, github
-from sopops.ai.lm import Usage
-from sopops.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
-from sopops.onboarding import kickoff, platforms
-from sopops.onboarding import text as tx
-from sopops.onboarding.fidelity import check
-from sopops.onboarding.pipeline import extract
-from sopops.onboarding.review import resolve
-from sopops.onboarding.rules import RulesModels
-from sopops.onboarding.types import (
+from sopops_server import Sopc, github
+from sopops_server.ai.lm import Usage
+from sopops_server.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
+from sopops_server.onboarding import kickoff, platforms
+from sopops_server.onboarding import text as tx
+from sopops_server.onboarding.fidelity import check
+from sopops_server.onboarding.pipeline import extract
+from sopops_server.onboarding.review import resolve
+from sopops_server.onboarding.rules import RulesModels
+from sopops_server.onboarding.types import (
     ProcedureDraft,
     Segment,
     Segmentation,
     SourcePrompt,
     StepDraft,
 )
-from sopops.orm import ImportRecord, Token
+from sopops_server.orm import ImportRecord, Token
 
 FIXTURES = Path(__file__).parent / "fixtures" / "onboarding"
 IMPORTS = f"{WS}/imports"
@@ -408,16 +408,16 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
     k = kickoff.kickoff("prod", "https://sopops.example/", "sopops_onb_abc")
     assert k["claude_code"] == (
         "claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_abc "
-        "-- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp "
+        "-- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp "
         "&& claude 'Onboard this project'\"'\"'s agents into sopops: call the sopops get_kickoff tool and follow it.'"
     )
     assert k["codex"].startswith("codex mcp add sopops --env SOPOPS_URL=https://sopops.example ") and "&& codex " in k["codex"]
     assert 'SOPOPS_TOKEN = "sopops_onb_abc"' in k["codex_toml"] and "[mcp_servers.sopops]" in k["codex_toml"]
     assert "/model opus" in k["settings_claude_code"] and "codex" not in k["settings_claude_code"].lower()
     assert "model_reasoning_effort" in k["settings_codex"] and "Claude" not in k["settings_codex"]
-    assert 'args = ["--from", "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"]' in k["codex_toml"]
-    monkeypatch.setenv("SOPOPS_MCP_SOURCE", "sopops-client[mcp]==0.2.0")
-    assert "-- uvx --from 'sopops-client[mcp]==0.2.0' sopops-mcp &&" in kickoff.kickoff("p", "http://x", "t")["claude_code"]
+    assert 'args = ["--from", "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"]' in k["codex_toml"]
+    monkeypatch.setenv("SOPOPS_MCP_SOURCE", "sopops[mcp]==0.2.0")
+    assert "-- uvx --from 'sopops[mcp]==0.2.0' sopops-mcp &&" in kickoff.kickoff("p", "http://x", "t")["claude_code"]
 
     skill = kickoff.skill_text()
     assert skill.startswith("---\nname: sopops-onboard") and "get_kickoff" in skill

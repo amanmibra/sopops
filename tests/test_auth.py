@@ -19,11 +19,11 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, cli, create_app, mail
-from sopops.auth import access, mode, providers
-from sopops.auth.service import csrf_token
-from sopops.db import upgrade
-from sopops.orm import EmailLink, FileVersion, Identity, Invite, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
+from sopops_server import Sopc, Store, cli, create_app, mail
+from sopops_server.auth import access, mode, providers
+from sopops_server.auth.service import csrf_token
+from sopops_server.db import upgrade
+from sopops_server.orm import EmailLink, FileVersion, Identity, Invite, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
 
 GH_TOKEN = "https://github.com/login/oauth/access_token"
 GH_API = "https://api.github.com"

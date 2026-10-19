@@ -76,7 +76,7 @@ Already running agents? On the **Import** page, sopops gives you one command to 
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
@@ -94,7 +94,7 @@ Your coding agent finds the instructions wherever they live, splits them into bl
 On LiveKit, one call fetches the instructions, records the release and sends the call back when it ends:
 
 ```python
-from sopops_client.livekit import attach
+from sopops.livekit import attach
 
 async def entrypoint(ctx: JobContext):
     await ctx.connect()
@@ -131,7 +131,7 @@ Coming next: runtime enforcement (checking steps during a call and nudging the a
 
 ## Development
 
-FastAPI, SQLModel and Alembic in `src/sopops`. Vite, React, TanStack and shadcn/ui in `web/`. In production, one process serves both. Setup, layout and conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
+FastAPI, SQLModel and Alembic in `src/sopops_server`. Vite, React, TanStack and shadcn/ui in `web/`. In production, one process serves both. Setup, layout and conventions are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 

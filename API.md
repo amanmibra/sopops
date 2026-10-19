@@ -140,7 +140,7 @@ Nothing is stored.
 
 ## Sign-in and the org
 
-Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`_SECRET`, `SOPOPS_GOOGLE_CLIENT_ID`/`_SECRET`, or email: `SOPOPS_SMTP_HOST` and `SOPOPS_SMTP_FROM`, or `SOPOPS_EMAIL_DEV=1`; see the README's "Sign in"), and `SOPOPS_AUTH_REQUIRED=true|false` forces it either way. With it on, email and password sign-in is always offered (`true` with nothing else set up means passwords only). With it on, each endpoint is one of these (the table is `ROUTES` in `src/sopops/auth/access.py`, and a test checks every route is in it):
+Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`_SECRET`, `SOPOPS_GOOGLE_CLIENT_ID`/`_SECRET`, or email: `SOPOPS_SMTP_HOST` and `SOPOPS_SMTP_FROM`, or `SOPOPS_EMAIL_DEV=1`; see the README's "Sign in"), and `SOPOPS_AUTH_REQUIRED=true|false` forces it either way. With it on, email and password sign-in is always offered (`true` with nothing else set up means passwords only). With it on, each endpoint is one of these (the table is `ROUTES` in `src/sopops_server/auth/access.py`, and a test checks every route is in it):
 
 | Kind | Needs | Endpoints |
 |---|---|---|
@@ -343,7 +343,7 @@ A session's `result` is the worst of its procedures' (deviated, then partial, fo
 
 Re-running a session replaces its results; a run for content that has since been re-sent writes nothing.
 
-**How rules are checked.** Routing and each rule are decisions first: yes/no questions with a probability, answered by Jev when it's on (`TYPESAFE_API_KEY`, `sopops[jev]`) and by the `fast` model otherwise. Rules the decisions flag (`skipped`, `violated`, `unheeded`) or aren't sure about are reviewed by the `reasoning` model, and the rest keep the decision's status and evidence (`reason` starts with "Decided:"). `model` and `prompt_version` say which: the decision model and `decide-1`, or `<decision model>+<reasoning model>` and `decide-1+check-5`; with `SOPOPS_CHECK_MODE=review` the reasoning model judges every rule (`check-5`). Settings: `SOPOPS_DECISIONS` (JSON: bands as `[no, yes, decide]` for `route`, `responded`, `condition`, `step`, `never`, `warning`; `goal`; `review_statuses`), `SOPOPS_CHECK_REVIEW=off`. Thresholds fitted to a workspace's labeled sessions (`sopops.ai.programs.calibrate`) are stored per workspace and used for every question whose wording hasn't changed; they can widen a question's review band, never narrow it.
+**How rules are checked.** Routing and each rule are decisions first: yes/no questions with a probability, answered by Jev when it's on (`TYPESAFE_API_KEY`, `sopops-server[jev]`) and by the `fast` model otherwise. Rules the decisions flag (`skipped`, `violated`, `unheeded`) or aren't sure about are reviewed by the `reasoning` model, and the rest keep the decision's status and evidence (`reason` starts with "Decided:"). `model` and `prompt_version` say which: the decision model and `decide-1`, or `<decision model>+<reasoning model>` and `decide-1+check-5`; with `SOPOPS_CHECK_MODE=review` the reasoning model judges every rule (`check-5`). Settings: `SOPOPS_DECISIONS` (JSON: bands as `[no, yes, decide]` for `route`, `responded`, `condition`, `step`, `never`, `warning`; `goal`; `review_statuses`), `SOPOPS_CHECK_REVIEW=off`. Thresholds fitted to a workspace's labeled sessions (`sopops.ai.programs.calibrate`) are stored per workspace and used for every question whose wording hasn't changed; they can widen a question's review band, never narrow it.
 
 ## Patterns and themes
 

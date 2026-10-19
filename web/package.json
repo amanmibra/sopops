@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "openapi": "cd .. && uv run python -m sopops.openapi > web/openapi.json",
+    "openapi": "cd .. && uv run python -m sopops_server.openapi > web/openapi.json",
     "gen:api": "pnpm openapi && openapi-ts"
   },
   "dependencies": {

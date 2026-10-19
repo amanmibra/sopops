@@ -17921,7 +17921,7 @@
           "recorder_installed": {
             "type": "boolean",
             "title": "Recorder Installed",
-            "description": "This server can join rooms (`pip install 'sopops[livekit]'`)."
+            "description": "This server can join rooms (`pip install 'sopops-server[livekit]'`)."
           }
         },
         "type": "object",

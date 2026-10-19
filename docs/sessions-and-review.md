@@ -43,14 +43,14 @@ States: **needs review** (no verdict, or a recluster changed it), **open** (real
 
 ## Models
 
-Each model call is a typed [DSPy](https://dspy.ai) signature ([`signatures.py`](../src/sopops/ai/signatures.py)). Results record the model and instructions version. Bring your own keys.
+Each model call is a typed [DSPy](https://dspy.ai) signature ([`signatures.py`](../src/sopops_server/ai/signatures.py)). Results record the model and instructions version. Bring your own keys.
 
 - **`SOPOPS_MODEL_FAST`** decides: routing, rule checks, pattern assignment.
 - **`SOPOPS_MODEL_REASONING`** reviews flagged or uncertain rules, splits rules into checks, names and clusters patterns and themes, and writes suggestions.
 
 Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, with the provider's usual key variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). One model can fill both roles. Any DSPy provider works, or an OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`) for local models. With neither set, sessions are stored unchecked.
 
-**Jev.** Optional. With `pip install 'sopops[jev]'` and `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) replaces the fast model for decisions: calibrated probabilities, faster and much cheaper. The reviewer still reviews.
+**Jev.** Optional. With `pip install 'sopops-server[jev]'` and `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) replaces the fast model for decisions: calibrated probabilities, faster and much cheaper. The reviewer still reviews.
 
 **Check modes.** `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand.
 

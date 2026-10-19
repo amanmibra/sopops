@@ -15,15 +15,15 @@ from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from sopops import Sopc, Store, create_app
-from sopops.ai.fakes import FakeModels, FakeSystemOne
-from sopops import github
-from sopops.ai import calibration
-from sopops.ai.signatures import CheckRules, ClusterFindings, SplitRule, SuggestEdit, field_name
-from sopops.cli import main as cli
-from sopops.jobs import Jobs
-from sopops.orm import Finding, Pattern, Verdict
-from sopops.verdicts import carry_over
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.fakes import FakeModels, FakeSystemOne
+from sopops_server import github
+from sopops_server.ai import calibration
+from sopops_server.ai.signatures import CheckRules, ClusterFindings, SplitRule, SuggestEdit, field_name
+from sopops_server.cli import main as cli
+from sopops_server.jobs import Jobs
+from sopops_server.orm import Finding, Pattern, Verdict
+from sopops_server.verdicts import carry_over
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 ALLERGEN = "allergen-check"
@@ -345,7 +345,7 @@ def test_calibrate_from_labels(env, capsys):
     assert p["saved"] is True
 
     url = env.store.engine.url.render_as_string(hide_password=False)
-    from sopops.ai.lm import set_ai
+    from sopops_server.ai.lm import set_ai
 
     set_ai(env.fake)
     cli(["calibrate", "--database-url", url, "--workspace", "demo", "--dry-run"])

@@ -23,9 +23,9 @@ import uvicorn
 
 from common import OUT, PORT
 from fake_models import WalkthroughModels
-from sopops import Sopc, Store, create_app
-from sopops.ai.lm import configured, set_ai
-from sopops.jobs import Jobs
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.lm import configured, set_ai
+from sopops_server.jobs import Jobs
 
 
 SOPC_MIN = (0, 0, 17)

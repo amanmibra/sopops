@@ -6,12 +6,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 
-from sopops import Sopc, Store, create_app
-from sopops.ai.lm import ROLE_ENV, set_ai
+from sopops_server import Sopc, Store, create_app
+from sopops_server.ai.lm import ROLE_ENV, set_ai
 from alembic import command
 
-from sopops.db import alembic_config, engine_from_url
-from sopops.orm import metadata
+from sopops_server.db import alembic_config, engine_from_url
+from sopops_server.orm import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
 SOPC_BIN = os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sopc/target/release/sopc")

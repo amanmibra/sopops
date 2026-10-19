@@ -27,7 +27,7 @@ COPY README.md hatch_build.py ./
 COPY src ./src
 COPY skills ./skills
 COPY --from=web /web/dist ./web/dist
-# The build hook bundles web/dist into the package as sopops/static, and the onboarding skill (skills/) with it.
+# The build hook bundles web/dist into the package as sopops_server/static, and the onboarding skill (skills/) with it.
 RUN pip install --no-cache-dir --no-deps . && rm -rf web skills
 
 # Set DATABASE_URL to Postgres in production; the SQLite default lives in the /data volume.

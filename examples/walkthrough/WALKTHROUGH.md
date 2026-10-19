@@ -79,7 +79,7 @@ Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`
 ```sh
 cd examples/walkthrough/agent/before
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8585 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
@@ -115,7 +115,7 @@ just examples/walkthrough/onboard-sopc     # instead of onboard: import onboardi
 
 ```diff
  from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli
-+from sopops_client.livekit import attach
++from sopops.livekit import attach
 
 -from prompts import build_prompt
  from tools import TOOLS
@@ -136,7 +136,7 @@ just examples/walkthrough/onboard-sopc     # instead of onboard: import onboardi
 +    await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
-and `sopops-client[livekit]` in `pyproject.toml`. To run it against a real LiveKit project: make a token with the `runtime` and `ingest` scopes under **the gear icon → Tokens**, fill `agent/after/.env.local` from `.env.example`, then `AGENT_NAME=juniper-grill uv run agent.py dev`. The rest of the walkthrough doesn't need LiveKit: step 7 drives the same adapter with stand-ins for LiveKit's objects.
+and `sopops[livekit]` in `pyproject.toml`. To run it against a real LiveKit project: make a token with the `runtime` and `ingest` scopes under **the gear icon → Tokens**, fill `agent/after/.env.local` from `.env.example`, then `AGENT_NAME=juniper-grill uv run agent.py dev`. The rest of the walkthrough doesn't need LiveKit: step 7 drives the same adapter with stand-ins for LiveKit's objects.
 
 ### 4. Generate the calls
 

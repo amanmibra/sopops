@@ -2,7 +2,7 @@
 
     python examples/walkthrough/backfill.py [--concurrency 8]
 
-Each LiveKit job's history goes through the SDK's own converter (`sopops_client.livekit.from_livekit`, what `attach`
+Each LiveKit job's history goes through the SDK's own converter (`sopops.livekit.from_livekit`, what `attach`
 uses at shutdown) and is posted with `Sopops.post_session`, stamped release 1: the onboarding import reproduced the
 prompts these calls ran on. Re-running is safe: sessions are keyed by platform and job id.
 
@@ -18,8 +18,8 @@ import json
 from datetime import datetime, timedelta
 
 from common import API, OUT, client, ingest_token, wait_for_pipeline, wait_until_up
-from sopops_client import Sopops
-from sopops_client.livekit import from_livekit
+from sopops import Sopops
+from sopops.livekit import from_livekit
 
 
 def canonical(job: dict) -> dict:

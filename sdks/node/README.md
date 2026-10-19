@@ -1,4 +1,4 @@
-# sopops-client (TypeScript)
+# sopops (TypeScript)
 
 The TypeScript client for [sopops](../../README.md): fetch an agent's instructions when a call starts, and send each finished session back. ESM with types, no runtime dependencies; Node 18+, browsers and edge runtimes (it only needs `fetch`).
 
@@ -8,8 +8,8 @@ It's not on npm yet; build it from a clone (`pnpm -C sdks/node install && pnpm -
 
 ```ts
 import { Conversation } from "@elevenlabs/client";
-import { Sopops } from "sopops-client";
-import { elevenLabsSession } from "sopops-client/elevenlabs";
+import { Sopops } from "sopops";
+import { elevenLabsSession } from "sopops/elevenlabs";
 
 const sopops = new Sopops({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
 const s = await elevenLabsSession(sopops, { agent: "front-desk" });   // or { agentId: "<ElevenLabs agent id>" }
@@ -35,7 +35,7 @@ await sopops.postSession({ platform: "api", external_id: callId, agent: ins.agen
                            turns: [{ role: "user", text: "Hi", offset_s: 0.4 }] });
 ```
 
-**A sopops outage never blocks a call.** The fetch gives up after `timeoutMs` (2000 by default), then returns the last good copy (`ins.source === "cache"`), else your `fallback`, else throws `SopopsUnavailable`. The default cache is in memory; on Node, `new FileCache()` from `sopops-client/node` keeps it on disk (`SOPOPS_CACHE_DIR`, default `~/.cache/sopops`). `releasePin(metadata)` reads a pinned release (`{"sopops_release": 3}`) for A/B tests. `postSession` retries network errors, 429 and 5xx; resending a session is safe.
+**A sopops outage never blocks a call.** The fetch gives up after `timeoutMs` (2000 by default), then returns the last good copy (`ins.source === "cache"`), else your `fallback`, else throws `SopopsUnavailable`. The default cache is in memory; on Node, `new FileCache()` from `sopops/node` keeps it on disk (`SOPOPS_CACHE_DIR`, default `~/.cache/sopops`). `releasePin(metadata)` reads a pinned release (`{"sopops_release": 3}`) for A/B tests. `postSession` retries network errors, 429 and 5xx; resending a session is safe.
 
 ## Streaming (optional)
 
@@ -61,7 +61,7 @@ await sopops.postSession(fullSession);
 ## LiveKit
 
 ```ts
-import { recordSession } from "sopops-client/livekit";
+import { recordSession } from "sopops/livekit";
 
 const ins = await sopops.fetchInstructions(`livekit:${ctx.job.agentName}`, { fallback: FALLBACK });
 const session = new voice.AgentSession({ ... });

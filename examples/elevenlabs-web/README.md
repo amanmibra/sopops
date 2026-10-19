@@ -6,7 +6,7 @@ Sakura Sushi's host, as a voice call in the browser on ElevenLabs. The page fetc
 elevenlabs-web/
   index.html        a Call button and the transcript
   src/main.ts       fetches the prompt, starts the ElevenLabs conversation with it
-  package.json      @elevenlabs/client, and sopops-client from ../../sdks/node
+  package.json      @elevenlabs/client, and sopops from ../../sdks/node
   .env.example      sopops settings (VITE_ variables)
 ```
 

@@ -17,9 +17,9 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from sqlmodel import Session, select
 
-from sopops import github, github_app, repo_sync
-from sopops.onboarding import kickoff
-from sopops.orm import FileVersion, GitHubApp, ImportRecord, RepoConnection, Suggestion
+from sopops_server import github, github_app, repo_sync
+from sopops_server.onboarding import kickoff
+from sopops_server.orm import FileVersion, GitHubApp, ImportRecord, RepoConnection, Suggestion
 from test_github import FakeGitHub, connect, start_repo_onboarding, store_of
 
 APP_ID = "123456"

@@ -10,12 +10,12 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session as DB
 
-from sopops import Sopc, Store, create_app
-from sopops.cli import main as cli
-from sopops.events import Broker
-from sopops.pipeline.normalize import normalize_turns
-from sopops.pipeline.process import NO_MODEL
-from sopops.schemas import SessionIn
+from sopops_server import Sopc, Store, create_app
+from sopops_server.cli import main as cli
+from sopops_server.events import Broker
+from sopops_server.pipeline.normalize import normalize_turns
+from sopops_server.pipeline.process import NO_MODEL
+from sopops_server.schemas import SessionIn
 
 T0 = datetime(2026, 10, 1, 18, 0, tzinfo=timezone.utc)
 
@@ -83,7 +83,7 @@ def test_an_expired_token_stops_working(client):
 
     from sqlmodel import Session
 
-    from sopops.orm import Token
+    from sopops_server.orm import Token
 
     made = client.post(f"{WS}/tokens", json={"expires_in_days": 1}).json()
     assert made["expires_at"] and ingest(client, made["token"], session()).status_code == 201
@@ -121,7 +121,7 @@ def test_the_unique_key_holds_in_the_database(client):
     from sqlalchemy.exc import IntegrityError
     from sqlmodel import Session as Db
 
-    from sopops.orm import SessionRecord
+    from sopops_server.orm import SessionRecord
 
     store = client.app.state.store
     store.sessions.ingest("demo", SessionIn(**session()))
@@ -286,8 +286,8 @@ def test_stream_endpoint_sends_events(client, token):
 
 
 def test_pipeline_skips_stale_and_missing_sessions(client, token):
-    from sopops.pipeline.process import process_session
-    from sopops.pipeline.types import SessionRef
+    from sopops_server.pipeline.process import process_session
+    from sopops_server.pipeline.types import SessionRef
 
     store = client.app.state.store
     sid = ingest(client, token, session()).json()["id"]

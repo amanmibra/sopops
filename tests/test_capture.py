@@ -1,4 +1,4 @@
-"""Sessions with no code in the agent (sopops.capture): LiveKit's signed webhooks and the room recorder (a fake room;
+"""Sessions with no code in the agent (sopops_server.capture): LiveKit's signed webhooks and the room recorder (a fake room;
 no LiveKit), ElevenLabs' post-call webhook and Enterprise monitor socket (a fake socket), and Vapi's server messages.
 Nothing reaches a real platform."""
 
@@ -20,12 +20,12 @@ from websockets.exceptions import ConnectionClosedError, InvalidStatus
 from websockets.frames import Close
 from websockets.http11 import Response
 
-from sopops import Sopc, Store, create_app
-from sopops.capture import Capture, LiveConversationRef, LiveRoomRef
-from sopops.capture import elevenlabs as el
-from sopops.capture import livekit as lk
-from sopops.capture import vapi
-from sopops.jobs import Jobs
+from sopops_server import Sopc, Store, create_app
+from sopops_server.capture import Capture, LiveConversationRef, LiveRoomRef
+from sopops_server.capture import elevenlabs as el
+from sopops_server.capture import livekit as lk
+from sopops_server.capture import vapi
+from sopops_server.jobs import Jobs
 
 LK_KEY, LK_SECRET = "APIdemo123", "lk-secret-0123456789abcdef0123456789"
 POSTCALL = "wsec_postcall_0123456789"

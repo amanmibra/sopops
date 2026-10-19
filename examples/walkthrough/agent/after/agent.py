@@ -9,7 +9,7 @@ import os
 
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli
-from sopops_client.livekit import attach
+from sopops.livekit import attach
 
 from tools import TOOLS
 
