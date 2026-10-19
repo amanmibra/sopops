@@ -45,6 +45,9 @@ password rate limits (10 per address and 30 per client in 15 minutes).
 **Teams.** People see an org as a team with one workspace (`team_workspace`), named after the team when it's made
 (`northwind`, or `northwind-2` when that's taken: workspace ids are unique across orgs). The first run names the org after
 the team and makes its workspace (`set_up`); anyone in an org can make another team (`create_team`), which they own.
+With SOPOPS_OPEN_SIGNUP on, anyone can make an account with a password and a team of their own at once (`sign_up`).
+Nobody checks that they own the address, so sign-up refuses an address that an open invite or a team's email domains
+are waiting for, and joins no team but the new one.
 Older installs can have several workspaces in an org: the team works in the one changed most recently, and the others
 stay reachable by their address. **Platforms** (`platforms`, `set_platforms`): the voice platforms the
 team uses, so the app shows only those. An org that never picked (NULL) shows them all, and so does one that picked
@@ -519,14 +522,8 @@ class Accounts:
         """A new org named `team`, owned by the signed-in user, with its one workspace; their login session works in
         it now. Their other orgs stay as they are."""
         team = _team_name(team)
-        now = _now()
         with self._db() as db, db.begin():
-            slug = _free(actor.slug(team), lambda s: db.exec(select(Org.id).where(Org.slug == s)).first() is None)
-            org = Org(id=str(uuid.uuid4()), name=team, slug=slug, allowed_domains=[], created_at=now)
-            db.add(org)
-            db.flush()
-            db.add(Membership(org_id=org.id, user_id=cur.user.id, role=OWNER, created_at=now))
-            ws = _new_workspace(db, org.id, team)
+            org, ws = _new_team(db, cur.user.id, team, _now())
             s = db.get(LoginSession, cur.session_id)
             if s is not None:
                 s.org_id = org.id
@@ -796,6 +793,42 @@ class Accounts:
         self._work_in(session, org_id)
         return user, session
 
+    def sign_up(self, email: str, name: str, secret: str, team: str, ip: str | None) -> tuple[User, str, Org, str]:
+        """Open sign-up (SOPOPS_OPEN_SIGNUP): make an account with a password, and a new team it owns with its one
+        workspace, which the new login session works in. Returns the user, the session's token, the org and its
+        workspace. Raises ValueError, Refused, TooManyTries, or Conflict (nobody has an account yet, so this is the
+        first run; the address has an account; or an invite or a team's email domains are waiting for it, which only
+        someone who shows they own the address should get)."""
+        email = clean_email(email)
+        team = _team_name(team)
+        password.check(secret, email)
+        if not server_allows(email):
+            raise Refused(f"this sopops doesn't take sign-ins from {domain(email)} addresses")
+        self._count_try(email, ip)
+        now = _now()
+        with self._db() as db, db.begin():
+            if db.exec(select(User.id).limit(1)).first() is None:
+                raise Conflict("nobody has an account here yet. Make the first one at /welcome")
+            if db.exec(select(User.id).where(User.email == email)).first() is not None:
+                raise Conflict(f"there's an account for {email} already. Sign in instead")
+            if self._waiting_for(db, email, now):
+                raise Conflict("this address can't sign up here. Ask a team owner or admin for the team's join link")
+            user = self._new_password_user(db, email, name, secret)
+            org, ws = _new_team(db, user.id, team, now)
+            user.last_login_at = now
+            db.add(user)
+            token = self._new_session(db, user.id, now)
+        self._work_in(token, org.id)
+        return user, token, org, ws
+
+    def _waiting_for(self, db: Session, email: str, now: datetime) -> bool:
+        """An open invite for the address, or a team that takes everyone at its domain."""
+        invites = db.exec(select(Invite).where(Invite.email == email, Invite.accepted_at.is_(None), Invite.revoked_at.is_(None))).all()  # type: ignore[union-attr]
+        if any(_utc(i.expires_at) > now for i in invites):
+            return True
+        d = domain(email)
+        return any(d in (o.allowed_domains or []) for o in db.exec(select(Org)))
+
     def join_by_link(self, token: str, cur: Current) -> str:
         """Join the link's org as the signed-in user, and work in it. Their other orgs, and their role in this one if
         they're in it already, stay as they are. Returns the org id. Raises LinkInvalid."""
@@ -908,6 +941,16 @@ def _team_name(team: str) -> str:
     if not team:
         raise ValueError("the team needs a name")
     return team
+
+
+def _new_team(db: Session, user_id: str, team: str, now: datetime) -> tuple[Org, str]:
+    """A new org named `team` (with a slug nobody has), owned by the user, with its one workspace."""
+    slug = _free(actor.slug(team), lambda s: db.exec(select(Org.id).where(Org.slug == s)).first() is None)
+    org = Org(id=str(uuid.uuid4()), name=team, slug=slug, allowed_domains=[], created_at=now)
+    db.add(org)
+    db.flush()
+    db.add(Membership(org_id=org.id, user_id=user_id, role=OWNER, created_at=now))
+    return org, _new_workspace(db, org.id, team)
 
 
 def _new_workspace(db: Session, org_id: str, team: str) -> str:

@@ -335,3 +335,93 @@ def test_switching_teams_says_where_their_workspace_is(fresh):
     assert switched["org"]["name"] == "Northwind" and switched["org"]["workspace"] == "northwind"
     assert {o["name"]: o["workspace"] for o in switched["orgs"]} == {"Northwind": "northwind", "Night Shift": "night-shift"}
     assert [w["workspace"] for w in c.get("/v1/workspaces").json()] == ["northwind"]
+
+
+# --- open sign-up -------------------------------------------------------------------------------
+
+
+def sign_up(app, email: str = "bo@example.com", team: str = "Night Shift", name: str = "Bo", pw: str = PW) -> httpx.Response:
+    return TestClient(app).post("/v1/auth/sign-up", json={"name": name, "email": email, "password": pw, "team": team})
+
+
+def test_sign_up_is_off_unless_turned_on(fresh):
+    c = first_run(fresh)
+    assert not TestClient(fresh).get("/v1/auth/session").json()["open_signup"]
+    res = sign_up(fresh)
+    assert res.status_code == 404 and "join link" in res.json()["detail"]
+    with db(c) as d:
+        assert d.exec(select(User).where(User.email == "bo@example.com")).first() is None
+
+
+def test_open_sign_up_makes_an_owner_of_a_new_team(fresh, monkeypatch):
+    c = first_run(fresh)
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    anon = TestClient(fresh)
+    state = anon.get("/v1/auth/session").json()
+    assert state["open_signup"] and not state["first_account"]
+    res = anon.post("/v1/auth/sign-up", json={"name": "Bo", "email": "Bo@Example.com", "password": PW, "team": "Night Shift"})
+    assert res.status_code == 200, res.text
+    me = anon.get("/v1/auth/session").json()
+    assert me["user"]["email"] == "bo@example.com" and me["user"]["name"] == "Bo" and me["user"]["has_password"]
+    assert me["org"]["name"] == "Night Shift" and me["org"]["role"] == "owner" and me["org"]["workspace"] == "night-shift"
+    assert [o["name"] for o in me["orgs"]] == ["Night Shift"]  # only the new team, not Ana's
+    with_csrf(anon, None)
+    assert [w["workspace"] for w in anon.get("/v1/workspaces").json()] == ["night-shift"]
+    assert anon.get("/v1/workspaces/northwind/config").status_code == 404
+    assert anon.patch("/v1/org/platforms", json={"platforms": ["vapi"]}).status_code == 200  # setup goes on as the first run's
+    assert anon.post("/v1/org/join-link", json={}).status_code == 201
+    # Ana's team is as it was
+    assert [m["email"] for m in c.get("/v1/org/members").json()] == ["ana@example.com"]
+    # and Bo signs in with that password
+    res = TestClient(fresh).post("/v1/auth/password/login", json={"email": "bo@example.com", "password": PW})
+    assert res.status_code == 200 and res.json()["org"]["name"] == "Night Shift"
+
+
+def test_sign_up_team_names_take_a_suffix_when_taken(fresh, monkeypatch):
+    first_run(fresh)
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "1")
+    made = sign_up(fresh, team="Northwind").json()
+    assert made["org"]["name"] == "Northwind" and made["org"]["slug"] == "northwind-2" and made["org"]["workspace"] == "northwind-2"
+    assert sign_up(fresh, email="cy@example.com", team="  ").status_code in (400, 422)
+
+
+def test_sign_up_with_an_address_that_has_an_account(fresh, monkeypatch):
+    c = first_run(fresh)
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    res = sign_up(fresh, email="ANA@example.com")
+    assert res.status_code == 409 and "Sign in instead" in res.json()["detail"]
+    assert sign_up(fresh, pw="short").status_code == 400  # the password rules apply
+    with db(c) as d:
+        assert len(d.exec(select(Org)).all()) == 1
+
+
+def test_sign_up_leaves_addresses_an_invite_or_a_domain_waits_for(fresh, monkeypatch):
+    c = first_run(fresh)
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    assert c.post("/v1/org/invites", json={"email": "dee@example.com"}).status_code == 201
+    res = sign_up(fresh, email="dee@example.com")
+    assert res.status_code == 409 and "join link" in res.json()["detail"]
+    assert c.patch("/v1/org", json={"allowed_domains": ["acme.com"]}).status_code == 200
+    assert sign_up(fresh, email="eve@acme.com").status_code == 409
+    assert sign_up(fresh, email="eve@other.com").status_code == 200
+
+
+def test_sign_up_on_a_fresh_install_is_the_first_run(fresh, monkeypatch):
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    assert TestClient(fresh).get("/v1/auth/session").json()["first_account"]
+    assert sign_up(fresh).status_code == 409
+
+
+def test_sign_ups_are_rate_limited(fresh, monkeypatch):
+    c = first_run(fresh)
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    with db(c) as d, d.begin():
+        for _ in range(30):
+            d.add(LoginAttempt(id=str(uuid.uuid4()), email="x@example.com", ip="testclient", created_at=datetime.now(timezone.utc)))
+    assert sign_up(fresh).status_code == 429
+
+
+def test_sign_up_needs_sign_in_on(client, monkeypatch):
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "true")
+    assert not client.get("/v1/auth/session").json()["open_signup"]
+    assert client.post("/v1/auth/sign-up", json={"email": "bo@example.com", "password": PW, "team": "T"}).status_code == 404

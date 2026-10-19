@@ -2,7 +2,7 @@
 
 | Kind | With sign-in on | With sign-in off |
 |---|---|---|
-| `open` | anyone (the sign-in flow, email sign-in links, passwords, join links, the UI's files, health, API docs) | anyone |
+| `open` | anyone (the sign-in flow, email sign-in links, passwords, sign-up, join links, the UI's files, health, API docs) | anyone |
 | `token` | the route checks its own token (ingest, runtime or onboarding); no login session | same |
 | `webhook` | the route checks the sender's signature or secret; no login session | same |
 | `token_or_session` | a login session, or the route's runtime token (prompt fetches) | as before |
@@ -49,7 +49,7 @@ ROUTES: dict[str, str] = {
     # open: the sign-in flow, the UI's files, health and the API docs
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
     "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
-    "password_login": OPEN, "first_account": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
+    "password_login": OPEN, "first_account": OPEN, "sign_up": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
     "set_password": OPEN, "lookup_join_link": OPEN, "join_with_link": OPEN,
     "onboarding_skill": OPEN,  # SKILL.md, the same text the repo publishes
     # signed in, with or without a membership

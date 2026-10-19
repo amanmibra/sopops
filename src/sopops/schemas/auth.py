@@ -56,6 +56,8 @@ class AuthState(BaseModel):
     first_account: bool = Field(False, description="Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.")
     password_email: bool = Field(False, description="sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.")
     sign_up: bool = Field(False, description="People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.")
+    open_signup: bool = Field(False, description="SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a "
+                                                 "password and a new team they own.")
     platforms: PlatformsOut | None = Field(None, description="The platforms the org you're working in uses (with sign-in off, the first org's). "
                                            "None when you're not signed in, or in no org.")
 
@@ -164,6 +166,13 @@ class FirstAccountIn(BaseModel):
     email: str = Field(max_length=320)
     name: str = Field("", max_length=256)
     password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+
+
+class SignUpIn(BaseModel):
+    name: str = Field("", max_length=256)
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")
+    team: str = Field(min_length=1, max_length=128, description="What the new team is called.")
 
 
 class InviteJoinIn(BaseModel):

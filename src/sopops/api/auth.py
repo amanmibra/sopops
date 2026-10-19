@@ -10,7 +10,8 @@ whether the address gets one or not. The page posts the token to `/v1/auth/email
 starts a login session (see `sopops.auth.email` for why the token is after `#` and needs the click).
 
 Passwords (`sopops.auth.password`): `POST /v1/auth/password/login` signs in. On a fresh install,
-`/v1/auth/password/first-account` makes the owner. `/v1/auth/invites/join` accepts an invite by making an account with a
+`/v1/auth/password/first-account` makes the owner. With SOPOPS_OPEN_SIGNUP on, `/v1/auth/sign-up` makes an account and a
+new team it owns. `/v1/auth/invites/join` accepts an invite by making an account with a
 password. Links that set a password (`<sopops>/set-password#<token>`) come from an owner or admin
 (`/v1/org/members/<id>/password-link`), from `sopops reset-password`, or by email (`/v1/auth/password/email`), and the
 page posts the token to `/v1/auth/password/set`. These routes are open, like the rest of signing in, and take JSON only:
@@ -80,8 +81,9 @@ from ..schemas.auth import (
     RoleIn,
     SetUpIn,
     SetUpOut,
-    TeamIn,
     SignedIn,
+    SignUpIn,
+    TeamIn,
     SwitchOrgIn,
 )
 from ..tokens import Forbidden, Unauthorized
@@ -155,7 +157,8 @@ def router(accounts: Accounts) -> APIRouter:
         found = [{"id": p.id, "label": p.label, "redirects": p.redirects} for p in providers.configured()]
         pw = passwords()
         by_email = pw and email.EmailLogin().configured()
-        extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains())}
+        extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains()),
+                 "open_signup": pw and mode.open_signup()}
         if cur is None:
             plats = None if mode.required() else accounts.platforms(None)
             return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra, "platforms": plats}
@@ -286,6 +289,27 @@ def router(accounts: Accounts) -> APIRouter:
         except Refused as e:
             raise HTTPException(403, str(e)) from None
         return signed_in(request, response, user.id, token, "a new password (the first account)")
+
+    @r.post("/v1/auth/sign-up", response_model=SignedIn, responses={404: {"description": "Open sign-up is off."},
+                                                                     409: {"description": "The email has an account (sign in instead), or nobody has one yet."},
+                                                                     429: {"description": "Too many tries."}})
+    def sign_up(req: SignUpIn, request: Request, response: Response) -> dict:
+        """With SOPOPS_OPEN_SIGNUP on: make an account with a name, email and password, and a new team, which it owns,
+        with its one workspace. This browser signs in, working in that team. Counts as a try against the password
+        limits (10 per address and 30 per client in 15 minutes)."""
+        need_passwords()
+        if not mode.open_signup():
+            raise HTTPException(404, "this sopops doesn't take sign-ups. Ask a team owner or admin for the team's join link")
+        try:
+            user, token, org, _ = accounts.sign_up(req.email, req.name, req.password, req.team, client_ip(request))
+        except TooManyTries as e:
+            raise HTTPException(429, str(e)) from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Refused as e:
+            raise HTTPException(403, str(e)) from None
+        log.info("user %s signed up and made org %s", user.id, org.id)
+        return signed_in(request, response, user.id, token, "a new password (sign-up)")
 
     @r.post("/v1/auth/invites/join", response_model=SignedIn, responses={404: {"description": "Unknown, used, withdrawn or expired."},
                                                                          409: {"description": "The email has an account: sign in instead."}})

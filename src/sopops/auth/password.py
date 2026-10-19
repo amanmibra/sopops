@@ -10,7 +10,9 @@ takes about as long either way.
 A password is only ever set for an address someone vouched for: the first account on a fresh install, an invite (only
 for an address with no account yet), a link an owner or admin made for a member, `sopops reset-password`, or a link
 emailed to the address. So a password can't be used to claim someone else's email, which GitHub, Google and email
-sign-in link to by address.
+sign-in link to by address. Join links and open sign-up (SOPOPS_OPEN_SIGNUP) are the exceptions: anyone with
+the link, or anyone at all, picks the address. Sign-up refuses an address an invite or a team's email domains are waiting
+for, so an address nobody checked can't get into a team that way.
 """
 
 from __future__ import annotations
