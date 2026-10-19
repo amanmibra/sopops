@@ -9326,6 +9326,26 @@
         "summary": "Model Prices",
         "description": "The price table in use (defaults, and SOPOPS_MODEL_PRICES), and the price each configured model gets.",
         "operationId": "model_prices",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The team, whose own models apply over the deployment's.",
+              "title": "Workspace"
+            },
+            "description": "The team, whose own models apply over the deployment's."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -9333,6 +9353,288 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PricesResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ai": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Get Ai Settings",
+        "description": "The TypeSafe key, provider and models this team's checks use, and whether each is the team's own or the\ndeployment's default. Never the keys.",
+        "operationId": "get_ai_settings",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AISettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ai/typesafe": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Set Typesafe Key",
+        "description": "Use this TypeSafe key for Jev, after one small decision proves it works. 503 without SOPOPS_SECRET_KEY.",
+        "operationId": "set_typesafe_key",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TypeSafeKeyIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AISettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The key or model didn't work; the detail says why."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ai/provider": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Set Ai Provider",
+        "description": "Use this provider, with the team's key or the deployment's. Returns the models the key can use (none for\nother). Switching providers clears the team's models.",
+        "operationId": "set_ai_provider",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelChoices"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The key or model didn't work; the detail says why."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ai/models": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "List Ai Models",
+        "description": "The models the team's provider key can use, with the recommended pair.",
+        "operationId": "list_ai_models",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModelChoices"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The key or model didn't work; the detail says why."
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Set Ai Models",
+        "description": "Use these models, after one short call to each.",
+        "operationId": "set_ai_models",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AISettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The key or model didn't work; the detail says why."
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/ai/{what}": {
+      "delete": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Reset Ai Setting",
+        "description": "Go back to the deployment's default for the TypeSafe key, the provider (its key, base URL and the models), or\njust the models.",
+        "operationId": "reset_ai_setting",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "what",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "typesafe",
+                "provider",
+                "models"
+              ],
+              "type": "string",
+              "title": "What"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AISettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -10191,6 +10493,26 @@
         "summary": "Onboarding Capabilities",
         "description": "What this server can do for onboarding: extract with its own model, and which platforms it reads.",
         "operationId": "onboarding_capabilities",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The team, whose own models apply over the deployment's.",
+              "title": "Workspace"
+            },
+            "description": "The team, whose own models apply over the deployment's."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -10198,6 +10520,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Capabilities"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -12268,6 +12600,52 @@
   },
   "components": {
     "schemas": {
+      "AISettingsOut": {
+        "properties": {
+          "typesafe": {
+            "$ref": "#/components/schemas/KeyState",
+            "description": "The TypeSafe key for Jev, which answers every decision. Required to check calls."
+          },
+          "provider": {
+            "$ref": "#/components/schemas/ProviderState"
+          },
+          "fast": {
+            "$ref": "#/components/schemas/ModelState",
+            "description": "Routing, rule checks and pattern assignment, when Jev doesn't answer them."
+          },
+          "reasoning": {
+            "$ref": "#/components/schemas/ModelState",
+            "description": "Reviews, rule splitting, pattern names and suggestions."
+          },
+          "ready": {
+            "type": "boolean",
+            "title": "Ready",
+            "description": "A TypeSafe key and both models are set, so calls get checked."
+          },
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/ProviderOption"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "typesafe_key_url": {
+            "type": "string",
+            "title": "Typesafe Key Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "typesafe",
+          "provider",
+          "fast",
+          "reasoning",
+          "ready",
+          "providers",
+          "typesafe_key_url"
+        ],
+        "title": "AISettingsOut"
+      },
       "AddPeopleIn": {
         "properties": {
           "emails": {
@@ -17275,6 +17653,44 @@
         ],
         "title": "JoinTokenIn"
       },
+      "KeyState": {
+        "properties": {
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "team",
+                  "default"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "team: this team's own key; default: the deployment's; null: none."
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint",
+            "description": "The last few characters of the team's key."
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "hint"
+        ],
+        "title": "KeyState"
+      },
       "KeyTestIn": {
         "properties": {
           "platform_id": {
@@ -18258,6 +18674,39 @@
         ],
         "title": "MigrateResponse"
       },
+      "ModelChoices": {
+        "properties": {
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "description": "The chat models the key can use, as LiteLLM model strings. Empty for other: type one."
+          },
+          "suggested": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested",
+            "description": "The recommended fast and reasoning models among them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "models",
+          "suggested"
+        ],
+        "title": "ModelChoices"
+      },
       "ModelPrice": {
         "properties": {
           "model": {
@@ -18332,6 +18781,62 @@
           "model"
         ],
         "title": "ModelSpend"
+      },
+      "ModelState": {
+        "properties": {
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "A LiteLLM model string, e.g. anthropic/claude-haiku-4-5."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "team",
+                  "default"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model",
+          "source"
+        ],
+        "title": "ModelState"
+      },
+      "ModelsIn": {
+        "properties": {
+          "fast": {
+            "type": "string",
+            "title": "Fast",
+            "description": "A LiteLLM model string. Each model gets one short test call before it's saved."
+          },
+          "reasoning": {
+            "type": "string",
+            "title": "Reasoning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fast",
+          "reasoning"
+        ],
+        "title": "ModelsIn"
       },
       "NewAgent": {
         "properties": {
@@ -21257,6 +21762,98 @@
         ],
         "title": "ProposedStep"
       },
+      "ProviderIn": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "anthropic",
+              "openai",
+              "gemini",
+              "other"
+            ],
+            "title": "Provider"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key",
+            "description": "The provider's API key. Leave it out to use the deployment's key for this provider."
+          },
+          "api_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Base",
+            "description": "For other: the provider's base URL, or an OpenAI-compatible endpoint."
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "title": "ProviderIn"
+      },
+      "ProviderOption": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "anthropic",
+              "openai",
+              "gemini",
+              "other"
+            ],
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "lists_models": {
+            "type": "boolean",
+            "title": "Lists Models",
+            "description": "Whether sopops can list this provider's models once it has a key."
+          },
+          "key_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key Url",
+            "description": "Where to make a key."
+          },
+          "has_default_key": {
+            "type": "boolean",
+            "title": "Has Default Key",
+            "description": "The deployment has a key for this provider, so a team can use it without its own."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "lists_models",
+          "key_url",
+          "has_default_key"
+        ],
+        "title": "ProviderOption"
+      },
       "ProviderOut": {
         "properties": {
           "id": {
@@ -21281,6 +21878,68 @@
           "redirects"
         ],
         "title": "ProviderOut"
+      },
+      "ProviderState": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "The provider the models are from, or null when no model is set."
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "team",
+                  "default"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "Where its key comes from: this team, the deployment, or nowhere yet."
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "api_base": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Base"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "hint",
+          "api_base"
+        ],
+        "title": "ProviderState"
       },
       "PublishRequest": {
         "properties": {
@@ -28053,6 +28712,20 @@
         ],
         "title": "TurnIn",
         "description": "One turn. Extra fields (interrupted, confidence, ...) are kept as sent."
+      },
+      "TypeSafeKeyIn": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key",
+            "description": "A TypeSafe API key. Tried with one small Jev decision before it's saved."
+          }
+        },
+        "type": "object",
+        "required": [
+          "key"
+        ],
+        "title": "TypeSafeKeyIn"
       },
       "UniqueText": {
         "properties": {

@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from .. import github
+from ..errors import workspace_id
 from ..ai.lm import AIError, model_for
 from ..onboarding import kickoff, platforms
 from ..onboarding.pipeline import guide_text, host_extraction
@@ -78,9 +79,10 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         return onboarding.connected(agent(authorization), x_sopops_client, x_sopops_client_version)
 
     @r.get("/v1/onboarding/capabilities", response_model=Capabilities)
-    def onboarding_capabilities() -> dict:
+    def onboarding_capabilities(workspace: str | None = Query(None, description="The team, whose own models apply over the deployment's.")) -> dict:
         """What this server can do for onboarding: extract with its own model, and which platforms it reads."""
-        return {"llm": onboarding.ai is not None, "model": model_for("reasoning"), "platforms": list(platforms.PLATFORMS)}
+        ai = onboarding.ai_for(workspace_id(workspace)) if workspace else onboarding.ai
+        return {"llm": ai is not None, "model": ai.model("reasoning") if ai is not None else model_for("reasoning"), "platforms": list(platforms.PLATFORMS)}
 
     @r.post("/v1/onboarding/platform-agents", response_model=list[PlatformAgent], responses={400: {"description": "The platform refused the key or couldn't be reached."}})
     def list_platform_agents(req: PlatformAgentsRequest) -> list[dict]:

@@ -141,7 +141,8 @@ export const q = {
     const w = insightQuery(f);
     return queryOptions({ queryKey: ["ws", ws, "usage", w.window ?? null, w.start ?? null, w.end ?? null], queryFn: () => call(sdk.modelUsage({ path: { workspace: ws }, query: { window: w.window, start: w.start, end: w.end } })) });
   },
-  prices: () => queryOptions({ queryKey: ["model-prices"], queryFn: () => call(sdk.modelPrices()) }),
+  prices: (ws: string) => queryOptions({ queryKey: ["ws", ws, "model-prices"], queryFn: () => call(sdk.modelPrices({ query: { workspace: ws } })) }),
+  ai: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ai"], queryFn: () => call(sdk.getAiSettings({ path: { workspace: ws } })) }),
   insightsReport: (ws: string, f: InsightFilters) =>
     queryOptions({ queryKey: ["ws", ws, "insights", "report", f], queryFn: () => call(sdk.insightsReport({ path: { workspace: ws }, query: insightQuery(f) })) }),
   patterns: (ws: string, procedure?: string) =>

@@ -8,6 +8,7 @@ is re-exported here, and `metadata` holds every table (Alembic compares it with 
 from sqlmodel import SQLModel
 
 from .agent_delivery import AgentDelivery
+from .ai_settings import AISetting
 from .calibrations import Calibration
 from .capture_settings import CaptureSetting
 from .columns import JSONDoc
@@ -52,4 +53,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JoinLink", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]
+    "AgentDelivery", "AISetting", "Calibration", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JoinLink", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]

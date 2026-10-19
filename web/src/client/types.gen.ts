@@ -5,6 +5,39 @@ export type ClientOptions = {
 };
 
 /**
+ * AISettingsOut
+ */
+export type AiSettingsOut = {
+    /**
+     * The TypeSafe key for Jev, which answers every decision. Required to check calls.
+     */
+    typesafe: KeyState;
+    provider: ProviderState;
+    /**
+     * Routing, rule checks and pattern assignment, when Jev doesn't answer them.
+     */
+    fast: ModelState;
+    /**
+     * Reviews, rule splitting, pattern names and suggestions.
+     */
+    reasoning: ModelState;
+    /**
+     * Ready
+     *
+     * A TypeSafe key and both models are set, so calls get checked.
+     */
+    ready: boolean;
+    /**
+     * Providers
+     */
+    providers: Array<ProviderOption>;
+    /**
+     * Typesafe Key Url
+     */
+    typesafe_key_url: string;
+};
+
+/**
  * AddPeopleIn
  */
 export type AddPeopleIn = {
@@ -2918,6 +2951,24 @@ export type JoinTokenIn = {
 };
 
 /**
+ * KeyState
+ */
+export type KeyState = {
+    /**
+     * Source
+     *
+     * team: this team's own key; default: the deployment's; null: none.
+     */
+    source: 'team' | 'default' | null;
+    /**
+     * Hint
+     *
+     * The last few characters of the team's key.
+     */
+    hint: string | null;
+};
+
+/**
  * KeyTestIn
  */
 export type KeyTestIn = {
@@ -3544,6 +3595,26 @@ export type MigrateResponse = {
 };
 
 /**
+ * ModelChoices
+ */
+export type ModelChoices = {
+    /**
+     * Models
+     *
+     * The chat models the key can use, as LiteLLM model strings. Empty for other: type one.
+     */
+    models: Array<string>;
+    /**
+     * Suggested
+     *
+     * The recommended fast and reasoning models among them.
+     */
+    suggested: {
+        [key: string]: string;
+    } | null;
+};
+
+/**
  * ModelPrice
  */
 export type ModelPrice = {
@@ -3603,6 +3674,38 @@ export type ModelSpend = {
      * Model
      */
     model: string;
+};
+
+/**
+ * ModelState
+ */
+export type ModelState = {
+    /**
+     * Model
+     *
+     * A LiteLLM model string, e.g. anthropic/claude-haiku-4-5.
+     */
+    model: string | null;
+    /**
+     * Source
+     */
+    source: 'team' | 'default' | null;
+};
+
+/**
+ * ModelsIn
+ */
+export type ModelsIn = {
+    /**
+     * Fast
+     *
+     * A LiteLLM model string. Each model gets one short test call before it's saved.
+     */
+    fast: string;
+    /**
+     * Reasoning
+     */
+    reasoning: string;
 };
 
 /**
@@ -5274,6 +5377,60 @@ export type ProposedStep = {
 };
 
 /**
+ * ProviderIn
+ */
+export type ProviderIn = {
+    /**
+     * Provider
+     */
+    provider: 'anthropic' | 'openai' | 'gemini' | 'other';
+    /**
+     * Key
+     *
+     * The provider's API key. Leave it out to use the deployment's key for this provider.
+     */
+    key?: string | null;
+    /**
+     * Api Base
+     *
+     * For other: the provider's base URL, or an OpenAI-compatible endpoint.
+     */
+    api_base?: string | null;
+};
+
+/**
+ * ProviderOption
+ */
+export type ProviderOption = {
+    /**
+     * Id
+     */
+    id: 'anthropic' | 'openai' | 'gemini' | 'other';
+    /**
+     * Label
+     */
+    label: string;
+    /**
+     * Lists Models
+     *
+     * Whether sopops can list this provider's models once it has a key.
+     */
+    lists_models: boolean;
+    /**
+     * Key Url
+     *
+     * Where to make a key.
+     */
+    key_url: string | null;
+    /**
+     * Has Default Key
+     *
+     * The deployment has a key for this provider, so a team can use it without its own.
+     */
+    has_default_key: boolean;
+};
+
+/**
  * ProviderOut
  */
 export type ProviderOut = {
@@ -5293,6 +5450,32 @@ export type ProviderOut = {
      * Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`).
      */
     redirects: boolean;
+};
+
+/**
+ * ProviderState
+ */
+export type ProviderState = {
+    /**
+     * Id
+     *
+     * The provider the models are from, or null when no model is set.
+     */
+    id: string | null;
+    /**
+     * Source
+     *
+     * Where its key comes from: this team, the deployment, or nowhere yet.
+     */
+    source: 'team' | 'default' | null;
+    /**
+     * Hint
+     */
+    hint: string | null;
+    /**
+     * Api Base
+     */
+    api_base: string | null;
 };
 
 /**
@@ -9163,6 +9346,18 @@ export type TurnIn = {
      */
     at?: string | number | null;
     [key: string]: unknown;
+};
+
+/**
+ * TypeSafeKeyIn
+ */
+export type TypeSafeKeyIn = {
+    /**
+     * Key
+     *
+     * A TypeSafe API key. Tried with one small Jev decision before it's saved.
+     */
+    key: string;
 };
 
 /**
@@ -15013,9 +15208,25 @@ export type ModelUsageResponse = ModelUsageResponses[keyof ModelUsageResponses];
 export type ModelPricesData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Workspace
+         *
+         * The team, whose own models apply over the deployment's.
+         */
+        workspace?: string | null;
+    };
     url: '/v1/model-prices';
 };
+
+export type ModelPricesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ModelPricesError = ModelPricesErrors[keyof ModelPricesErrors];
 
 export type ModelPricesResponses = {
     /**
@@ -15025,6 +15236,182 @@ export type ModelPricesResponses = {
 };
 
 export type ModelPricesResponse = ModelPricesResponses[keyof ModelPricesResponses];
+
+export type GetAiSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai';
+};
+
+export type GetAiSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAiSettingsError = GetAiSettingsErrors[keyof GetAiSettingsErrors];
+
+export type GetAiSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiSettingsOut;
+};
+
+export type GetAiSettingsResponse = GetAiSettingsResponses[keyof GetAiSettingsResponses];
+
+export type SetTypesafeKeyData = {
+    body: TypeSafeKeyIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai/typesafe';
+};
+
+export type SetTypesafeKeyErrors = {
+    /**
+     * The key or model didn't work; the detail says why.
+     */
+    422: unknown;
+};
+
+export type SetTypesafeKeyResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiSettingsOut;
+};
+
+export type SetTypesafeKeyResponse = SetTypesafeKeyResponses[keyof SetTypesafeKeyResponses];
+
+export type SetAiProviderData = {
+    body: ProviderIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai/provider';
+};
+
+export type SetAiProviderErrors = {
+    /**
+     * The key or model didn't work; the detail says why.
+     */
+    422: unknown;
+};
+
+export type SetAiProviderResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModelChoices;
+};
+
+export type SetAiProviderResponse = SetAiProviderResponses[keyof SetAiProviderResponses];
+
+export type ListAiModelsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai/models';
+};
+
+export type ListAiModelsErrors = {
+    /**
+     * The key or model didn't work; the detail says why.
+     */
+    422: unknown;
+};
+
+export type ListAiModelsResponses = {
+    /**
+     * Successful Response
+     */
+    200: ModelChoices;
+};
+
+export type ListAiModelsResponse = ListAiModelsResponses[keyof ListAiModelsResponses];
+
+export type SetAiModelsData = {
+    body: ModelsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai/models';
+};
+
+export type SetAiModelsErrors = {
+    /**
+     * The key or model didn't work; the detail says why.
+     */
+    422: unknown;
+};
+
+export type SetAiModelsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiSettingsOut;
+};
+
+export type SetAiModelsResponse = SetAiModelsResponses[keyof SetAiModelsResponses];
+
+export type ResetAiSettingData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * What
+         */
+        what: 'typesafe' | 'provider' | 'models';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/ai/{what}';
+};
+
+export type ResetAiSettingErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ResetAiSettingError = ResetAiSettingErrors[keyof ResetAiSettingErrors];
+
+export type ResetAiSettingResponses = {
+    /**
+     * Successful Response
+     */
+    200: AiSettingsOut;
+};
+
+export type ResetAiSettingResponse = ResetAiSettingResponses[keyof ResetAiSettingResponses];
 
 export type DisconnectRepoData = {
     body?: never;
@@ -15631,9 +16018,25 @@ export type GithubWebhookResponse = GithubWebhookResponses[keyof GithubWebhookRe
 export type OnboardingCapabilitiesData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Workspace
+         *
+         * The team, whose own models apply over the deployment's.
+         */
+        workspace?: string | null;
+    };
     url: '/v1/onboarding/capabilities';
 };
+
+export type OnboardingCapabilitiesErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingCapabilitiesError = OnboardingCapabilitiesErrors[keyof OnboardingCapabilitiesErrors];
 
 export type OnboardingCapabilitiesResponses = {
     /**

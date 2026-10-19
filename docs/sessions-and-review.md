@@ -50,7 +50,9 @@ Each model call is a typed [DSPy](https://dspy.ai) signature ([`signatures.py`](
 
 Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, with the provider's usual key variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). One model can fill both roles. Any DSPy provider works, or an OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`) for local models. With neither set, sessions are stored unchecked.
 
-**Jev.** Optional. With `pip install 'sopops-server[jev]'` and `TYPESAFE_API_KEY`, TypeSafe's [Jev](https://docs.typesafe.ai) replaces the fast model for decisions: calibrated probabilities, faster and much cheaper. The reviewer still reviews.
+**Jev.** With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key.
+
+**Your team's own keys.** The environment variables are the deployment's defaults. In setup, and later in Settings under Checks, a team adds its own TypeSafe key, picks Anthropic, OpenAI, Google or any other LiteLLM provider, pastes a key (or uses the deployment's) and picks the two models from those the key can use. Each key and model is tried before it's saved, stored encrypted with `SOPOPS_SECRET_KEY`, and never shown again. Anything a team doesn't set uses the default.
 
 **Check modes.** `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand.
 

@@ -7,7 +7,7 @@ import { PLATFORMS, plural, when } from "@/lib/kinds";
 import { iq, readPromptFiles, rememberKickoff } from "@/lib/onboarding";
 import { type Platforms, usePlatforms } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { PlatformIcon, PlatformLabel } from "../brand-icon";
 import { author } from "../form";
@@ -95,12 +95,13 @@ export function ImportStart() {
 }
 
 function NeedsModel({ children }: { children: ReactNode }) {
-  const caps = useQuery(iq.capabilities());
+  const { ws } = useWs();
+  const caps = useQuery(iq.capabilities(ws));
   if (caps.data && !caps.data.llm)
     return (
       <Banner tone="warn">
-        sopops has no model for extraction yet. Set <code>SOPOPS_MODEL_REASONING</code> (and its provider key) where sopops runs, or use Claude Code or Codex, which use your
-        own agent.
+        sopops has no model to import with yet. Add your AI keys in <HrefLink href={settingsHref(ws, "checks")}>Settings, under Checks</HrefLink>, or use Claude Code or Codex,
+        which use your own agent.
       </Banner>
     );
   return <>{children}</>;

@@ -14,6 +14,7 @@ import { FLOWS, type Flow, STEP_TITLE, type StepKey, nextStep, prevStep, setupHr
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
+import { AIModelsForm, useAISettings } from "./ai-models";
 import { Banner } from "./bits";
 import { PlatformIcon } from "./brand-icon";
 import { ConnectGuide } from "./connect-guide";
@@ -321,6 +322,8 @@ export function TeamSetup({ flow, step }: { flow: Flow; step: StepKey }) {
   switch (step) {
     case "people":
       return <PeopleStep flow={flow} />;
+    case "models":
+      return <ModelsStep flow={flow} />;
     case "platforms":
       return <PlatformsStep flow={flow} />;
     case "blocks":
@@ -382,6 +385,37 @@ function PeopleStep({ flow }: { flow: Flow }) {
           </p>
         </div>
       )}
+    </StepShell>
+  );
+}
+
+function ModelsStep({ flow }: { flow: Flow }) {
+  const s = useSteps(flow, "models");
+  const ai = useAISettings().data;
+  const defaults = ai?.ready && ai.typesafe.source === "default" && ai.fast.source === "default" && ai.reasoning.source === "default";
+  return (
+    <StepShell
+      flow={flow}
+      step="models"
+      wide
+      sub={
+        <>
+          sopops checks every call with these. Keys are stored encrypted and never shown again. You can change them later in Settings, under Checks.
+        </>
+      }
+      back={s.back}
+      exit={s.exit}
+      aside={!ai?.ready && s.skip()}
+      primary={{ label: "Continue", disabled: !ai?.ready, run: s.next }}
+    >
+      {defaults && (
+        <Banner tone="ok">
+          <Check className="mr-1.5 inline size-4" />
+          This sopops comes with keys and models already. Continue, or use your own below.
+        </Banner>
+      )}
+      <AIModelsForm />
+      {!ai?.ready && <p className="text-muted-foreground mt-4 text-[13px]">Until then, calls are saved but not checked.</p>}
     </StepShell>
   );
 }

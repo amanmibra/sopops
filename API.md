@@ -477,9 +477,22 @@ Costs come from a price table in USD per million tokens (input, output): Jev at 
 | Endpoint | |
 |---|---|
 | `GET /v1/workspaces/{ws}/usage?window=` | Over the window (`window`, or `start` and `end`; on when the call was made): `total` (`calls`, `input_tokens`, `output_tokens`, `cost_usd`, `unpriced_calls`), `by_purpose` and `by_model` (largest cost first), `sessions` and `per_session_usd` (the cost of calls about a session, per session), and `daily`, one row per UTC day. |
-| `GET /v1/model-prices` | The price table (`source`: `default` or `env`), and each configured role's model with its price. |
+| `GET /v1/model-prices?workspace=` | The price table (`source`: `default` or `env`), and each configured role's model with its price (the team's own models, given `workspace`). |
 
 A session's detail has its own `model_calls` and `cost_usd`.
+
+## AI keys and models
+
+Each team's own TypeSafe key, provider key and models, over the deployment's defaults (the environment variables). Each value reports its `source`: `team`, `default`, or null when neither has one. Keys are tried before they're saved, encrypted with `SOPOPS_SECRET_KEY` (503 without it) and never returned. A key or model that doesn't work is a 422 that says why. Changing them needs an owner or admin.
+
+| Endpoint | |
+|---|---|
+| `GET /v1/workspaces/{ws}/ai` | What applies: `typesafe`, `provider`, `fast`, `reasoning` (each with its `source`), `ready` (a TypeSafe key and both models), and the `providers` to pick from. |
+| `PUT /v1/workspaces/{ws}/ai/typesafe` | `{key}`. Tried with one small Jev decision. |
+| `PUT /v1/workspaces/{ws}/ai/provider` | `{provider, key?, api_base?}`: `anthropic`, `openai`, `gemini` or `other`. Without `key`, the deployment's key for that provider. Returns the `models` the key can use and a `suggested` pair (none for `other`). Switching providers clears the team's models. |
+| `GET /v1/workspaces/{ws}/ai/models` | The models the team's provider key can use, and the suggested pair. |
+| `PUT /v1/workspaces/{ws}/ai/models` | `{fast, reasoning}`, LiteLLM model strings. Each gets one short call first. |
+| `DELETE /v1/workspaces/{ws}/ai/{what}` | Back to the default: `typesafe`, `provider` (its key, base URL and the models) or `models`. |
 
 ## Onboarding
 

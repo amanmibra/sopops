@@ -106,7 +106,7 @@ def _incomplete(s: SessionRecord) -> bool:
 
 
 def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteResult:
-    ai = ai or ai_lm.get_ai()
+    ai = ai or store.ai_keys.ai(ref.workspace_id)
     s = _load(store, ref)
     if s is None:
         return RouteResult(session_id=ref.session_id, go=False, status="stale")
@@ -146,7 +146,7 @@ def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteR
 
 
 def check_procedure(store: Store, ref: CheckRef, ai: AI | None = None) -> CheckResult:
-    ai = ai or ai_lm.get_ai()
+    ai = ai or store.ai_keys.ai(ref.workspace_id)
     s = _load(store, ref)
     if s is None:
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)

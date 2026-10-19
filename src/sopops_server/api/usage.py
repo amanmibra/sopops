@@ -25,8 +25,8 @@ def router(store: Store) -> APIRouter:
         return store.usage.window(Filters.make(workspace_id(workspace), window, start, end))
 
     @r.get("/v1/model-prices", response_model=PricesResponse, dependencies=OPEN, tags=["usage"])
-    def model_prices() -> dict:
+    def model_prices(workspace: str | None = Query(None, description="The team, whose own models apply over the deployment's.")) -> dict:
         """The price table in use (defaults, and SOPOPS_MODEL_PRICES), and the price each configured model gets."""
-        return price_table()
+        return price_table(store.ai_keys.ai(workspace_id(workspace)) if workspace else None)
 
     return r

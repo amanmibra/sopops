@@ -19,7 +19,7 @@ python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().d
 
 ## Models
 
-See [Models](sessions-and-review.md#models).
+See [Models](sessions-and-review.md#models). These are the defaults: each team can replace any of them with its own keys and models in Settings, under Checks.
 
 | Variable | Default | |
 |---|---|---|

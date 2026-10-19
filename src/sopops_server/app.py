@@ -15,6 +15,7 @@ from fastapi.routing import APIRoute
 
 from . import __version__
 from .api import (
+    ai,
     auth,
     capture,
     config,
@@ -83,7 +84,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     app.state.accounts = Accounts(store)
     app.state.jobs = jobs
     # Jobs(ai=...) reaches imports too
-    app.state.onboarding = Onboarding(store, ai=lambda: jobs.ai if jobs.ai is not None else ai_from_env())
+    app.state.onboarding = Onboarding(store, ai=lambda ws=None: jobs.ai if jobs.ai is not None else ai_from_env(store, ws))
     errors.register(app)
     rt = runtime.register(app, store)  # push to platforms, their call-start webhooks, runtime token
 
@@ -107,6 +108,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         insights.router(store),
         lineage.router(store),
         usage.router(store),
+        ai.router(store),
         repo.router(store),
         github.router(store),
     ):

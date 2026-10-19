@@ -19,7 +19,6 @@ from sqlmodel import Session, select
 
 from . import lineage
 from .ai import calibration, decide, programs, spend
-from .ai import lm as ai_lm
 from .ai.lm import DECIDE
 from .orm import Finding
 from .pipeline.procedures import candidates
@@ -37,7 +36,7 @@ class Calibrate:
         """{workspace, dry_run, procedures: [{procedure_id, program, labels, negative_labels, saved, skipped, score_before,
         score, rules: [{rule_id, lineage_id, kind, index, text, field, before, after, skipped}]}]}. `skipped` is a refusal,
         {code, message, have, need}, or None (`refusal`)."""
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(ws)
         if procedure_id:
             pids = [procedure_id]
         else:

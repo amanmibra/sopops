@@ -10,7 +10,8 @@ const path = (workspace: string, id: string) => ({ path: { workspace, id } });
 export const TERMINAL: ImportOut["status"][] = ["applied", "discarded"];
 
 export const iq = {
-  capabilities: () => queryOptions({ queryKey: ["onboarding", "capabilities"], queryFn: () => call(sdk.onboardingCapabilities()), staleTime: 60_000 }),
+  capabilities: (ws: string) =>
+    queryOptions({ queryKey: ["ws", ws, "onboarding", "capabilities"], queryFn: () => call(sdk.onboardingCapabilities({ query: { workspace: ws } })), staleTime: 60_000 }),
   list: (ws: string) => queryOptions({ queryKey: ["ws", ws, "imports"], queryFn: () => call(sdk.listImports({ path: { workspace: ws } })) }),
   one: (ws: string, id: string) =>
     queryOptions({

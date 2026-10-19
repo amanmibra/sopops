@@ -5,7 +5,7 @@ Two kinds, by output type:
 - **Decision signatures** have only `Noul` / `Choice` outputs, so they run on TypeSafe's Jev when it's on and on the
   fast model otherwise (DSPy asks a generative model for probability evidence and decodes it the same way). Their
   outputs depend on the procedure or the findings at hand, so they're built per call: `route_signature`,
-  `check_signature`, `evidence_signature`, `assign_signature`. Each output's question goes in the predictor's `fields`
+  `check_signature`, `evidence_signature`, `assign_signature` (and `KeyCheck`, which only proves a key works). Each output's question goes in the predictor's `fields`
   (`instructions` and `criteria`), which is also where calibrated thresholds live.
 - **Generative signatures** run on the reasoning model (or the fast one, as noted): `SplitRule`, `CheckRules`,
   `LocateEvidence` (fast), `NameRulePattern`, `ClusterFindings`, `GroupThemes`, `SuggestEdit`, `SegmentPrompt`, `StructureProcedure`,
@@ -532,3 +532,10 @@ class NameVariables(dspy.Signature):
 
     slots: list[Slot] = dspy.InputField()
     names: list[str] = dspy.OutputField(desc="One snake_case name per slot, in order")
+
+
+class KeyCheck(dspy.Signature):
+    """Answer the question about the sentence."""
+
+    sentence: str = dspy.InputField()
+    answer: Noul = dspy.OutputField(desc="Is the sentence about the weather?")

@@ -215,8 +215,9 @@ def payload():
 def test_import_without_a_model_says_how(client, monkeypatch):
     client.app.state.onboarding.ai = None
     res = client.post(IMPORTS, json=payload())
-    assert res.status_code == 503 and "SOPOPS_MODEL_REASONING" in res.json()["detail"]
+    assert res.status_code == 503 and "Add your AI keys in Settings" in res.json()["detail"]
     assert client.get("/v1/onboarding/capabilities").json()["llm"] is False
+    assert client.get("/v1/onboarding/capabilities", params={"workspace": "demo"}).json()["llm"] is False
 
 
 def test_import_review_and_apply_creates_drafts_only(client):

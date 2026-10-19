@@ -212,7 +212,7 @@ class Patterns:
         out = Outcome()
         if not findings:
             return out
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(ws)
         out.assigned = self._assign(ws, findings, ai)
         with self._db() as db:
             lins = lineage.lineages(db, ws)
@@ -283,7 +283,7 @@ class Patterns:
             return self._name(ws, pattern_ids, ai, force)
 
     def _name(self, ws: str, pattern_ids: list[str] | None = None, ai: AI | None = None, force: bool = False) -> int:
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(ws)
         with self._db() as db:
             q = select(Pattern).where(Pattern.workspace_id == ws, Pattern.kind == "rule")
             if pattern_ids is not None:
@@ -374,7 +374,6 @@ class Patterns:
     def recluster_due(self, workspace: str | None = None, ai: AI | None = None) -> Outcome:
         """The daily pass: every rule whose triggers fire, or that gained findings since it was last clustered and has
         enough to split; then themes for procedures that changed."""
-        ai = ai or ai_lm.get_ai()
         out = Outcome()
         with self._db() as db:
             q = select(Pattern).where(Pattern.kind == "rule")
@@ -382,21 +381,21 @@ class Patterns:
                 q = q.where(Pattern.workspace_id == workspace)
             rule_pats = list(db.exec(q))
         for ws in sorted({rp.workspace_id for rp in rule_pats}):  # rule patterns named without a model get the model's name
-            self.name(ws, ai=ai)
+            self.name(ws, ai=ai or self.store.ai_keys.ai(ws))
         touched: set[tuple[str, str]] = set()
         for rp in rule_pats:
             daily = rp.finding_count >= SPLIT_AT and rp.finding_count != rp.clustered_count
-            if (daily or self.due(rp.workspace_id, rp.procedure_id, rp.rule_id)) and self.recluster(rp.workspace_id, rp.procedure_id, rp.rule_id, ai, force=True):
+            if (daily or self.due(rp.workspace_id, rp.procedure_id, rp.rule_id)) and self.recluster(rp.workspace_id, rp.procedure_id, rp.rule_id, ai or self.store.ai_keys.ai(rp.workspace_id), force=True):
                 out.reclustered.append(rp.rule_id)
                 touched.add((rp.workspace_id, rp.procedure_id))
         for ws, pid in sorted({(p.workspace_id, p.procedure_id) for p in rule_pats}):
-            if ((ws, pid) in touched or self.themes_due(ws, pid)) and self.regroup_themes(ws, pid, ai, force=(ws, pid) in touched):
+            if ((ws, pid) in touched or self.themes_due(ws, pid)) and self.regroup_themes(ws, pid, ai or self.store.ai_keys.ai(ws), force=(ws, pid) in touched):
                 out.themed.append(pid)
         return out
 
     def recluster_all(self, workspace: str, procedure_id: str | None = None, ai: AI | None = None) -> Outcome:
         """Recluster every rule with enough findings (on demand), then regroup the themes of what changed."""
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(workspace)
         out = Outcome()
         with self._db() as db:
             q = select(Pattern).where(Pattern.workspace_id == workspace, Pattern.kind == "rule")
@@ -420,7 +419,7 @@ class Patterns:
             return self._recluster(ws, procedure_id, rule_id, ai, force)
 
     def _recluster(self, ws: str, procedure_id: str, rule_id: str, ai: AI | None = None, force: bool = False) -> bool:
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(ws)
         with self._db() as db:
             rule_id = lineage.lineage_of(db, ws, procedure_id, rule_id)
             rp = db.exec(select(Pattern).where(Pattern.workspace_id == ws, Pattern.procedure_id == procedure_id, Pattern.rule_id == rule_id, Pattern.kind == "rule")).first()
@@ -535,7 +534,7 @@ class Patterns:
             return self._regroup_themes(ws, procedure_id, ai, force)
 
     def _regroup_themes(self, ws: str, procedure_id: str, ai: AI | None = None, force: bool = False) -> bool:
-        ai = ai or ai_lm.get_ai()
+        ai = ai or self.store.ai_keys.ai(ws)
         if not force and not self.themes_due(ws, procedure_id):
             return False
         with self._db() as db:

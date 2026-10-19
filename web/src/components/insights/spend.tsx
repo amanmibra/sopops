@@ -115,7 +115,8 @@ export function SessionCost({ calls, cost }: { calls: number; cost: number | nul
 
 /** Settings: the price table costs are estimated with, and the price each configured model gets. */
 export function PricesCard() {
-  const res = useQuery(q.prices());
+  const { ws } = useWs();
+  const res = useQuery(q.prices(ws));
   const d = res.data;
   const per = (x: number | null | undefined) => (x == null ? "—" : `$${x}`);
   return (

@@ -36,7 +36,6 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import Session, select
 
 from . import forms, github, lineage, merge
-from .ai import lm as ai_lm
 from .ai import spend
 from .ai.programs import SuggestEdits
 from .ai.signatures import VERSIONS, ExampleIn
@@ -274,7 +273,7 @@ class Suggestions:
             return self.get(ws, suggestion_id)
         try:
             with spend.scope(self.store.engine, ws, "suggestion"):
-                return self._generate(ws, s, v, ai or ai_lm.get_ai(), before)
+                return self._generate(ws, s, v, ai or self.store.ai_keys.ai(ws), before)
         except Exception as e:  # a model or sopc outage: the suggestion fails with the reason, and can be made again
             log.exception("generating suggestion %s failed", s.id)
             return self._save(s, status="failed", error=f"{type(e).__name__}: {str(e)[:1000]}")

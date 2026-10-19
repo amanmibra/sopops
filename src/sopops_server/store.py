@@ -17,6 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, func, select, update
 
 from . import forms
+from .ai.keys import AIKeys
 from .auth import actor
 from .calibrate import Calibrate
 from .checks import Checks
@@ -53,6 +54,7 @@ class Store:
         self.calibrate = Calibrate(self)
         self.insights = Insights(self)
         self.usage = Usage(self)
+        self.ai_keys = AIKeys(self)
         if migrate:
             upgrade(self.engine, self.sopc)
 

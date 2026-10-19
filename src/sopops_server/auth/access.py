@@ -72,6 +72,8 @@ ROUTES: dict[str, str] = {
     "update_org": ADMIN, "add_members": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN,
     "resend_invite": ADMIN, "revoke_invite": ADMIN, "create_password_link": ADMIN, "set_up_org": ADMIN, "get_join_link": ADMIN,
     "create_join_link": ADMIN, "delete_join_link": ADMIN,
+    # a team's AI keys and models: they spend money, so owners and admins change them
+    "set_typesafe_key": ADMIN, "set_ai_provider": ADMIN, "set_ai_models": ADMIN, "reset_ai_setting": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
     # everything else in the app: any member
@@ -95,7 +97,7 @@ ROUTES: dict[str, str] = {
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",
         "create_import", "import_sopc_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
         "update_import_proposal", "resolve_import_finding", "get_import_review", "decide_import_group", "edit_import_variable", "apply_import",
-        "revoke_import_token", "discard_import", "open_import_pull_request",
+        "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models",
     )},
 }
 

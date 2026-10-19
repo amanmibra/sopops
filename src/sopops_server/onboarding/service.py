@@ -58,16 +58,17 @@ DONE = ("applied", "discarded")
 CLIENTS = (("claude", "Claude Code"), ("codex", "Codex"))
 
 
-def ai_from_env() -> AI | None:
-    """The configured models, the rules mode (`SOPOPS_MODEL_REASONING=rules`, for trying it out), or None."""
+def ai_from_env(store: Store | None = None, workspace: str | None = None) -> AI | None:
+    """The configured models (the workspace's own over the deployment's, given both), the rules mode
+    (`SOPOPS_MODEL_REASONING=rules`, for trying it out), or None."""
     if model_for("reasoning") == RULES:
         return RulesModels()
-    ai = get_ai()
+    ai = store.ai_keys.ai(workspace) if store is not None and workspace else get_ai()
     return ai if configured(ai) else None
 
 
 class Onboarding:
-    def __init__(self, store: Store, ai: AI | None | Callable[[], AI | None] = ai_from_env):
+    def __init__(self, store: Store, ai: AI | None | Callable[..., AI | None] = ai_from_env):
         self.store = store
         self._ai = ai
         self._overlaps: dict[str, dict] = {}
@@ -81,6 +82,14 @@ class Onboarding:
     @ai.setter
     def ai(self, value: AI | None) -> None:
         self._ai = value
+
+    def ai_for(self, workspace: str) -> AI | None:
+        """The models this workspace's imports use: its own settings over the deployment's."""
+        if self._ai is ai_from_env:
+            return ai_from_env(self.store, workspace)
+        if callable(self._ai) and not hasattr(self._ai, "predict"):
+            return self._ai(workspace)  # type: ignore[call-arg]
+        return self._ai  # type: ignore[return-value]
 
     @property
     def tokens(self) -> Tokens:
@@ -136,9 +145,9 @@ class Onboarding:
 
     def start(self, workspace: str, sources: list[SourcePrompt], author: str | None = None, run: bool = True) -> dict:
         """Start extracting in a background thread. Raises LLMError if no model is configured."""
-        if self.ai is None:
-            raise AIError("No model is configured for extraction. Set SOPOPS_MODEL_REASONING (and optionally SOPOPS_MODEL_FAST) "
-                           "to a LiteLLM model name and its provider key, or use Claude Code / Codex instead.")
+        if self.ai_for(workspace) is None:
+            raise AIError("No model is set up for extraction. Add your AI keys in Settings, then Checks, "
+                           "or use Claude Code or Codex instead.")
         if not sources:
             raise ValueError("add at least one agent's instructions")
         names = [s.name for s in sources]
@@ -154,11 +163,11 @@ class Onboarding:
 
     def run(self, id: str, sources: list[SourcePrompt]) -> None:
         try:
-            ai = self.ai
-            if ai is None:
-                raise AIError("no model is configured")
             with self._db() as db:
                 ws = db.get(ImportRecord, id).workspace  # type: ignore[union-attr]
+            ai = self.ai_for(ws)
+            if ai is None:
+                raise AIError("no model is configured")
             with spend.scope(self.store.engine, ws, "onboarding"):
                 proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
             self._save(id, proposal, status="ready")

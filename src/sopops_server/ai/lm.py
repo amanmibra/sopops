@@ -13,6 +13,8 @@ own copy of the client, and adds the call's tokens and cost to `usage`; each cal
 in scope (`sopops_server.ai.spend`, through DSPy's usage tracker). DSPy's response cache is in memory only,
 unless `SOPOPS_DSPY_CACHE_DIR` names a directory for a disk cache (transcripts would be written there).
 
+These variables are the deployment's defaults; a workspace's own keys and models replace them (`sopops_server.ai.keys`).
+
 `SOPOPS_MODEL_REASONING=rules` is the model-free mode for trying onboarding (`sopops_server.onboarding.rules.RulesModels`).
 Tests use `sopops_server.ai.fakes`.
 """
@@ -127,10 +129,16 @@ class Models:
     """The real implementation: a `dspy.LM` per role, and Jev for decisions when it's on."""
 
     def __init__(self, models: Mapping[str, str | None] | None = None, *, jev: bool | None = None, jev_model: str | None = None,
-                 api_base: str | None = None):
+                 api_base: str | None = None, api_key: str | None = None, jev_api_key: str | None = None, cache: bool = True):
+        """`api_key` and `jev_api_key` are a workspace's own keys (`ai.keys`); without them the provider's usual
+        variables apply. `cache=False` skips DSPy's response cache, whose keys leave out the API key: trying a key
+        must reach the provider."""
         configure_cache()
         self._models = dict(models) if models is not None else None
         self.api_base = api_base if api_base is not None else os.environ.get("SOPOPS_LLM_API_BASE") or None
+        self.api_key = api_key
+        self.jev_api_key = jev_api_key
+        self.cache = cache
         self.jev = jev_enabled() if jev is None else jev
         self.jev_model = jev_model or os.environ.get("SOPOPS_JEV_MODEL") or JEV_MODEL
         self.usage = Usage()
@@ -156,10 +164,12 @@ class Models:
         with self._lock:
             if key not in self._clients:
                 if jev:
-                    self._clients[key] = TypeSafe(model, timeout=JEV_TIMEOUT_S)
+                    self._clients[key] = TypeSafe(model, api_key=self.jev_api_key, cache=self.cache, timeout=JEV_TIMEOUT_S)
                 else:
                     extra = {"api_base": self.api_base} if self.api_base else {}
-                    self._clients[key] = dspy.LM(model, engine="auto", max_tokens=MAX_TOKENS, num_retries=3, timeout=TIMEOUT_S, **extra)
+                    if self.api_key:
+                        extra["api_key"] = self.api_key
+                    self._clients[key] = dspy.LM(model, engine="auto", max_tokens=MAX_TOKENS, num_retries=3, timeout=TIMEOUT_S, cache=self.cache, **extra)
             return self._clients[key]
 
     def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction:
@@ -190,6 +200,7 @@ class Models:
 
 _default: AI | None = None
 _default_lock = threading.Lock()
+_replaced = False  # set_ai was given an implementation (tests, the benchmark): it serves every workspace
 
 
 def get_ai() -> AI:
@@ -203,9 +214,15 @@ def get_ai() -> AI:
 
 def set_ai(ai: AI | None) -> None:
     """Replace the process-wide implementation (None: back to the environment)."""
-    global _default
+    global _default, _replaced
     with _default_lock:
         _default = ai
+        _replaced = ai is not None
+
+
+def replaced() -> bool:
+    """Whether set_ai replaced the implementation, so workspace settings don't apply."""
+    return _replaced
 
 
 def configured(ai: AI | None = None, *roles: str) -> bool:
