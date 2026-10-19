@@ -19,6 +19,7 @@ import { PlatformIcon } from "./brand-icon";
 import { ConnectGuide } from "./connect-guide";
 import { useGo } from "./href-link";
 import { Logo } from "./logo";
+import { BlocksExample } from "./onboarding/blocks-diagram";
 import { Button } from "./ui/button";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -322,6 +323,8 @@ export function TeamSetup({ flow, step }: { flow: Flow; step: StepKey }) {
       return <PeopleStep flow={flow} />;
     case "platforms":
       return <PlatformsStep flow={flow} />;
+    case "blocks":
+      return <BlocksStep flow={flow} />;
     case "agents":
       return <AgentsStep flow={flow} />;
     case "publish":
@@ -412,6 +415,22 @@ function PlatformsStep({ flow }: { flow: Flow }) {
       }}
     >
       <PlatformPicker value={value} onChange={setValue} />
+    </StepShell>
+  );
+}
+
+function BlocksStep({ flow }: { flow: Flow }) {
+  const s = useSteps(flow, "blocks");
+  return (
+    <StepShell
+      flow={flow}
+      step="blocks"
+      sub="Before you bring in your agents, here's how sopops stores their prompts. You'll see your own agents this way after the import."
+      back={s.back}
+      exit={s.exit}
+      primary={{ label: "Continue", run: s.next }}
+    >
+      <BlocksExample />
     </StepShell>
   );
 }

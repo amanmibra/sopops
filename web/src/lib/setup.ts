@@ -1,14 +1,14 @@
 // Setting up: the numbered steps, in the order each kind of person sees them, and where this browser is in them.
-// The first person on a fresh install sees all eight; with sign-in off there's no account or team to make, so it starts
+// The first person on a fresh install sees all nine; with sign-in off there's no account or team to make, so it starts
 // at platforms; someone joining a team makes an account, and picks the platforms only if nobody has yet.
 import { prefs } from "./prefs";
 
-export type StepKey = "name" | "account" | "team" | "people" | "platforms" | "agents" | "publish" | "connect";
+export type StepKey = "name" | "account" | "team" | "people" | "platforms" | "blocks" | "agents" | "publish" | "connect";
 export type Flow = "first" | "solo" | "join";
 
 export const FLOWS: Record<Flow, StepKey[]> = {
-  first: ["name", "account", "team", "people", "platforms", "agents", "publish", "connect"],
-  solo: ["platforms", "agents", "publish", "connect"],
+  first: ["name", "account", "team", "people", "platforms", "blocks", "agents", "publish", "connect"],
+  solo: ["platforms", "blocks", "agents", "publish", "connect"],
   join: ["name", "account", "platforms"],
 };
 
@@ -19,6 +19,7 @@ export const STEP_TITLE: Record<StepKey, string> = {
   team: "What's your team called?",
   people: "Want anyone else on your team?",
   platforms: "Which platforms do you use?",
+  blocks: "How sopops builds a prompt",
   agents: "Bring in your agents",
   publish: "Publish your first release",
   connect: "Connect your calls",

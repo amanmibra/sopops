@@ -4,7 +4,7 @@ import { FLOWS, type Flow, type StepKey } from "@/lib/setup";
 
 type Search = { step: StepKey; flow: Flow };
 
-const TEAM_STEPS: StepKey[] = ["people", "platforms", "agents", "publish", "connect"];
+const TEAM_STEPS: StepKey[] = ["people", "platforms", "blocks", "agents", "publish", "connect"];
 
 export const Route = createFileRoute("/w/$ws/setup")({
   validateSearch: (s: Record<string, unknown>): Search => {
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/w/$ws/setup")({
   component: Setup,
 });
 
-/** The setup steps inside a team: people, platforms, agents, publishing and calls. */
+/** The setup steps inside a team: people, platforms, how a prompt is built, agents, publishing and calls. */
 function Setup() {
   const { ws } = Route.useParams();
   const { step, flow } = Route.useSearch();

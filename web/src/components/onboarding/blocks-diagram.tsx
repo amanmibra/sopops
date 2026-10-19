@@ -2,10 +2,9 @@
 // each agent gets. The import page shows it with an example before anything is imported, and the review's first step
 // draws the same picture with what the import found.
 import { ArrowDown, ArrowRight } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import type { BlockKind } from "@/lib/kinds";
 import { usePlatforms } from "@/lib/platforms";
-import { prefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { PlatformLabel } from "../brand-icon";
 
@@ -240,32 +239,16 @@ const EXAMPLE_PROMPTS: DiagramPrompt[] = [
   },
 ];
 
-const OPEN_KEY = "blocks-explainer";
-
-/** "How sopops builds a prompt", open the first time and then as this browser left it. */
-export function BlocksExplainer() {
-  const [open, setOpen] = useState(() => prefs.get(OPEN_KEY) !== "closed");
+/** "How sopops builds a prompt" with example restaurants, for the setup step before importing. */
+export function BlocksExample() {
   const plats = usePlatforms();
   return (
-    <details
-      className="bg-card mb-5 rounded-xl border px-4 py-3"
-      open={open}
-      onToggle={(e) => {
-        const now = (e.currentTarget as HTMLDetailsElement).open;
-        setOpen(now);
-        prefs.set(OPEN_KEY, now ? "open" : "closed");
-      }}
-    >
-      <summary className="cursor-pointer font-semibold">How sopops builds a prompt</summary>
-      <div className="mt-3">
-        <BlocksDiagram
-          help
-          blocks={EXAMPLE_BLOCKS}
-          agents={EXAMPLE_AGENTS.map((a) => ({ ...a, platform: plats.first }))}
-          prompts={EXAMPLE_PROMPTS}
-          footer="Edit a block once, and every agent that uses it changes."
-        />
-      </div>
-    </details>
+    <BlocksDiagram
+      help
+      blocks={EXAMPLE_BLOCKS}
+      agents={EXAMPLE_AGENTS.map((a) => ({ ...a, platform: plats.first }))}
+      prompts={EXAMPLE_PROMPTS}
+      footer="Edit a block once, and every agent that uses it changes."
+    />
   );
 }
