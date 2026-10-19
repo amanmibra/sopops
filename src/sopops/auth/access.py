@@ -2,7 +2,7 @@
 
 | Kind | With sign-in on | With sign-in off |
 |---|---|---|
-| `open` | anyone (the sign-in flow, email sign-in links, passwords, the UI's files, health, API docs) | anyone |
+| `open` | anyone (the sign-in flow, email sign-in links, passwords, join links, the UI's files, health, API docs) | anyone |
 | `token` | the route checks its own token (ingest, runtime or onboarding); no login session | same |
 | `webhook` | the route checks the sender's signature or secret; no login session | same |
 | `token_or_session` | a login session, or the route's runtime token (prompt fetches) | as before |
@@ -50,9 +50,9 @@ ROUTES: dict[str, str] = {
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
     "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
     "password_login": OPEN, "first_account": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
-    "set_password": OPEN,
+    "set_password": OPEN, "lookup_join_link": OPEN, "join_with_link": OPEN,
     # signed in, with or without a membership
-    "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN, "change_password": SIGNED_IN,
+    "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN, "change_password": SIGNED_IN, "accept_join_link": SIGNED_IN,
     # tokens: ingest (sessions), runtime (served calls), onboarding (a coding agent through sopops-mcp)
     "ingest_session": TOKEN, "open_session": TOKEN, "append_session_events": TOKEN, "close_session": TOKEN,
     "record_served": TOKEN,
@@ -65,8 +65,11 @@ ROUTES: dict[str, str] = {
     "vapi_assistant_request": WEBHOOK,
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
+    "create_team": SESSION,  # anyone in an org can make another team, which they own
+    "set_org_platforms": SESSION,  # anyone in the org makes the first pick; after that, owners and admins (the route checks)
     "update_org": ADMIN, "add_members": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN,
-    "resend_invite": ADMIN, "revoke_invite": ADMIN, "create_password_link": ADMIN,
+    "resend_invite": ADMIN, "revoke_invite": ADMIN, "create_password_link": ADMIN, "set_up_org": ADMIN, "get_join_link": ADMIN,
+    "create_join_link": ADMIN, "delete_join_link": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
     # everything else in the app: any member

@@ -34,6 +34,21 @@ owner makes, changes or removes an owner, and an org always keeps one owner.
 
 **Adding people** (`add_people`) by email: someone who has an account joins at once; anyone else gets an invite, and
 joins the moment they sign in with that email, any way. A new invite for an address replaces its open one.
+
+**Join links** (`new_join_link`, `join_with_link`, `join_by_link`): each org has at most one link that works, not tied
+to an email, that anyone can open to join with the link's role (member or admin): by making an account with a name,
+email and password, or, already signed in, by joining (which adds the org; it never takes another away). It works
+until it expires (7 days unless asked otherwise, at most 90) or an owner or admin turns it off or makes a new one. The
+token is a random string stored as a sha256 hash, shown once. Making an account with one counts as a try against the
+password rate limits (10 per address and 30 per client in 15 minutes).
+
+**Teams.** People see an org as a team with one workspace (`team_workspace`), named after the team when it's made
+(`northwind`, or `northwind-2` when that's taken: workspace ids are unique across orgs). The first run names the org after
+the team and makes its workspace (`set_up`); anyone in an org can make another team (`create_team`), which they own.
+Older installs can have several workspaces in an org: the team works in the one changed most recently, and the others
+stay reachable by their address. **Platforms** (`platforms`, `set_platforms`): the voice platforms the
+team uses, so the app shows only those. An org that never picked (NULL) shows them all, and so does one that picked
+only "something else".
 """
 
 from __future__ import annotations
@@ -51,7 +66,7 @@ from sqlalchemy import delete, func, update
 from sqlmodel import Session, select
 
 from ..errors import Conflict, NotFound
-from ..orm import EmailLink, Identity, Invite, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
+from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
 from ..tokens import Forbidden
 from . import actor, password
 from .providers import Profile
@@ -65,6 +80,8 @@ MANAGERS = (OWNER, ADMIN)
 SESSION_DAYS = 30
 SLIDE_EVERY = timedelta(minutes=5)
 INVITE_DAYS = 7
+JOIN_DAYS = 7
+JOIN_MAX_DAYS = 90
 LINK_TTL = timedelta(minutes=15)
 LINK_WINDOW = timedelta(minutes=15)
 LINKS_PER_EMAIL = 5
@@ -76,6 +93,8 @@ TRIES_WINDOW = timedelta(minutes=15)
 TRIES_PER_EMAIL = 10
 TRIES_PER_IP = 30
 WRONG_PASSWORD = "That email and password don't match."
+PLATFORMS = ("livekit", "elevenlabs", "vapi")
+OTHER = "other"
 
 
 class LinkInvalid(Exception):
@@ -308,8 +327,10 @@ class Accounts:
     def _count_try(self, email: str, ip: str | None) -> None:
         now = _now()
         with self._db() as db, db.begin():
-            tries = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.email == email, LoginAttempt.created_at > now - TRIES_WINDOW)).one()
-            if tries >= TRIES_PER_EMAIL:
+            since = now - TRIES_WINDOW
+            tries = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.email == email, LoginAttempt.created_at > since)).one()
+            by_ip = db.exec(select(func.count()).select_from(LoginAttempt).where(LoginAttempt.ip == ip, LoginAttempt.created_at > since)).one() if ip else 0
+            if tries >= TRIES_PER_EMAIL or by_ip >= TRIES_PER_IP:
                 raise TooManyTries("too many tries. Wait 15 minutes, then try again")
             db.add(LoginAttempt(id=str(uuid.uuid4()), email=email, ip=ip[:64] if ip else None, created_at=now))
 
@@ -480,6 +501,76 @@ class Accounts:
             w = db.get(Workspace, workspace)
         return w.org_id if w else None
 
+    def set_up(self, org_id: str, team: str) -> tuple[Org, str]:
+        """Name the org after the team (its slug too, when that's free), and make the team's workspace, named after
+        it, unless the org has one already. Returns the org and its workspace."""
+        team = _team_name(team)
+        with self._db() as db, db.begin():
+            org = db.get(Org, org_id)
+            if org is None:
+                raise NotFound(f"no org '{org_id}'")
+            org.name = team
+            org.slug = _free(actor.slug(team), lambda s: s == org.slug or db.exec(select(Org.id).where(Org.slug == s)).first() is None)
+            db.add(org)
+            ws = self._team_workspace(db, org_id) or _new_workspace(db, org_id, team)
+        return org, ws
+
+    def create_team(self, cur: Current, team: str) -> tuple[Org, str]:
+        """A new org named `team`, owned by the signed-in user, with its one workspace; their login session works in
+        it now. Their other orgs stay as they are."""
+        team = _team_name(team)
+        now = _now()
+        with self._db() as db, db.begin():
+            slug = _free(actor.slug(team), lambda s: db.exec(select(Org.id).where(Org.slug == s)).first() is None)
+            org = Org(id=str(uuid.uuid4()), name=team, slug=slug, allowed_domains=[], created_at=now)
+            db.add(org)
+            db.flush()
+            db.add(Membership(org_id=org.id, user_id=cur.user.id, role=OWNER, created_at=now))
+            ws = _new_workspace(db, org.id, team)
+            s = db.get(LoginSession, cur.session_id)
+            if s is not None:
+                s.org_id = org.id
+                db.add(s)
+        return org, ws
+
+    def team_workspaces(self, org_ids: list[str]) -> dict[str, str]:
+        """Each org's workspace, the one its team works in: the one changed most recently, else the first by name.
+        Orgs with none are left out. (A team has one workspace; older installs can have several, and the others stay
+        reachable by their address.)"""
+        if not org_ids:
+            return {}
+        with self._db() as db:
+            return {o: w for o in org_ids if (w := self._team_workspace(db, o))}
+
+    def _team_workspace(self, db: Session, org_id: str) -> str | None:
+        last = select(FileVersion.workspace, func.max(FileVersion.created_at).label("at")).group_by(FileVersion.workspace).subquery()  # type: ignore[arg-type]
+        rows = db.exec(select(Workspace.workspace, last.c.at).outerjoin(last, last.c.workspace == Workspace.workspace).where(Workspace.org_id == org_id)).all()  # type: ignore[arg-type, call-overload]
+        if not rows:
+            return None
+        changed = [(_utc(at), w) for w, at in rows if at is not None]
+        if changed:
+            top = max(at for at, _ in changed)
+            return min(w for at, w in changed if at == top)
+        return min(w for w, _ in rows)
+
+    def platforms(self, org_id: str | None) -> dict:
+        """The platforms the org picked (None: never asked) and the ones the app shows. With no org given (sign-in
+        off), the first org's."""
+        with self._db() as db:
+            org = db.get(Org, org_id) if org_id else db.exec(select(Org).order_by(Org.created_at, Org.id)).first()  # type: ignore[arg-type]
+        return platforms_out(org.platforms if org else None)
+
+    def set_platforms(self, org_id: str | None, platforms: list[str]) -> dict:
+        """Pick the platforms the org uses. With no org given (sign-in off), the first org's (made if there's none)."""
+        picked = clean_platforms(platforms)
+        with self._db() as db, db.begin():
+            org = db.get(Org, org_id or actor.default_org(db))
+            if org is None:
+                raise NotFound(f"no org '{org_id}'")
+            org.platforms = picked
+            db.add(org)
+        return platforms_out(picked)
+
     def update_org(self, org_id: str, name: str | None = None, allowed_domains: list[str] | None = None) -> Org:
         with self._db() as db, db.begin():
             org = db.get(Org, org_id)
@@ -628,6 +719,106 @@ class Accounts:
         return {"org_id": inv.org_id, "org_name": org.name if org else "", "email": inv.email, "role": inv.role, "expires_at": _utc(inv.expires_at),
                 "accepted": mine, "has_account": has_account}
 
+    # --- join links -------------------------------------------------------------------
+
+    def join_link(self, org_id: str) -> dict | None:
+        """The org's join link that works, if there's one (without its token, which isn't kept)."""
+        with self._db() as db:
+            link = self._live_join_link(db, org_id)
+            return join_link_out(link) if link else None
+
+    def _live_join_link(self, db: Session, org_id: str) -> JoinLink | None:
+        now = _now()
+        rows = db.exec(select(JoinLink).where(JoinLink.org_id == org_id, JoinLink.revoked_at.is_(None)).order_by(JoinLink.created_at.desc()))  # type: ignore[union-attr, attr-defined]
+        return next((j for j in rows if _utc(j.expires_at) > now), None)
+
+    def new_join_link(self, org_id: str, by: str, role: str = MEMBER, days: int = JOIN_DAYS) -> tuple[dict, str]:
+        """A new join link and its token (returned here only). The org's old one stops working."""
+        if role not in (ADMIN, MEMBER):
+            raise ValueError("a join link makes people members or admins")
+        if not 1 <= days <= JOIN_MAX_DAYS:
+            raise ValueError(f"a join link works for 1 to {JOIN_MAX_DAYS} days")
+        now = _now()
+        token = secrets.token_urlsafe(32)
+        with self._db() as db, db.begin():
+            self._end_join_links(db, org_id, now)
+            link = JoinLink(id=str(uuid.uuid4()), org_id=org_id, token_hash=_hash(token), role=role, created_by=by, created_at=now,
+                            expires_at=now + timedelta(days=days))
+            db.add(link)
+        return join_link_out(link), token
+
+    def end_join_link(self, org_id: str) -> None:
+        """Turn the org's join link off."""
+        with self._db() as db, db.begin():
+            self._end_join_links(db, org_id, _now())
+
+    def _end_join_links(self, db: Session, org_id: str, now: datetime) -> None:
+        db.execute(update(JoinLink).where(JoinLink.org_id == org_id, JoinLink.revoked_at.is_(None)).values(revoked_at=now))  # type: ignore[union-attr, arg-type]
+
+    def _open_join_link(self, db: Session, token: str) -> JoinLink:
+        link = db.exec(select(JoinLink).where(JoinLink.token_hash == _hash(token or ""))).first()
+        if link is None or link.revoked_at is not None or _utc(link.expires_at) <= _now():
+            raise LinkInvalid("this join link has expired or was turned off")
+        return link
+
+    def join_link_info(self, token: str, user_id: str | None = None) -> dict:
+        """What a join link is for, to show before joining: the org, the role, and whether `user_id` is in it already.
+        Raises LinkInvalid."""
+        with self._db() as db:
+            link = self._open_join_link(db, token)
+            org = db.get(Org, link.org_id)
+            member = user_id is not None and db.get(Membership, (link.org_id, user_id)) is not None
+        return {"org_id": link.org_id, "org_name": org.name if org else "", "role": link.role, "expires_at": _utc(link.expires_at), "member": member,
+                "needs_platforms": org is not None and org.platforms is None}
+
+    def join_with_link(self, token: str, email: str, name: str, secret: str, ip: str | None) -> tuple[User, str]:
+        """Make an account with a password and join the link's org, which the new login session works in. Only for an
+        address with no account: anyone else signs in, then joins. Raises LinkInvalid, Conflict, ValueError, Refused or
+        TooManyTries."""
+        email = clean_email(email)
+        with self._db() as db:
+            self._open_join_link(db, token)
+        password.check(secret, email)
+        if not server_allows(email):
+            raise Refused(f"this sopops doesn't take sign-ins from {domain(email)} addresses")
+        self._count_try(email, ip)
+        now = _now()
+        with self._db() as db, db.begin():
+            link = self._open_join_link(db, token)
+            if db.exec(select(User).where(User.email == email)).first() is not None:
+                raise Conflict(f"{email} already has an account. Sign in, then open the link again to join")
+            user = self._new_password_user(db, email, name, secret)
+            db.add(Membership(org_id=link.org_id, user_id=user.id, role=link.role, created_at=now))
+            link.joined += 1
+            db.add(link)
+            org_id = link.org_id
+        user, session = self.sign_in(Profile(provider=PASSWORD, provider_user_id=user.id, email=email))
+        self._work_in(session, org_id)
+        return user, session
+
+    def join_by_link(self, token: str, cur: Current) -> str:
+        """Join the link's org as the signed-in user, and work in it. Their other orgs, and their role in this one if
+        they're in it already, stay as they are. Returns the org id. Raises LinkInvalid."""
+        now = _now()
+        with self._db() as db, db.begin():
+            link = self._open_join_link(db, token)
+            if db.get(Membership, (link.org_id, cur.user.id)) is None:
+                db.add(Membership(org_id=link.org_id, user_id=cur.user.id, role=link.role, created_at=now))
+                link.joined += 1
+                db.add(link)
+            s = db.get(LoginSession, cur.session_id)
+            if s is not None:
+                s.org_id = link.org_id
+                db.add(s)
+            return link.org_id
+
+    def _work_in(self, session_token: str, org_id: str) -> None:
+        with self._db() as db, db.begin():
+            s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(session_token))).first()
+            if s is not None:
+                s.org_id = org_id
+                db.add(s)
+
     def accept(self, token: str, cur: Current) -> str:
         """Join the invite's org as the signed-in user, whose email must be the invite's. Returns the org id."""
         info = self.invite_info(token, cur.user.id)
@@ -665,6 +856,10 @@ def clean_email(email: str) -> str:
     return email
 
 
+def join_link_out(j: JoinLink) -> dict:
+    return {"id": j.id, "role": j.role, "joined": j.joined, "created_at": _utc(j.created_at), "expires_at": _utc(j.expires_at)}
+
+
 def invite_out(i: Invite) -> dict:
     return {"id": i.id, "email": i.email, "role": i.role, "created_at": _utc(i.created_at), "expires_at": _utc(i.expires_at)}
 
@@ -689,6 +884,48 @@ def clean_domains(domains: list[str]) -> list[str]:
         if d not in out:
             out.append(d)
     return out
+
+
+def clean_platforms(platforms: list[str]) -> list[str]:
+    """The picks, known ones only, in the usual order. Raises ValueError for an unknown one or none at all."""
+    picked = {p.strip().lower() for p in platforms}
+    unknown = picked - {*PLATFORMS, OTHER}
+    if unknown:
+        raise ValueError(f"unknown platform '{sorted(unknown)[0]}': pick from {', '.join((*PLATFORMS, OTHER))}")
+    if not picked:
+        raise ValueError("pick at least one platform, or 'other'")
+    return [p for p in (*PLATFORMS, OTHER) if p in picked]
+
+
+def platforms_out(picked: list[str] | None) -> dict:
+    """What an org picked, and what the app shows: the known platforms it picked, or all of them when it picked none."""
+    shown = [p for p in PLATFORMS if p in (picked or [])]
+    return {"selected": picked, "shown": shown or list(PLATFORMS)}
+
+
+def _team_name(team: str) -> str:
+    team = (team or "").strip()[:128]
+    if not team:
+        raise ValueError("the team needs a name")
+    return team
+
+
+def _new_workspace(db: Session, org_id: str, team: str) -> str:
+    """A team's workspace, named after the team (`northwind`, or `northwind-2` when that's taken, in any org)."""
+    base = actor.slug(team) if actor.slug(team) != "org" else "team"
+    ws = _free(base, lambda w: db.get(Workspace, w) is None)
+    db.add(Workspace(workspace=ws, org_id=org_id))
+    return ws
+
+
+def _free(base: str, free) -> str:
+    """`base`, or `base-2`, `base-3`… : the first that `free` says isn't taken."""
+    n = 1
+    name = base
+    while not free(name):
+        n += 1
+        name = f"{base[:60]}-{n}"
+    return name
 
 
 def server_allows(email: str) -> bool:

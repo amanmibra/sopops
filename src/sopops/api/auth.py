@@ -18,6 +18,13 @@ another site can't make a browser send JSON here without CORS, which sopops does
 
 Invite links carry their token after `#`, so it never reaches the server's access log; the page posts it here. With
 SMTP set up, sopops also emails them.
+
+A team's join link (`<sopops>/join#<token>`, made at `/v1/org/join-link`) isn't tied to an email: the page looks it up
+at `/v1/auth/join/lookup`, then makes an account and joins at `/v1/auth/join`, or, signed in, joins at
+`/v1/auth/join/accept`.
+
+Setting up: `/v1/org/setup` names the team and makes its first workspace, and `/v1/org/platforms` sets the platforms it
+uses (with sign-in off, the first org's).
 """
 
 from __future__ import annotations
@@ -36,7 +43,7 @@ from fastapi.responses import RedirectResponse
 
 from .. import mail
 from ..auth import access, email, mode, providers
-from ..auth.service import INVITE_DAYS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword, sign_up_domains
+from ..auth.service import INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword, sign_up_domains
 from ..orm import Org
 from ..schemas.auth import (
     AddPeopleIn,
@@ -51,6 +58,12 @@ from ..schemas.auth import (
     InviteOut,
     InviteJoinIn,
     InviteTokenIn,
+    JoinIn,
+    JoinInfo,
+    JoinLinkCreated,
+    JoinLinkIn,
+    JoinLinkOut,
+    JoinTokenIn,
     MemberOut,
     OrgIn,
     OrgOut,
@@ -62,7 +75,12 @@ from ..schemas.auth import (
     PasswordLoginIn,
     PasswordSetIn,
     PersonAdded,
+    PlatformsIn,
+    PlatformsOut,
     RoleIn,
+    SetUpIn,
+    SetUpOut,
+    TeamIn,
     SignedIn,
     SwitchOrgIn,
 )
@@ -90,6 +108,10 @@ def callback_url(request: Request, provider: str) -> str:
 
 def set_password_url(public: str, token: str) -> str:
     return f"{public}/set-password#{token}"
+
+
+def join_url(public: str, token: str) -> str:
+    return f"{public}/join#{token}"
 
 
 def client_ip(request: Request) -> str | None:
@@ -135,12 +157,16 @@ def router(accounts: Accounts) -> APIRouter:
         by_email = pw and email.EmailLogin().configured()
         extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains())}
         if cur is None:
-            return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra}
-        orgs = [{"id": o.id, "name": o.name, "slug": o.slug, "role": cur.memberships[o.id]} for o in accounts.orgs(list(cur.memberships))]
+            plats = None if mode.required() else accounts.platforms(None)
+            return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra, "platforms": plats}
+        teams = accounts.team_workspaces(list(cur.memberships))
+        orgs = [{"id": o.id, "name": o.name, "slug": o.slug, "role": cur.memberships[o.id], "workspace": teams.get(o.id)}
+                for o in accounts.orgs(list(cur.memberships))]
         u = cur.user
         return {"required": True, "providers": found, "user": {"id": u.id, "email": u.email, "name": u.name, "avatar_url": u.avatar_url,
                                                                "has_password": accounts.has_password(u.id)},
-                "org": next((o for o in orgs if o["id"] == cur.org_id), None), "orgs": orgs, **extra}
+                "org": next((o for o in orgs if o["id"] == cur.org_id), None), "orgs": orgs, **extra,
+                "platforms": accounts.platforms(cur.org_id) if cur.org_id else None}
 
     def signed_in(request: Request, response: Response, user_id: str, token: str, how: str, next: str | None = "/") -> dict:
         log.info("user %s signed in with %s", user_id, how)
@@ -359,6 +385,45 @@ def router(accounts: Accounts) -> APIRouter:
         accounts.accept(req.token, cur)
         return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
 
+    @r.post("/v1/auth/join/lookup", response_model=JoinInfo, responses={404: {"description": "Unknown, expired or turned off."}})
+    def lookup_join_link(req: JoinTokenIn, request: Request) -> dict:
+        """What a join link is for: the team, and the role people join with."""
+        cur = accounts.current(request.cookies.get(access.SESSION_COOKIE)) if mode.required() else None
+        try:
+            return accounts.join_link_info(req.token, cur.user.id if cur else None)
+        except LinkInvalid as e:
+            raise HTTPException(404, f"{e}. Ask for a new one") from None
+
+    @r.post("/v1/auth/join", response_model=SignedIn, responses={404: {"description": "Unknown, expired or turned off."},
+                                                                  409: {"description": "The email has an account: sign in, then join."},
+                                                                  429: {"description": "Too many tries."}})
+    def join_with_link(req: JoinIn, request: Request, response: Response) -> dict:
+        """Join a team with its join link by making an account with a name, email and password. This browser signs in,
+        working in that team."""
+        need_passwords()
+        try:
+            user, token = accounts.join_with_link(req.token, req.email, req.name, req.password, client_ip(request))
+        except LinkInvalid as e:
+            raise HTTPException(404, f"{e}. Ask for a new one") from None
+        except TooManyTries as e:
+            raise HTTPException(429, str(e)) from None
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        except Refused as e:
+            raise HTTPException(403, str(e)) from None
+        return signed_in(request, response, user.id, token, "a new password (a join link)")
+
+    @r.post("/v1/auth/join/accept", response_model=AuthState, responses={404: {"description": "Unknown, expired or turned off."}})
+    def accept_join_link(req: JoinTokenIn, request: Request) -> dict:
+        """Join a team with its join link, signed in, and work in it. Your other teams stay as they are."""
+        cur = login(request)
+        try:
+            accounts.join_by_link(req.token, cur)
+        except LinkInvalid as e:
+            raise HTTPException(404, f"{e}. Ask for a new one") from None
+        log.info("user %s joined an org with a join link", cur.user.id)
+        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
+
     # --- the org --------------------------------------------------------------------
 
     @r.get("/v1/org", response_model=OrgOut)
@@ -376,6 +441,66 @@ def router(accounts: Accounts) -> APIRouter:
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
         return org_out(o, role)
+
+    @r.post("/v1/org/setup", response_model=SetUpOut)
+    def set_up_org(req: SetUpIn, request: Request) -> dict:
+        """Set up the team: the org takes its name, and gets its first workspace, named after it, unless it has one.
+        Owners and admins."""
+        _, org_id, role = org_of(request)
+        try:
+            o, ws = accounts.set_up(org_id, req.team)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        return {"org": org_out(o, role), "workspace": ws}
+
+    @r.post("/v1/orgs", response_model=SetUpOut, status_code=201)
+    def create_team(req: TeamIn, request: Request) -> dict:
+        """Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are."""
+        cur = login(request)
+        try:
+            o, ws = accounts.create_team(cur, req.name)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        log.info("user %s made org %s", cur.user.id, o.id)
+        return {"org": org_out(o, "owner"), "workspace": ws}
+
+    @r.patch("/v1/org/platforms", response_model=PlatformsOut, responses={403: {"description": "Only owners and admins change them, once picked."}})
+    def set_org_platforms(req: PlatformsIn, request: Request) -> dict:
+        """Pick the platforms the team uses (`other`: something else, or not sure yet). The app shows only those;
+        nothing about the others is lost. Owners and admins; anyone in the team makes the first pick. With sign-in off,
+        the first org's."""
+        cur = access.signed_in(request)
+        org_id = cur.org_id if cur else None
+        if cur is not None and cur.role not in MANAGERS and accounts.platforms(org_id)["selected"] is not None:
+            raise Forbidden("only the org's owners and admins can change its platforms")
+        try:
+            return accounts.set_platforms(org_id, list(req.platforms))
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+
+    @r.get("/v1/org/join-link", response_model=JoinLinkOut | None)
+    def get_join_link(request: Request) -> dict | None:
+        """The team's join link that works, if there's one. Its address was shown once, when it was made."""
+        _, org_id, _ = org_of(request)
+        return accounts.join_link(org_id)
+
+    @r.post("/v1/org/join-link", response_model=JoinLinkCreated, status_code=201)
+    def create_join_link(req: JoinLinkIn, request: Request) -> dict:
+        """A new join link for the team: anyone who opens it can join with its role. The old one stops working."""
+        cur, org_id, _ = org_of(request)
+        try:
+            out, token = accounts.new_join_link(org_id, cur.user.id, req.role, req.days)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from None
+        log.info("user %s made a join link for org %s", cur.user.id, org_id)
+        return {**out, "link": join_url(public_url(request), token)}
+
+    @r.delete("/v1/org/join-link", status_code=204)
+    def delete_join_link(request: Request) -> Response:
+        """Turn the team's join link off."""
+        _, org_id, _ = org_of(request)
+        accounts.end_join_link(org_id)
+        return Response(status_code=204)
 
     def send_invite(request: Request, cur: Current, org_id: str, inv: dict, token: str) -> dict:
         """The invite with its link, emailed when sopops sends email (a failure is logged, and the link is still there to copy)."""

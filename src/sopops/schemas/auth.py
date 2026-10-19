@@ -10,6 +10,8 @@ from pydantic import Field
 from .base import BaseModel
 
 Role = Literal["owner", "admin", "member"]
+Platform = Literal["livekit", "elevenlabs", "vapi"]
+PlatformPick = Literal["livekit", "elevenlabs", "vapi", "other"]
 
 
 class ProviderOut(BaseModel):
@@ -32,6 +34,17 @@ class OrgSummary(BaseModel):
     name: str
     slug: str
     role: Role = Field(description="Your role in it.")
+    workspace: str | None = Field(None, description="The team's workspace (the one changed most recently, if it has several). None until it has one.")
+
+
+class PlatformsOut(BaseModel):
+    selected: list[PlatformPick] | None = Field(description="What the team picked. `other`: something else, or not sure yet. None: nobody has "
+                                                "picked yet.")
+    shown: list[Platform] = Field(description="The platforms the app shows: the ones picked, or all of them when none of them was picked.")
+
+
+class PlatformsIn(BaseModel):
+    platforms: list[PlatformPick] = Field(min_length=1, max_length=4)
 
 
 class AuthState(BaseModel):
@@ -43,6 +56,8 @@ class AuthState(BaseModel):
     first_account: bool = Field(False, description="Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.")
     password_email: bool = Field(False, description="sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.")
     sign_up: bool = Field(False, description="People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.")
+    platforms: PlatformsOut | None = Field(None, description="The platforms the org you're working in uses (with sign-in off, the first org's). "
+                                           "None when you're not signed in, or in no org.")
 
 
 class SignedIn(AuthState):
@@ -186,3 +201,53 @@ class PasswordLinkCreated(BaseModel):
     email: str
     link: str = Field(description="Shown once. It sets their password, works once, for an hour, and ends their login sessions.")
     expires_at: datetime
+
+
+class SetUpIn(BaseModel):
+    team: str = Field(min_length=1, max_length=128, description="What the team is called. The org takes this name.")
+
+
+class SetUpOut(BaseModel):
+    org: OrgOut
+    workspace: str = Field(description="The team's workspace: made now, named after the team, unless it had one.")
+
+
+class TeamIn(BaseModel):
+    name: str = Field(min_length=1, max_length=128, description="What the team is called.")
+
+
+class JoinLinkIn(BaseModel):
+    role: Literal["admin", "member"] = "member"
+    days: int = Field(7, ge=1, le=90, description="How long it works.")
+
+
+class JoinLinkOut(BaseModel):
+    id: str
+    role: Role
+    joined: int = Field(description="How many people joined with it.")
+    created_at: datetime
+    expires_at: datetime
+
+
+class JoinLinkCreated(JoinLinkOut):
+    link: str = Field(description="The join link, shown once. Anyone who opens it can join the team with its role, until it expires or is turned off.")
+
+
+class JoinTokenIn(BaseModel):
+    token: str = Field(max_length=256, description="From the join link (the part after #).")
+
+
+class JoinInfo(BaseModel):
+    org_id: str
+    org_name: str
+    role: Role = Field(description="The role people join with.")
+    expires_at: datetime
+    member: bool = Field(description="You're in this team already.")
+    needs_platforms: bool = Field(description="Nobody in the team has picked its platforms yet: whoever joins next is asked.")
+
+
+class JoinIn(BaseModel):
+    token: str = Field(max_length=256, description="From the join link (the part after #).")
+    name: str = Field("", max_length=256)
+    email: str = Field(max_length=320)
+    password: str = Field(max_length=1024, description="10 to 256 characters, not the email address.")

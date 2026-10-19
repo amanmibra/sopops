@@ -23,6 +23,7 @@ from .identities import Identity
 from .import_events import ImportEvent
 from .imports import ImportRecord
 from .invites import Invite
+from .join_links import JoinLink
 from .login_attempts import LoginAttempt
 from .login_sessions import LoginSession
 from .memberships import Membership
@@ -51,4 +52,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "Calibration","AgentDelivery", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]
+    "Calibration","AgentDelivery", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JoinLink", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformSecret", "ProcedureCheck", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "Suggestion", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]

@@ -125,7 +125,8 @@ def test_github_sign_in_makes_a_user_and_a_session(app, files):
     assert c.get("/v1/auth/session").json() == {"required": True, "providers": [{"id": "github", "label": "GitHub", "redirects": True},
                                                                               {"id": "google", "label": "Google", "redirects": True},
                                                                               {"id": "password", "label": "Password", "redirects": False}],
-                                                 "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False}
+                                                 "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False,
+                                                 "platforms": None}
     with respx.mock(assert_all_called=False) as router:
         gh = GitHub(router, "42", "Ana@Example.com", name="Ana")
         st = start(c, "github", next="/w/demo/sessions")
@@ -401,14 +402,15 @@ def url(path: str) -> str:
 EXPECTED = {
     access.OPEN: {"spa", "healthz", "openapi", "swagger_ui_html", "swagger_ui_redirect", "redoc_html", "auth_session", "sign_in", "auth_callback",
                   "lookup_invite", "request_email_link", "confirm_email_link", "password_login", "first_account", "join_with_password",
-                  "request_password_link", "lookup_password_link", "set_password"},
-    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password"},
+                  "request_password_link", "lookup_password_link", "set_password", "lookup_join_link", "join_with_link"},
+    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password", "accept_join_link"},
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check"},
     access.TOKEN_OR_SESSION: {"get_agent", "get_prompt", "get_sop"},
     access.WEBHOOK: {"github_webhook", "livekit_webhook", "elevenlabs_post_call", "elevenlabs_conversation_init", "vapi_assistant_request"},
     access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
-                   "create_password_link", "github_app_manifest", "github_app_manifest_callback"},
+                   "create_password_link", "github_app_manifest", "github_app_manifest_callback", "set_up_org", "get_join_link", "create_join_link",
+                   "delete_join_link"},
 }
 
 
@@ -437,7 +439,8 @@ def test_with_sign_in_on_every_session_route_needs_one(app):
 def test_with_sign_in_off_nothing_needs_one(client, files):
     assert not mode.required()
     assert client.get("/v1/auth/session").json() == {"required": False, "providers": [], "user": None, "org": None, "orgs": [], "first_account": False,
-                                                     "password_email": False, "sign_up": False}
+                                                     "password_email": False, "sign_up": False,
+                                                     "platforms": {"selected": None, "shown": ["livekit", "elevenlabs", "vapi"]}}
     for name, method, path in routes(client.app):
         if method != "GET" or name in ("stream_sessions", "import_stream") or access.ROUTES[name] == access.TOKEN:
             continue  # reading only (no side effects); streams don't end; token routes check their own token either way
