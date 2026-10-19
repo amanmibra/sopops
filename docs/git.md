@@ -1,37 +1,72 @@
 # Git or database
 
-**Database.** Everything lives in sopops's database and is edited in the UI or over the `/config` API. Nobody edits YAML or Markdown, but each block is still stored as a sopc file and versioned on its own.
+## Keep SOPs in the database
 
-**Git.** The sopc folder lives in your repo, and CI publishes it on merge in one call:
+Edit everything in the UI or over the `/config` API. Nobody edits YAML or Markdown. Each block is still a sopc file, versioned on its own. To switch to Git, `GET /v1/workspaces/{ws}/files?content=true` exports the workspace as sopc files.
+
+## Publish from Git with CI
+
+Keep the sopc folder in your repo. CI publishes it on merge:
 
 ```sh
 python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"files": {p.relative_to(r).as_posix(): p.read_text() for p in r.rglob("*") if p.is_file()}}))' \
   | curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$SOPOPS_URL/publish"
 ```
 
-`build/` is ignored. A folder in the format of sopc v0.0.8 or earlier, or one that still sets `locked` (sopc v0.0.9), is refused with a message to run `sopc migrate`; a workspace stored that way shows a Convert page in the UI.
+`build/` is ignored. Folders in sopc v0.0.8 format or earlier, or that still set `locked` (v0.0.9), are refused with a message to run `sopc migrate`. Workspaces stored that way show a Convert page.
 
-You can switch any time: `GET …/files?content=true` exports a workspace as sopc files to commit.
+## Connect a GitHub repository
 
-### Connect a GitHub repository
+sopops can sync the workspace and the repo's sopc folder both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`).
 
-Instead of CI, sopops can keep the workspace and the repo's sopc folder in sync both ways. Connect it under the gear icon (Settings), or with `POST …/repo`: the repository, the branch (default `main`) and the sopc project's folder (default `sops`, where onboarding puts it). sopops signs in one of two ways.
+### With the GitHub App (preferred)
 
-**The GitHub App** (preferred). Install on GitHub, choose the repository there, and pick it in sopops. It needs these permissions, and the `push` and `pull_request` events (GitHub always sends `installation` and `installation_repositories`):
+Install it on GitHub, choose the repository, and pick it in sopops.
 
 | Permission | Access | For |
 |---|---|---|
 | Contents | Read and write | Reading the project; committing to sopops's own branches |
-| Pull requests | Read and write | Opening pull requests, and following whether they merge |
+| Pull requests | Read and write | Opening pull requests and tracking merges |
 | Metadata | Read | Required by GitHub |
 
-- *Hosted:* register one App (GitHub → Settings → Developer settings → GitHub Apps → New) with those permissions and events, the webhook URL `https://<host>/v1/github/webhook` and a webhook secret, and the setup URL `https://<host>/v1/github/setup` (with "Redirect on update"). Generate a private key and set `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `SOPOPS_GITHUB_APP_PRIVATE_KEY_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET` and `SOPOPS_GITHUB_APP_SLUG`.
-- *Self-hosted:* with `SOPOPS_SECRET_KEY` set and no App, Settings offers **Create a GitHub App**: GitHub's App manifest flow creates it with the right permissions, events and URLs, and sopops stores its key and webhook secret encrypted. GitHub can't reach `127.0.0.1`, so give a smee.io channel as the webhook address to get webhooks locally; without webhooks, sopops polls instead.
+Events: `push` and `pull_request` (GitHub always sends `installation` and `installation_repositories`).
 
-**A fine-grained personal access token** for that one repository, with the same permissions, stored encrypted with `SOPOPS_SECRET_KEY` and never returned. Webhooks don't come with a token connection unless you add a repository webhook signed with `SOPOPS_GITHUB_WEBHOOK_SECRET`; sopops polls instead.
+**Hosted.** Register one App (GitHub → Settings → Developer settings → GitHub Apps → New) with those permissions and events, webhook URL `https://{host}/v1/github/webhook`, a webhook secret, and setup URL `https://{host}/v1/github/setup` with "Redirect on update". Generate a private key and set `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `SOPOPS_GITHUB_APP_PRIVATE_KEY_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET` and `SOPOPS_GITHUB_APP_SLUG`.
 
-**GitHub to sopops.** A push to the branch that touches the folder (the webhook, or polling about once a minute while Settings is open and on the `sopops pr-status` cron) brings the folder into drafts: files changed only on GitHub are written, files changed both ways are merged line by line, and files that don't merge stay as they are here and show in Settings as conflicts to keep yours, take GitHub's, or edit. A file deleted on GitHub is deleted here only if it wasn't edited here since the last sync. Each sync is noted "Synced from GitHub abc1234". **Sync now** (`POST …/repo/sync`) does the same on demand; automatic syncs start after the first one. **Pull** (`POST …/repo/pull`) instead makes the drafts exactly the folder.
+**Self-hosted.** With `SOPOPS_SECRET_KEY` set and no App, Settings offers **Create a GitHub App**. GitHub's manifest flow sets it up, and sopops stores its key and webhook secret encrypted. GitHub can't reach `127.0.0.1`, so use a smee.io channel as the webhook address. Without webhooks, sopops polls.
 
-**sopops to GitHub.** **Send drafts to GitHub** (`POST …/repo/send`) puts the drafts' differences on the branch `sopops/sync` and opens one pull request, updated by sending again. When it merges, the drafts are synced back with nothing new to write. **Suggestions** are committed to their own `sopops/<id>` branch and opened as PRs. With the App, onboarding's pull request is opened by sopops too. sopops never pushes to the base branch.
+### With a fine-grained token
 
-**Testing webhooks locally.** Forward GitHub's deliveries to the local server with [smee](https://smee.io) (`npx smee-client --url https://smee.io/<channel> --target http://127.0.0.1:8484/v1/github/webhook`) or, for a repository you admin, `gh webhook forward --repo=OWNER/REPO --events=push,pull_request --url=http://127.0.0.1:8484/v1/github/webhook --secret="$SOPOPS_GITHUB_WEBHOOK_SECRET"` (needs `gh extension install cli/gh-webhook`).
+Use a personal access token for the one repository, with the same permissions. It's stored encrypted with `SOPOPS_SECRET_KEY` and never returned. sopops polls unless you add a repository webhook signed with `SOPOPS_GITHUB_WEBHOOK_SECRET`.
+
+## Sync from GitHub
+
+A push to the branch that touches the folder syncs it into drafts. Pushes arrive by webhook, or by polling about once a minute while Settings is open and on the `sopops pr-status` cron. Automatic syncs start after the first one.
+
+- Files changed only on GitHub are written.
+- Files changed both ways merge line by line. Ones that can't merge show in Settings as conflicts: keep yours, take GitHub's, or edit.
+- Files deleted on GitHub are deleted here only if unedited here since the last sync.
+- Each sync is noted "Synced from GitHub abc1234".
+
+**Sync now** (`POST /v1/workspaces/{ws}/repo/sync`) syncs on demand. **Pull** (`POST /v1/workspaces/{ws}/repo/pull`) makes the drafts exactly match the folder.
+
+## Send to GitHub
+
+sopops never pushes to the base branch.
+
+- **Send drafts to GitHub** (`POST /v1/workspaces/{ws}/repo/send`) commits the drafts' changes to `sopops/sync` and opens one pull request. Sending again updates it. After merge, drafts sync back with nothing new.
+- **Suggestions** go to their own `sopops/<id>` branch and pull request.
+- With the App, sopops also opens onboarding's pull request.
+
+## Test webhooks locally
+
+```sh
+npx smee-client --url https://smee.io/<channel> --target http://127.0.0.1:8484/v1/github/webhook
+```
+
+Or, for a repository you admin (needs `gh extension install cli/gh-webhook`):
+
+```sh
+gh webhook forward --repo=OWNER/REPO --events=push,pull_request \
+  --url=http://127.0.0.1:8484/v1/github/webhook --secret="$SOPOPS_GITHUB_WEBHOOK_SECRET"
+```

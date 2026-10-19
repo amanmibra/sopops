@@ -89,7 +89,7 @@ Your coding agent finds the instructions wherever they live, splits them into bl
 | **LiveKit** | `attach()` in the Python SDK | `attach()`, with tool calls. Or no code: a LiveKit Cloud webhook. |
 | **ElevenLabs** | Pushed on publish, or the call-start webhook | The post-call webhook, no code |
 | **Vapi** | Pushed on publish, or the assistant-request webhook | The end-of-call report, no code |
-| **Anything else** | `GET …/agents/<agent>` | `POST …/sessions` |
+| **Anything else** | `GET /v1/workspaces/{ws}/agents/{agent}` | `POST /v1/workspaces/{ws}/sessions` |
 
 On LiveKit, one call fetches the instructions, records the release and sends the call back when it ends:
 
