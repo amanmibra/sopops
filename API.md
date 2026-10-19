@@ -493,7 +493,7 @@ Importing existing agent prompts, or an existing sopc project. Every way ends in
 | `POST …/imports/sopc` | `{files?, from_repo?, originals?}`: an existing sopc project (its files by path relative to the folder with `sopc.yaml`, `build/` ignored; or `from_repo: true` reads the workspace's GitHub repository), with each agent's original prompt optionally. `source: sopc`, ready at once: the proposal shows what the project holds and carries its `files`; fidelity is checked for every agent with an original, as for any proposal. `400` without files or `sopc.yaml`, `422` when sopc can't read it. Its content isn't edited here (`409`): change the project and import it again. |
 | `PUT …/imports/<id>/originals` | `{originals: {agent: prompt}}`: add or replace agents' original prompts (an empty one removes it) and check fidelity again. |
 | `GET …/imports/<id>` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, the proposal, and in repo mode the onboarding pull request (`pr_url`, `pr_state`: `open`, `merged`, `closed`; `pr_merged_at`). An open one is checked on GitHub first (at most once a minute), and by the `sopops_pr_status` cron (`sopops pr-status`): merged pulls the folder into drafts (`POST …/repo/pull`) and makes the import `applied`; if that pull fails, `error` says why. |
-| `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. |
+| `GET …/imports/<id>/events?after=N`, `GET …/imports/<id>/stream` | Progress messages; the stream is server-sent events. The coding agent's messages (`by: agent`) carry `client` (Claude Code, Codex) when its MCP client said which it is. |
 | `PUT …/imports/<id>/proposal` | Save edits; fidelity is checked again. |
 | `POST …/imports/<id>/findings/<finding>` | `{choice}`: `keep`, or the agent whose version every agent gets. |
 | `GET …/imports/<id>/review` | The proposal as summaries, for any number of agents: `counts` (agents, shared blocks, variables, disagreements, undecided, agents with unique content, below 100% fidelity), `disagreements` (rule words that differ, from `sopc overlap`: majority against outliers, smallest minority first; then drift the model suggested beyond what overlap finds), `variables` (each × agent), `blocks` (who uses each proposed block, and who lacks text most agents have), `unique` (each agent's text no other has), `fidelity`. Group ids are sopc's, stable across runs. |
@@ -502,7 +502,7 @@ Importing existing agent prompts, or an existing sopc project. Every way ends in
 | `POST …/imports/<id>/apply` | Write the proposal as drafts (items with the same id are replaced); an imported sopc project writes exactly its files. Ends the token. |
 | `POST …/imports/<id>/revoke`, `DELETE …/imports/<id>` | End the token (Finish); discard the import. |
 
-With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one workspace, 2 hours, stored hashed; `401` when unknown, expired or revoked, `403` without the scope):
+With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one workspace, 2 hours, stored hashed; `401` when unknown, expired or revoked, `403` without the scope). sopops-mcp also sends `X-Sopops-Client` and `X-Sopops-Client-Version`, its MCP client's clientInfo (e.g. `claude-code`, `2.1.3`). The first request with a token is recorded on the import (`agent_client`: name, version, label, `connected_at`) with a progress message such as "Claude Code 2.1.3 connected", once:
 
 | Endpoint | What it does |
 |---|---|

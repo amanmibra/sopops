@@ -11200,6 +11200,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "responses": {
@@ -11269,6 +11305,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "responses": {
@@ -11319,6 +11391,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "responses": {
@@ -11391,6 +11499,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11451,6 +11595,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11511,6 +11691,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11571,6 +11787,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11631,6 +11883,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11694,6 +11982,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11818,6 +12142,42 @@
               ],
               "title": "Authorization"
             }
+          },
+          {
+            "name": "x-sopops-client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code.",
+              "title": "X-Sopops-Client"
+            },
+            "description": "The coding agent's MCP client name (its clientInfo), e.g. claude-code."
+          },
+          {
+            "name": "x-sopops-client-version",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Its version.",
+              "title": "X-Sopops-Client-Version"
+            },
+            "description": "Its version."
           }
         ],
         "requestBody": {
@@ -11885,6 +12245,59 @@
           "emails"
         ],
         "title": "AddPeopleIn"
+      },
+      "AgentClient": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "The MCP client's clientInfo name, e.g. claude-code; null when it didn't say."
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label",
+            "description": "The product, when sopops knows the client: Claude Code or Codex."
+          },
+          "connected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Connected At",
+            "description": "When the coding agent first reached sopops with the onboarding token."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "label",
+          "connected_at"
+        ],
+        "title": "AgentClient"
       },
       "AgentConfig": {
         "properties": {
@@ -14742,6 +15155,18 @@
               "agent"
             ],
             "title": "By"
+          },
+          "client": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client",
+            "description": "For the coding agent's messages: which agent (Claude Code, Codex), when its MCP client said."
           }
         },
         "type": "object",
@@ -15909,6 +16334,17 @@
               }
             ],
             "title": "Created By"
+          },
+          "agent_client": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AgentClient"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The coding agent, once it has connected (agent imports)."
           },
           "proposal": {
             "anyOf": [

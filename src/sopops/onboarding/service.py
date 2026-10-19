@@ -31,7 +31,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Callable
 
-from sqlmodel import Session, inspect, select
+from sqlmodel import Session, inspect, select, update
 
 from .. import forms, github
 from ..ai import spend
@@ -54,6 +54,8 @@ SCOPE = "onboarding:write"
 TOKEN_PREFIX = "sopops_onb_"
 TOKEN_TTL = timedelta(hours=2)
 DONE = ("applied", "discarded")
+# MCP clientInfo names (lowercased, matched as substrings) and the product each one is.
+CLIENTS = (("claude", "Claude Code"), ("codex", "Codex"))
 
 
 def ai_from_env() -> AI | None:
@@ -114,10 +116,11 @@ class Onboarding:
             return out(r, self.tokens.for_import(r.id, db))
 
     def events(self, workspace: str, id: str, after: int = 0) -> list[dict]:
+        """Progress messages; the coding agent's carry its name (`client`) when its MCP client said which it is."""
         with self._db() as db:
-            self._load(db, workspace, id)
+            client = client_label(self._load(db, workspace, id).agent_client)
             rows = db.exec(select(ImportEvent).where(ImportEvent.import_id == id, ImportEvent.id > after).order_by(ImportEvent.id))
-            return [event_out(e) for e in rows]
+            return [event_out(e, client) for e in rows]
 
     def record_of(self, workspace: str, id: str) -> ImportRecord:
         with self._db() as db:
@@ -301,10 +304,30 @@ class Onboarding:
             db.commit()
         return self.get(workspace, id)
 
+    def connected(self, rec: ImportRecord, client: str | None = None, version: str | None = None) -> ImportRecord:
+        """Note the coding agent's first request with the import's token, once: which MCP client it is (its clientInfo
+        name and version, sent by sopops-mcp), kept on the import, and a progress event saying it connected. A client
+        name that arrives after the first request is kept too, without another event."""
+        client, version = (client or "").strip()[:128] or None, (version or "").strip()[:64] or None
+        if rec.agent_connected_at is not None and (rec.agent_client or client is None):
+            return rec
+        with self._db() as db:
+            first = db.execute(update(ImportRecord).where(ImportRecord.id == rec.id, ImportRecord.agent_connected_at.is_(None))  # type: ignore[union-attr, arg-type]
+                               .values(agent_connected_at=_now(), agent_client=client, agent_client_version=version)).rowcount == 1
+            if not first and client:
+                db.execute(update(ImportRecord).where(ImportRecord.id == rec.id, ImportRecord.agent_client.is_(None))  # type: ignore[union-attr, arg-type]
+                           .values(agent_client=client, agent_client_version=version))
+            db.commit()
+            r = db.get(ImportRecord, rec.id)
+            assert r is not None
+        if first:
+            self.event(rec.id, "connected", connected_message(client, version), by="sopops")
+        return r
+
     def progress(self, rec: ImportRecord, step: str, message: str) -> dict:
         if rec.status == "waiting":
             self._set_status(rec.id, "running")
-        return self.event(rec.id, step, message, by="agent")
+        return self.event(rec.id, step, message, by="agent", client=client_label(rec.agent_client))
 
     def push(self, rec: ImportRecord, content: ProposalContent, originals: dict[str, str], findings: list[Finding], notes: list[str]) -> dict:
         """Replace the import's proposal with this one (each push replaces the last), with fidelity checked here."""
@@ -485,13 +508,27 @@ class Onboarding:
                 db.add(r)
                 db.commit()
 
-    def event(self, id: str, step: str, message: str, by: str = "sopops") -> dict:
+    def event(self, id: str, step: str, message: str, by: str = "sopops", client: str | None = None) -> dict:
         with self._db() as db:
             e = ImportEvent(import_id=id, at=_now(), step=step[:64], message=message[:4000], by=by)
             db.add(e)
             db.commit()
             db.refresh(e)
-            return event_out(e)
+            return event_out(e, client)
+
+
+def client_label(client: str | None) -> str | None:
+    """The coding agent's product name from its MCP clientInfo name (`claude-code`, `codex-mcp-client`), if known."""
+    name = (client or "").lower()
+    return next((label for key, label in CLIENTS if key in name), None)
+
+
+def connected_message(client: str | None, version: str | None) -> str:
+    label = client_label(client)
+    if label:
+        return f"{label} {version} connected" if version else f"{label} connected"
+    named = " ".join(p for p in (client, version) if p)
+    return f"Your coding agent connected ({named})" if named else "Your coding agent connected"
 
 
 def token_out(t: Token, rec: ImportRecord | None = None) -> dict:
@@ -507,14 +544,16 @@ def out(r: ImportRecord, token: Token | None = None, proposal: bool = True) -> d
         "repo_branch": r.repo_branch, "repo_path": r.repo_path, "repo_project": r.repo_project,
         "pr_url": r.pr_url, "pr_state": r.pr_state, "pr_merged_at": _utc(r.pr_merged_at) if r.pr_merged_at else None, "agents": r.agents, "error": r.error, "pushes": r.pushes, "token": token,
         "created_at": _utc(r.created_at), "updated_at": _utc(r.updated_at), "created_by": r.created_by,
+        "agent_client": {"name": r.agent_client, "version": r.agent_client_version, "label": client_label(r.agent_client),
+                         "connected_at": _utc(r.agent_connected_at)} if r.agent_connected_at else None,
     }
     if proposal:
         d["proposal"] = r.proposal
     return d
 
 
-def event_out(e: ImportEvent) -> dict:
-    return {"id": e.id, "at": _utc(e.at), "step": e.step, "message": e.message, "by": e.by}
+def event_out(e: ImportEvent, client: str | None = None) -> dict:
+    return {"id": e.id, "at": _utc(e.at), "step": e.step, "message": e.message, "by": e.by, "client": client if e.by == "agent" else None}
 
 
 def _now() -> datetime:

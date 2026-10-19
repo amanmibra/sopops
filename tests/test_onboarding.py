@@ -347,7 +347,8 @@ def test_onboarding_token_flow(client, proposal):
     assert second["pushes"] == 2
     got = client.get(f"{IMPORTS}/{id}").json()
     assert got["status"] == "ready" and [a["id"] for a in got["proposal"]["agents"]] == ["marios-pizzeria", "bella-pasta"]
-    assert [e["by"] for e in client.get(f"{IMPORTS}/{id}/events").json()] == ["sopops", "agent", "agent", "agent"]
+    events = client.get(f"{IMPORTS}/{id}/events").json()
+    assert [e["by"] for e in events] == ["sopops", "sopops", "agent", "agent", "agent"] and events[1]["message"] == "Your coding agent connected"
     checked = client.post("/v1/onboarding/fidelity", headers=auth, json={"proposal": push_body(p)["proposal"], "originals": p["originals"]}).json()
     assert len(checked["fidelity"]) == 4
 

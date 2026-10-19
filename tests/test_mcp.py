@@ -8,7 +8,9 @@ import httpx
 import pytest
 from conftest import WS
 from fastapi.testclient import TestClient
+from mcp import Client
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import Implementation
 from sopops_client.mcp import install_skill, make_server
 from test_onboarding import FIXTURES, sources
 
@@ -100,6 +102,45 @@ def test_push_and_progress_through_sopops(client):
     got = client.get(f"{WS}/imports/{started['import']['id']}").json()
     assert got["status"] == "ready" and len(got["proposal"]["agents"]) == 4
     assert "Found 4 prompts" in json.dumps(client.get(f"{WS}/imports/{started['import']['id']}/events").json())
+
+
+def test_the_coding_agent_connecting_is_noted_once_with_its_name(client):
+    started, server = connected(client)
+    imp = started["import"]["id"]
+    assert client.get(f"{WS}/imports/{imp}").json()["agent_client"] is None
+
+    async def session():
+        async with Client(server, client_info=Implementation(name="claude-code", version="2.1.3")) as c:
+            for tool, args in (("get_kickoff", {}), ("report_progress", {"step": "find", "message": "Reading prompts.py"})):
+                assert not (await c.call_tool(tool, args)).is_error
+
+    asyncio.run(session())
+    events = client.get(f"{WS}/imports/{imp}/events").json()
+    assert [e["message"] for e in events if e["step"] == "connected"] == ["Claude Code 2.1.3 connected"]
+    assert events[-1]["by"] == "agent" and events[-1]["client"] == "Claude Code" and events[-1]["message"] == "Reading prompts.py"
+    got = client.get(f"{WS}/imports/{imp}").json()["agent_client"]
+    assert (got["name"], got["version"], got["label"]) == ("claude-code", "2.1.3", "Claude Code") and got["connected_at"]
+
+
+def test_an_unknown_or_unnamed_coding_agent(client):
+    onboarding = client.app.state.onboarding
+    for headers, said, label in (({"X-Sopops-Client": "codex-mcp-client", "X-Sopops-Client-Version": "0.50.0"}, "Codex 0.50.0 connected", "Codex"),
+                                 ({"X-Sopops-Client": "cursor-vscode", "X-Sopops-Client-Version": "1.0"}, "Your coding agent connected (cursor-vscode 1.0)", None),
+                                 ({}, "Your coding agent connected", None)):
+        started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
+        auth = {"Authorization": f"Bearer {started['token']}"}
+        for _ in range(2):
+            assert client.get("/v1/onboarding/session", headers={**auth, **headers}).status_code == 200
+        events = onboarding.events("demo", started["import"]["id"])
+        assert [e["message"] for e in events if e["step"] == "connected"] == [said]
+        assert client.get(f"{WS}/imports/{started['import']['id']}").json()["agent_client"]["label"] == label
+    # A name that arrives after the first request is kept, without a second event.
+    later = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
+    auth = {"Authorization": f"Bearer {later['token']}"}
+    client.get("/v1/onboarding/session", headers=auth)
+    client.post("/v1/onboarding/progress", headers={**auth, "X-Sopops-Client": "claude-code"}, json={"step": "find", "message": "x"})
+    events = onboarding.events("demo", later["import"]["id"])
+    assert len([e for e in events if e["step"] == "connected"]) == 1 and events[-1]["client"] == "Claude Code"
 
 
 def test_onboarding_endpoints_need_the_token(client):

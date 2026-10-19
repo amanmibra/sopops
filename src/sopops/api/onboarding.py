@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import time
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from .. import github
@@ -16,6 +16,7 @@ from ..onboarding.pipeline import guide_text, host_extraction
 from ..onboarding.review import ReviewError
 from ..onboarding.service import DONE, Onboarding
 from ..onboarding.types import Finding, ProposalContent, SourcePrompt
+from ..orm import ImportRecord
 from ..schemas.onboarding import (
     AgentImportOut,
     AgentImportRequest,
@@ -67,6 +68,14 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             raise HTTPException(401, str(e), headers={"WWW-Authenticate": "Bearer"}) from None
         except Forbidden as e:
             raise HTTPException(403, str(e)) from None
+
+    def caller(
+        authorization: str | None = Header(None),
+        x_sopops_client: str | None = Header(None, description="The coding agent's MCP client name (its clientInfo), e.g. claude-code."),
+        x_sopops_client_version: str | None = Header(None, description="Its version."),
+    ) -> ImportRecord:
+        """The import an onboarding token is for. The first request with it notes that the coding agent connected."""
+        return onboarding.connected(agent(authorization), x_sopops_client, x_sopops_client_version)
 
     @r.get("/v1/onboarding/capabilities", response_model=Capabilities)
     def onboarding_capabilities() -> dict:
@@ -233,24 +242,23 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     # the coding agent, with its onboarding token
 
     @r.get("/v1/onboarding/session", response_model=SessionInfo)
-    def onboarding_session(authorization: str | None = Header(None)) -> dict:
+    def onboarding_session(rec: ImportRecord = Depends(caller)) -> dict:
         """The workspace and mode an onboarding token is for, and in repo mode the connected repository, branch and
         folder, what the folder held, and the onboarding pull request once reported."""
-        return onboarding.session(agent(authorization))
+        return onboarding.session(rec)
 
     @r.get("/v1/onboarding/kickoff", response_model=KickoffOut)
     def onboarding_kickoff(
-        authorization: str | None = Header(None),
+        rec: ImportRecord = Depends(caller),
         server_url: str | None = Query(None, max_length=1024, description="The URL the agent reaches sopops at, to name in the instructions."),
     ) -> dict:
         """How to onboard this project's agents (the sopops-onboard skill), and this session's workspace, server and mode:
         what sopops-mcp's `get_kickoff` returns."""
-        return {"instructions": kickoff.instructions({**onboarding.session(agent(authorization)), "server_url": server_url})}
+        return {"instructions": kickoff.instructions({**onboarding.session(rec), "server_url": server_url})}
 
     @r.get("/v1/onboarding/guide", response_model=GuideOut)
-    def onboarding_guide(authorization: str | None = Header(None)) -> dict:
+    def onboarding_guide(rec: ImportRecord = Depends(caller)) -> dict:
         """The extraction rules, and the JSON schemas of a proposal and a finding."""
-        agent(authorization)
         return {"guide": guide_text(), "proposal_schema": ProposalContent.model_json_schema(), "finding_schema": Finding.model_json_schema()}
 
     @r.get("/v1/onboarding/skill", response_model=SkillOut)
@@ -259,44 +267,42 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         return {"name": kickoff.SKILL_NAME, "text": kickoff.skill_text()}
 
     @r.post("/v1/onboarding/extraction", response_model=ExtractionOut)
-    def onboarding_extraction(req: ExtractionIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_extraction(req: ExtractionIn, rec: ImportRecord = Depends(caller)) -> dict:
         """Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify
         and structure itself. No model is called. Stores nothing."""
-        agent(authorization)
         return host_extraction(req.prompts)
 
     @r.post("/v1/onboarding/project", response_model=ProjectOut)
-    def onboarding_project(req: ProjectIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_project(req: ProjectIn, rec: ImportRecord = Depends(caller)) -> dict:
         """A proposal as a sopc project's files, written with sopc, and `sopc validate` on them. Stores nothing."""
-        agent(authorization)
         return onboarding.project_files(req.proposal)
 
     @r.post("/v1/onboarding/progress", response_model=EventOut)
-    def onboarding_progress(req: ProgressIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_progress(req: ProgressIn, rec: ImportRecord = Depends(caller)) -> dict:
         """A progress message for the person watching the import in sopops."""
-        return onboarding.progress(agent(authorization), req.step, req.message)
+        return onboarding.progress(rec, req.step, req.message)
 
     @r.put("/v1/onboarding/proposal", response_model=PushOut)
-    def onboarding_push(req: PushIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_push(req: PushIn, rec: ImportRecord = Depends(caller)) -> dict:
         """Push the proposal for review; it replaces any earlier push. Returns fidelity per agent."""
-        return onboarding.push(agent(authorization), req.proposal, req.originals, req.findings, req.notes)
+        return onboarding.push(rec, req.proposal, req.originals, req.findings, req.notes)
 
     @r.post("/v1/onboarding/pull-request", response_model=ImportOut, responses={400: {"description": "Not a pull request in the connected repository, or not repo mode."}})
-    def onboarding_pull_request(req: PullRequestIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_pull_request(req: PullRequestIn, rec: ImportRecord = Depends(caller)) -> dict:
         """Repo mode: the onboarding pull request the agent opened. sopops follows it on GitHub and, when it merges,
         pulls the folder into drafts."""
         try:
-            return onboarding.report_pull_request(agent(authorization), req.url)
+            return onboarding.report_pull_request(rec, req.url)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 
     @r.post("/v1/onboarding/pull-request/open", response_model=ImportOut,
             responses={400: {"description": "Not repo mode, no proposal pushed yet, or GitHub refused."}, 404: {"description": "No repository connected."}})
-    def onboarding_open_pull_request(req: OpenPullRequestIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_open_pull_request(req: OpenPullRequestIn, rec: ImportRecord = Depends(caller)) -> dict:
         """Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at
         the connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it."""
         try:
-            return onboarding.open_pull_request(agent(authorization), req.description)
+            return onboarding.open_pull_request(rec, req.description)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 
@@ -311,9 +317,8 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             raise HTTPException(400, str(e)) from None
 
     @r.post("/v1/onboarding/fidelity", response_model=FidelityOut)
-    def onboarding_check(req: FidelityIn, authorization: str | None = Header(None)) -> dict:
+    def onboarding_check(req: FidelityIn, rec: ImportRecord = Depends(caller)) -> dict:
         """Compile a proposal with sopc and compare each agent with its original. Stores nothing."""
-        agent(authorization)
         return onboarding.check(req.proposal, req.originals)
 
     return r

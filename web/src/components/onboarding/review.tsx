@@ -150,9 +150,11 @@ function ProgressLog({ id, live }: { id: string; live: boolean }) {
       {rows.length ? (
         <ol className="grid max-h-64 gap-1 overflow-auto text-[13px]" aria-live="polite">
           {rows.map((e) => (
-            <li key={e.id} className="grid grid-cols-[72px_80px_1fr] gap-2">
+            <li key={e.id} className="grid grid-cols-[72px_96px_1fr] gap-2">
               <span className="text-muted-foreground tabular-nums">{new Date(e.at).toLocaleTimeString()}</span>
-              <span className={cn("font-semibold", e.by === "agent" ? "text-k-procedure" : "text-muted-foreground")}>{e.by === "agent" ? "your agent" : "sopops"}</span>
+              <span className={cn("font-semibold", e.by === "agent" ? "text-k-procedure" : "text-muted-foreground")}>
+                {e.by === "agent" ? (e.client ?? "your agent") : "sopops"}
+              </span>
               <span>{e.message}</span>
             </li>
           ))}

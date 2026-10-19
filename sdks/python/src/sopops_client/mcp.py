@@ -25,8 +25,9 @@ from pathlib import Path
 from typing import Any, Callable, TypeVar
 
 import httpx
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import CallToolResult, InputRequiredResult
 
 from . import platforms
 
@@ -49,6 +50,8 @@ class SopopsClient:
         self.url = (url or "").rstrip("/") or None
         self.token = (token or "").strip() or None
         self.transport = transport
+        self.client: tuple[str, str] | None = None
+        """The coding agent's MCP clientInfo (name, version), sent along so sopops can say which agent connected."""
 
     @property
     def connected(self) -> bool:
@@ -58,6 +61,8 @@ class SopopsClient:
         if not self.connected:
             raise RuntimeError(NOT_CONNECTED)
         headers = {"Authorization": f"Bearer {self.token}"}
+        if self.client:
+            headers.update({"X-Sopops-Client": self.client[0], "X-Sopops-Client-Version": self.client[1]})
         try:
             with httpx.Client(base_url=self.url or "", timeout=120, transport=self.transport, headers=headers) as c:
                 res = c.request(method, path, json=body, params=params)
@@ -70,6 +75,29 @@ class SopopsClient:
                 detail = res.text
             raise RuntimeError(f"sopops answered {res.status_code}: {detail}")
         return res.json()
+
+
+class _Server(MCPServer):
+    """Notes the MCP client's clientInfo (Claude Code, Codex, ...) on each tool call, for the requests to sopops."""
+
+    def __init__(self, sopops: SopopsClient):
+        super().__init__("sopops", instructions=INSTRUCTIONS)
+        self.sopops = sopops
+
+    async def call_tool(self, name: str, arguments: dict[str, Any], context: Context[Any, Any] | None = None) -> CallToolResult | InputRequiredResult:
+        info = _client_info(context)
+        if info is not None:
+            self.sopops.client = info
+        return await super().call_tool(name, arguments, context)
+
+
+def _client_info(context: Context[Any, Any] | None) -> tuple[str, str] | None:
+    try:
+        params = context.session.client_params if context is not None else None
+    except ValueError:  # no request (a direct call, as in tests)
+        return None
+    info = params.client_info if params is not None else None
+    return (info.name, info.version) if info is not None and info.name else None
 
 
 def _key(platform: str, env: dict[str, str]) -> str:
@@ -98,7 +126,7 @@ def _explained(fn: F) -> F:
 def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTransport | None = None, platform_transport: httpx.BaseTransport | None = None) -> MCPServer:
     env = dict(os.environ) if env is None else env
     sopops = SopopsClient(env.get("SOPOPS_URL"), env.get("SOPOPS_TOKEN"), transport)
-    server = MCPServer("sopops", instructions=INSTRUCTIONS)
+    server = _Server(sopops)
 
     @server.tool()
     @_explained

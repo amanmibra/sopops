@@ -41,6 +41,10 @@ class ImportRecord(SQLModel, table=True):
     pr_state: str | None = Field(default=None, max_length=16)  # open | merged | closed
     pr_checked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     pr_merged_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))  # when sopops saw it merged
+    # The coding agent (source `agent`), from the MCP client's clientInfo when it first reached sopops with the token.
+    agent_client: str | None = Field(default=None, max_length=128, description="The MCP client's name, e.g. claude-code.")
+    agent_client_version: str | None = Field(default=None, max_length=64)
+    agent_connected_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     # The onboarding token (source `agent`) is a `tokens` row with this import's id (scope onboarding:write).
     created_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))

@@ -6,7 +6,9 @@ import json
 import httpx
 import pytest
 import respx
+from mcp import Client
 from mcp.server.mcpserver.exceptions import ToolError
+from mcp.types import Implementation
 
 from sopops_client.mcp import install_skill, main, make_server
 
@@ -29,6 +31,21 @@ def test_kickoff_names_the_server_and_sends_the_token():
     assert call(make_server(ENV), "get_kickoff") == "# Onboard"
     req = route.calls.last.request
     assert req.headers["authorization"] == "Bearer sopops_onb_test" and req.url.params["server_url"] == URL
+
+
+@respx.mock
+def test_requests_say_which_coding_agent_is_calling():
+    route = respx.get(f"{URL}/v1/onboarding/kickoff").mock(return_value=httpx.Response(200, json={"instructions": "# Onboard"}))
+
+    async def session():
+        async with Client(make_server(ENV), client_info=Implementation(name="codex-mcp-client", version="0.50.0")) as c:
+            assert not (await c.call_tool("get_kickoff", {})).is_error
+
+    asyncio.run(session())
+    headers = route.calls.last.request.headers
+    assert (headers["x-sopops-client"], headers["x-sopops-client-version"]) == ("codex-mcp-client", "0.50.0")
+    call(make_server(ENV), "get_kickoff")  # no MCP client (a direct call): no client headers
+    assert "x-sopops-client" not in route.calls.last.request.headers
 
 
 @respx.mock

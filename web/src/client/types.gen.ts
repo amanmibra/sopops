@@ -21,6 +21,34 @@ export type AddPeopleIn = {
 };
 
 /**
+ * AgentClient
+ */
+export type AgentClient = {
+    /**
+     * Name
+     *
+     * The MCP client's clientInfo name, e.g. claude-code; null when it didn't say.
+     */
+    name: string | null;
+    /**
+     * Version
+     */
+    version: string | null;
+    /**
+     * Label
+     *
+     * The product, when sopops knows the client: Claude Code or Codex.
+     */
+    label: string | null;
+    /**
+     * Connected At
+     *
+     * When the coding agent first reached sopops with the onboarding token.
+     */
+    connected_at: string;
+};
+
+/**
  * AgentConfig
  */
 export type AgentConfig = {
@@ -1668,6 +1696,12 @@ export type EventOut = {
      * By
      */
     by: 'sopops' | 'agent';
+    /**
+     * Client
+     *
+     * For the coding agent's messages: which agent (Claude Code, Codex), when its MCP client said.
+     */
+    client?: string | null;
 };
 
 /**
@@ -2333,6 +2367,10 @@ export type ImportOut = {
      * Created By
      */
     created_by: string | null;
+    /**
+     * The coding agent, once it has connected (agent imports).
+     */
+    agent_client?: AgentClient | null;
     proposal?: Proposal | null;
 };
 
@@ -16174,6 +16212,18 @@ export type OnboardingSessionData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16205,6 +16255,18 @@ export type OnboardingKickoffData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: {
@@ -16243,6 +16305,18 @@ export type OnboardingGuideData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16290,6 +16364,18 @@ export type OnboardingExtractionData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16321,6 +16407,18 @@ export type OnboardingProjectData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16352,6 +16450,18 @@ export type OnboardingProgressData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16383,6 +16493,18 @@ export type OnboardingPushData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16414,6 +16536,18 @@ export type OnboardingPullRequestData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16449,6 +16583,18 @@ export type OnboardingOpenPullRequestData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;
@@ -16530,6 +16676,18 @@ export type OnboardingCheckData = {
          * Authorization
          */
         authorization?: string | null;
+        /**
+         * X-Sopops-Client
+         *
+         * The coding agent's MCP client name (its clientInfo), e.g. claude-code.
+         */
+        'x-sopops-client'?: string | null;
+        /**
+         * X-Sopops-Client-Version
+         *
+         * Its version.
+         */
+        'x-sopops-client-version'?: string | null;
     };
     path?: never;
     query?: never;

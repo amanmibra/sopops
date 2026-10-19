@@ -65,6 +65,13 @@ class ImportTokenOut(BaseModel):
     active: bool
 
 
+class AgentClient(BaseModel):
+    name: str | None = Field(description="The MCP client's clientInfo name, e.g. claude-code; null when it didn't say.")
+    version: str | None
+    label: str | None = Field(description="The product, when sopops knows the client: Claude Code or Codex.")
+    connected_at: datetime = Field(description="When the coding agent first reached sopops with the onboarding token.")
+
+
 class ImportOut(BaseModel):
     id: str
     workspace: str
@@ -85,6 +92,7 @@ class ImportOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: str | None
+    agent_client: AgentClient | None = Field(None, description="The coding agent, once it has connected (agent imports).")
     proposal: Proposal | None = None
 
 
@@ -112,6 +120,7 @@ class EventOut(BaseModel):
     step: str
     message: str
     by: Literal["sopops", "agent"]
+    client: str | None = Field(None, description="For the coding agent's messages: which agent (Claude Code, Codex), when its MCP client said.")
 
 
 class ResolveRequest(BaseModel):
