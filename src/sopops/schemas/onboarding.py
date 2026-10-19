@@ -186,6 +186,58 @@ class PushOut(FidelityOut):
     pushes: int
 
 
+class KickoffOut(BaseModel):
+    instructions: str = Field(description="The sopops-onboard skill, then this session: workspace, server, mode, and in repo mode what to do there.")
+
+
+class GuideOut(BaseModel):
+    guide: str = Field(description="How to turn agent prompts into a proposal.")
+    proposal_schema: dict[str, Any]
+    finding_schema: dict[str, Any]
+
+
+class SkillOut(BaseModel):
+    name: str
+    text: str = Field(description="SKILL.md, with its frontmatter.")
+
+
+class ExtractionIn(BaseModel):
+    prompts: list[SourcePrompt] = Field(min_length=1)
+
+
+class ExtractionUnit(BaseModel):
+    n: int
+    text: str
+
+
+class ExtractionInput(BaseModel):
+    id: str
+    name: str
+    platform: str
+    platform_id: str
+    tools: list[str]
+    units: list[ExtractionUnit]
+
+
+class ExtractionOut(BaseModel):
+    mode: Literal["host"]
+    instructions: str = Field(description="The guide, then how to classify units and structure procedures.")
+    inputs: list[ExtractionInput]
+    originals: dict[str, str] = Field(description="Each agent's original prompt, by agent id.")
+    proposal_schema: dict[str, Any]
+    next: str
+
+
+class ProjectIn(BaseModel):
+    proposal: ProposalContent
+
+
+class ProjectOut(BaseModel):
+    files: dict[str, str] = Field(description="The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/.")
+    issues: list[dict[str, Any]] = Field(description="Problems that kept items from being written.")
+    validation: list[dict[str, Any]] = Field(description="`sopc validate` on the files.")
+
+
 # --- the review, as summaries ----------------------------------------------------------------------------------------
 
 

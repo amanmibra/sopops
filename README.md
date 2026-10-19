@@ -70,11 +70,11 @@ Already running agents? **Import** turns their prompts into sopops: each agent's
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp \
+  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
-(Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. **In my repo too** (repo mode) connects GitHub right there, with the same form as Settings, and sopops looks in the folder (default `sops/`) on the base branch: a sopc project sopc builds is offered for import as it is; with none, the coding agent also opens the onboarding pull request adding it (nothing merges without you), reports it, and sopops follows it and pulls the folder into drafts when you merge it; one sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it in a pull request. **In sopops** can connect GitHub too (optional), so suggested fixes arrive as pull requests. The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill` copies it into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. a local clone).
+(Codex: the same with `codex mcp add` and `codex "…"`.) Your agent finds the instructions wherever they live (code, prompt files, config, a database, ElevenLabs or Vapi), extracts them with the `sopops-mcp` tools, checks fidelity and pushes the proposal, while you watch on the import page. **In my repo too** (repo mode) connects GitHub right there, with the same form as Settings, and sopops looks in the folder (default `sops/`) on the base branch: a sopc project sopc builds is offered for import as it is; with none, the coding agent also opens the onboarding pull request adding it (nothing merges without you), reports it, and sopops follows it and pulls the folder into drafts when you merge it; one sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it in a pull request. **In sopops** can connect GitHub too (optional), so suggested fixes arrive as pull requests. `sopops-mcp` ships in the Python client SDK ([sdks/python](sdks/python), its `mcp` extra), so `uvx` installs only the client and the MCP library, not the server; it asks sopops over HTTP to compile, check and write files (`/v1/onboarding/…`, [API.md](API.md#onboarding)). The instructions are [skills/sopops-onboard/SKILL.md](skills/sopops-onboard/SKILL.md); `sopops-mcp install-skill --url http://127.0.0.1:8484` copies your server's copy into the repo (`--claude`, `--codex`), to start with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`. `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs (e.g. `/path/to/sopops/sdks/python[mcp]` for a local clone).
 
 **An existing sopc project.** Already keep one, or export one from wherever your prompts live? Import → **A sopc project**: pick its folder (or read it from the connected GitHub repository) and add each agent's original prompt. sopops runs the same fidelity check (sentences kept, rules word for word, similarity, missing lines) and applying writes exactly the project's files as drafts (`POST …/imports/sopc`, [API.md](API.md#onboarding)). The [walkthrough](examples/walkthrough/WALKTHROUGH.md#2-onboard-the-agent-repo) shows both ways.
 
@@ -207,7 +207,7 @@ Every model call is a typed [DSPy](https://dspy.ai) signature ([`src/sopops/ai/s
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | An open (streamed) session with no events this long closes as incomplete. |
 | `SOPOPS_POSTCALL_GRACE_SECONDS` | `120` | After ElevenLabs' monitor socket ends, how long its session waits for the post-call webhook (when one is set up) before it closes and is checked. |
 | `SOPOPS_LIVEKIT_ANY_HOST` | `false` | Allow a self-hosted LiveKit server's URL, not only LiveKit Cloud's. |
-| `SOPOPS_MCP_SOURCE` | `git+https://github.com/amanmibra/sopops@main` | What the onboarding command's `uvx --from` installs. |
+| `SOPOPS_MCP_SOURCE` | `sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python` | What the onboarding command's `uvx --from` installs: the client SDK with its `mcp` extra. A clone: `/path/to/sopops/sdks/python[mcp]`. |
 | `SOPOPS_GITHUB_API_URL` | `https://api.github.com` | GitHub Enterprise Server: `https://HOST/api/v3` (and `SOPOPS_GITHUB_URL`, `https://HOST`, for its install pages). |
 | `SOPOPS_GITHUB_APP_ID`, `SOPOPS_GITHUB_APP_PRIVATE_KEY` (or `…_PATH`), `SOPOPS_GITHUB_WEBHOOK_SECRET`, `SOPOPS_GITHUB_APP_SLUG` | unset | The GitHub App sopops signs in as: its id, its private key (PEM, or a file), the webhook secret, and its name in `github.com/apps/<slug>`. Without them, Settings offers to create one (stored encrypted with `SOPOPS_SECRET_KEY`). |
 | `HATCHET_CLIENT_TOKEN` | unset | Run the pipeline on Hatchet (`pip install 'sopops[hatchet]'`, plus `sopops worker`). |
@@ -355,9 +355,9 @@ The backend is FastAPI with SQLModel and Alembic (`src/sopops`); the UI is Vite,
 | `src/sopops/pipeline/` | The session pipeline: normalize, route, check, rollup |
 | `src/sopops/onboarding/`, `runtime/`, `jobs/` | Importing existing agents; delivering prompts to platforms; inline or Hatchet runs |
 | `src/sopops/store.py`, `sessions.py`, `checks.py`, `patterns.py`, `verdicts.py`, `suggestions.py`, `lineage.py`, `calibrate.py`, `insights.py`, `github.py`, `tokens.py` | The data layer and services, by area |
-| `src/sopops/cli.py`, `mcp_server.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild, patterns rename) and `sopops-mcp` |
+| `src/sopops/cli.py` | `sopops` (serve, import, worker, recluster, calibrate, pr-status, lineage rebuild, patterns rename) |
 | `web/` | The UI; `web/src/client` is generated from the OpenAPI spec |
-| `sdks/python`, `sdks/node` | The client SDKs |
+| `sdks/python`, `sdks/node` | The client SDKs; `sdks/python` also holds `sopops-mcp` (`sopops_client.mcp`, the `mcp` extra) |
 | `skills/sopops-onboard` | The onboarding skill coding agents follow |
 | `examples/` | [walkthrough](examples/walkthrough/WALKTHROUGH.md), [livekit-restaurant](examples/livekit-restaurant), [elevenlabs-web](examples/elevenlabs-web), [import-sessions](examples/import-sessions) |
 
@@ -373,7 +373,7 @@ pnpm -C web install && pnpm -C web dev       # the UI on :5173, proxying /v1 to 
 | `uv run pytest` | Backend tests, on SQLite. `SOPOPS_TEST_DATABASE_URL=postgresql://…` runs them on Postgres. Hatchet isn't needed. |
 | `uv run sopops import FILE.jsonl -w WS` | Import sessions. |
 | `uv run sopops worker` | The Hatchet worker, with `HATCHET_CLIENT_TOKEN` set. |
-| `uv run sopops-mcp` | The onboarding MCP server (stdio), as Claude Code or Codex runs it. |
+| `uv run sopops-mcp` | The onboarding MCP server (stdio), as Claude Code or Codex runs it (installed in the dev environment from `sdks/python`). |
 | `pnpm -C web build` | Typecheck and build the UI into `web/dist`, which `sopops` serves. |
 | `pnpm -C web gen:api` | Regenerate the typed client (`web/src/client`) from the API's OpenAPI spec. Commit it with the API change. |
 | `uv run alembic revision --autogenerate -m "…"` | A new migration after changing a table in `orm/`. |

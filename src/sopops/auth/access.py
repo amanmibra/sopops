@@ -51,13 +51,15 @@ ROUTES: dict[str, str] = {
     "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
     "password_login": OPEN, "first_account": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
     "set_password": OPEN, "lookup_join_link": OPEN, "join_with_link": OPEN,
+    "onboarding_skill": OPEN,  # SKILL.md, the same text the repo publishes
     # signed in, with or without a membership
     "sign_out": SIGNED_IN, "accept_invite": SIGNED_IN, "switch_org": SIGNED_IN, "change_password": SIGNED_IN, "accept_join_link": SIGNED_IN,
     # tokens: ingest (sessions), runtime (served calls), onboarding (a coding agent through sopops-mcp)
     "ingest_session": TOKEN, "open_session": TOKEN, "append_session_events": TOKEN, "close_session": TOKEN,
     "record_served": TOKEN,
     "onboarding_session": TOKEN, "onboarding_progress": TOKEN, "onboarding_push": TOKEN, "onboarding_pull_request": TOKEN,
-    "onboarding_open_pull_request": TOKEN, "onboarding_check": TOKEN,
+    "onboarding_open_pull_request": TOKEN, "onboarding_check": TOKEN, "onboarding_kickoff": TOKEN, "onboarding_guide": TOKEN,
+    "onboarding_extraction": TOKEN, "onboarding_project": TOKEN,
     # prompt fetches: an agent's runtime token, or someone signed in looking
     "get_agent": TOKEN_OR_SESSION, "get_prompt": TOKEN_OR_SESSION, "get_sop": TOKEN_OR_SESSION,
     # webhooks, signed by the platform

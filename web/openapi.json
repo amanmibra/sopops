@@ -11226,6 +11226,267 @@
         }
       }
     },
+    "/v1/onboarding/kickoff": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Kickoff",
+        "description": "How to onboard this project's agents (the sopops-onboard skill), and this session's workspace, server and mode:\nwhat sopops-mcp's `get_kickoff` returns.",
+        "operationId": "onboarding_kickoff",
+        "parameters": [
+          {
+            "name": "server_url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 1024
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The URL the agent reaches sopops at, to name in the instructions.",
+              "title": "Server Url"
+            },
+            "description": "The URL the agent reaches sopops at, to name in the instructions."
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KickoffOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/guide": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Guide",
+        "description": "The extraction rules, and the JSON schemas of a proposal and a finding.",
+        "operationId": "onboarding_guide",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuideOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/skill": {
+      "get": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Skill",
+        "description": "The sopops-onboard skill (SKILL.md), for `sopops-mcp install-skill` to copy into a repo.",
+        "operationId": "onboarding_skill",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SkillOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/extraction": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Extraction",
+        "description": "Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify\nand structure itself. No model is called. Stores nothing.",
+        "operationId": "onboarding_extraction",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/onboarding/project": {
+      "post": {
+        "tags": [
+          "onboarding"
+        ],
+        "summary": "Onboarding Project",
+        "description": "A proposal as a sopc project's files, written with sopc, and `sopc validate` on them. Stores nothing.",
+        "operationId": "onboarding_project",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/onboarding/progress": {
       "post": {
         "tags": [
@@ -14565,6 +14826,133 @@
         ],
         "title": "ExampleOut"
       },
+      "ExtractionIn": {
+        "properties": {
+          "prompts": {
+            "items": {
+              "$ref": "#/components/schemas/SourcePrompt"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Prompts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompts"
+        ],
+        "title": "ExtractionIn"
+      },
+      "ExtractionInput": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id"
+          },
+          "tools": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tools"
+          },
+          "units": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionUnit"
+            },
+            "type": "array",
+            "title": "Units"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "platform",
+          "platform_id",
+          "tools",
+          "units"
+        ],
+        "title": "ExtractionInput"
+      },
+      "ExtractionOut": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "const": "host",
+            "title": "Mode"
+          },
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The guide, then how to classify units and structure procedures."
+          },
+          "inputs": {
+            "items": {
+              "$ref": "#/components/schemas/ExtractionInput"
+            },
+            "type": "array",
+            "title": "Inputs"
+          },
+          "originals": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Originals",
+            "description": "Each agent's original prompt, by agent id."
+          },
+          "proposal_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Proposal Schema"
+          },
+          "next": {
+            "type": "string",
+            "title": "Next"
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode",
+          "instructions",
+          "inputs",
+          "originals",
+          "proposal_schema",
+          "next"
+        ],
+        "title": "ExtractionOut"
+      },
+      "ExtractionUnit": {
+        "properties": {
+          "n": {
+            "type": "integer",
+            "title": "N"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "n",
+          "text"
+        ],
+        "title": "ExtractionUnit"
+      },
       "FailingRule": {
         "properties": {
           "rule_id": {
@@ -15300,6 +15688,32 @@
           "blocks"
         ],
         "title": "GroupIn"
+      },
+      "GuideOut": {
+        "properties": {
+          "guide": {
+            "type": "string",
+            "title": "Guide",
+            "description": "How to turn agent prompts into a proposal."
+          },
+          "proposal_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Proposal Schema"
+          },
+          "finding_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Finding Schema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "guide",
+          "proposal_schema",
+          "finding_schema"
+        ],
+        "title": "GuideOut"
       },
       "HTTPValidationError": {
         "properties": {
@@ -16450,6 +16864,20 @@
           "mcp_source"
         ],
         "title": "Kickoff"
+      },
+      "KickoffOut": {
+        "properties": {
+          "instructions": {
+            "type": "string",
+            "title": "Instructions",
+            "description": "The sopops-onboard skill, then this session: workspace, server, mode, and in repo mode what to do there."
+          }
+        },
+        "type": "object",
+        "required": [
+          "instructions"
+        ],
+        "title": "KickoffOut"
       },
       "LadderRow": {
         "properties": {
@@ -19828,6 +20256,55 @@
         },
         "type": "object",
         "title": "ProjectImport"
+      },
+      "ProjectIn": {
+        "properties": {
+          "proposal": {
+            "$ref": "#/components/schemas/ProposalContent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "proposal"
+        ],
+        "title": "ProjectIn"
+      },
+      "ProjectOut": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Files",
+            "description": "The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/."
+          },
+          "issues": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Issues",
+            "description": "Problems that kept items from being written."
+          },
+          "validation": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Validation",
+            "description": "`sopc validate` on the files."
+          }
+        },
+        "type": "object",
+        "required": [
+          "files",
+          "issues",
+          "validation"
+        ],
+        "title": "ProjectOut"
       },
       "Proposal": {
         "properties": {
@@ -25150,6 +25627,25 @@
           "issues"
         ],
         "title": "SinceWritten"
+      },
+      "SkillOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "SKILL.md, with its frontmatter."
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "text"
+        ],
+        "title": "SkillOut"
       },
       "SourcePrompt": {
         "properties": {

@@ -14,20 +14,20 @@ The sopops **Import agents** page (Use Claude Code / Codex) gives you one comman
 ```sh
 # Claude Code
 claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp
+  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
 # Codex
 codex mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp
+  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
 ```
 
 Cursor (`.cursor/mcp.json`):
 
 ```json
-{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "git+https://github.com/amanmibra/sopops@main", "sopops-mcp"],
+{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"],
   "env": {"SOPOPS_URL": "https://sopops.example", "SOPOPS_TOKEN": "sopops_onb_..."}}}}
 ```
 
-Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from those platforms (read-only keys are enough), `SOPC_BIN` for a local sopc, `SOPOPS_MODEL_REASONING` to let sopops extract with its own model. Without `SOPOPS_URL`/`SOPOPS_TOKEN`, everything but `push_to_sopops` and `report_progress` still works locally.
+`sopops-mcp` is in the sopops client SDK (`sopops-client`, its `mcp` extra) and does its compiling and checking through the sopops server, so it needs `SOPOPS_URL` and `SOPOPS_TOKEN`; without them only the platform tools work. Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from those platforms (read-only keys are enough).
 
 ## Tools
 
@@ -37,11 +37,11 @@ Optional environment: `ELEVENLABS_API_KEY` / `VAPI_API_KEY` to read agents from 
 | `get_extraction_guide()` | The extraction rules, the proposal's JSON schema, and the session (workspace, hosted or repo mode). |
 | `list_platform_agents(platform)` | ElevenLabs or Vapi agents, with the key from the environment. |
 | `get_agent_prompt(platform, id)` | One agent's prompt and tool names. |
-| `propose_extraction(prompts)` | sopops's extraction if a model is configured here; otherwise the instructions plus each prompt split into numbered units for you to classify. |
+| `propose_extraction(prompts)` | The instructions plus each prompt split into numbered units for you to classify, and the originals by agent id. |
 | `check_fidelity(proposal, originals)` | Compiles each agent with sopc and lists missing or changed sentences against its original. |
 | `push_to_sopops(proposal, originals, findings?, notes?)` | Sends the proposal for review. Each push replaces the last. Nothing is published. |
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
-| `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`). |
+| `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`), as sopops's sopc writes it, with `sopc validate`'s result. |
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
 | `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |
 

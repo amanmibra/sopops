@@ -2680,7 +2680,6 @@ dependencies = [
     { name = "dspy" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "mcp" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "sqlalchemy" },
     { name = "sqlmodel" },
@@ -2708,6 +2707,7 @@ dev = [
     { name = "httpx2" },
     { name = "pytest" },
     { name = "respx" },
+    { name = "sopops-client", extra = ["mcp"] },
 ]
 
 [package.metadata]
@@ -2722,7 +2722,6 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "livekit", marker = "extra == 'livekit'", specifier = ">=1.0" },
     { name = "livekit-api", marker = "extra == 'livekit'", specifier = ">=1.0" },
-    { name = "mcp", specifier = ">=2.3,<3" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
     { name = "sqlalchemy", specifier = ">=2.0" },
@@ -2738,6 +2737,35 @@ dev = [
     { name = "httpx2" },
     { name = "pytest", specifier = ">=8" },
     { name = "respx", specifier = ">=0.23.1" },
+    { name = "sopops-client", extras = ["mcp"], editable = "sdks/python" },
+]
+
+[[package]]
+name = "sopops-client"
+version = "0.1.0"
+source = { editable = "sdks/python" }
+dependencies = [
+    { name = "httpx" },
+]
+
+[package.optional-dependencies]
+mcp = [
+    { name = "mcp" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "httpx", specifier = ">=0.27" },
+    { name = "livekit-agents", marker = "extra == 'livekit'", specifier = ">=1.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.3,<3" },
+]
+provides-extras = ["livekit", "mcp"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mcp", specifier = ">=2.3,<3" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "respx", specifier = ">=0.22" },
 ]
 
 [[package]]

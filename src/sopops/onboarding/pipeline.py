@@ -33,6 +33,7 @@ from .types import (
     Finding,
     ProcedureDraft,
     Proposal,
+    ProposalContent,
     ProposedAgent,
     ProposedGroup,
     ProposedInstruction,
@@ -90,6 +91,24 @@ class VarSlot:
     values: dict[str, str]  # agent -> value
     context: str  # the template around it, for naming
     policy: bool
+
+
+def host_extraction(sources: list[SourcePrompt]) -> dict:
+    """What a coding agent needs to extract prompts itself (sopops-mcp's `propose_extraction`): the instructions, and each
+    prompt split into numbered units for it to classify and structure."""
+    ids = agent_ids(sources)
+    return {
+        "mode": "host",
+        "instructions": guide_text() + "\n\n## How to classify\n\n" + SegmentPrompt.instructions + "\n\n## Procedures\n\n" + StructureProcedure.instructions,
+        "inputs": [
+            {"id": i, "name": s.name, "platform": s.platform, "platform_id": s.platform_id or i, "tools": s.tools,
+             "units": [{"n": n + 1, "text": u} for n, u in enumerate(tx.split_units(s.prompt))]}
+            for i, s in zip(ids, sources)
+        ],
+        "originals": {i: s.prompt for i, s in zip(ids, sources)},
+        "proposal_schema": ProposalContent.model_json_schema(),
+        "next": "Build the proposal from these units, then call check_fidelity(proposal, originals).",
+    }
 
 
 def agent_ids(sources: list[SourcePrompt]) -> list[str]:

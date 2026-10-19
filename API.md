@@ -145,7 +145,7 @@ Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`
 | Kind | Needs | Endpoints |
 |---|---|---|
 | open | nothing | `/v1/auth/session`, `/v1/auth/login/<provider>`, `/v1/auth/callback/<provider>`, `POST /v1/auth/email`, `POST /v1/auth/email/confirm`, `POST /v1/auth/invites/lookup`, `POST /v1/auth/invites/join`, `POST /v1/auth/password/{login,first-account,email,link,set}`, `POST /v1/auth/join/lookup`, `POST /v1/auth/join`, `/healthz`, `/docs`, `/openapi.json`, the web UI's files |
-| token | the endpoint's own token, no login | `POST …/sessions` (and `…/open`, `…/events`, `…/close`): `ingest`. `POST …/runtime/served`: `runtime`. `/v1/onboarding/{session,progress,proposal,pull-request,pull-request/open,fidelity}`: `onboarding:write` |
+| token | the endpoint's own token, no login | `POST …/sessions` (and `…/open`, `…/events`, `…/close`): `ingest`. `POST …/runtime/served`: `runtime`. `/v1/onboarding/{session,kickoff,guide,extraction,project,progress,proposal,pull-request,pull-request/open,fidelity}`: `onboarding:write` |
 | webhook | the sender's signature or secret, no login | `POST /v1/github/webhook`, `…/capture/livekit/webhook`, `…/capture/elevenlabs/post-call`, `…/runtime/elevenlabs/conversation-init`, `…/runtime/vapi/assistant-request` |
 | token or session | a `runtime` token, or a login session | `GET …/agents/<agent>`, `…/prompt`, `…/sops/<id>`. With sign-in on these always need one, even before the workspace has a runtime token |
 | signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept`, `POST /v1/auth/join/accept`, `POST /v1/auth/password/change` |
@@ -507,8 +507,13 @@ With `Authorization: Bearer <onboarding token>` (scope `onboarding:write`, one w
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/onboarding/session` | The workspace, import and mode the token is for; in repo mode the repository, branch, folder, what the folder held, and `pr_url`. |
+| `GET /v1/onboarding/kickoff?server_url=` | `{instructions}`: the sopops-onboard skill and this session (what `get_kickoff` returns). |
+| `GET /v1/onboarding/guide` | `{guide, proposal_schema, finding_schema}`: the extraction rules and the JSON schemas. |
+| `POST /v1/onboarding/extraction` | `{prompts: [{name, platform, platform_id, prompt, tools}]}`: the instructions, each prompt split into numbered units for the agent to classify, and `originals` by agent id. No model is called; nothing stored. |
+| `POST /v1/onboarding/project` | `{proposal}`: the proposal as a sopc project's files (`{files, issues, validation}`), written and checked with sopc; nothing stored. |
 | `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
 | `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal; returns fidelity. |
 | `POST /v1/onboarding/fidelity` | `{proposal, originals}`: fidelity only, nothing stored. |
+| `GET /v1/onboarding/skill` | `{name, text}`: SKILL.md, for `sopops-mcp install-skill`. No token. |
 | `POST /v1/onboarding/pull-request` | `{url}`: repo mode, the onboarding pull request the agent opened (`400` unless it's a pull request in the connected repository). sopops follows it from then on. |
 | `POST /v1/onboarding/pull-request/open` | `{description?}`: repo mode through the GitHub App (`repo_auth: "app"` in the session): sopops opens the onboarding pull request itself from the pushed proposal, and follows it. `POST …/imports/<id>/pull-request` does the same from the UI. |

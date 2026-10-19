@@ -330,6 +330,11 @@ class Onboarding:
         proposal = fidelity.check(proposal, self.store.sopc)
         return {"fidelity": [f.model_dump() for f in proposal.fidelity], "issues": [i.model_dump() for i in proposal.issues]}
 
+    def project_files(self, content: ProposalContent) -> dict:
+        """The proposal as sopc files (each read back with sopc), what kept items out, and sopc's checks on them."""
+        files, issues = fidelity.files_of(content, self.store.sopc.export)
+        return {"files": files, "issues": [i.to_dict() for i in issues], "validation": [i.to_dict() for i in self.store.sopc.validate(files)]}
+
     # --- review ------------------------------------------------------------------------
 
     def update(self, workspace: str, id: str, content: ProposalContent) -> dict:

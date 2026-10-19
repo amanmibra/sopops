@@ -13,7 +13,6 @@ dependencies = [
     "httpx>=0.28.1",
     "cryptography>=50.0.2",
     "pyjwt[crypto]>=2.10",  # signs the GitHub App's JWT (RS256)
-    "mcp>=2.3,<3",
     "websockets>=14",  # ElevenLabs' monitor socket (Enterprise live monitoring)
     # Model calls as typed DSPy signatures (src/sopops/ai); pinned, upgrade deliberately. DSPy uses LiteLLM as its
     # fallback client: pinned below with hashes in uv.lock (1.82.7 and 1.82.8 on PyPI were compromised, March 2026).
@@ -41,13 +40,16 @@ jev = [
 
 [project.scripts]
 sopops = "sopops.cli:main"
-sopops-mcp = "sopops.mcp_server:main"
 
 [tool.uv]
 constraint-dependencies = ["litellm==1.105.1"]
 
+[tool.uv.sources]
+sopops-client = { path = "sdks/python", editable = true }
+
 [dependency-groups]
-dev = ["pytest>=8", "httpx2", "respx>=0.23.1"]
+# sopops-client[mcp]: tests/test_mcp.py runs sopops-mcp against the app in-process.
+dev = ["pytest>=8", "httpx2", "respx>=0.23.1", "sopops-client[mcp]"]
 
 [build-system]
 requires = ["hatchling"]

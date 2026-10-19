@@ -2,16 +2,17 @@
 
 The coding agent finds each agent's prompt wherever it lives (code, config, a database, a platform), turns the prompts
 into a proposal (agent context, shared instructions, procedures, variables), checks fidelity, and pushes the proposal to
-sopops for review. Optionally it writes the same proposal as a sopc project into the repo.
+sopops for review. Optionally it writes the same proposal as a sopc project into the repo. sopops does the compiling and
+checking over its HTTP API (`/v1/onboarding`); this server only reads platforms and writes files locally.
+
+Install with the `mcp` extra: `uvx --from "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python" sopops-mcp`.
 
 Environment (set by the MCP host, e.g. `claude mcp add sopops --env SOPOPS_URL=... --env SOPOPS_TOKEN=... -- ...`):
 
 | Variable | Used for |
 |---|---|
-| `SOPOPS_URL`, `SOPOPS_TOKEN` | The sopops server and an onboarding token from its Import agents page. Without them, only the local tools work. |
+| `SOPOPS_URL`, `SOPOPS_TOKEN` | The sopops server and an onboarding token from its Import agents page. Without them, only the platform tools work. |
 | `ELEVENLABS_API_KEY`, `VAPI_API_KEY` | Reading agents from those platforms (read-only). |
-| `SOPC_BIN` | A local sopc binary, for `check_fidelity` and `write_sopc_project` without a server. |
-| `SOPOPS_MODEL_REASONING`, `SOPOPS_MODEL_FAST` | Optional: let `propose_extraction` run sopops's own extraction locally. Without them, it returns the instructions and the host agent does the reasoning. |
 """
 
 from __future__ import annotations
@@ -19,28 +20,26 @@ from __future__ import annotations
 import argparse
 import functools
 import os
-import shutil
 import sys
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, TypeVar
 
 import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
-from pydantic import ValidationError
 
-from .ai.lm import AI, RULES, Models, model_for
-from .ai.signatures import SegmentPrompt, StructureProcedure
-from .onboarding import fidelity, kickoff, platforms
-from .onboarding import text as tx
-from .onboarding.fidelity import files_of
-from .onboarding.pipeline import extract, guide_text
-from .onboarding.rules import RulesModels
-from .onboarding.types import Finding, Proposal, ProposalContent, SourcePrompt
-from .sopc import Invalid, Sopc, SopcUnavailable
+from . import platforms
 
 INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_kickoff and follow it. Only read from the user's systems and platforms;
 never change, deploy or delete anything there. Report progress with report_progress as you go."""
+NOT_CONNECTED = "Not connected to sopops: set SOPOPS_URL and SOPOPS_TOKEN (create a token on the Import agents page)."
+SKILL_DIRS = {"claude": Path(".claude/skills"), "codex": Path(".agents/skills")}  # Codex (and OpenCode) read .agents/skills
+
+USAGE = """usage: sopops-mcp                  the onboarding MCP server on stdio, as Claude Code or Codex runs it
+       sopops-mcp install-skill    copy the sopops-onboard skill into this repo (--claude, --codex, --url URL)
+"""
+
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 class SopopsClient:
@@ -55,11 +54,15 @@ class SopopsClient:
     def connected(self) -> bool:
         return bool(self.url and self.token)
 
-    def call(self, method: str, path: str, body: Any = None) -> Any:
+    def call(self, method: str, path: str, body: Any = None, params: dict[str, str] | None = None) -> Any:
         if not self.connected:
-            raise RuntimeError("Not connected to sopops: set SOPOPS_URL and SOPOPS_TOKEN (create a token on the Import agents page).")
-        with httpx.Client(base_url=self.url or "", timeout=120, transport=self.transport, headers={"Authorization": f"Bearer {self.token}"}) as c:
-            res = c.request(method, path, json=body)
+            raise RuntimeError(NOT_CONNECTED)
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            with httpx.Client(base_url=self.url or "", timeout=120, transport=self.transport, headers=headers) as c:
+                res = c.request(method, path, json=body, params=params)
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"couldn't reach sopops at {self.url}: {type(e).__name__}") from None
         if res.status_code >= 400:
             try:
                 detail = res.json().get("detail", res.text)
@@ -79,26 +82,17 @@ def _key(platform: str, env: dict[str, str]) -> str:
     return key
 
 
-def _sopc(env: dict[str, str]) -> Sopc | None:
-    binary = env.get("SOPC_BIN") or shutil.which("sopc")
-    return Sopc(binary) if binary and Path(binary).exists() else None
-
-
-def _content(proposal: dict) -> ProposalContent:
-    return ProposalContent.model_validate(proposal)
-
-
-def _explained(fn: Callable) -> Callable:
+def _explained(fn: F) -> F:
     """Errors the host agent can act on reach it as tool errors with their message (others stay on the server)."""
 
     @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return fn(*args, **kwargs)
-        except (RuntimeError, ValueError, platforms.PlatformError, Invalid, SopcUnavailable, ValidationError) as e:
+        except (RuntimeError, ValueError) as e:
             raise ToolError(str(e)) from e
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTransport | None = None, platform_transport: httpx.BaseTransport | None = None) -> MCPServer:
@@ -111,98 +105,59 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     def get_kickoff() -> str:
         """Start here: how to onboard this project's agents into sopops (the sopops-onboard skill), and this session's
         workspace, server and mode."""
-        session = None
-        if sopops.connected:
-            session = {**sopops.call("GET", "/v1/onboarding/session"), "server_url": sopops.url}
-        return kickoff.instructions(session)
+        got: dict[str, Any] = sopops.call("GET", "/v1/onboarding/kickoff", params={"server_url": sopops.url or ""})
+        return str(got["instructions"])
 
     @server.tool()
     @_explained
-    def get_extraction_guide() -> dict:
+    def get_extraction_guide() -> dict[str, Any]:
         """How to turn agent prompts into a sopops proposal (context, shared instructions, procedures, variables, drift),
-        the proposal's JSON schema, and the onboarding session (workspace, hosted or repo mode) if connected."""
-        session = None
-        if sopops.connected:
-            try:
-                session = sopops.call("GET", "/v1/onboarding/session")
-            except RuntimeError as e:
-                session = {"error": str(e)}
-        return {
-            "guide": guide_text(),
-            "proposal_schema": ProposalContent.model_json_schema(),
-            "finding_schema": Finding.model_json_schema(),
-            "session": session,
-            "connected": sopops.connected,
-        }
+        the proposal's JSON schema, and the onboarding session (workspace, hosted or repo mode)."""
+        guide: dict[str, Any] = sopops.call("GET", "/v1/onboarding/guide")
+        return {**guide, "session": sopops.call("GET", "/v1/onboarding/session"), "connected": True}
 
     @server.tool()
     @_explained
-    def list_platform_agents(platform: str) -> list[dict]:
+    def list_platform_agents(platform: str) -> list[dict[str, Any]]:
         """Agents on ElevenLabs or Vapi ([{id, name}]), read with the key in the MCP server's environment. Read-only."""
         return platforms.list_agents(platform, _key(platform, env), platform_transport)
 
     @server.tool()
     @_explained
-    def get_agent_prompt(platform: str, id: str) -> dict:
+    def get_agent_prompt(platform: str, id: str) -> dict[str, Any]:
         """One ElevenLabs or Vapi agent's prompt and tool names: {name, platform, platform_id, prompt, tools, notes}. Read-only."""
         return platforms.get_agent(platform, _key(platform, env), id, platform_transport)
 
     @server.tool()
     @_explained
-    def propose_extraction(prompts: list[dict]) -> dict:
-        """Start a proposal from agent prompts: [{name, platform, platform_id, prompt, tools}].
-        With a model configured for sopops in this environment, sopops extracts it and returns `proposal`.
-        Otherwise it returns `instructions` and the prompts split into numbered units for you to classify yourself."""
-        sources = [SourcePrompt.model_validate(p) for p in prompts]
-        ai = _ai_for(env)
-        if ai is not None:
-            proposal = extract(sources, ai, _sopc(env))
-            return {"mode": "extracted", "proposal": proposal.model_dump(mode="json")}
-        ids = [tx.unique(tx.slug(s.name, "agent"), set()) for s in sources]
-        return {
-            "mode": "host",
-            "instructions": guide_text() + "\n\n## How to classify\n\n" + SegmentPrompt.instructions + "\n\n## Procedures\n\n" + StructureProcedure.instructions,
-            "inputs": [
-                {"id": i, "name": s.name, "platform": s.platform, "platform_id": s.platform_id or i, "tools": s.tools,
-                 "units": [{"n": n + 1, "text": u} for n, u in enumerate(tx.split_units(s.prompt))]}
-                for i, s in zip(ids, sources)
-            ],
-            "originals": {i: s.prompt for i, s in zip(ids, sources)},
-            "proposal_schema": ProposalContent.model_json_schema(),
-            "next": "Build the proposal from these units, then call check_fidelity(proposal, originals).",
-        }
+    def propose_extraction(prompts: list[dict[str, Any]]) -> dict[str, Any]:
+        """Start a proposal from agent prompts: [{name, platform, platform_id, prompt, tools}]. Returns `instructions`
+        and the prompts split into numbered units for you to classify, and each agent's original prompt (`originals`)."""
+        out: dict[str, Any] = sopops.call("POST", "/v1/onboarding/extraction", {"prompts": prompts})
+        return out
 
     @server.tool()
     @_explained
-    def check_fidelity(proposal: dict, originals: dict[str, str]) -> dict:
+    def check_fidelity(proposal: dict[str, Any], originals: dict[str, str]) -> dict[str, Any]:
         """Compile each proposed agent with sopc and compare it with its original prompt, sentence by sentence.
         Returns per agent: ok, score (share of sentences kept), missing and changed sentences, and sopc's issues."""
-        content = _content(proposal)
-        if sopops.connected:
-            return sopops.call("POST", "/v1/onboarding/fidelity", {"proposal": content.model_dump(mode="json"), "originals": originals})
-        sopc = _sopc(env)
-        if sopc is None:
-            raise RuntimeError("No sopops connection and no sopc binary: set SOPOPS_URL and SOPOPS_TOKEN, or install sopc (SOPC_BIN).")
-        checked = fidelity.check(Proposal(**content.model_dump(), originals=originals), sopc)
-        return {"fidelity": [f.model_dump(exclude={"compiled"}) for f in checked.fidelity], "issues": [i.model_dump() for i in checked.issues]}
+        out: dict[str, Any] = sopops.call("POST", "/v1/onboarding/fidelity", {"proposal": proposal, "originals": originals})
+        return out
 
     @server.tool()
     @_explained
-    def push_to_sopops(proposal: dict, originals: dict[str, str], findings: list[dict] | None = None, notes: list[str] | None = None) -> dict:
+    def push_to_sopops(proposal: dict[str, Any], originals: dict[str, str], findings: list[dict[str, Any]] | None = None, notes: list[str] | None = None) -> dict[str, Any]:
         """Send the proposal to sopops for the user to review and apply as drafts. Pushing again replaces the last push.
         Nothing is published. Needs SOPOPS_URL and SOPOPS_TOKEN."""
-        body = {
-            "proposal": _content(proposal).model_dump(mode="json"), "originals": originals,
-            "findings": [Finding.model_validate(f).model_dump(mode="json") for f in findings or []], "notes": notes or [],
-        }
-        out = sopops.call("PUT", "/v1/onboarding/proposal", body)
+        body = {"proposal": proposal, "originals": originals, "findings": findings or [], "notes": notes or []}
+        out: dict[str, Any] = sopops.call("PUT", "/v1/onboarding/proposal", body)
         session = sopops.call("GET", "/v1/onboarding/session")
         out["review"] = f"{sopops.url}/w/{session['workspace']}/import/{session['import_id']}"
         return out
 
     @server.tool()
     @_explained
-    def report_progress(step: str, message: str) -> dict:
+    def report_progress(step: str, message: str) -> dict[str, Any]:
         """Tell the person watching the sopops Import agents page what you're doing (one short sentence)."""
         if not sopops.connected:
             return {"ok": False, "reason": "not connected to sopops (no SOPOPS_URL/SOPOPS_TOKEN); progress is only shown in sopops"}
@@ -211,7 +166,7 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
-    def report_pull_request(url: str) -> dict:
+    def report_pull_request(url: str) -> dict[str, Any]:
         """Repo mode: tell sopops the URL of the onboarding pull request you opened (adding the sopc project). sopops
         follows it, and pulls the folder into drafts when the user merges it."""
         got = sopops.call("POST", "/v1/onboarding/pull-request", {"url": url})
@@ -219,7 +174,7 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
-    def open_pull_request(description: str = "") -> dict:
+    def open_pull_request(description: str = "") -> dict[str, Any]:
         """Repo mode, when the kickoff says sopops opens the pull request (a GitHub App connection): sopops writes your
         pushed proposal as a sopc project at the connected folder, opens the onboarding pull request, and follows it.
         Push the proposal first. Don't run git or gh for it."""
@@ -228,48 +183,69 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
-    def write_sopc_project(proposal: dict, path: str = "sops") -> dict:
+    def write_sopc_project(proposal: dict[str, Any], path: str = "sops") -> dict[str, Any]:
         """Write the proposal as a sopc project (sopc.yaml, instructions/, procedures/, agents/) at `path`, relative to the
-        current directory. Existing files with the same names are overwritten; other files are left alone."""
-        content = _content(proposal)
-        sopc = _sopc(env)
-        files, issues = files_of(content, sopc.export if sopc else None)
+        current directory. sopops writes the files with sopc and checks them. Existing files with the same names are
+        overwritten; other files are left alone."""
+        got = sopops.call("POST", "/v1/onboarding/project", {"proposal": proposal})
         root = Path(path).expanduser()
         if not root.is_absolute():
             root = Path(os.getcwd()) / root
         written = []
-        for rel, text in sorted(files.items()):
-            dest = root / rel
+        for rel, text in sorted(got["files"].items()):
+            dest = (root / rel).resolve()
+            if not dest.is_relative_to(root.resolve()):
+                raise ValueError(f"sopops sent a file outside {root}: {rel}")
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(text)
             written.append(str(dest))
-        validation = None
-        if sopc is not None:
-            validation = [i.to_dict() for i in sopc.validate(files)]
-        return {"written": written, "issues": [i.to_dict() for i in issues], "sopc_validate": validation}
+        return {"written": written, "issues": got["issues"], "sopc_validate": got["validation"]}
 
     return server
 
 
-def _ai_for(env: dict[str, str]) -> AI | None:
-    model = model_for("reasoning", env)
-    if model == RULES:
-        return RulesModels()
-    return Models({"reasoning": model, "fast": model_for("fast", env) or model}) if model else None
+def install_skill(root: Path, agents: list[str], url: str, transport: httpx.BaseTransport | None = None) -> list[Path]:
+    """Copy the sopops-onboard skill (SKILL.md, from the sopops server at `url`, so it matches that server) into the repo
+    at `root` for each agent (`claude`, `codex`). Returns the files written."""
+    try:
+        with httpx.Client(base_url=url.rstrip("/"), timeout=30, transport=transport) as c:
+            res = c.get("/v1/onboarding/skill")
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"couldn't reach sopops at {url}: {type(e).__name__}") from None
+    if res.status_code >= 400:
+        raise RuntimeError(f"sopops answered {res.status_code} for the skill")
+    skill = res.json()
+    out = []
+    for agent in agents:
+        target = root / SKILL_DIRS[agent] / skill["name"] / "SKILL.md"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(skill["text"])
+        out.append(target)
+    return out
 
 
 def main(argv: list[str] | None = None) -> None:
-    """`sopops-mcp`: the MCP server on stdio. `sopops-mcp install-skill [--claude] [--codex]`: copy the onboarding skill
-    into this repo (.claude/skills, .agents/skills; both by default)."""
+    """`sopops-mcp`: the MCP server on stdio. `sopops-mcp install-skill [--claude] [--codex] [--url URL]`: copy the
+    onboarding skill into this repo (.claude/skills, .agents/skills; both by default)."""
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["install-skill"]:
         parser = argparse.ArgumentParser(prog="sopops-mcp install-skill", description="Copy the sopops-onboard skill into this repo.")
         parser.add_argument("--claude", action="store_true", help="Claude Code: .claude/skills/sopops-onboard/SKILL.md")
         parser.add_argument("--codex", action="store_true", help="Codex (and OpenCode): .agents/skills/sopops-onboard/SKILL.md")
+        parser.add_argument("--url", default=os.environ.get("SOPOPS_URL"), help="The sopops server to copy it from (default: SOPOPS_URL).")
         args = parser.parse_args(argv[1:])
+        if not args.url:
+            parser.error("pass --url or set SOPOPS_URL to your sopops server")
         agents = [a for a in ("claude", "codex") if getattr(args, a)] or ["claude", "codex"]
-        for path in kickoff.install_skill(Path.cwd(), agents):
+        try:
+            paths = install_skill(Path.cwd(), agents, args.url)
+        except RuntimeError as e:
+            parser.exit(1, f"sopops-mcp: {e}\n")
+        for path in paths:
             print(f"wrote {path}")
+        return
+    if argv[:1] in (["-h"], ["--help"]):
+        print(USAGE, end="")
         return
     make_server().run("stdio")
 

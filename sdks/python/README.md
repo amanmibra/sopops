@@ -4,6 +4,7 @@ The Python client for [sopops](../../README.md): fetch an agent's instructions w
 
 ```sh
 pip install "sopops-client[livekit]"     # or plain sopops-client without the LiveKit adapter
+pip install "sopops-client[mcp]"         # sopops-mcp, the onboarding MCP server for Claude Code or Codex
 ```
 
 It's not on PyPI yet; install from a clone with `pip install "./sdks/python[livekit]"`. The import name is `sopops_client` (the `sopops` name is the server).
@@ -68,6 +69,17 @@ await sopops.post_session(full_session)
 `Sopops.open_session` and `Sopops.append_events` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`). Streaming needs the `ingest` scope, like posting.
 
 The session format is in [API.md](../../API.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops_client.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
+
+## sopops-mcp (onboarding)
+
+`sopops-mcp` is the MCP server a coding agent (Claude Code, Codex) runs to onboard existing agents into sopops. The sopops Import page gives you the command, with your server and a 2-hour onboarding token filled in:
+
+```sh
+claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
+  -- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+```
+
+It reads ElevenLabs and Vapi agents locally (`ELEVENLABS_API_KEY`, `VAPI_API_KEY`, read-only) and writes the sopc project into the repo; everything else (the kickoff, the extraction guide, compiling, fidelity, pushing) goes to the sopops server's `/v1/onboarding` endpoints with `SOPOPS_URL` and `SOPOPS_TOKEN`. `sopops-mcp install-skill --url URL` copies the server's sopops-onboard skill into the repo (`--claude`, `--codex`).
 
 ## Development
 

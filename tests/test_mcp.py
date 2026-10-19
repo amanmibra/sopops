@@ -1,16 +1,19 @@
-"""sopops-mcp: every tool, against a sopops app in-process and fake platforms. No network, no real keys."""
+"""sopops-mcp (in the client SDK, sopops_client.mcp): every tool, against a sopops app in-process and fake platforms.
+No network, no real keys."""
 
 import asyncio
 import json
 
 import httpx
 import pytest
-from conftest import SOPC_BIN, WS
+from conftest import WS
 from fastapi.testclient import TestClient
 from mcp.server.mcpserver.exceptions import ToolError
+from sopops_client.mcp import install_skill, make_server
 from test_onboarding import FIXTURES, sources
 
-from sopops.mcp_server import make_server
+from sopops.onboarding.pipeline import extract
+from sopops.onboarding.rules import RulesModels
 
 TOOLS = {"get_kickoff", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project"}
 
@@ -36,32 +39,44 @@ def prompts():
     return [s.model_dump() for s in sources()]
 
 
+def built_proposal() -> dict:
+    """What the host agent builds from the units (here, the rule-based models)."""
+    return extract(sources(), RulesModels()).model_dump(mode="json")
+
+
+def connected(client):
+    started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
+    server = make_server({"SOPOPS_URL": "http://sopops.test", "SOPOPS_TOKEN": started["token"]}, transport=to_app(client))
+    return started, server
+
+
 def test_lists_its_tools():
     tools = asyncio.run(make_server({}).list_tools())
     assert {t.name for t in tools} == TOOLS
 
 
-def test_without_sopops_or_a_model_the_host_does_the_reasoning(tmp_path, monkeypatch):
-    env = {"SOPC_BIN": SOPC_BIN}
-    server = make_server(env)
-    guide = call(server, "get_extraction_guide")
-    assert "Preserve wording" in guide["guide"] and guide["connected"] is False and "agents" in guide["proposal_schema"]["properties"]
-    host = call(server, "propose_extraction", prompts=prompts())
-    assert host["mode"] == "host" and "## How to classify" in host["instructions"]
-    assert host["inputs"][0]["id"] == "marios-pizzeria" and host["inputs"][0]["units"][0]["n"] == 1
+def test_without_sopops_only_the_platform_tools_work():
+    server = make_server({})
     assert call(server, "report_progress", step="x", message="y")["ok"] is False
-    with pytest.raises(ToolError, match="Not connected"):
-        call(server, "push_to_sopops", proposal={}, originals={})
+    for tool, args in (("get_kickoff", {}), ("get_extraction_guide", {}), ("propose_extraction", {"prompts": prompts()}),
+                       ("check_fidelity", {"proposal": {}, "originals": {}}), ("push_to_sopops", {"proposal": {}, "originals": {}})):
+        with pytest.raises(ToolError, match="Not connected"):
+            call(server, tool, **args)
     with pytest.raises(ToolError, match="ELEVENLABS_API_KEY"):
         call(server, "list_platform_agents", platform="elevenlabs")
 
 
-def test_local_extraction_fidelity_and_sopc_project(tmp_path, monkeypatch):
+def test_extraction_fidelity_and_sopc_project_through_sopops(client, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    server = make_server({"SOPC_BIN": SOPC_BIN, "SOPOPS_MODEL_REASONING": "rules"})
-    out = call(server, "propose_extraction", prompts=prompts())
-    assert out["mode"] == "extracted"
-    proposal = out["proposal"]
+    _, server = connected(client)
+    guide = call(server, "get_extraction_guide")
+    assert "Preserve wording" in guide["guide"] and guide["connected"] is True and "agents" in guide["proposal_schema"]["properties"]
+    assert guide["session"]["workspace"] == "demo"
+    host = call(server, "propose_extraction", prompts=prompts())
+    assert host["mode"] == "host" and "## How to classify" in host["instructions"]
+    assert host["inputs"][0]["id"] == "marios-pizzeria" and host["inputs"][0]["units"][0]["n"] == 1
+    assert set(host["originals"]) == {i["id"] for i in host["inputs"]}
+    proposal = built_proposal()
     fid = call(server, "check_fidelity", proposal=proposal, originals=proposal["originals"])
     assert [f["ok"] for f in fid["fidelity"]] == [True] * 4
     written = call(server, "write_sopc_project", proposal=proposal, path="sops")
@@ -71,13 +86,11 @@ def test_local_extraction_fidelity_and_sopc_project(tmp_path, monkeypatch):
 
 
 def test_push_and_progress_through_sopops(client):
-    started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
-    server = make_server({"SOPOPS_URL": "http://sopops.test", "SOPOPS_TOKEN": started["token"], "SOPOPS_MODEL_REASONING": "rules", "SOPC_BIN": SOPC_BIN}, transport=to_app(client))
-    assert call(server, "get_extraction_guide")["session"]["workspace"] == "demo"
+    started, server = connected(client)
     kick = call(server, "get_kickoff")
     assert "# Onboard voice agents into sopops" in kick and "Workspace: `demo`" in kick and "http://sopops.test" in kick
     assert call(server, "report_progress", step="find", message="Found 4 prompts in prompts/")["ok"]
-    proposal = call(server, "propose_extraction", prompts=prompts())["proposal"]
+    proposal = built_proposal()
     remote = call(server, "check_fidelity", proposal=proposal, originals=proposal["originals"])
     assert all(f["ok"] for f in remote["fidelity"])
     pushed = call(server, "push_to_sopops", proposal=proposal, originals=proposal["originals"], findings=proposal["findings"])
@@ -87,6 +100,18 @@ def test_push_and_progress_through_sopops(client):
     got = client.get(f"{WS}/imports/{started['import']['id']}").json()
     assert got["status"] == "ready" and len(got["proposal"]["agents"]) == 4
     assert "Found 4 prompts" in json.dumps(client.get(f"{WS}/imports/{started['import']['id']}/events").json())
+
+
+def test_onboarding_endpoints_need_the_token(client):
+    for method, path, body in (("GET", "/v1/onboarding/kickoff", None), ("GET", "/v1/onboarding/guide", None),
+                               ("POST", "/v1/onboarding/extraction", {"prompts": prompts()}), ("POST", "/v1/onboarding/project", {"proposal": {}})):
+        assert client.request(method, path, json=body).status_code == 401, path
+
+
+def test_install_skill_copies_the_servers_skill(client, tmp_path):
+    written = install_skill(tmp_path, ["claude", "codex"], "http://sopops.test", transport=to_app(client))
+    assert [p.relative_to(tmp_path).as_posix() for p in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md"]
+    assert written[0].read_text().startswith("---\nname: sopops-onboard")
 
 
 def test_platform_tools_read_with_env_keys():

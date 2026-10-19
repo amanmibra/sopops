@@ -1714,6 +1714,98 @@ export type ExampleOut = {
 };
 
 /**
+ * ExtractionIn
+ */
+export type ExtractionIn = {
+    /**
+     * Prompts
+     */
+    prompts: Array<SourcePrompt>;
+};
+
+/**
+ * ExtractionInput
+ */
+export type ExtractionInput = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Platform
+     */
+    platform: string;
+    /**
+     * Platform Id
+     */
+    platform_id: string;
+    /**
+     * Tools
+     */
+    tools: Array<string>;
+    /**
+     * Units
+     */
+    units: Array<ExtractionUnit>;
+};
+
+/**
+ * ExtractionOut
+ */
+export type ExtractionOut = {
+    /**
+     * Mode
+     */
+    mode: 'host';
+    /**
+     * Instructions
+     *
+     * The guide, then how to classify units and structure procedures.
+     */
+    instructions: string;
+    /**
+     * Inputs
+     */
+    inputs: Array<ExtractionInput>;
+    /**
+     * Originals
+     *
+     * Each agent's original prompt, by agent id.
+     */
+    originals: {
+        [key: string]: string;
+    };
+    /**
+     * Proposal Schema
+     */
+    proposal_schema: {
+        [key: string]: unknown;
+    };
+    /**
+     * Next
+     */
+    next: string;
+};
+
+/**
+ * ExtractionUnit
+ */
+export type ExtractionUnit = {
+    /**
+     * N
+     */
+    n: number;
+    /**
+     * Text
+     */
+    text: string;
+};
+
+/**
  * FailingRule
  */
 export type FailingRule = {
@@ -2116,6 +2208,30 @@ export type GroupIn = {
      * Shared instructions, procedures and other groups, in order.
      */
     blocks: Array<string>;
+};
+
+/**
+ * GuideOut
+ */
+export type GuideOut = {
+    /**
+     * Guide
+     *
+     * How to turn agent prompts into a proposal.
+     */
+    guide: string;
+    /**
+     * Proposal Schema
+     */
+    proposal_schema: {
+        [key: string]: unknown;
+    };
+    /**
+     * Finding Schema
+     */
+    finding_schema: {
+        [key: string]: unknown;
+    };
 };
 
 /**
@@ -2825,6 +2941,18 @@ export type Kickoff = {
      * Mcp Source
      */
     mcp_source: string;
+};
+
+/**
+ * KickoffOut
+ */
+export type KickoffOut = {
+    /**
+     * Instructions
+     *
+     * The sopops-onboard skill, then this session: workspace, server, mode, and in repo mode what to do there.
+     */
+    instructions: string;
 };
 
 /**
@@ -4758,6 +4886,43 @@ export type ProjectImport = {
      * Author
      */
     author?: string | null;
+};
+
+/**
+ * ProjectIn
+ */
+export type ProjectIn = {
+    proposal: ProposalContent;
+};
+
+/**
+ * ProjectOut
+ */
+export type ProjectOut = {
+    /**
+     * Files
+     *
+     * The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/.
+     */
+    files: {
+        [key: string]: string;
+    };
+    /**
+     * Issues
+     *
+     * Problems that kept items from being written.
+     */
+    issues: Array<{
+        [key: string]: unknown;
+    }>;
+    /**
+     * Validation
+     *
+     * `sopc validate` on the files.
+     */
+    validation: Array<{
+        [key: string]: unknown;
+    }>;
 };
 
 /**
@@ -7826,6 +7991,22 @@ export type SinceWritten = {
      * `conflict`: sopc's errors with the merged file, or why there's nothing to merge into.
      */
     issues: string | null;
+};
+
+/**
+ * SkillOut
+ */
+export type SkillOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Text
+     *
+     * SKILL.md, with its frontmatter.
+     */
+    text: string;
 };
 
 /**
@@ -16010,6 +16191,153 @@ export type OnboardingSessionResponses = {
 };
 
 export type OnboardingSessionResponse = OnboardingSessionResponses[keyof OnboardingSessionResponses];
+
+export type OnboardingKickoffData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Server Url
+         *
+         * The URL the agent reaches sopops at, to name in the instructions.
+         */
+        server_url?: string | null;
+    };
+    url: '/v1/onboarding/kickoff';
+};
+
+export type OnboardingKickoffErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingKickoffError = OnboardingKickoffErrors[keyof OnboardingKickoffErrors];
+
+export type OnboardingKickoffResponses = {
+    /**
+     * Successful Response
+     */
+    200: KickoffOut;
+};
+
+export type OnboardingKickoffResponse = OnboardingKickoffResponses[keyof OnboardingKickoffResponses];
+
+export type OnboardingGuideData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/guide';
+};
+
+export type OnboardingGuideErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingGuideError = OnboardingGuideErrors[keyof OnboardingGuideErrors];
+
+export type OnboardingGuideResponses = {
+    /**
+     * Successful Response
+     */
+    200: GuideOut;
+};
+
+export type OnboardingGuideResponse = OnboardingGuideResponses[keyof OnboardingGuideResponses];
+
+export type OnboardingSkillData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/skill';
+};
+
+export type OnboardingSkillResponses = {
+    /**
+     * Successful Response
+     */
+    200: SkillOut;
+};
+
+export type OnboardingSkillResponse = OnboardingSkillResponses[keyof OnboardingSkillResponses];
+
+export type OnboardingExtractionData = {
+    body: ExtractionIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/extraction';
+};
+
+export type OnboardingExtractionErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingExtractionError = OnboardingExtractionErrors[keyof OnboardingExtractionErrors];
+
+export type OnboardingExtractionResponses = {
+    /**
+     * Successful Response
+     */
+    200: ExtractionOut;
+};
+
+export type OnboardingExtractionResponse = OnboardingExtractionResponses[keyof OnboardingExtractionResponses];
+
+export type OnboardingProjectData = {
+    body: ProjectIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/v1/onboarding/project';
+};
+
+export type OnboardingProjectErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingProjectError = OnboardingProjectErrors[keyof OnboardingProjectErrors];
+
+export type OnboardingProjectResponses = {
+    /**
+     * Successful Response
+     */
+    200: ProjectOut;
+};
+
+export type OnboardingProjectResponse = OnboardingProjectResponses[keyof OnboardingProjectResponses];
 
 export type OnboardingProgressData = {
     body: ProgressIn;

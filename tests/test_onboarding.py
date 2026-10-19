@@ -402,18 +402,19 @@ def test_stream_sends_progress_then_ends(client):
     assert "event: progress" in body and "Reading agents/" in body and '"status": "discarded"' in body
 
 
-def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monkeypatch, tmp_path):
+def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monkeypatch):
     monkeypatch.delenv("SOPOPS_MCP_SOURCE", raising=False)
     k = kickoff.kickoff("prod", "https://sopops.example/", "sopops_onb_abc")
     assert k["claude_code"] == (
         "claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_abc "
-        "-- uvx --from git+https://github.com/amanmibra/sopops@main sopops-mcp "
+        "-- uvx --from 'sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp "
         "&& claude 'Onboard this project'\"'\"'s agents into sopops: call the sopops get_kickoff tool and follow it.'"
     )
     assert k["codex"].startswith("codex mcp add sopops --env SOPOPS_URL=https://sopops.example ") and "&& codex " in k["codex"]
     assert 'SOPOPS_TOKEN = "sopops_onb_abc"' in k["codex_toml"] and "[mcp_servers.sopops]" in k["codex_toml"]
-    monkeypatch.setenv("SOPOPS_MCP_SOURCE", "sopops==0.2.0")
-    assert "-- uvx --from sopops==0.2.0 sopops-mcp &&" in kickoff.kickoff("p", "http://x", "t")["claude_code"]
+    assert 'args = ["--from", "sopops-client[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"]' in k["codex_toml"]
+    monkeypatch.setenv("SOPOPS_MCP_SOURCE", "sopops-client[mcp]==0.2.0")
+    assert "-- uvx --from 'sopops-client[mcp]==0.2.0' sopops-mcp &&" in kickoff.kickoff("p", "http://x", "t")["claude_code"]
 
     skill = kickoff.skill_text()
     assert skill.startswith("---\nname: sopops-onboard") and "get_kickoff" in skill
@@ -426,9 +427,6 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
     valid = kickoff.instructions({**session, "repo_project": "valid"})
     assert "already holds a sopc project at `sops/` on `trunk`" in valid and "don't open a pull request" in valid and "report_pull_request" not in valid.split("## This session")[1]
     assert "pull request" not in kickoff.instructions({"workspace": "prod", "mode": "hosted"}) and "Not connected" in kickoff.instructions(None)
-    written = kickoff.install_skill(tmp_path, ["claude", "codex"])
-    assert [w.relative_to(tmp_path).as_posix() for w in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md"]
-    assert written[0].read_text() == skill
 
 
 # --- the review at scale -------------------------------------------------------------------------------------------

@@ -60,8 +60,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - run: uv run --python 3.12 pytest -q
-      - name: Types (strict, against livekit-agents)
-        run: uv run --python 3.12 --extra livekit --with mypy mypy --strict src
+      - name: Types (strict, against livekit-agents and mcp)
+        run: uv run --python 3.12 --extra livekit --extra mcp --with mypy mypy --strict src
 
   sdk-node:
     runs-on: ubuntu-latest

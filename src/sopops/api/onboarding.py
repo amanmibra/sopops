@@ -6,15 +6,16 @@ from __future__ import annotations
 import json
 import time
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 
 from .. import github
 from ..ai.lm import AIError, model_for
-from ..onboarding import platforms
+from ..onboarding import kickoff, platforms
+from ..onboarding.pipeline import guide_text, host_extraction
 from ..onboarding.review import ReviewError
 from ..onboarding.service import DONE, Onboarding
-from ..onboarding.types import ProposalContent, SourcePrompt
+from ..onboarding.types import Finding, ProposalContent, SourcePrompt
 from ..schemas.onboarding import (
     AgentImportOut,
     AgentImportRequest,
@@ -24,14 +25,20 @@ from ..schemas.onboarding import (
     CreateImport,
     DecisionIn,
     EventOut,
+    ExtractionIn,
+    ExtractionOut,
     FidelityIn,
     FidelityOut,
+    GuideOut,
     ImportOut,
+    KickoffOut,
     OpenPullRequestIn,
     OriginalsIn,
     PlatformAgent,
     PlatformAgentsRequest,
     ProgressIn,
+    ProjectIn,
+    ProjectOut,
     PullRequestIn,
     ProjectImport,
     PushIn,
@@ -39,6 +46,7 @@ from ..schemas.onboarding import (
     ResolveRequest,
     ReviewOut,
     SessionInfo,
+    SkillOut,
     VariableEdit,
 )
 from ..store import Store
@@ -229,6 +237,39 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         """The workspace and mode an onboarding token is for, and in repo mode the connected repository, branch and
         folder, what the folder held, and the onboarding pull request once reported."""
         return onboarding.session(agent(authorization))
+
+    @r.get("/v1/onboarding/kickoff", response_model=KickoffOut)
+    def onboarding_kickoff(
+        authorization: str | None = Header(None),
+        server_url: str | None = Query(None, max_length=1024, description="The URL the agent reaches sopops at, to name in the instructions."),
+    ) -> dict:
+        """How to onboard this project's agents (the sopops-onboard skill), and this session's workspace, server and mode:
+        what sopops-mcp's `get_kickoff` returns."""
+        return {"instructions": kickoff.instructions({**onboarding.session(agent(authorization)), "server_url": server_url})}
+
+    @r.get("/v1/onboarding/guide", response_model=GuideOut)
+    def onboarding_guide(authorization: str | None = Header(None)) -> dict:
+        """The extraction rules, and the JSON schemas of a proposal and a finding."""
+        agent(authorization)
+        return {"guide": guide_text(), "proposal_schema": ProposalContent.model_json_schema(), "finding_schema": Finding.model_json_schema()}
+
+    @r.get("/v1/onboarding/skill", response_model=SkillOut)
+    def onboarding_skill() -> dict:
+        """The sopops-onboard skill (SKILL.md), for `sopops-mcp install-skill` to copy into a repo."""
+        return {"name": kickoff.SKILL_NAME, "text": kickoff.skill_text()}
+
+    @r.post("/v1/onboarding/extraction", response_model=ExtractionOut)
+    def onboarding_extraction(req: ExtractionIn, authorization: str | None = Header(None)) -> dict:
+        """Prompts to extract: the instructions, and each prompt split into numbered units for the coding agent to classify
+        and structure itself. No model is called. Stores nothing."""
+        agent(authorization)
+        return host_extraction(req.prompts)
+
+    @r.post("/v1/onboarding/project", response_model=ProjectOut)
+    def onboarding_project(req: ProjectIn, authorization: str | None = Header(None)) -> dict:
+        """A proposal as a sopc project's files, written with sopc, and `sopc validate` on them. Stores nothing."""
+        agent(authorization)
+        return onboarding.project_files(req.proposal)
 
     @r.post("/v1/onboarding/progress", response_model=EventOut)
     def onboarding_progress(req: ProgressIn, authorization: str | None = Header(None)) -> dict:
