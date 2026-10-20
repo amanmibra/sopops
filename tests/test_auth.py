@@ -1051,7 +1051,7 @@ def test_who_can_make_reset_links(pw_owner, pw_app):
 
 
 def test_the_cli_prints_a_reset_link(pw_owner, pw_app, capsys, monkeypatch):
-    url = str(pw_app.state.store.engine.url)
+    url = pw_app.state.store.engine.url.render_as_string(hide_password=False)  # str() masks a Postgres password
     cli.main(["reset-password", "ANA@example.com", "--database-url", url, "--url", "https://sopops.example/"])
     out = capsys.readouterr().out
     token = PW_LINK.search(out).group(1)

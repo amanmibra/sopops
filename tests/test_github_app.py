@@ -3,6 +3,7 @@ sync between drafts and the repository. GitHub is the in-memory fake of test_git
 
 import json
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qs, urlparse
@@ -15,6 +16,7 @@ from conftest import WS
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from sopops_server import github, github_app, repo_sync
@@ -560,13 +562,20 @@ def test_repo_events_reach_the_live_stream(client, gh):
     connect_app(client)
     store = store_of(client)
     seen: list[dict] = []
-    stop = store.sessions.broker.subscribe("demo", seen.append)
-    try:
-        client.post(f"{WS}/repo/sync")
-        client.post(f"{WS}/files", json={"changes": {"instructions/closing.md": "Mine.\n"}})
-        push(client, gh, {"sops/instructions/closing.md": "Theirs.\n"})
-    finally:
-        stop()
+    with TestClient(client.app) as live:  # runs the lifespan, which starts the Postgres listener
+        listener = getattr(live.app.state, "pg_listener", None)
+        if listener:
+            assert listener.ready.wait(5)
+        stop = store.sessions.broker.subscribe("demo", seen.append)
+        try:
+            client.post(f"{WS}/repo/sync")
+            client.post(f"{WS}/files", json={"changes": {"instructions/closing.md": "Mine.\n"}})
+            push(client, gh, {"sops/instructions/closing.md": "Theirs.\n"})
+            deadline = time.time() + 5  # on Postgres the events come back through LISTEN, on another thread
+            while len([e for e in seen if e.get("topic") == "repo"]) < 3 and time.time() < deadline:
+                time.sleep(0.05)
+        finally:
+            stop()
     kinds = [e["kind"] for e in seen if e.get("topic") == "repo"]
     assert kinds == ["synced", "synced", "conflict"]
     assert seen[-1]["paths"] == ["instructions/closing.md"]
