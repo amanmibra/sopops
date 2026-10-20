@@ -8,7 +8,7 @@ import { ArrowLeft, BookOpen, Check, FlaskConical } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import type { InsightFilters, VersionOut, VersionProcedure, VersionProcedureCell, VersionRule, VersionRuleCell, VersionsResponse } from "@/lib/api";
 import { q } from "@/lib/api";
-import { fmtPct, insightsHref, ruleName, windowPhrase } from "@/lib/insights";
+import { fmtPct, insightsHref, ruleName } from "@/lib/insights";
 import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
