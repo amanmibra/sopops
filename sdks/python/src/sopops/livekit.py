@@ -10,7 +10,8 @@
 
 `attach` fetches the instructions (honoring a release pinned in job or room metadata), keeps the release in
 `session.userdata`, and at shutdown posts the session (`session.history` with timestamps and tool calls) to
-sopops. With `stream=True` it also sends each turn and tool call as it happens. Nothing here imports livekit at
+sopops, with what it ran with: the session's LLM, STT and TTS models and voice (`agent_config`), so sopops can
+compare an agent's versions with no extra setup. `test=` names an A/B test and `config=` adds settings. With `stream=True` it also sends each turn and tool call as it happens. Nothing here imports livekit at
 import time; the objects are used through their documented attributes and events.
 """
 
@@ -84,6 +85,8 @@ async def attach(
     release: int | None = None,
     fallback: str | None = None,
     stream: bool = False,
+    test: str | None = None,
+    config: Mapping[str, Any] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> Instructions:
     """Fetch the agent's instructions, note the release in `session.userdata`, and post the session at shutdown.
@@ -93,13 +96,15 @@ async def attach(
     nothing is cached (see `Sopops.fetch_instructions`). Call it after `ctx.connect()` for room metadata.
 
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
+    `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
+    (`{"version": "v2", "turn_detection": "eou"}`); they win over what's read.
     `on_guidance`: not yet used: reserved for runtime guidance in a later version."""
     client = client or Sopops()
     agent = agent or f"livekit:{ctx.job.agent_name}"
     pin = release if release is not None else pinned_release(ctx)
     ins = await client.fetch_instructions(agent, pin, fallback=fallback)
     _remember(session, ins)
-    record_session(ctx, session, client=client, agent=ins.agent, stream=stream, on_guidance=on_guidance)
+    record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, on_guidance=on_guidance)
     return ins
 
 
@@ -110,6 +115,8 @@ def record_session(
     client: Sopops | None = None,
     agent: str | None = None,
     stream: bool = False,
+    test: str | None = None,
+    config: Mapping[str, Any] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> None:
     """Post `session.history` to sopops when the job shuts down, keyed by the job id (rooms get reused), with the
@@ -117,11 +124,11 @@ def record_session(
 
     `stream=True` also opens the session now and sends each turn and tool call as it happens, in batches from a
     background task (see `SessionStream`); it never blocks or raises into the agent. The full post at shutdown
-    still happens and replaces what was streamed. `on_guidance`: not yet used: reserved for runtime guidance in
+    still happens and replaces what was streamed. `test` and `config`: see `attach`. `on_guidance`: not yet used: reserved for runtime guidance in
     a later version."""
     client = client or Sopops()
     started = datetime.now(timezone.utc)
-    live = _stream(ctx, session, client, agent, started, on_guidance) if stream else None
+    live = _stream(ctx, session, client, agent, started, on_guidance, test, config) if stream else None
 
     async def send(reason: str = "") -> None:
         if live is not None:
@@ -139,6 +146,8 @@ def record_session(
                 "turns": turns,
                 "tool_calls": tool_calls,
                 "metadata": {"room": ctx.room.name, "shutdown_reason": reason},
+                "test": test,
+                "config": {**agent_config(session), **dict(config or {})},
             }
             # stay inside the job's shutdown budget (LiveKit's graceful shutdown is 10s by default)
             await client.post_session(body, retries=1, timeout=3.0)
@@ -149,7 +158,8 @@ def record_session(
 
 
 def _stream(
-    ctx: JobContext, session: AgentSession[Any], client: Sopops, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None
+    ctx: JobContext, session: AgentSession[Any], client: Sopops, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
+    test: str | None = None, config: Mapping[str, Any] | None = None,
 ) -> SessionStream:
     """Open a SessionStream for the job and feed it from the session's `conversation_item_added` and
     `function_tools_executed` events."""
@@ -164,6 +174,8 @@ def _stream(
             "release": _get(userdata, RELEASE_KEY),
             "started_at": started.isoformat(),
             "metadata": {"room": ctx.room.name},
+            "test": test,
+            "config": {**agent_config(session), **dict(config or {})},
         },
         on_guidance=on_guidance,
     )
@@ -203,6 +215,36 @@ def _stream(
     return live
 
 
+def agent_config(session: Any) -> dict[str, Any]:
+    """What an `AgentSession` runs with: `llm`, `stt`, `tts` as `<provider>/<model>` (LiveKit Inference models are
+    already written that way), and `voice` when the TTS keeps one. Whatever a plugin doesn't say is left out."""
+    out: dict[str, Any] = {}
+    for role in ("llm", "stt", "tts"):
+        try:
+            part = getattr(session, role, None)
+        except Exception:  # noqa: BLE001 - a property that can't answer leaves the setting out
+            part = None
+        if part is None:
+            continue
+        name = _model_name(getattr(part, "provider", None), getattr(part, "model", None))
+        if name:
+            out[role] = name
+        if role == "tts":
+            opts = getattr(part, "_opts", None)
+            voice = getattr(part, "voice", None) or getattr(opts, "voice", None) or getattr(opts, "voice_id", None)
+            if isinstance(voice, str) and voice:
+                out["voice"] = voice
+    return out
+
+
+def _model_name(provider: Any, model: Any) -> str | None:
+    model = model if isinstance(model, str) and model.lower() not in ("", "unknown") else None
+    provider = provider if isinstance(provider, str) and provider.lower() not in ("", "unknown", "livekit") else None
+    if not model:
+        return None
+    return model if "/" in model or not provider else f"{provider.lower()}/{model}"
+
+
 def _userdata(session: Any) -> Any:
     try:
         return session.userdata
@@ -228,4 +270,4 @@ def _remember(session: Any, ins: Instructions) -> None:
             log.warning("sopops: can't note the release on %s; add a %s field to it", type(userdata).__name__, RELEASE_KEY)
 
 
-__all__ = ["attach", "from_livekit", "pinned_release", "record_session"]
+__all__ = ["agent_config", "attach", "from_livekit", "pinned_release", "record_session"]

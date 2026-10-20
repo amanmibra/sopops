@@ -8,7 +8,7 @@ import httpx
 import respx
 
 from sopops import SessionStream, Sopops
-from sopops.livekit import attach, from_livekit
+from sopops.livekit import agent_config, attach, from_livekit
 
 URL = "http://sopops.test/v1/workspaces/prod"
 AGENT = {"agent": "tonys-pizza", "platform_ref": "livekit:tonys-pizza", "release": 3, "hash": "abc", "prompt": "You are Tony's.", "tools": [], "tool_sops": [], "components": []}
@@ -85,8 +85,41 @@ def test_attach_fetches_remembers_the_release_and_posts_at_shutdown(tmp_path):
     body = json.loads(post.calls.last.request.content)
     assert body["platform"] == "livekit" and body["external_id"] == "AJ_1" and body["agent"] == "tonys-pizza" and body["release"] == 3
     assert body["metadata"] == {"room": "room-1", "shutdown_reason": "user_left"}
+    assert body["test"] is None and body["config"] == {}  # this session's models don't say
     assert len(body["turns"]) == 4 and body["tool_calls"][0]["result"] == '{"ok": true}'
     assert post.calls.last.request.headers["Authorization"] == "Bearer tok"
+
+
+class Model:
+    def __init__(self, provider, model, **opts):
+        self.provider, self.model, self._opts = provider, model, SimpleNamespace(**opts)
+
+
+class ModelSession(Session):
+    def __init__(self, **parts):
+        super().__init__()
+        self.llm, self.stt, self.tts = parts.get("llm"), parts.get("stt"), parts.get("tts")
+
+
+def test_agent_config_reads_the_sessions_models():
+    s = ModelSession(llm=Model("livekit", "openai/gpt-4.1-mini"), stt=Model("deepgram", "nova-3"), tts=Model("cartesia", "sonic-2", voice="ava"))
+    assert agent_config(s) == {"llm": "openai/gpt-4.1-mini", "stt": "deepgram/nova-3", "tts": "cartesia/sonic-2", "voice": "ava"}
+    assert agent_config(ModelSession(llm=Model("unknown", "unknown"))) == {} and agent_config(Session()) == {}
+
+
+@respx.mock
+def test_attach_reports_the_models_test_and_config(tmp_path):
+    respx.get(f"{URL}/agents/livekit:tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
+    c, session = ctx(), ModelSession(llm=Model("anthropic", "claude-haiku-4-5"), tts=Model("cartesia", "sonic-2"))
+
+    async def call():
+        await attach(c, session, client=Sopops(URL, "tok", cache_dir=tmp_path), test="haiku-vs-gpt", config={"version": "v2", "tts": "cartesia/sonic-3"})
+        await c.callbacks[0]("user_left")
+
+    asyncio.run(call())
+    body = json.loads(post.calls.last.request.content)
+    assert body["test"] == "haiku-vs-gpt" and body["config"] == {"llm": "anthropic/claude-haiku-4-5", "tts": "cartesia/sonic-3", "version": "v2"}
 
 
 @respx.mock

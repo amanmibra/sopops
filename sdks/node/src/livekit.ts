@@ -8,7 +8,7 @@
  * This package doesn't depend on `@livekit/agents`; the shapes below are the parts of `JobContext` and
  * `voice.AgentSession` (v1) it reads.
  */
-import type { SessionIn, Sopops } from "./index.js";
+import type { AgentConfig, SessionIn, Sopops } from "./index.js";
 
 type Item = Record<string, any>;
 type Turn = NonNullable<SessionIn["turns"]>[number];
@@ -21,9 +21,19 @@ export interface LiveKitJobContext {
   addShutdownCallback(callback: () => Promise<void>): void;
 }
 
+/** A model as LiveKit plugins describe it. */
+interface LiveKitModel {
+  model?: string;
+  provider?: string;
+  voice?: unknown;
+}
+
 /** The parts of `voice.AgentSession` used here. */
 export interface LiveKitSession {
   history: { toJSON(options: { excludeTimestamp: boolean }): unknown };
+  llm?: LiveKitModel | null;
+  stt?: LiveKitModel | null;
+  tts?: LiveKitModel | null;
 }
 
 export interface RecordSessionOptions {
@@ -32,6 +42,38 @@ export interface RecordSessionOptions {
   agent?: string | null;
   /** The release the call ran on (`Instructions.release`). */
   release?: number | null;
+  /** An A/B test this call is part of. */
+  test?: string | null;
+  /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
+  config?: AgentConfig;
+}
+
+/**
+ * What the session runs with: `llm`, `stt`, `tts` as `<provider>/<model>`, and `voice` when the TTS says. Whatever
+ * a plugin doesn't say is left out.
+ */
+export function agentConfig(session: LiveKitSession): AgentConfig {
+  const out: AgentConfig = {};
+  for (const role of ["llm", "stt", "tts"] as const) {
+    let part: LiveKitModel | null | undefined;
+    try {
+      part = session[role];
+    } catch {
+      continue;
+    }
+    if (!part) continue;
+    const name = modelName(part.provider, part.model);
+    if (name) out[role] = name;
+    if (role === "tts" && typeof part.voice === "string" && part.voice) out.voice = part.voice;
+  }
+  return out;
+}
+
+function modelName(provider: unknown, model: unknown): string | null {
+  const m = typeof model === "string" && !["", "unknown"].includes(model.toLowerCase()) ? model : null;
+  const p = typeof provider === "string" && !["", "unknown", "livekit"].includes(provider.toLowerCase()) ? provider : null;
+  if (!m) return null;
+  return m.includes("/") || !p ? m : `${p.toLowerCase()}/${m}`;
 }
 
 /**
@@ -81,6 +123,8 @@ export function recordSession(ctx: LiveKitJobContext, session: LiveKitSession, o
           turns,
           tool_calls: toolCalls,
           metadata: { room: ctx.room.name },
+          test: options.test ?? null,
+          config: { ...agentConfig(session), ...(options.config ?? {}) },
         },
         // stay inside the job's shutdown budget
         { retries: 1, timeoutMs: 3000 },

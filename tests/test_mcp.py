@@ -17,7 +17,7 @@ from test_onboarding import FIXTURES, sources
 from sopops_server.onboarding.pipeline import extract
 from sopops_server.onboarding.rules import RulesModels
 
-TOOLS = {"get_kickoff", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project"}
+TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project"}
 
 
 def call(server, name, **args):
@@ -151,8 +151,9 @@ def test_onboarding_endpoints_need_the_token(client):
 
 def test_install_skill_copies_the_servers_skill(client, tmp_path):
     written = install_skill(tmp_path, ["claude", "codex"], "http://sopops.test", transport=to_app(client))
-    assert [p.relative_to(tmp_path).as_posix() for p in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md"]
-    assert written[0].read_text().startswith("---\nname: sopops-onboard")
+    assert [p.relative_to(tmp_path).as_posix() for p in written] == [".claude/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-onboard/SKILL.md",
+                                                                     ".claude/skills/sopops-ab-tests/SKILL.md", ".agents/skills/sopops-ab-tests/SKILL.md"]
+    assert written[0].read_text().startswith("---\nname: sopops-onboard") and written[2].read_text().startswith("---\nname: sopops-ab-tests")
 
 
 def test_platform_tools_read_with_env_keys():

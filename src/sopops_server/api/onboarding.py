@@ -12,6 +12,7 @@ from fastapi.responses import StreamingResponse
 from .. import github
 from ..errors import workspace_id
 from ..ai.lm import AIError, model_for
+from ..errors import NotFound
 from ..onboarding import kickoff, platforms
 from ..onboarding.pipeline import guide_text, host_extraction
 from ..onboarding.review import ReviewError
@@ -264,9 +265,12 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         return {"guide": guide_text(), "proposal_schema": ProposalContent.model_json_schema(), "finding_schema": Finding.model_json_schema()}
 
     @r.get("/v1/onboarding/skill", response_model=SkillOut)
-    def onboarding_skill() -> dict:
-        """The sopops-onboard skill (SKILL.md), for `sopops-mcp install-skill` to copy into a repo."""
-        return {"name": kickoff.SKILL_NAME, "text": kickoff.skill_text()}
+    def onboarding_skill(name: str = Query(kickoff.SKILL_NAME, description=f"One of {', '.join(kickoff.SKILLS)}.")) -> dict:
+        """A sopops skill (SKILL.md): `sopops-onboard` (default) or `sopops-ab-tests`, for `sopops-mcp install-skill` to copy
+        into a repo and for `get_ab_test_guide`."""
+        if name not in kickoff.SKILLS:
+            raise NotFound(f"no skill '{name}'; there are {', '.join(kickoff.SKILLS)}")
+        return {"name": name, "text": kickoff.skill_text(name)}
 
     @r.post("/v1/onboarding/extraction", response_model=ExtractionOut)
     def onboarding_extraction(req: ExtractionIn, rec: ImportRecord = Depends(caller)) -> dict:

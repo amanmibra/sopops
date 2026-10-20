@@ -20,6 +20,7 @@ from . import forms
 from .ai.keys import AIKeys
 from .auth import actor
 from .calibrate import Calibrate
+from .capture.agent_config import AgentSettings
 from .checks import Checks
 from .db import engine_from_url, upgrade
 from .errors import Conflict, NotFound, workspace_id
@@ -55,6 +56,7 @@ class Store:
         self.insights = Insights(self)
         self.usage = Usage(self)
         self.ai_keys = AIKeys(self)
+        self.agent_settings = AgentSettings(self)
         if migrate:
             upgrade(self.engine, self.sopc)
 

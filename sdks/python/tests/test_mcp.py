@@ -91,11 +91,28 @@ def test_platform_tools_need_no_server():
         call(server, "list_platform_agents", platform="livekit")
 
 
+def skill(request):
+    name = request.url.params["name"]
+    return httpx.Response(200, json={"name": name, "text": f"---\nname: {name}\n---\n# {name}\n"})
+
+
 @respx.mock
 def test_install_skill(tmp_path):
-    respx.get(f"{URL}/v1/onboarding/skill").mock(return_value=httpx.Response(200, json={"name": "sopops-onboard", "text": "---\nname: sopops-onboard\n---\n"}))
+    respx.get(f"{URL}/v1/onboarding/skill").mock(side_effect=skill)
     written = install_skill(tmp_path, ["codex"], URL)
-    assert [p.relative_to(tmp_path).as_posix() for p in written] == [".agents/skills/sopops-onboard/SKILL.md"]
+    assert [p.relative_to(tmp_path).as_posix() for p in written] == [".agents/skills/sopops-onboard/SKILL.md", ".agents/skills/sopops-ab-tests/SKILL.md"]
+
+
+@respx.mock
+def test_an_older_server_without_the_ab_tests_skill(tmp_path):
+    respx.get(f"{URL}/v1/onboarding/skill").mock(side_effect=lambda r: skill(r) if r.url.params["name"] == "sopops-onboard" else httpx.Response(404))
+    assert len(install_skill(tmp_path, ["claude"], URL)) == 1
+
+
+@respx.mock
+def test_ab_test_guide():
+    respx.get(f"{URL}/v1/onboarding/skill").mock(side_effect=skill)
+    assert call(make_server(ENV), "get_ab_test_guide") == "# sopops-ab-tests\n"
 
 
 def test_help(capsys):

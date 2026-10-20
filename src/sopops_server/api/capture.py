@@ -19,7 +19,7 @@ from fastapi.concurrency import run_in_threadpool
 from ..capture import LIVEKIT_KEY, LIVEKIT_SECRET, POSTCALL_SECRET, Capture, LiveRoomRef
 from ..capture import elevenlabs as el
 from ..capture import livekit as lk
-from ..capture import vapi
+from ..capture import agent_config, vapi
 from ..errors import workspace_id
 from ..jobs import Jobs
 from ..runtime.service import BadRequest
@@ -203,9 +203,12 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
             cap.note_event(ws, "elevenlabs")
 
         await run_in_threadpool(check)
-        session = el.post_call(_json_object(raw))
+        body = _json_object(raw)
+        session = el.post_call(body)
         if session is None:
             return {"status": "ignored"}
+        agent = await run_in_threadpool(store.agent_settings.get, ws, "elevenlabs", (body.get("data") or {}).get("agent_id"))
+        session.config = agent_config.elevenlabs(agent, el.call_override(body))
         done = await run_in_threadpool(store.sessions.ingest, ws, session)
         if done.changed:
             jobs.process_session(done.ref, background)
@@ -221,6 +224,10 @@ def vapi_message(store: Store, jobs: Jobs, workspace: str, message: dict, backgr
     kind = str(message.get("type") or "")
     if kind == "end-of-call-report":
         if (session := vapi.end_of_call(message)) is not None:
+            assistant, overrides = vapi.assistant_of(message)
+            if assistant is None:
+                assistant = store.agent_settings.get(workspace, "vapi", vapi.call_of(message).get("assistantId"))
+            session.config = agent_config.vapi(assistant, overrides)
             done = store.sessions.ingest(workspace, session)
             if done.changed:
                 jobs.process_session(done.ref, background)

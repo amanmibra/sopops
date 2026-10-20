@@ -382,6 +382,96 @@ class CompareResponse(BaseModel):
     timeline: list[ReleasePoint] = Field(description="Every release with sessions in the window, by the release each session ran.")
 
 
+Flag = Literal["thin", "regressed", "improved", "steady"]
+
+
+class VersionOut(BaseModel):
+    id: str = Field(description="Stable for the same agent, release and config.")
+    label: str = Field(description="A, B, C, ... by the version's first session ever (in the test, or the agent, when one is set).")
+    agent: str | None
+    release: int | None = Field(description="The sopops release, i.e. the prompt, it ran.")
+    config_hash: str | None = Field(description="Null: sessions that reported no config.")
+    config: dict[str, str | int | float | bool] = Field(description="`llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting.")
+    prompt: str | None = Field(description="The prompt text, when the config reported one.")
+    sessions: int = Field(description="In the window.")
+    checked: int = Field(description="Eligible sessions: their checks ran.")
+    first_at: datetime
+    last_at: datetime
+
+
+class VersionProcedureCell(BaseModel):
+    version: str
+    triggered: int = Field(description="Sessions this procedure applied to.")
+    trigger_rate: int | None = Field(description="triggered / the version's checked sessions.")
+    n: int = Field(description="Measurable checks.")
+    passes: int
+    pass_rate: int | None = Field(description="Followed / measurable.")
+    interval: Interval | None
+    followed: int
+    partial: int
+    deviated: int
+    not_measurable: int
+    goal_n: int
+    goal_met: int
+    goal_rate: int | None
+    thin: bool
+    delta_points: int | None = Field(description="Against the baseline, in points; null for the baseline or below min_n.")
+    flag: Flag | None = Field(description="Pass rate against the baseline; null for the baseline.")
+    goal_flag: Flag | None
+
+
+class VersionProcedure(BaseModel):
+    procedure_id: str
+    procedure_name: str
+    cells: list[VersionProcedureCell] = Field(description="One per selected version, in order.")
+
+
+class VersionRuleCell(BaseModel):
+    version: str
+    n: int = Field(description="Steps and never rules: passes + fails. Warning signs: every result.")
+    passes: int | None
+    fails: int | None
+    pass_rate: int | None
+    interval: Interval | None
+    thin: bool
+    counts: dict[str, int]
+    not_counted: int
+    present: int | None = Field(description="Warning signs: how often it showed up.")
+    present_rate: int | None
+    delta_points: int | None
+    flag: Flag | None
+
+
+class VersionRule(BaseModel):
+    procedure_id: str
+    lineage_id: str
+    rule_id: str
+    kind: RuleKind | None
+    index: int | None
+    text: str | None
+    cells: list[VersionRuleCell]
+
+
+class ABTestOut(BaseModel):
+    name: str
+    sessions: int
+    versions: int
+
+
+class VersionsResponse(BaseModel):
+    filters: FiltersOut
+    thresholds: Thresholds
+    max_versions: int
+    tests: list[ABTestOut] = Field(description="A/B tests with sessions in the window.")
+    versions: list[VersionOut] = Field(description="Every version with sessions in the window, by label.")
+    selected: list[str] = Field(description="The versions compared, the baseline first.")
+    baseline: str | None
+    differs: list[str] = Field(description="What isn't the same across the selected versions: `agent`, `release`, then config keys.")
+    untagged: int = Field(description="Sessions in the window that reported no config.")
+    procedures: list[VersionProcedure]
+    rules: list[VersionRule]
+
+
 class ReportHeadline(TilesValues):
     multi_problem_sessions: int
 

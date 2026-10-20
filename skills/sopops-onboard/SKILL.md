@@ -45,6 +45,7 @@ Cursor (`.cursor/mcp.json`):
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
 | `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`), as sopops's sopc writes it, with `sopc validate`'s result. |
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
+| `get_ab_test_guide()` | How to set up an A/B test of an agent's models, voice or instructions (the sopops-ab-tests skill). |
 | `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |
 
 ## Flow
@@ -58,6 +59,6 @@ Onboard this project's voice agents into the sopops workspace this session is fo
 5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
 6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
 
-Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score.
+Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score. Then offer to set up an A/B test of the agents' models, voices or instructions; if the user wants one, call `get_ab_test_guide` and follow it.
 
 Never change, deploy or delete anything on a platform or in a database, and never print or copy keys or the token.

@@ -239,9 +239,9 @@ A sender can also stream a session as it happens, then close it. Nothing is chec
 
 | Endpoint | What it does |
 |---|---|
-| `POST /v1/workspaces/{ws}/sessions/open` | `{platform, external_id, channel?, agent?, release?, version_ref?, started_at?, metadata?}`. Creates the session with status `open` (`201`), or returns the existing one (`200`). |
+| `POST /v1/workspaces/{ws}/sessions/open` | `{platform, external_id, channel?, agent?, release?, version_ref?, started_at?, metadata?, test?, config?}`. Creates the session with status `open` (`201`), or returns the existing one (`200`). |
 | `POST /v1/workspaces/{ws}/sessions/{platform}/{external_id}/events` | `{events: [{seq, type: turn \| tool_call, turn? \| tool_call?}]}`, up to 500. `seq` counts from 0 per session; a resent `seq` is ignored and events can arrive in any order (they're kept in `seq` order). Returns `{accepted, duplicates}`. Events for a session that has closed are ignored. `404` if it was never opened. |
-| `POST /v1/workspaces/{ws}/sessions/{platform}/{external_id}/close` | `{ended_at?, partial?}`. Closes it with what streamed in and runs `process_session`. |
+| `POST /v1/workspaces/{ws}/sessions/{platform}/{external_id}/close` | `{ended_at?, partial?, test?, config?}`; `config` is merged over the one sent at open. Closes it with what streamed in and runs `process_session`. |
 
 The full post to `POST /v1/workspaces/{ws}/sessions` still works at any point and wins: it replaces whatever streamed in. An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `incomplete` and checked, the next time that workspace opens a session or by the daily job. All three take the `ingest` token.
 
@@ -266,7 +266,9 @@ The full post to `POST /v1/workspaces/{ws}/sessions` still works at any point an
   "tool_calls": [
     {"name": "check_delivery_zone", "arguments": {"address": "221 Mercer St"}, "result": {"in_zone": true}, "offset_s": 15.1}
   ],
-  "metadata": {"room": "tp-delivery-8f2k1"}
+  "metadata": {"room": "tp-delivery-8f2k1"},
+  "test": "haiku-vs-gpt",
+  "config": {"llm": "anthropic/claude-haiku-4-5", "tts": "cartesia/sonic-2"}
 }
 ```
 
@@ -282,7 +284,9 @@ The full post to `POST /v1/workspaces/{ws}/sessions` still works at any point an
 | `partial` | The sender knows the transcript is incomplete; the status is then `incomplete`. |
 | `turns` | In order. `role`: `agent`, `user`, `tool` or `system` (`assistant`, `bot`, `human`, `customer`, `function` and similar are mapped). `text`. Time as `offset_s` (seconds since the start) or `at` (ISO 8601, or Unix seconds or milliseconds), which becomes `offset_s`. Other fields (`interrupted`, `name`, …) are kept. |
 | `tool_calls` | `{name, arguments, result, is_error, call_id, offset_s or at}`; other fields are kept. |
-| `metadata` | Anything else, as an object. |
+| `metadata` | Anything else, as an object. `sopops_*` keys are read as `test` (`sopops_test`) and config (`sopops_llm`, ...), and win over the fields below. |
+| `test` | An A/B test the session is part of (optional, up to 128 characters). |
+| `config` | What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `prompt` (a template built outside sopops), `version`, any other setting; scalars only. Up to 32 settings, keys up to 64 characters, values up to 1,024 (a prompt up to 65,536); one over a limit is left out with a warning. A prompt is stored once and its hash goes in the config. Stored with `config_hash`: sessions with the same agent, release and hash are one version ([A/B tests](docs/ab-tests.md)). ElevenLabs and Vapi captures fill it from the agent's settings; the Python and TypeScript LiveKit helpers from the `AgentSession`. |
 
 Processing (`process_session`) normalizes turns: canonical roles, `offset_s` from `at`, text trimmed, empty turns dropped (except tool turns), a turn that repeats the one before it dropped, sorted by time. Then it routes and checks the session ([SOP checks](#sop-checks)).
 
@@ -456,9 +460,10 @@ Every number comes from one module (`sopops.insights`) with one set of definitio
 | Percentages | Whole numbers, rounded half up, with their `n`; null (shown "—") when the denominator is 0. Rate deltas are in points; count deltas in %. |
 | Suppressed findings | A verdict or override says they aren't a problem ([Review](#review-and-suggestions)): left out of every count and rate, with procedure and session results rolled up without them; counted on their own as `suppressed`. |
 | Rules | Counted by lineage ([Rule lineage](#rule-lineage)): a reworded rule's results add up with its earlier wordings', under the wording sessions ran most recently (`rule_id`, `text`). Rows have `lineage_id`, `wording_history` (`[{rule_id, text, from_release}]`, oldest first; `from_release` is the release that published the wording, else the first a session ran it on) and `reworded_in` (the release that brought the current wording, null if never reworded). |
+| Versions | Sessions with the same agent, release and `config_hash` ([A/B tests](docs/ab-tests.md)), labeled A, B, C by their first session ever (in the test or agent, when set). |
 | Comparisons | 95% Wilson interval per rate. A side with n < 10 is `thin` and never flagged; `regressed` / `improved` need a change of 5 points or more and intervals that don't overlap. Releases are compared by the release each session ran, never by date. |
 
-All take the window filters plus `agent`, `procedure`, `release` (repeatable) and `channel`.
+All take the window filters plus `agent`, `procedure`, `release` (repeatable), `channel` and `test` (an A/B test's sessions).
 
 | Endpoint | What it returns |
 |---|---|
@@ -466,6 +471,7 @@ All take the window filters plus `agent`, `procedure`, `release` (repeatable) an
 | `GET /v1/workspaces/{ws}/insights/procedures/{id}` | Tiles, trend, the rule ladder (per rule: n, pass, fail and skip rates, not-counted share, warning-sign presence, findings, patterns), the release split (previous vs latest release in the window, per rule), warning-sign impact (pass rate with the sign present vs absent), and patterns by theme. |
 | `GET /v1/workspaces/{ws}/insights/procedures/{id}/rules/{rule_id}` | The rule across its wordings (`rule_id` is any of them): `wordings` (each with `rule_id`, `from_release`, first and last seen, results), `reworded_in`, its pass rate overall, per release and per agent (with intervals), its patterns, and the 5 most recent findings with their quotes. |
 | `GET /v1/workspaces/{ws}/insights/releases/compare?a=&b=` | Release B against A (default: the latest release with sessions in the window, and the one before): per procedure and per rule (by lineage), both rates with n and intervals, the delta in points (null under the minimum n), a flag, and whether the rule is new, removed or reworded (`rule_change: changed`, with A's wording in `a_text`, the release that brought B's wording in `reworded_in`, and every wording in `wording_history`). |
+| `GET /v1/workspaces/{ws}/insights/versions?v=` | A/B tests: every version in the window (`id`, `label`, agent, release, `config`, the prompt text if one was reported, sessions, checked, first and last call), the tests with sessions in it, `untagged` (sessions with no config), and up to 5 versions compared (`v`, repeatable, the baseline first; default the most-run, oldest first): `differs` (what isn't the same across them), then per procedure (triggered, pass rate, goal rate) and per rule (pass rate, or presence for warning signs), one cell per version with its delta and flag against the baseline. |
 | `GET /v1/workspaces/{ws}/insights/report` | The review report: headline numbers (plus sessions with problems on more than one rule), then per procedure its themes, each with its patterns: the rule they're about, failure modes, example phrasings and the sessions. |
 
 ## Model spend

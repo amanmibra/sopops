@@ -29,6 +29,8 @@ class SessionRecord(SQLModel, table=True):
         Index("ix_sessions_workspace_started", "workspace_id", "started_at"),
         Index("ix_sessions_workspace_release", "workspace_id", "release_id"),
         Index("ix_sessions_workspace_agent_started", "workspace_id", "agent_id", "started_at"),
+        Index("ix_sessions_workspace_config", "workspace_id", "config_hash"),
+        Index("ix_sessions_workspace_test", "workspace_id", "test"),
         ForeignKeyConstraint(["workspace_id"], ["workspaces.workspace"], name="fk_sessions_workspace"),
         ForeignKeyConstraint(["workspace_id", "release_id"], ["releases.workspace", "releases.number"], name="fk_sessions_release"),
     )
@@ -42,6 +44,10 @@ class SessionRecord(SQLModel, table=True):
     external_id: str = Field(max_length=256)
     release_id: int | None = Field(default=None, description="The sopops release the session ran on.")
     version_ref: str | None = Field(default=None, max_length=256, description="The platform's own version id.")
+    test: str | None = Field(default=None, max_length=128, description="The A/B test the session reported (`sopops_test`), if any.")
+    # What the agent ran with: {llm, stt, tts, voice, prompt (its hash), version, ...} (see sopops_server.configs)
+    config: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONDoc, nullable=True))
+    config_hash: str | None = Field(default=None, max_length=16, description="Identifies the config: same agent, release and hash = one version.")
     started_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     ended_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
     status: str = Field(max_length=16)  # open | received | routed | checked | excluded | incomplete | failed

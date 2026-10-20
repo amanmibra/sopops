@@ -100,7 +100,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         """Close an open session with what streamed in, and check it. A session that isn't open is left as is."""
         ingest_token(workspace, credentials)
         req = req or SessionClose()
-        done = store.sessions.close(workspace, platform, external_id, req.ended_at, req.partial)
+        done = store.sessions.close(workspace, platform, external_id, req.ended_at, req.partial, test=req.test, config=req.config)
         if done.changed:
             jobs.process_session(done.ref, background)
         return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}

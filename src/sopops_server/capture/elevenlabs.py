@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Callable
 import websockets
 from websockets.exceptions import ConnectionClosed, InvalidStatus
 
+from .. import configs
 from ..pipeline.types import IDLE_INCOMPLETE, SessionRef
 from ..runtime.platforms import base_url
 from ..schemas import SessionEventIn, SessionIn, SessionOpen
@@ -92,8 +93,17 @@ def post_call(body: dict) -> SessionIn | None:
     return SessionIn(
         platform=PLATFORM, external_id=str(data["conversation_id"]), agent=dyn.get("sopops_agent") or data.get("agent_id"), release=release,
         version_ref=str(version) if version else None, started_at=started, ended_at=ended, partial=data.get("status") == "failed",
-        turns=turns, tool_calls=tool_calls, metadata={k: v for k, v in keep.items() if v is not None},
+        turns=turns, tool_calls=tool_calls,
+        metadata={**{k: v for k, v in keep.items() if v is not None}, **{k: v for k, v in dyn.items() if k.startswith(configs.PREFIX) and k not in ("sopops_release", "sopops_agent")}},
     )
+
+
+def call_override(body: dict) -> dict:
+    """A conversation's `conversation_config_override` (its own voice or LLM), from a post-call webhook."""
+    data = body.get("data") if isinstance(body.get("data"), dict) else {}
+    init = data.get("conversation_initiation_client_data") if isinstance(data.get("conversation_initiation_client_data"), dict) else {}
+    o = init.get("conversation_config_override")
+    return o if isinstance(o, dict) else {}
 
 
 def convert(transcript: list[Any]) -> tuple[list[dict], list[dict]]:

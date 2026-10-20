@@ -5,6 +5,24 @@ export type ClientOptions = {
 };
 
 /**
+ * ABTestOut
+ */
+export type AbTestOut = {
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Sessions
+     */
+    sessions: number;
+    /**
+     * Versions
+     */
+    versions: number;
+};
+
+/**
  * AISettingsOut
  */
 export type AiSettingsOut = {
@@ -2091,6 +2109,10 @@ export type FiltersOut = {
      * Channel
      */
     channel: string | null;
+    /**
+     * Test
+     */
+    test: string | null;
 };
 
 /**
@@ -7483,6 +7505,20 @@ export type SessionClose = {
      * The sender knows the transcript is incomplete: the session's status is then `incomplete`.
      */
     partial?: boolean;
+    /**
+     * Test
+     *
+     * Set or replace the session's A/B test.
+     */
+    test?: string | null;
+    /**
+     * Config
+     *
+     * Settings learned during the call, merged over the ones sent at open.
+     */
+    config?: {
+        [key: string]: string | number | number | boolean | null;
+    } | null;
 };
 
 /**
@@ -7529,6 +7565,26 @@ export type SessionDetail = {
      * Version Ref
      */
     version_ref: string | null;
+    /**
+     * Test
+     *
+     * The A/B test the session reported.
+     */
+    test: string | null;
+    /**
+     * Config
+     *
+     * What the agent ran with; `prompt` is the prompt's hash.
+     */
+    config: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Config Hash
+     *
+     * Identifies the config: sessions with the same agent, release and hash are one version.
+     */
+    config_hash: string | null;
     /**
      * Started At
      */
@@ -7732,6 +7788,20 @@ export type SessionIn = {
     metadata?: {
         [key: string]: unknown;
     };
+    /**
+     * Test
+     *
+     * An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.
+     */
+    test?: string | null;
+    /**
+     * Config
+     *
+     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.
+     */
+    config?: {
+        [key: string]: string | number | number | boolean | null;
+    };
 };
 
 /**
@@ -7861,6 +7931,20 @@ export type SessionOpen = {
     metadata?: {
         [key: string]: unknown;
     };
+    /**
+     * Test
+     *
+     * An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.
+     */
+    test?: string | null;
+    /**
+     * Config
+     *
+     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.
+     */
+    config?: {
+        [key: string]: string | number | number | boolean | null;
+    };
 };
 
 /**
@@ -7947,6 +8031,26 @@ export type SessionSummary = {
      * Version Ref
      */
     version_ref: string | null;
+    /**
+     * Test
+     *
+     * The A/B test the session reported.
+     */
+    test: string | null;
+    /**
+     * Config
+     *
+     * What the agent ran with; `prompt` is the prompt's hash.
+     */
+    config: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Config Hash
+     *
+     * Identifies the config: sessions with the same agent, release and hash are one version.
+     */
+    config_hash: string | null;
     /**
      * Started At
      */
@@ -9719,6 +9823,342 @@ export type VerdictSaved = {
      * The suggestion queued for it, when `suggest` and the verdict calls for one.
      */
     suggestion: SuggestionSummary | null;
+};
+
+/**
+ * VersionOut
+ */
+export type VersionOut = {
+    /**
+     * Id
+     *
+     * Stable for the same agent, release and config.
+     */
+    id: string;
+    /**
+     * Label
+     *
+     * A, B, C, ... by the version's first session ever (in the test, or the agent, when one is set).
+     */
+    label: string;
+    /**
+     * Agent
+     */
+    agent: string | null;
+    /**
+     * Release
+     *
+     * The sopops release, i.e. the prompt, it ran.
+     */
+    release: number | null;
+    /**
+     * Config Hash
+     *
+     * Null: sessions that reported no config.
+     */
+    config_hash: string | null;
+    /**
+     * Config
+     *
+     * `llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting.
+     */
+    config: {
+        [key: string]: string | number | number | boolean;
+    };
+    /**
+     * Prompt
+     *
+     * The prompt text, when the config reported one.
+     */
+    prompt: string | null;
+    /**
+     * Sessions
+     *
+     * In the window.
+     */
+    sessions: number;
+    /**
+     * Checked
+     *
+     * Eligible sessions: their checks ran.
+     */
+    checked: number;
+    /**
+     * First At
+     */
+    first_at: string;
+    /**
+     * Last At
+     */
+    last_at: string;
+};
+
+/**
+ * VersionProcedure
+ */
+export type VersionProcedure = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string;
+    /**
+     * Cells
+     *
+     * One per selected version, in order.
+     */
+    cells: Array<VersionProcedureCell>;
+};
+
+/**
+ * VersionProcedureCell
+ */
+export type VersionProcedureCell = {
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * Triggered
+     *
+     * Sessions this procedure applied to.
+     */
+    triggered: number;
+    /**
+     * Trigger Rate
+     *
+     * triggered / the version's checked sessions.
+     */
+    trigger_rate: number | null;
+    /**
+     * N
+     *
+     * Measurable checks.
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number;
+    /**
+     * Pass Rate
+     *
+     * Followed / measurable.
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Followed
+     */
+    followed: number;
+    /**
+     * Partial
+     */
+    partial: number;
+    /**
+     * Deviated
+     */
+    deviated: number;
+    /**
+     * Not Measurable
+     */
+    not_measurable: number;
+    /**
+     * Goal N
+     */
+    goal_n: number;
+    /**
+     * Goal Met
+     */
+    goal_met: number;
+    /**
+     * Goal Rate
+     */
+    goal_rate: number | null;
+    /**
+     * Thin
+     */
+    thin: boolean;
+    /**
+     * Delta Points
+     *
+     * Against the baseline, in points; null for the baseline or below min_n.
+     */
+    delta_points: number | null;
+    /**
+     * Flag
+     *
+     * Pass rate against the baseline; null for the baseline.
+     */
+    flag: 'thin' | 'regressed' | 'improved' | 'steady' | null;
+    /**
+     * Goal Flag
+     */
+    goal_flag: 'thin' | 'regressed' | 'improved' | 'steady' | null;
+};
+
+/**
+ * VersionRule
+ */
+export type VersionRule = {
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Lineage Id
+     */
+    lineage_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning' | null;
+    /**
+     * Index
+     */
+    index: number | null;
+    /**
+     * Text
+     */
+    text: string | null;
+    /**
+     * Cells
+     */
+    cells: Array<VersionRuleCell>;
+};
+
+/**
+ * VersionRuleCell
+ */
+export type VersionRuleCell = {
+    /**
+     * Version
+     */
+    version: string;
+    /**
+     * N
+     *
+     * Steps and never rules: passes + fails. Warning signs: every result.
+     */
+    n: number;
+    /**
+     * Passes
+     */
+    passes: number | null;
+    /**
+     * Fails
+     */
+    fails: number | null;
+    /**
+     * Pass Rate
+     */
+    pass_rate: number | null;
+    /**
+     * Interval
+     */
+    interval: [
+        number,
+        number
+    ] | null;
+    /**
+     * Thin
+     */
+    thin: boolean;
+    /**
+     * Counts
+     */
+    counts: {
+        [key: string]: number;
+    };
+    /**
+     * Not Counted
+     */
+    not_counted: number;
+    /**
+     * Present
+     *
+     * Warning signs: how often it showed up.
+     */
+    present: number | null;
+    /**
+     * Present Rate
+     */
+    present_rate: number | null;
+    /**
+     * Delta Points
+     */
+    delta_points: number | null;
+    /**
+     * Flag
+     */
+    flag: 'thin' | 'regressed' | 'improved' | 'steady' | null;
+};
+
+/**
+ * VersionsResponse
+ */
+export type VersionsResponse = {
+    filters: FiltersOut;
+    thresholds: Thresholds;
+    /**
+     * Max Versions
+     */
+    max_versions: number;
+    /**
+     * Tests
+     *
+     * A/B tests with sessions in the window.
+     */
+    tests: Array<AbTestOut>;
+    /**
+     * Versions
+     *
+     * Every version with sessions in the window, by label.
+     */
+    versions: Array<VersionOut>;
+    /**
+     * Selected
+     *
+     * The versions compared, the baseline first.
+     */
+    selected: Array<string>;
+    /**
+     * Baseline
+     */
+    baseline: string | null;
+    /**
+     * Differs
+     *
+     * What isn't the same across the selected versions: `agent`, `release`, then config keys.
+     */
+    differs: Array<string>;
+    /**
+     * Untagged
+     *
+     * Sessions in the window that reported no config.
+     */
+    untagged: number;
+    /**
+     * Procedures
+     */
+    procedures: Array<VersionProcedure>;
+    /**
+     * Rules
+     */
+    rules: Array<VersionRule>;
 };
 
 /**
@@ -14704,6 +15144,12 @@ export type InsightsOverviewData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
     };
     url: '/v1/workspaces/{workspace}/insights/overview';
 };
@@ -14775,6 +15221,12 @@ export type InsightsProcedureData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
     };
     url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}';
 };
@@ -14850,6 +15302,12 @@ export type InsightsRuleData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
     };
     url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}';
 };
@@ -14929,6 +15387,12 @@ export type InsightsCompareData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
     };
     url: '/v1/workspaces/{workspace}/insights/releases/compare';
 };
@@ -14950,6 +15414,85 @@ export type InsightsCompareResponses = {
 };
 
 export type InsightsCompareResponse = InsightsCompareResponses[keyof InsightsCompareResponses];
+
+export type InsightsVersionsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * V
+         *
+         * Version ids to compare, the baseline first (default: the most-run, oldest first; at most 5).
+         */
+        v?: Array<string> | null;
+        /**
+         * Window
+         *
+         * 24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.
+         */
+        window?: string | null;
+        /**
+         * Start
+         *
+         * Window start (inclusive), on session start time.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Window end (inclusive; default now).
+         */
+        end?: string | null;
+        /**
+         * Agent
+         */
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Release
+         *
+         * Only sessions that ran these releases.
+         */
+        release?: Array<number> | null;
+        /**
+         * Channel
+         */
+        channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/insights/versions';
+};
+
+export type InsightsVersionsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InsightsVersionsError = InsightsVersionsErrors[keyof InsightsVersionsErrors];
+
+export type InsightsVersionsResponses = {
+    /**
+     * Successful Response
+     */
+    200: VersionsResponse;
+};
+
+export type InsightsVersionsResponse = InsightsVersionsResponses[keyof InsightsVersionsResponses];
 
 export type InsightsReportData = {
     body?: never;
@@ -14996,6 +15539,12 @@ export type InsightsReportData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Test
+         *
+         * Only sessions that reported this A/B test.
+         */
+        test?: string | null;
     };
     url: '/v1/workspaces/{workspace}/insights/report';
 };
@@ -16822,9 +17371,25 @@ export type OnboardingGuideResponse = OnboardingGuideResponses[keyof OnboardingG
 export type OnboardingSkillData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Name
+         *
+         * One of sopops-onboard, sopops-ab-tests.
+         */
+        name?: string;
+    };
     url: '/v1/onboarding/skill';
 };
+
+export type OnboardingSkillErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type OnboardingSkillError = OnboardingSkillErrors[keyof OnboardingSkillErrors];
 
 export type OnboardingSkillResponses = {
     /**

@@ -46,6 +46,11 @@ class ToolCallIn(_BaseModel):
     at: datetime | float | None = None
 
 
+CONFIG_HELP = ("What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; "
+               "sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` "
+               "(`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.")
+
+
 class SessionIn(_BaseModel):
     """A finished session in the canonical format. Every transport (helpers, webhooks, imports) converts into this."""
 
@@ -61,6 +66,8 @@ class SessionIn(_BaseModel):
     turns: list[TurnIn] = Field(default_factory=list, description="In order.")
     tool_calls: list[ToolCallIn] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
+    config: dict[str, str | int | float | bool | None] = Field(default_factory=dict, description=CONFIG_HELP)
 
 
 class SessionOpen(_BaseModel):
@@ -75,6 +82,8 @@ class SessionOpen(_BaseModel):
     version_ref: str | None = Field(None, max_length=256)
     started_at: datetime | None = Field(None, description="Default: when sopops received it.")
     metadata: dict[str, Any] = Field(default_factory=dict)
+    test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
+    config: dict[str, str | int | float | bool | None] = Field(default_factory=dict, description=CONFIG_HELP)
 
 
 class SessionEventIn(_BaseModel):
@@ -99,6 +108,8 @@ class SessionEventsOut(BaseModel):
 class SessionClose(_BaseModel):
     ended_at: datetime | None = None
     partial: bool = Field(False, description="The sender knows the transcript is incomplete: the session's status is then `incomplete`.")
+    test: str | None = Field(None, max_length=128, description="Set or replace the session's A/B test.")
+    config: dict[str, str | int | float | bool | None] | None = Field(None, description="Settings learned during the call, merged over the ones sent at open.")
 
 
 class SessionIngested(BaseModel):
@@ -135,6 +146,9 @@ class SessionSummary(BaseModel):
     external_id: str
     release_id: int | None
     version_ref: str | None
+    test: str | None = Field(None, description="The A/B test the session reported.")
+    config: dict[str, Any] | None = Field(None, description="What the agent ran with; `prompt` is the prompt's hash.")
+    config_hash: str | None = Field(None, description="Identifies the config: sessions with the same agent, release and hash are one version.")
     started_at: datetime
     ended_at: datetime | None
     duration_s: float | None

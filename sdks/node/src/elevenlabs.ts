@@ -12,7 +12,7 @@
  * With `stream: true`, the conversation's messages and tool results also go to sopops as they happen, and the
  * full conversation is posted when it ends (a token with the `ingest` scope is needed).
  */
-import type { FetchOptions, Guidance, Instructions, SessionIn, SessionStream, Sopops } from "./index.js";
+import type { AgentConfig, FetchOptions, Guidance, Instructions, SessionIn, SessionStream, Sopops } from "./index.js";
 
 type Turn = NonNullable<SessionIn["turns"]>[number];
 type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
@@ -57,6 +57,11 @@ export interface ElevenLabsSessionInput extends FetchOptions {
   agentId?: string;
   /** Send messages and tool results to sopops as they happen, and the full conversation when it ends. Default false. */
   stream?: boolean;
+  /** An A/B test this conversation is part of (sent as the dynamic variable `sopops_test`). */
+  test?: string;
+  /** Settings to report (`{ version: "v2" }`), sent as `sopops_<key>` dynamic variables. sopops reads the agent's
+   *  LLM, voice and TTS model itself, with the API key in Settings. */
+  config?: Record<string, string | number | boolean>;
   /** Not yet used: reserved for runtime guidance in a later version. */
   onGuidance?: (guidance: Guidance) => void;
 }
@@ -72,6 +77,8 @@ export async function elevenLabsSession(sopops: Sopops, input: ElevenLabsSession
 
   const dynamicVariables: Record<string, string | number | boolean> = { sopops_agent: instructions.agent };
   if (instructions.release != null) dynamicVariables.sopops_release = instructions.release;
+  if (input.test) dynamicVariables.sopops_test = input.test;
+  for (const [k, v] of Object.entries(input.config ?? {})) dynamicVariables[`sopops_${k}`] = v;
 
   const link = async (conversationId: string) => {
     if (instructions.release == null || !conversationId) return;
@@ -90,7 +97,7 @@ export async function elevenLabsSession(sopops: Sopops, input: ElevenLabsSession
   };
   if (!input.stream) return { instructions, link, sessionOptions, end: async () => {} };
 
-  const recorder = new Recorder(sopops, instructions, input.onGuidance);
+  const recorder = new Recorder(sopops, instructions, input.onGuidance, { test: input.test ?? null, config: input.config ?? {} });
   return {
     instructions,
     link,
@@ -121,13 +128,14 @@ class Recorder {
     private readonly sopops: Sopops,
     private readonly instructions: Instructions,
     private readonly onGuidance: ((guidance: Guidance) => void) | undefined,
+    private readonly tags: { test: string | null; config: AgentConfig },
   ) {}
 
   connect(conversationId: string): void {
     if (this.stream || !conversationId) return;
     this.conversationId = conversationId;
     this.stream = this.sopops.stream(
-      { platform: "elevenlabs", external_id: conversationId, channel: "voice", agent: this.instructions.agent, release: this.instructions.release, started_at: this.startedAt },
+      { platform: "elevenlabs", external_id: conversationId, channel: "voice", agent: this.instructions.agent, release: this.instructions.release, started_at: this.startedAt, ...this.tags },
       { onGuidance: this.onGuidance },
     );
     for (const t of this.turns) this.stream.turn(t); // anything said before the id was known
@@ -170,6 +178,7 @@ class Recorder {
         turns: this.turns,
         tool_calls: this.toolCalls,
         metadata: { disconnect_reason: reason },
+        ...this.tags,
       });
     } catch (e) {
       console.warn(`sopops: couldn't send conversation ${this.conversationId}: ${e instanceof Error ? e.message : String(e)}`);

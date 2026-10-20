@@ -8209,6 +8209,24 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
           }
         ],
         "responses": {
@@ -8390,6 +8408,24 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
           }
         ],
         "responses": {
@@ -8580,6 +8616,24 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
           }
         ],
         "responses": {
@@ -8788,6 +8842,24 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
           }
         ],
         "responses": {
@@ -8797,6 +8869,217 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/insights/versions": {
+      "get": {
+        "tags": [
+          "insights"
+        ],
+        "summary": "Insights Versions",
+        "description": "A/B tests: an agent's versions (same agent, release and config) side by side on procedures, rules and\nwarning signs, each against the baseline, with n, 95% intervals and flags.",
+        "operationId": "insights_versions",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "v",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Version ids to compare, the baseline first (default: the most-run, oldest first; at most 5).",
+              "title": "V"
+            },
+            "description": "Version ids to compare, the baseline first (default: the most-run, oldest first; at most 5)."
+          },
+          {
+            "name": "window",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given.",
+              "title": "Window"
+            },
+            "description": "24h, 7d, 30d, 90d or 365d, ending now (default 7d). Ignored when `start` is given."
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window start (inclusive), on session start time.",
+              "title": "Start"
+            },
+            "description": "Window start (inclusive), on session start time."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Window end (inclusive; default now).",
+              "title": "End"
+            },
+            "description": "Window end (inclusive; default now)."
+          },
+          {
+            "name": "agent",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "release",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that ran these releases.",
+              "title": "Release"
+            },
+            "description": "Only sessions that ran these releases."
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "voice",
+                    "text"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Channel"
+            }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionsResponse"
                 }
               }
             }
@@ -8960,6 +9243,24 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "test",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions that reported this A/B test.",
+              "title": "Test"
+            },
+            "description": "Only sessions that reported this A/B test."
           }
         ],
         "responses": {
@@ -11842,8 +12143,22 @@
           "onboarding"
         ],
         "summary": "Onboarding Skill",
-        "description": "The sopops-onboard skill (SKILL.md), for `sopops-mcp install-skill` to copy into a repo.",
+        "description": "A sopops skill (SKILL.md): `sopops-onboard` (default) or `sopops-ab-tests`, for `sopops-mcp install-skill` to copy\ninto a repo and for `get_ab_test_guide`.",
         "operationId": "onboarding_skill",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "One of sopops-onboard, sopops-ab-tests.",
+              "default": "sopops-onboard",
+              "title": "Name"
+            },
+            "description": "One of sopops-onboard, sopops-ab-tests."
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -11851,6 +12166,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SkillOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -12600,6 +12925,29 @@
   },
   "components": {
     "schemas": {
+      "ABTestOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions"
+          },
+          "versions": {
+            "type": "integer",
+            "title": "Versions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "sessions",
+          "versions"
+        ],
+        "title": "ABTestOut"
+      },
       "AISettingsOut": {
         "properties": {
           "typesafe": {
@@ -16190,6 +16538,17 @@
               }
             ],
             "title": "Channel"
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test"
           }
         },
         "type": "object",
@@ -16199,7 +16558,8 @@
           "agent",
           "procedure",
           "releases",
-          "channel"
+          "channel",
+          "test"
         ],
         "title": "FiltersOut"
       },
@@ -25361,6 +25721,50 @@
             "title": "Partial",
             "description": "The sender knows the transcript is incomplete: the session's status is then `incomplete`.",
             "default": false
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test",
+            "description": "Set or replace the session's A/B test."
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "Settings learned during the call, merged over the ones sent at open."
           }
         },
         "type": "object",
@@ -25445,6 +25849,43 @@
               }
             ],
             "title": "Version Ref"
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test",
+            "description": "The A/B test the session reported."
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "What the agent ran with; `prompt` is the prompt's hash."
+          },
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash",
+            "description": "Identifies the config: sessions with the same agent, release and hash are one version."
           },
           "started_at": {
             "type": "string",
@@ -25616,6 +26057,9 @@
           "external_id",
           "release_id",
           "version_ref",
+          "test",
+          "config",
+          "config_hash",
           "started_at",
           "ended_at",
           "duration_s",
@@ -25835,6 +26279,43 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test",
+            "description": "An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config."
+          },
+          "config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Config",
+            "description": "What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536."
           }
         },
         "type": "object",
@@ -26099,6 +26580,43 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Metadata"
+          },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test",
+            "description": "An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config."
+          },
+          "config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Config",
+            "description": "What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536."
           }
         },
         "type": "object",
@@ -26270,6 +26788,43 @@
             ],
             "title": "Version Ref"
           },
+          "test": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test",
+            "description": "The A/B test the session reported."
+          },
+          "config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config",
+            "description": "What the agent ran with; `prompt` is the prompt's hash."
+          },
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash",
+            "description": "Identifies the config: sessions with the same agent, release and hash are one version."
+          },
           "started_at": {
             "type": "string",
             "format": "date-time",
@@ -26394,6 +26949,9 @@
           "external_id",
           "release_id",
           "version_ref",
+          "test",
+          "config",
+          "config_hash",
           "started_at",
           "ended_at",
           "duration_s",
@@ -29314,6 +29872,638 @@
           "suggestion"
         ],
         "title": "VerdictSaved"
+      },
+      "VersionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "description": "Stable for the same agent, release and config."
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "A, B, C, ... by the version's first session ever (in the test, or the agent, when one is set)."
+          },
+          "agent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent"
+          },
+          "release": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release",
+            "description": "The sopops release, i.e. the prompt, it ran."
+          },
+          "config_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Hash",
+            "description": "Null: sessions that reported no config."
+          },
+          "config": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Config",
+            "description": "`llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting."
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "The prompt text, when the config reported one."
+          },
+          "sessions": {
+            "type": "integer",
+            "title": "Sessions",
+            "description": "In the window."
+          },
+          "checked": {
+            "type": "integer",
+            "title": "Checked",
+            "description": "Eligible sessions: their checks ran."
+          },
+          "first_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First At"
+          },
+          "last_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "agent",
+          "release",
+          "config_hash",
+          "config",
+          "prompt",
+          "sessions",
+          "checked",
+          "first_at",
+          "last_at"
+        ],
+        "title": "VersionOut"
+      },
+      "VersionProcedure": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "type": "string",
+            "title": "Procedure Name"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/VersionProcedureCell"
+            },
+            "type": "array",
+            "title": "Cells",
+            "description": "One per selected version, in order."
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "procedure_name",
+          "cells"
+        ],
+        "title": "VersionProcedure"
+      },
+      "VersionProcedureCell": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "triggered": {
+            "type": "integer",
+            "title": "Triggered",
+            "description": "Sessions this procedure applied to."
+          },
+          "trigger_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trigger Rate",
+            "description": "triggered / the version's checked sessions."
+          },
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "description": "Measurable checks."
+          },
+          "passes": {
+            "type": "integer",
+            "title": "Passes"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate",
+            "description": "Followed / measurable."
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "followed": {
+            "type": "integer",
+            "title": "Followed"
+          },
+          "partial": {
+            "type": "integer",
+            "title": "Partial"
+          },
+          "deviated": {
+            "type": "integer",
+            "title": "Deviated"
+          },
+          "not_measurable": {
+            "type": "integer",
+            "title": "Not Measurable"
+          },
+          "goal_n": {
+            "type": "integer",
+            "title": "Goal N"
+          },
+          "goal_met": {
+            "type": "integer",
+            "title": "Goal Met"
+          },
+          "goal_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Rate"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points",
+            "description": "Against the baseline, in points; null for the baseline or below min_n."
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "thin",
+                  "regressed",
+                  "improved",
+                  "steady"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag",
+            "description": "Pass rate against the baseline; null for the baseline."
+          },
+          "goal_flag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "thin",
+                  "regressed",
+                  "improved",
+                  "steady"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Goal Flag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "triggered",
+          "trigger_rate",
+          "n",
+          "passes",
+          "pass_rate",
+          "interval",
+          "followed",
+          "partial",
+          "deviated",
+          "not_measurable",
+          "goal_n",
+          "goal_met",
+          "goal_rate",
+          "thin",
+          "delta_points",
+          "flag",
+          "goal_flag"
+        ],
+        "title": "VersionProcedureCell"
+      },
+      "VersionRule": {
+        "properties": {
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "lineage_id": {
+            "type": "string",
+            "title": "Lineage Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "step",
+                  "never",
+                  "warning"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Index"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/VersionRuleCell"
+            },
+            "type": "array",
+            "title": "Cells"
+          }
+        },
+        "type": "object",
+        "required": [
+          "procedure_id",
+          "lineage_id",
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "cells"
+        ],
+        "title": "VersionRule"
+      },
+      "VersionRuleCell": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "n": {
+            "type": "integer",
+            "title": "N",
+            "description": "Steps and never rules: passes + fails. Warning signs: every result."
+          },
+          "passes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passes"
+          },
+          "fails": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fails"
+          },
+          "pass_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pass Rate"
+          },
+          "interval": {
+            "anyOf": [
+              {
+                "prefixItems": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "integer"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval"
+          },
+          "thin": {
+            "type": "boolean",
+            "title": "Thin"
+          },
+          "counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Counts"
+          },
+          "not_counted": {
+            "type": "integer",
+            "title": "Not Counted"
+          },
+          "present": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Present",
+            "description": "Warning signs: how often it showed up."
+          },
+          "present_rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Present Rate"
+          },
+          "delta_points": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Points"
+          },
+          "flag": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "thin",
+                  "regressed",
+                  "improved",
+                  "steady"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flag"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "n",
+          "passes",
+          "fails",
+          "pass_rate",
+          "interval",
+          "thin",
+          "counts",
+          "not_counted",
+          "present",
+          "present_rate",
+          "delta_points",
+          "flag"
+        ],
+        "title": "VersionRuleCell"
+      },
+      "VersionsResponse": {
+        "properties": {
+          "filters": {
+            "$ref": "#/components/schemas/FiltersOut"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/Thresholds"
+          },
+          "max_versions": {
+            "type": "integer",
+            "title": "Max Versions"
+          },
+          "tests": {
+            "items": {
+              "$ref": "#/components/schemas/ABTestOut"
+            },
+            "type": "array",
+            "title": "Tests",
+            "description": "A/B tests with sessions in the window."
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionOut"
+            },
+            "type": "array",
+            "title": "Versions",
+            "description": "Every version with sessions in the window, by label."
+          },
+          "selected": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Selected",
+            "description": "The versions compared, the baseline first."
+          },
+          "baseline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline"
+          },
+          "differs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Differs",
+            "description": "What isn't the same across the selected versions: `agent`, `release`, then config keys."
+          },
+          "untagged": {
+            "type": "integer",
+            "title": "Untagged",
+            "description": "Sessions in the window that reported no config."
+          },
+          "procedures": {
+            "items": {
+              "$ref": "#/components/schemas/VersionProcedure"
+            },
+            "type": "array",
+            "title": "Procedures"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/VersionRule"
+            },
+            "type": "array",
+            "title": "Rules"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filters",
+          "thresholds",
+          "max_versions",
+          "tests",
+          "versions",
+          "selected",
+          "baseline",
+          "differs",
+          "untagged",
+          "procedures",
+          "rules"
+        ],
+        "title": "VersionsResponse"
       },
       "WarningImpact": {
         "properties": {

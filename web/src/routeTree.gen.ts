@@ -31,6 +31,7 @@ import { Route as WWsImportIndexRouteImport } from './routes/w.$ws.import.index'
 import { Route as WWsImportIdRouteImport } from './routes/w.$ws.import.$id'
 import { Route as WWsInsightsIndexRouteImport } from './routes/w.$ws.insights.index'
 import { Route as WWsInsightsReleasesRouteImport } from './routes/w.$ws.insights.releases'
+import { Route as WWsInsightsVersionsRouteImport } from './routes/w.$ws.insights.versions'
 import { Route as WWsInstructionsIndexRouteImport } from './routes/w.$ws.instructions.index'
 import { Route as WWsPatternsIndexRouteImport } from './routes/w.$ws.patterns.index'
 import { Route as WWsPatternsIdRouteImport } from './routes/w.$ws.patterns.$id'
@@ -169,6 +170,11 @@ const WWsInsightsIndexRoute = WWsInsightsIndexRouteImport.update({
 const WWsInsightsReleasesRoute = WWsInsightsReleasesRouteImport.update({
   id: '/insights/releases',
   path: '/insights/releases',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsInsightsVersionsRoute = WWsInsightsVersionsRouteImport.update({
+  id: '/insights/versions',
+  path: '/insights/versions',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsInstructionsIndexRoute = WWsInstructionsIndexRouteImport.update({
@@ -339,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/insights/versions': typeof WWsInsightsVersionsRoute
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/w/$ws': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/insights/versions': typeof WWsInsightsVersionsRoute
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
@@ -444,6 +452,7 @@ export interface FileRoutesById {
   '/w/$ws/': typeof WWsIndexRoute
   '/w/$ws/import/$id': typeof WWsImportIdRoute
   '/w/$ws/insights/releases': typeof WWsInsightsReleasesRoute
+  '/w/$ws/insights/versions': typeof WWsInsightsVersionsRoute
   '/w/$ws/patterns/$id': typeof WWsPatternsIdRoute
   '/w/$ws/releases/$number': typeof WWsReleasesNumberRoute
   '/w/$ws/sessions/$id': typeof WWsSessionsIdRoute
@@ -499,6 +508,7 @@ export interface FileRouteTypes {
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/insights/versions'
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
@@ -550,6 +560,7 @@ export interface FileRouteTypes {
     | '/w/$ws'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/insights/versions'
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
@@ -603,6 +614,7 @@ export interface FileRouteTypes {
     | '/w/$ws/'
     | '/w/$ws/import/$id'
     | '/w/$ws/insights/releases'
+    | '/w/$ws/insights/versions'
     | '/w/$ws/patterns/$id'
     | '/w/$ws/releases/$number'
     | '/w/$ws/sessions/$id'
@@ -804,6 +816,13 @@ declare module '@tanstack/react-router' {
       path: '/insights/releases'
       fullPath: '/w/$ws/insights/releases'
       preLoaderRoute: typeof WWsInsightsReleasesRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/insights/versions': {
+      id: '/w/$ws/insights/versions'
+      path: '/insights/versions'
+      fullPath: '/w/$ws/insights/versions'
+      preLoaderRoute: typeof WWsInsightsVersionsRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/instructions/': {
@@ -1048,6 +1067,7 @@ interface WWsRouteChildren {
   WWsIndexRoute: typeof WWsIndexRoute
   WWsImportIdRoute: typeof WWsImportIdRoute
   WWsInsightsReleasesRoute: typeof WWsInsightsReleasesRoute
+  WWsInsightsVersionsRoute: typeof WWsInsightsVersionsRoute
   WWsPatternsIdRoute: typeof WWsPatternsIdRoute
   WWsReleasesNumberRoute: typeof WWsReleasesNumberRoute
   WWsSessionsIdRoute: typeof WWsSessionsIdRoute
@@ -1085,6 +1105,7 @@ const WWsRouteChildren: WWsRouteChildren = {
   WWsIndexRoute: WWsIndexRoute,
   WWsImportIdRoute: WWsImportIdRoute,
   WWsInsightsReleasesRoute: WWsInsightsReleasesRoute,
+  WWsInsightsVersionsRoute: WWsInsightsVersionsRoute,
   WWsPatternsIdRoute: WWsPatternsIdRoute,
   WWsReleasesNumberRoute: WWsReleasesNumberRoute,
   WWsSessionsIdRoute: WWsSessionsIdRoute,

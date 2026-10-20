@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import functools
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable, TypeVar
@@ -34,10 +35,12 @@ from . import platforms
 INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_kickoff and follow it. Only read from the user's systems and platforms;
 never change, deploy or delete anything there. Report progress with report_progress as you go."""
 NOT_CONNECTED = "Not connected to sopops: set SOPOPS_URL and SOPOPS_TOKEN (create a token on the Import agents page)."
+ONBOARD_SKILL, AB_SKILL = "sopops-onboard", "sopops-ab-tests"
+SKILLS = (ONBOARD_SKILL, AB_SKILL)
 SKILL_DIRS = {"claude": Path(".claude/skills"), "codex": Path(".agents/skills")}  # Codex (and OpenCode) read .agents/skills
 
 USAGE = """usage: sopops-mcp                  the onboarding MCP server on stdio, as Claude Code or Codex runs it
-       sopops-mcp install-skill    copy the sopops-onboard skill into this repo (--claude, --codex, --url URL)
+       sopops-mcp install-skill    copy sopops's skills (onboarding, A/B tests) into this repo (--claude, --codex, --url URL)
 """
 
 F = TypeVar("F", bound=Callable[..., Any])
@@ -146,6 +149,14 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
+    def get_ab_test_guide() -> str:
+        """How to set up an A/B test of this project's voice agent (the sopops-ab-tests skill): find where its LLM, voice
+        and speech models are set, add a stable traffic split, and make each call report its version to sopops."""
+        got: dict[str, Any] = sopops.call("GET", "/v1/onboarding/skill", params={"name": AB_SKILL})
+        return re.sub(r"\A---\n.*?\n---\n", "", str(got["text"]), count=1, flags=re.S).strip() + "\n"
+
+    @server.tool()
+    @_explained
     def list_platform_agents(platform: str) -> list[dict[str, Any]]:
         """Agents on ElevenLabs or Vapi ([{id, name}]), read with the key in the MCP server's environment. Read-only."""
         return platforms.list_agents(platform, _key(platform, env), platform_transport)
@@ -233,34 +244,39 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
     return server
 
 
-def install_skill(root: Path, agents: list[str], url: str, transport: httpx.BaseTransport | None = None) -> list[Path]:
-    """Copy the sopops-onboard skill (SKILL.md, from the sopops server at `url`, so it matches that server) into the repo
-    at `root` for each agent (`claude`, `codex`). Returns the files written."""
+def install_skill(root: Path, agents: list[str], url: str, transport: httpx.BaseTransport | None = None, names: tuple[str, ...] = SKILLS) -> list[Path]:
+    """Copy sopops's skills (sopops-onboard and sopops-ab-tests, from the sopops server at `url`, so they match that
+    server) into the repo at `root` for each agent (`claude`, `codex`). Returns the files written."""
+    skills = []
     try:
         with httpx.Client(base_url=url.rstrip("/"), timeout=30, transport=transport) as c:
-            res = c.get("/v1/onboarding/skill")
+            for name in names:
+                res = c.get("/v1/onboarding/skill", params={"name": name})
+                if res.status_code == 404 and name != ONBOARD_SKILL:  # an older server without this skill
+                    continue
+                if res.status_code >= 400:
+                    raise RuntimeError(f"sopops answered {res.status_code} for the {name} skill")
+                skills.append(res.json())
     except httpx.HTTPError as e:
         raise RuntimeError(f"couldn't reach sopops at {url}: {type(e).__name__}") from None
-    if res.status_code >= 400:
-        raise RuntimeError(f"sopops answered {res.status_code} for the skill")
-    skill = res.json()
     out = []
-    for agent in agents:
-        target = root / SKILL_DIRS[agent] / skill["name"] / "SKILL.md"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(skill["text"])
-        out.append(target)
+    for skill in skills:
+        for agent in agents:
+            target = root / SKILL_DIRS[agent] / skill["name"] / "SKILL.md"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(skill["text"])
+            out.append(target)
     return out
 
 
 def main(argv: list[str] | None = None) -> None:
     """`sopops-mcp`: the MCP server on stdio. `sopops-mcp install-skill [--claude] [--codex] [--url URL]`: copy the
-    onboarding skill into this repo (.claude/skills, .agents/skills; both by default)."""
+    skills into this repo (.claude/skills, .agents/skills; both by default)."""
     argv = sys.argv[1:] if argv is None else argv
     if argv[:1] == ["install-skill"]:
-        parser = argparse.ArgumentParser(prog="sopops-mcp install-skill", description="Copy the sopops-onboard skill into this repo.")
-        parser.add_argument("--claude", action="store_true", help="Claude Code: .claude/skills/sopops-onboard/SKILL.md")
-        parser.add_argument("--codex", action="store_true", help="Codex (and OpenCode): .agents/skills/sopops-onboard/SKILL.md")
+        parser = argparse.ArgumentParser(prog="sopops-mcp install-skill", description="Copy sopops's skills (onboarding, A/B tests) into this repo.")
+        parser.add_argument("--claude", action="store_true", help="Claude Code: .claude/skills/<skill>/SKILL.md")
+        parser.add_argument("--codex", action="store_true", help="Codex (and OpenCode): .agents/skills/<skill>/SKILL.md")
         parser.add_argument("--url", default=os.environ.get("SOPOPS_URL"), help="The sopops server to copy it from (default: SOPOPS_URL).")
         args = parser.parse_args(argv[1:])
         if not args.url:

@@ -109,7 +109,7 @@ Webhooks, the TypeScript SDK and the no-code setup for each platform are in [doc
 
 ## Sessions
 
-A session is one call or chat. The **Sessions** page lists them live, each with its transcript, tool calls and result per procedure. **Insights** tracks the miss rate over time and compares two releases rule by rule. [How checks, patterns and suggestions work](docs/sessions-and-review.md).
+A session is one call or chat. The **Sessions** page lists them live, each with its transcript, tool calls and result per procedure. **Insights** tracks the miss rate over time, compares two releases rule by rule, and runs [A/B tests](docs/ab-tests.md) across models, voices and prompts. [How checks, patterns and suggestions work](docs/sessions-and-review.md).
 
 ## Docs
 
@@ -117,6 +117,7 @@ A session is one call or chat. The **Sessions** page lists them live, each with 
 |---|---|
 | [Import](docs/import.md) | Coding agents, sopc projects, paste and platform import |
 | [Connect](docs/connect.md) | SDKs, webhooks, no-code capture, tokens |
+| [A/B tests](docs/ab-tests.md) | Compare versions of an agent: models, voices, prompts |
 | [Sessions and review](docs/sessions-and-review.md) | The check pipeline, patterns, verdicts, suggestions, models and spend |
 | [Configuration](docs/configuration.md) | Every environment variable |
 | [Sign in](docs/sign-in.md) | Passwords, teams and join links, GitHub, Google, email |
@@ -127,7 +128,7 @@ A session is one call or chat. The **Sessions** page lists them live, each with 
 
 sopops is v0. Without sign-in, anyone who can reach it can change everything except what tokens guard, so run it on a private network or set `SOPOPS_AUTH_REQUIRED=true` ([Sign in](docs/sign-in.md)).
 
-Coming next: runtime enforcement (checking steps during a call and nudging the agent), A/B tests, Retell, an OpenTelemetry receiver, SAML SSO.
+Coming next: runtime enforcement (checking steps during a call and nudging the agent), Retell, an OpenTelemetry receiver, SAML SSO.
 
 ## Development
 

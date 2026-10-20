@@ -20,13 +20,14 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, or_, select, text
 
-from . import lineage
+from . import configs, lineage
 from .auth import actor
 from .events import CHANNEL, Broker
 from .orm import (
     Finding,
     Pattern,
     ProcedureCheck,
+    PromptText,
     Release,
     RuleResult,
     SessionRecord,
@@ -111,6 +112,8 @@ class Sessions:
             agent_id = self._match_agent(db, ws, p.agent, p.platform, against) if p.agent and against else None
             if p.agent and against and agent_id is None:
                 warnings.append(f"No agent '{p.agent}' in release {against}; the session keeps the name as sent.")
+            test, config, chash, more = self._config(db, ws, p.test, p.config, p.metadata, now)
+            warnings += more
             # a turn can't come before the session started (a helper may note the start a moment late)
             started = min((t for t in (to_utc(p.started_at), _first_time(p)) if t), default=now)
             fields = dict(
@@ -119,6 +122,9 @@ class Sessions:
                 channel=p.channel,
                 release_id=release,
                 version_ref=p.version_ref,
+                test=test,
+                config=config,
+                config_hash=chash,
                 started_at=started,
                 ended_at=to_utc(p.ended_at),
                 status="incomplete" if p.partial else "received",
@@ -160,10 +166,12 @@ class Sessions:
                 release = None
             against = release or db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
             agent_id = self._match_agent(db, ws, p.agent, p.platform, against) if p.agent and against else None
+            test, config, chash, more = self._config(db, ws, p.test, p.config, p.metadata, now)
+            warnings += more
             row = SessionRecord(
                 id=str(uuid.uuid4()), workspace_id=ws, platform=p.platform, external_id=p.external_id, created_at=now, updated_at=now,
                 agent_id=agent_id, agent_ref=p.agent, channel=p.channel, release_id=release, version_ref=p.version_ref,
-                started_at=to_utc(p.started_at) or now, ended_at=None, status="open", status_reason=None, turns=[], tool_calls=[],
+                test=test, config=config, config_hash=chash, started_at=to_utc(p.started_at) or now, ended_at=None, status="open", status_reason=None, turns=[], tool_calls=[],
                 meta=p.model_dump(mode="json")["metadata"], payload_hash=_digest({"open": p.external_id}), processed_at=None, result=None,
             )
             db.add(row)
@@ -220,8 +228,9 @@ class Sessions:
             return ref, True
 
     def close(self, workspace: str, platform: str, external_id: str, ended_at: datetime | None = None, partial: bool = False,
-              reason: str | None = None) -> Ingested:
-        """Close an open session so it's checked, with what streamed in. A session that isn't open is left as is."""
+              reason: str | None = None, test: str | None = None, config: dict[str, Any] | None = None) -> Ingested:
+        """Close an open session so it's checked, with what streamed in. A session that isn't open is left as is.
+        `test` and `config` (settings learned during the call) are merged over what was sent at open."""
         ws = workspace_id(workspace)
         with self._db() as db, db.begin():
             row = self._row(db, ws, platform, external_id)
@@ -229,6 +238,14 @@ class Sessions:
                 raise NotFound(f"no session '{platform}/{external_id}'")
             if row.status != "open":
                 return Ingested(row.id, False, False, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+            if test or config:
+                known = dict(row.config or {})
+                kept = known.pop("prompt", None)  # already stored as its hash
+                row.test, merged, _, _ = self._config(db, ws, test or row.test, configs.merge(known, config), {}, _now())
+                merged = dict(merged or {})
+                if kept and "prompt" not in merged:
+                    merged["prompt"] = kept
+                row.config, row.config_hash = merged or None, configs.config_hash(merged)
             row.status = "incomplete" if partial else "received"
             row.status_reason = (reason or SENDER_INCOMPLETE) if partial else None
             row.ended_at = to_utc(ended_at) or row.ended_at or _now()
@@ -392,6 +409,19 @@ class Sessions:
     def _db(self) -> Session:
         return Session(self.store.engine, expire_on_commit=False)
 
+    def _config(self, db: Session, ws: str, test: str | None, config: dict[str, Any] | None, metadata: dict[str, Any] | None,
+                now: datetime) -> tuple[str | None, dict[str, Any] | None, str | None, list[str]]:
+        """(test, config as stored, its hash, warnings): `sopops_*` metadata over `config` (see `sopops_server.configs`); a
+        reported prompt is kept once in `prompt_texts`."""
+        meta_test, meta_config = configs.from_metadata(metadata)
+        merged, warnings = configs.fit(configs.merge(config, meta_config))
+        stored, chash, prompt = configs.stored(merged)
+        if prompt is not None and db.get(PromptText, (ws, stored["prompt"])) is None:
+            dialect = postgresql if self.postgres else sqlite
+            db.execute(dialect.insert(PromptText.__table__).values(workspace_id=ws, hash=stored["prompt"], text=prompt, created_at=now).on_conflict_do_nothing())
+        test = (meta_test or test or "").strip()[: configs.MAX_TEST] or None
+        return test, stored or None, chash, warnings
+
     def _ensure_workspace(self, db: Session, ws: str) -> None:
         dialect = postgresql if self.postgres else sqlite
         if db.get(Workspace, ws) is None:
@@ -446,6 +476,9 @@ def _summary(r: SessionRecord) -> dict[str, Any]:
         "external_id": r.external_id,
         "release_id": r.release_id,
         "version_ref": r.version_ref,
+        "test": r.test,
+        "config": r.config,
+        "config_hash": r.config_hash,
         "started_at": started,
         "ended_at": ended,
         "duration_s": (ended - started).total_seconds() if ended else None,

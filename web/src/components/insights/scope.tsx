@@ -113,11 +113,12 @@ export function ScopeBar({ filters, onChange, procedure = true, release = true }
   );
 }
 
-export type View = "overview" | "releases" | "report";
+export type View = "overview" | "releases" | "versions" | "report";
 
 const TABS: [View, string, string[]][] = [
   ["overview", "Overview", ["insights"]],
   ["releases", "Release compare", ["insights", "releases"]],
+  ["versions", "A/B tests", ["insights", "versions"]],
   ["report", "Review report", ["report"]],
 ];
 

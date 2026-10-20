@@ -99,13 +99,20 @@ export interface SessionIn {
   turns?: Array<{ role: string; text?: string; offset_s?: number; at?: string | number; [k: string]: unknown }>;
   tool_calls?: Array<{ name: string; arguments?: unknown; result?: unknown; is_error?: boolean; call_id?: string; offset_s?: number; at?: string | number; [k: string]: unknown }>;
   metadata?: Record<string, unknown>;
+  /** An A/B test this session is part of. Without one, sopops still compares an agent's versions by their config. */
+  test?: string | null;
+  /** What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `version`, any other setting. */
+  config?: AgentConfig;
 }
+
+/** Settings a session ran with. Sessions with the same agent, release and config are one version in sopops. */
+export type AgentConfig = Record<string, string | number | boolean | null>;
 
 type Turn = NonNullable<SessionIn["turns"]>[number];
 type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
 
 /** What `openSession` takes: a session's identity and context, before its turns exist. */
-export type SessionOpen = Pick<SessionIn, "platform" | "external_id" | "channel" | "agent" | "release" | "version_ref" | "started_at" | "metadata">;
+export type SessionOpen = Pick<SessionIn, "platform" | "external_id" | "channel" | "agent" | "release" | "version_ref" | "started_at" | "metadata" | "test" | "config">;
 
 /** One streamed event. `seq` counts from 0 per session; order doesn't matter and a resent `seq` is ignored. */
 export type SessionEvent = { seq: number; type: "turn"; turn: Turn } | { seq: number; type: "tool_call"; tool_call: ToolCall };

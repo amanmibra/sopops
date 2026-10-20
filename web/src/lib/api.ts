@@ -137,6 +137,11 @@ export const q = {
       queryKey: ["ws", ws, "insights", "compare", f, a, b],
       queryFn: () => call(sdk.insightsCompare({ path: { workspace: ws }, query: { ...insightQuery({ ...f, release: undefined }), a, b } })),
     }),
+  insightsVersions: (ws: string, f: InsightFilters, test?: string, v?: string[]) =>
+    queryOptions({
+      queryKey: ["ws", ws, "insights", "versions", f, test, v],
+      queryFn: () => call(sdk.insightsVersions({ path: { workspace: ws }, query: { ...insightQuery({ ...f, release: undefined }), test, v: v?.length ? v : undefined } })),
+    }),
   usage: (ws: string, f: InsightFilters) => {
     const w = insightQuery(f);
     return queryOptions({ queryKey: ["ws", ws, "usage", w.window ?? null, w.start ?? null, w.end ?? null], queryFn: () => call(sdk.modelUsage({ path: { workspace: ws }, query: { window: w.window, start: w.start, end: w.end } })) });

@@ -91,7 +91,7 @@ ROUTES: dict[str, str] = {
         "set_post_call_secret", "delete_post_call_secret", "set_elevenlabs_live", "list_tokens", "create_token", "revoke_token", "list_patterns",
         "get_pattern", "recluster_patterns", "review_queue", "set_verdict", "override_finding", "export_regression", "calibrate",
         "list_suggestions", "get_suggestion", "suggest_edit", "apply_suggestion", "rewrite_suggestion", "dismiss_suggestion", "insights_overview",
-        "insights_procedure", "insights_rule", "insights_compare", "insights_report", "get_rule_lineage", "link_rule", "unlink_rule",
+        "insights_procedure", "insights_rule", "insights_compare", "insights_versions", "insights_report", "get_rule_lineage", "link_rule", "unlink_rule",
         "rebuild_lineage", "model_usage", "model_prices", "get_repo", "connect_repo", "inspect_repo_project", "disconnect_repo", "pull_repo",
         "sync_repo", "send_repo_drafts", "get_repo_conflict", "resolve_repo_conflict", "get_github_app", "github_install_url", "github_setup",
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",

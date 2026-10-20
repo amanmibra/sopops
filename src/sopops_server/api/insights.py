@@ -15,6 +15,7 @@ from ..schemas import (
     ProcedureInsights,
     ReportResponse,
     RuleInsights,
+    VersionsResponse,
 )
 from ..store import Store
 from .deps import OPEN
@@ -32,8 +33,9 @@ def router(store: Store) -> APIRouter:
         procedure: str | None = None,
         release: list[int] | None = Query(None, description="Only sessions that ran these releases."),
         channel: Channel | None = None,
+        test: str | None = Query(None, description="Only sessions that reported this A/B test."),
     ) -> Filters:
-        return Filters.make(workspace_id(workspace), window, start, end, agent, procedure, release, channel)
+        return Filters.make(workspace_id(workspace), window, start, end, agent, procedure, release, channel, test=test)
 
     @r.get("/v1/workspaces/{workspace}/insights/overview", response_model=OverviewResponse, dependencies=OPEN, tags=["insights"])
     def insights_overview(f: Filters = Depends(insight_filters)) -> dict:
@@ -56,6 +58,13 @@ def router(store: Store) -> APIRouter:
                          f: Filters = Depends(insight_filters)) -> dict:
         """Per-rule and per-procedure pass rates of release B against release A, with n, 95% intervals and flags."""
         return store.insights.compare(f, a, b)
+
+    @r.get("/v1/workspaces/{workspace}/insights/versions", response_model=VersionsResponse, dependencies=OPEN, tags=["insights"])
+    def insights_versions(v: list[str] | None = Query(None, description="Version ids to compare, the baseline first (default: the most-run, oldest first; at most 5)."),
+                          f: Filters = Depends(insight_filters)) -> dict:
+        """A/B tests: an agent's versions (same agent, release and config) side by side on procedures, rules and
+        warning signs, each against the baseline, with n, 95% intervals and flags."""
+        return store.insights.versions(f, v or ())
 
     @r.get("/v1/workspaces/{workspace}/insights/report", response_model=ReportResponse, dependencies=OPEN, tags=["insights"])
     def insights_report(f: Filters = Depends(insight_filters)) -> dict:

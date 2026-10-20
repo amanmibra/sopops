@@ -19,6 +19,8 @@ from pathlib import Path
 # from the repo's subdirectory. SOPOPS_MCP_SOURCE overrides it (e.g. `/path/to/sopops/sdks/python[mcp]` for a clone).
 DEFAULT_SOURCE = "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python"
 SKILL_NAME = "sopops-onboard"
+AB_SKILL = "sopops-ab-tests"
+SKILLS = (SKILL_NAME, AB_SKILL)
 PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 
 REPO_STEP = """Repo mode (the user opted in). sopops is connected to GitHub: `{repo}`, branch `{branch}`, folder `{folder}`, which {finding}.
@@ -51,14 +53,14 @@ def mcp_source() -> str:
     return os.environ.get("SOPOPS_MCP_SOURCE") or DEFAULT_SOURCE
 
 
-def skill_path() -> Path:
-    """SKILL.md: bundled in the package (wheels, uvx), else the repo's `skills/` (a clone or an editable install)."""
-    bundled = Path(__file__).parent / "SKILL.md"
-    return bundled if bundled.is_file() else Path(__file__).resolve().parents[3] / "skills" / SKILL_NAME / "SKILL.md"
+def skill_path(name: str = SKILL_NAME) -> Path:
+    """A skill's SKILL.md: bundled in the package (wheels, uvx), else the repo's `skills/` (a clone or an editable install)."""
+    bundled = Path(__file__).parent / "skills" / f"{name}.md"
+    return bundled if bundled.is_file() else Path(__file__).resolve().parents[3] / "skills" / name / "SKILL.md"
 
 
-def skill_text() -> str:
-    return skill_path().read_text()
+def skill_text(name: str = SKILL_NAME) -> str:
+    return skill_path(name).read_text()
 
 
 def skill_body() -> str:

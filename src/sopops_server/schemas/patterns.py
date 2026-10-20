@@ -25,6 +25,7 @@ class FiltersOut(BaseModel):
     procedure: str | None
     releases: list[int]
     channel: str | None
+    test: str | None = None
 
 
 class ExampleOut(BaseModel):

@@ -27,6 +27,7 @@ import asyncio
 import base64
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -36,6 +37,7 @@ from urllib.parse import urlsplit
 
 import jwt
 
+from .. import configs
 from ..schemas import SessionEventIn, SessionOpen
 from . import LIVEKIT_KEY, LIVEKIT_SECRET, Capture, LiveRoomRef
 
@@ -169,6 +171,7 @@ async def watch_room(store: Store, ref: LiveRoomRef, on_closed: Callable[[Sessio
     names: list[str] = [ref.agent_name] if ref.agent_name else []
     state: dict[str, Any] = {"over": False, "reason": "", "leaving": False, "gone": {"agent": None, "caller": None}}
     readers: set[asyncio.Task] = set()
+    reported: dict[str, Any] = {}  # the agent's `sopops_*` attributes: its A/B test and config (sopops_server.configs)
 
     def side(p: Any) -> str:
         return "agent" if link.is_agent(p) or p.identity in agents else "caller"
@@ -177,8 +180,10 @@ async def watch_room(store: Store, ref: LiveRoomRef, on_closed: Callable[[Sessio
         s = side(p)
         if s == "agent":
             agents.add(p.identity)
-            if (n := agent_name(getattr(p, "attributes", None))) and n not in names:
+            attributes = getattr(p, "attributes", None) or {}
+            if (n := agent_name(attributes)) and n not in names:
                 names.insert(0, n)
+            reported.update({k: v for k, v in attributes.items() if isinstance(k, str) and k.startswith(configs.PREFIX)})
         state["gone"][s] = None
 
     def present(s: str) -> bool:
@@ -272,7 +277,9 @@ async def watch_room(store: Store, ref: LiveRoomRef, on_closed: Callable[[Sessio
         identities = [ref.agent_identity, *sorted(agents)]
         external_id = next((j for j in map(job_id, identities) if j), None) or ref.room_sid or ref.room
         meta = {k: v for k, v in {"room": ref.room, "room_sid": ref.room_sid, "agent_name": names[0] if names else None, "source": "livekit-recorder"}.items() if v}
-        await asyncio.to_thread(store.sessions.open, ws, SessionOpen(platform=PLATFORM, external_id=external_id, agent=agent, release=release, metadata=meta))
+        for raw in metadata:  # `sopops_*` keys in job or room metadata count like the agent's attributes
+            reported = {**_sopops_keys(raw), **reported}
+        await asyncio.to_thread(store.sessions.open, ws, SessionOpen(platform=PLATFORM, external_id=external_id, agent=agent, release=release, metadata={**meta, **reported}))
         log.info("recording LiveKit room %s in %s as session %s", ref.room, ws, external_id)
 
         while not stop.is_set():
@@ -318,8 +325,19 @@ async def watch_room(store: Store, ref: LiveRoomRef, on_closed: Callable[[Sessio
     if not state["over"]:
         log.warning("stopped recording room %s while it may still be live (%s); the session stays open", ref.room, state["reason"])
         return {"status": "left open", "turns": seq, "reason": state["reason"]}
-    done = await asyncio.to_thread(store.sessions.close, ws, PLATFORM, external_id)
+    test, config = configs.from_metadata(reported)  # attributes the agent set during the call
+    done = await asyncio.to_thread(store.sessions.close, ws, PLATFORM, external_id, test=test, config=config or None)
     if done.changed:
         await asyncio.to_thread(on_closed, done.ref)
     log.info("recorded LiveKit room %s: %d turns (%s)", ref.room, seq, state["reason"])
     return {"status": "closed", "turns": seq, "reason": state["reason"], "external_id": external_id}
+
+
+def _sopops_keys(raw: Any) -> dict[str, Any]:
+    """`sopops_*` keys in job or room metadata (JSON)."""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw or "{}")
+        except (ValueError, RecursionError):
+            return {}
+    return {k: v for k, v in raw.items() if isinstance(k, str) and k.startswith(configs.PREFIX)} if isinstance(raw, dict) else {}

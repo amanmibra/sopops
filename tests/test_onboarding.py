@@ -538,3 +538,11 @@ def test_importing_a_sopc_project_checks_fidelity_and_applies_its_files(client, 
     monkeypatch.setattr(github, "read_project", lambda store, ws: (files, "acme/agents@abc1234"))
     got = client.post(f"{IMPORTS}/sopc", json={"from_repo": True}).json()
     assert got["repo"] == "acme/agents@abc1234" and got["proposal"]["fidelity"] == []
+
+
+def test_skills_are_served_by_name(client):
+    onboard = client.get("/v1/onboarding/skill").json()
+    ab = client.get("/v1/onboarding/skill", params={"name": "sopops-ab-tests"}).json()
+    assert onboard["name"] == "sopops-onboard" and "get_ab_test_guide" in onboard["text"]
+    assert ab["name"] == "sopops-ab-tests" and ab["text"].startswith("---\nname: sopops-ab-tests") and "sopops_test" in ab["text"]
+    assert client.get("/v1/onboarding/skill", params={"name": "../secrets"}).status_code == 404

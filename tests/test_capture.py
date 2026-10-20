@@ -9,8 +9,10 @@ import hmac
 import json
 import time
 
+import httpx
 import jwt
 import pytest
+import respx
 from conftest import SOPC_BIN, WS, fresh_db_url
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
@@ -572,3 +574,61 @@ def test_vapi_server_url_streams_and_completes_sessions(app):
     assert post(report2).status_code == 401  # same auth as the prompt
     assert post(report2, **{"X-Vapi-Secret": "vapi-hook"}).status_code == 200
     assert len(sessions(client)) == 2
+
+
+# --- what each call ran with (sopops_server.configs) -----------------------------------------------------------
+
+
+def test_a_room_keeps_the_agents_sopops_attributes_as_its_config(app):
+    client, store, _ = app
+    connect_livekit(client)
+    agent = Participant("agent-AJ_9", "agent", {"lk.agent_name": "tonys-pizza", "sopops_test": "haiku-vs-gpt", "sopops_llm": "openai/gpt-4.1-mini"})
+    room = FakeRoom([agent, Participant("caller-1")], metadata=json.dumps({"sopops_release": 1, "sopops_version": "v7"}))
+
+    async def script(room, stop):
+        room.say("caller-1", "Hi", **{"lk.segment_id": "s1", "lk.transcription_final": "true"})
+        await asyncio.sleep(0.05)
+        agent.attributes["sopops_tts"] = "cartesia/sonic-2"  # set after the recorder joined
+        room.handlers["participant_attributes_changed"]({"sopops_tts": "cartesia/sonic-2"}, agent)
+        await asyncio.sleep(0.05)
+        room.leave("caller-1")
+
+    out, _, _ = record(store, room, LiveRoomRef(workspace_id="demo", room="call-9", room_sid="RM_9", agent_identity="agent-AJ_9"), script)
+    assert out["status"] == "closed"
+    [s] = sessions(client, platform="livekit")
+    assert s["test"] == "haiku-vs-gpt" and s["release_id"] == 1
+    assert s["config"] == {"llm": "openai/gpt-4.1-mini", "tts": "cartesia/sonic-2", "version": "v7"} and s["config_hash"]
+
+
+@respx.mock
+def test_elevenlabs_sessions_carry_the_agents_models(app):
+    client, _, _ = app
+    client.put(f"{WS}/capture/elevenlabs/post-call-secret", json={"value": POSTCALL})
+    client.put(f"{WS}/runtime/platforms/elevenlabs/api-key", json={"value": "el-test-key-123456"})
+    route = respx.get("https://api.elevenlabs.io/v1/convai/agents/agent_luigi").mock(return_value=httpx.Response(200, json={"conversation_config": {
+        "agent": {"prompt": {"prompt": "You are Luigi's host.", "llm": "gemini-2.0-flash", "temperature": 0.3}},
+        "tts": {"model_id": "eleven_flash_v2_5", "voice_id": "voice_rachel"}, "asr": {"provider": "elevenlabs"}}}))
+    url = f"{WS}/capture/elevenlabs/post-call"
+    for conv, extra in (("conv_a", {}), ("conv_b", {"sopops_test": "voices", "sopops_version": "b"})):
+        body = post_call_body(conv, conversation_initiation_client_data={
+            "dynamic_variables": {"sopops_agent": "luigis-trattoria", **extra},
+            "conversation_config_override": {"tts": {"voice_id": "voice_adam"}} if extra else {}})
+        raw = json.dumps(body).encode()
+        assert client.post(url, content=raw, headers={"ElevenLabs-Signature": el_signed(raw)}).status_code == 200
+    a, b = sorted(sessions(client), key=lambda s: s["external_id"])
+    assert a["config"] == {"llm": "gemini-2.0-flash", "temperature": 0.3, "tts": "elevenlabs/eleven_flash_v2_5", "voice": "voice_rachel", "stt": "elevenlabs"}
+    assert b["config"] == {**a["config"], "voice": "voice_adam", "version": "b"} and b["test"] == "voices"
+    assert a["config_hash"] != b["config_hash"] and route.call_count == 1  # the agent is read once, then kept
+    assert "el-test-key" not in json.dumps(sessions(client))
+
+
+def test_vapi_sessions_carry_the_assistants_models(app):
+    client, _, _ = app
+    assistant = {"id": "asst_sakura", "model": {"provider": "openai", "model": "gpt-4.1-mini", "temperature": 0.5},
+                 "voice": {"provider": "11labs", "voiceId": "burt", "model": "eleven_turbo_v2_5"}, "transcriber": {"provider": "deepgram", "model": "nova-3"}}
+    call = {"id": "call_cfg", "assistantId": "asst_sakura", "assistantOverrides": {"model": {"model": "gpt-4.1"}, "metadata": {"sopops_test": "bigger-model"}}}
+    report = {"type": "end-of-call-report", "call": call, "assistant": assistant, "artifact": {"messages": vapi_messages()}}
+    assert client.post(f"{WS}/runtime/vapi/assistant-request", json={"message": report}).status_code == 200
+    [s] = sessions(client)
+    assert s["test"] == "bigger-model"
+    assert s["config"] == {"llm": "openai/gpt-4.1", "temperature": 0.5, "tts": "11labs/eleven_turbo_v2_5", "voice": "burt", "stt": "deepgram/nova-3"}

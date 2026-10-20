@@ -21,6 +21,30 @@ def call_of(message: dict) -> dict:
     return call if isinstance(call, dict) else {}
 
 
+def reported(message: dict) -> dict:
+    """`sopops_*` keys (an A/B test, settings) wherever Vapi echoes metadata: the call's or assistant's metadata, or
+    variable values. Our own `sopops_release` and `sopops_agent` are left to `_tags`."""
+    call = call_of(message)
+    out: dict = {}
+    for src in (
+        call.get("metadata"),
+        (message.get("assistant") or {}).get("metadata") if isinstance(message.get("assistant"), dict) else None,
+        (call.get("assistantOverrides") or {}).get("metadata"),
+        (call.get("assistantOverrides") or {}).get("variableValues"),
+    ):
+        if isinstance(src, dict):
+            out.update({k: v for k, v in src.items() if isinstance(k, str) and k.startswith("sopops_") and k not in ("sopops_release", "sopops_agent", "sopops_prompt")})
+    return out
+
+
+def assistant_of(message: dict) -> tuple[dict | None, dict]:
+    """(the assistant on the message, if Vapi sent it whole; the call's assistantOverrides)."""
+    call = call_of(message)
+    a = message.get("assistant") if isinstance(message.get("assistant"), dict) else call.get("assistant")
+    o = call.get("assistantOverrides")
+    return (a if isinstance(a, dict) and (a.get("model") or a.get("voice")) else None), (o if isinstance(o, dict) else {})
+
+
 def _tags(message: dict) -> dict:
     """The `sopops_release` and `sopops_agent` our assistant-request put on the call, wherever Vapi echoes them."""
     call = call_of(message)
@@ -94,6 +118,7 @@ def end_of_call(message: dict) -> SessionIn | None:
         return None
     turns, tool_calls = convert(_messages(message))
     meta = {k: v for k, v in {"ended_reason": message.get("endedReason"), "call_type": call.get("type")}.items() if v}
+    meta.update(reported(message))
     return SessionIn(
         platform="vapi", external_id=str(call["id"]), channel="text" if call.get("type") == "webChat" else "voice", agent=_agent(message),
         release=_release(message), started_at=message.get("startedAt") or call.get("startedAt"), ended_at=message.get("endedAt") or call.get("endedAt"),
@@ -107,7 +132,7 @@ def opening(message: dict) -> SessionOpen | None:
     if not call.get("id"):
         return None
     return SessionOpen(platform="vapi", external_id=str(call["id"]), agent=_agent(message), release=_release(message),
-                       started_at=call.get("startedAt") or None, metadata={"source": "vapi-server-url"})
+                       started_at=call.get("startedAt") or None, metadata={"source": "vapi-server-url", **reported(message)})
 
 
 def conversation(message: dict) -> tuple[list[dict], list[dict]]:

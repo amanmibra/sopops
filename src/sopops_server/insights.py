@@ -16,6 +16,9 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
   Deltas between rates are in points (the difference of the two whole percentages); deltas between counts are in %.
 - **Comparisons** (releases): a 95% Wilson interval per rate; a side with n < MIN_N is `thin` and never flagged;
   `regressed` / `improved` need |delta| >= FLAG_POINTS and intervals that don't overlap.
+- **Versions** (A/B tests): sessions with the same agent, release and config hash (`sopops_server.configs`) are one
+  version, labeled A, B, C by their first session ever (in the test, or the agent, when one is set). Up to
+  MAX_VERSIONS are compared, each against the first one picked (the baseline), with the release comparison's flags.
 - Release splits use the release each session ran (`session.release_id`), never dates.
 - **Rules** are counted by lineage (`sopops_server.lineage`): a reworded rule's results, findings and patterns add up with its
   earlier wordings', under the wording sessions ran most recently (`rule_id`, `text`). `lineage_id` is the first
@@ -32,6 +35,8 @@ fly from `sessions`, `procedure_checks`, `rule_results`, `findings` and `pattern
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -39,10 +44,10 @@ from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, Decimal
 from typing import TYPE_CHECKING, Any, Iterable
 
-from sqlmodel import Session, and_, func, or_, select
+from sqlmodel import Session, and_, case, func, or_, select
 
 from . import lineage
-from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord, Theme
+from .orm import Finding, Pattern, ProcedureCheck, PromptText, RuleResult, SessionRecord, Theme
 from .pipeline.rollup import SEVERITY
 
 if TYPE_CHECKING:
@@ -58,6 +63,7 @@ DAILY_UNTIL = timedelta(days=31)
 HOT_MIN_N = 15  # a hot-rule callout needs this many judged results
 FAIL_WARN, FAIL_BAD = 8, 15  # fail-rate tones, in %, only at n >= MIN_N
 AGENT_MIN_N = 3  # an agent's biggest gap: only rules it ran this many times
+MAX_VERSIONS = 5  # versions compared side by side
 RISING_MIN = 5  # a rising pattern: at least this many findings, and at least twice the prior window's
 THRESHOLDS = {"min_n": MIN_N, "flag_points": FLAG_POINTS, "warning_drop_points": WARNING_DROP_POINTS, "hot_min_n": HOT_MIN_N,
               "fail_warn": FAIL_WARN, "fail_bad": FAIL_BAD, "agent_min_n": AGENT_MIN_N, "rising_min": RISING_MIN}
@@ -160,10 +166,13 @@ class Filters:
     procedure: str | None = None
     releases: tuple[int, ...] = ()
     channel: str | None = None
+    test: str | None = None
+    version: tuple[str | None, int | None, str | None] | None = None  # (agent, release, config hash): one version, exactly
 
     @classmethod
     def make(cls, workspace: str, window: str | None = None, start: datetime | None = None, end: datetime | None = None, agent: str | None = None,
-             procedure: str | None = None, release: Iterable[int] | None = None, channel: str | None = None, now: datetime | None = None) -> Filters:
+             procedure: str | None = None, release: Iterable[int] | None = None, channel: str | None = None, now: datetime | None = None,
+             test: str | None = None) -> Filters:
         """`window` (24h, 7d, 30d, 90d, 365d; default 7d) ending now, or `start` (and optionally `end`)."""
         now = _utc(now) or datetime.now(timezone.utc)
         if start is not None:
@@ -178,11 +187,11 @@ class Filters:
             raise BadFilter("end is before start")
         if e - s > MAX_WINDOW:
             raise BadFilter("the window can be at most 366 days")
-        return cls(workspace, s, e, agent or None, procedure or None, tuple(sorted(set(release or ()))), channel or None)
+        return cls(workspace, s, e, agent or None, procedure or None, tuple(sorted(set(release or ()))), channel or None, test or None)
 
     def prior(self) -> Filters:
         span = self.end - self.start
-        return Filters(self.workspace, self.start - span - timedelta(microseconds=1), self.start - timedelta(microseconds=1), self.agent, self.procedure, self.releases, self.channel)
+        return self.with_(start=self.start - span - timedelta(microseconds=1), end=self.start - timedelta(microseconds=1))
 
     def with_(self, **kw: Any) -> Filters:
         return Filters(**{**self.__dict__, **kw})
@@ -198,10 +207,17 @@ class Filters:
             q = q.where(S.release_id.in_(self.releases))
         if self.channel:
             q = q.where(S.channel == self.channel)
+        if self.test:
+            q = q.where(S.test == self.test)
+        if self.version is not None:
+            agent, release, chash = self.version
+            q = q.where(func.coalesce(S.agent_id, S.agent_ref) == agent if agent is not None else and_(S.agent_id.is_(None), S.agent_ref.is_(None)))
+            q = q.where(S.release_id == release if release is not None else S.release_id.is_(None))
+            q = q.where(S.config_hash == chash if chash is not None else S.config_hash.is_(None))
         return q
 
     def as_dict(self) -> dict[str, Any]:
-        return {"start": self.start, "end": self.end, "agent": self.agent, "procedure": self.procedure, "releases": list(self.releases), "channel": self.channel}
+        return {"start": self.start, "end": self.end, "agent": self.agent, "procedure": self.procedure, "releases": list(self.releases), "channel": self.channel, "test": self.test}
 
 
 ELIGIBLE = and_(SessionRecord.status.in_(ELIGIBLE_STATUSES), SessionRecord.result.is_not(None))
@@ -885,6 +901,91 @@ class Insights:
         return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "a": a, "b": b, "releases": seen, "min_n": MIN_N, "flag_points": FLAG_POINTS, "procedures": procs,
                 "rules": out, "sessions_a": len({c[0] for c in ca}), "sessions_b": len({c[0] for c in cb}), "timeline": timeline}
 
+    def versions(self, f: Filters, selected: Iterable[str] = ()) -> dict[str, Any]:
+        """Every version with sessions in the window, and up to MAX_VERSIONS of them compared: procedures (triggered,
+        followed, goal met), step and never rules (pass rates), and warning signs (how often present). `selected`:
+        version ids, the first one the baseline; default the most-run versions, oldest first."""
+        S = SessionRecord
+        f = f.with_(releases=(), version=None)
+        agent = func.coalesce(S.agent_id, S.agent_ref)
+        key = (agent, S.release_id, S.config_hash)
+        with self._db() as db:
+            first_ever = {(a, r, h): _utc(at) for a, r, h, at in db.exec(f.sessions(select(*key, func.min(S.started_at)), window=False).group_by(*key)).all()}
+            in_window = db.exec(f.sessions(select(*key, func.count(S.id), func.count(case((ELIGIBLE, 1))), func.min(S.started_at), func.max(S.started_at))).group_by(*key)).all()
+            label = {k: _label(i) for i, k in enumerate(sorted(first_ever, key=lambda k: (first_ever[k] or datetime.min.replace(tzinfo=timezone.utc), str(k))))}
+            configs_by_hash: dict[str, dict[str, Any]] = {}
+            for _a, _r, h, *_ in in_window:
+                if h is not None and h not in configs_by_hash:
+                    configs_by_hash[h] = db.exec(select(S.config).where(S.workspace_id == f.workspace, S.config_hash == h).limit(1)).first() or {}
+            prompts = {p.hash: p.text for p in db.exec(select(PromptText).where(PromptText.workspace_id == f.workspace,
+                                                                                    PromptText.hash.in_([str(c["prompt"]) for c in configs_by_hash.values() if c.get("prompt")])))}
+            versions = []
+            for a, r, h, n, checked, lo, hi in in_window:
+                config = configs_by_hash.get(h, {}) if h else {}
+                versions.append({"id": _version_id(a, r, h), "label": label.get((a, r, h), "?"), "agent": a, "release": r, "config_hash": h, "config": config,
+                                 "prompt": prompts.get(str(config.get("prompt"))) if config.get("prompt") else None,
+                                 "sessions": n, "checked": checked, "first_at": _utc(lo), "last_at": _utc(hi), "_key": (a, r, h)})
+            versions.sort(key=lambda v: (len(v["label"]), v["label"]))
+            by_id = {v["id"]: v for v in versions}
+            picked = [by_id[i] for i in dict.fromkeys(selected) if i in by_id][:MAX_VERSIONS]
+            if not picked:
+                top = sorted(versions, key=lambda v: (-v["checked"], -v["sessions"]))[:MAX_VERSIONS]
+                picked = [v for v in versions if v in top]
+            tests: dict[str, dict[str, Any]] = {}
+            for t, a, r, h, n in db.exec(f.with_(test=None).sessions(select(S.test, *key, func.count(S.id)).where(S.test.is_not(None))).group_by(S.test, *key)).all():
+                row = tests.setdefault(t, {"name": t, "sessions": 0, "versions": 0})
+                row["sessions"] += n
+                row["versions"] += 1
+            untagged = db.exec(f.sessions(select(func.count(S.id)).where(S.config_hash.is_(None)))).one()
+            checks = {v["id"]: self._checks(db, f.with_(version=v["_key"])) for v in picked}
+            rows = {v["id"]: self._rule_rows(db, f.with_(version=v["_key"]), f.procedure) for v in picked}
+            texts = self._rule_texts(db, f.workspace, f.procedure)
+        base = picked[0]["id"] if picked else None
+        differs = _differs([v for v in picked] or versions)
+
+        procs = []
+        for pid in sorted({c[1] for cs in checks.values() for c in cs}):
+            name = next((c[2] for cs in checks.values() for c in cs if c[1] == pid and c[2]), pid)
+            cells = {v["id"]: _procedure_cell(v, [c for c in checks[v["id"]] if c[1] == pid]) for v in picked}
+            for vid, cell in cells.items():
+                b = cells[base]
+                cell["delta_points"] = delta_points(cell["pass_rate"], b["pass_rate"]) if vid != base and cell["n"] >= MIN_N and b["n"] >= MIN_N else None
+                cell["flag"] = compare_flag(b["passes"], b["n"], cell["passes"], cell["n"]) if vid != base else None
+                cell["goal_flag"] = compare_flag(b["goal_met"], b["goal_n"], cell["goal_met"], cell["goal_n"]) if vid != base else None
+            procs.append({"procedure_id": pid, "procedure_name": name, "cells": [cells[v["id"]] for v in picked]})
+
+        grouped: dict[str, dict[tuple[str, str], list[tuple]]] = {}
+        for vid, rs in rows.items():
+            g = grouped.setdefault(vid, defaultdict(list))
+            for pid, lid, kind, _i, status, n in rs:
+                g[(pid, lid)].append((kind, status, n))
+        order = {"step": 0, "never": 1, "warning": 2}
+        keys = {k for g in grouped.values() for k in g}
+        rules = []
+        for k in sorted(keys, key=lambda k: (k[0], order.get(texts.get(k, {}).get("kind"), 3), texts.get(k, {}).get("index") or 0)):
+            t = texts.get(k, {})
+            stats = {v["id"]: self._rule_stats(grouped.get(v["id"], {}).get(k, [])) for v in picked}
+            kind = t.get("kind") or next((r[0] for g in grouped.values() for r in g.get(k, [])), None)
+            cells = []
+            for v in picked:
+                st, b = stats[v["id"]], stats[base]
+                if kind == "warning":
+                    cell = {"n": st["total"], "passes": None, "fails": None, "pass_rate": None, "interval": None, "thin": st["total"] < MIN_N,
+                            "counts": st["counts"], "not_counted": 0, "present": st["present"], "present_rate": st["present_rate"], "delta_points": None, "flag": None}
+                else:
+                    ok = v["id"] != base and st["n"] >= MIN_N and b["n"] >= MIN_N
+                    cell = {**_rate_out(st), "present": None, "present_rate": None,
+                            "delta_points": delta_points(st["pass_rate"], b["pass_rate"]) if ok else None,
+                            "flag": compare_flag(b["passes"] or 0, b["n"], st["passes"] or 0, st["n"]) if v["id"] != base else None}
+                cells.append({"version": v["id"], **cell})
+            rules.append({"procedure_id": k[0], "lineage_id": k[1], "rule_id": t.get("rule_id", k[1]), "kind": kind, "index": t.get("index"),
+                          "text": t.get("text"), "cells": cells})
+        for v in versions:
+            v.pop("_key")
+        return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "max_versions": MAX_VERSIONS, "tests": sorted(tests.values(), key=lambda t: -t["sessions"]),
+                "versions": versions, "selected": [v["id"] for v in picked], "baseline": base, "differs": differs, "untagged": untagged,
+                "procedures": procs, "rules": rules}
+
     def report(self, f: Filters, examples: int = 3, sessions_per_pattern: int = 12) -> dict[str, Any]:
         """The call-review report: headline numbers, then per procedure its themes, each theme's patterns with the rule
         quoted, example phrasings from the evidence, and the sessions."""
@@ -966,6 +1067,37 @@ class Insights:
 def _rate_out(st: dict[str, Any]) -> dict[str, Any]:
     return {"n": st["n"], "passes": st["passes"], "fails": st["fails"], "pass_rate": st["pass_rate"], "interval": wilson(st["passes"] or 0, st["n"]) if st["n"] else None,
             "not_counted": st["not_counted"], "thin": st["n"] < MIN_N, "counts": st["counts"]}
+
+
+def _label(i: int) -> str:
+    """A, B, ... Z, AA, AB, ..."""
+    out = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        out = chr(65 + r) + out
+    return out
+
+
+def _version_id(agent: str | None, release: int | None, chash: str | None) -> str:
+    return hashlib.sha256(json.dumps([agent, release, chash]).encode()).hexdigest()[:12]
+
+
+def _differs(versions: list[dict[str, Any]]) -> list[str]:
+    """What isn't the same across these versions: `agent`, `release`, then each config key."""
+    out = [k for k in ("agent", "release") if len({v[k] for v in versions}) > 1]
+    keys = sorted({k for v in versions for k in v["config"]})
+    return out + [k for k in keys if len({json.dumps(v["config"].get(k)) for v in versions}) > 1]
+
+
+def _procedure_cell(v: dict[str, Any], mine: list[tuple]) -> dict[str, Any]:
+    m = [c for c in mine if c[3] in MEASURABLE]
+    fol = sum(c[3] == "followed" for c in m)
+    goals = [c[4] for c in mine if c[4] is not None]
+    met = sum(g is True for g in goals)
+    return {"version": v["id"], "triggered": len(mine), "trigger_rate": pct(len(mine), v["checked"]), "n": len(m), "passes": fol, "pass_rate": pct(fol, len(m)),
+            "interval": wilson(fol, len(m)), "followed": fol, "partial": sum(c[3] == "partial" for c in m), "deviated": sum(c[3] == "deviated" for c in m),
+            "not_measurable": len(mine) - len(m), "goal_n": len(goals), "goal_met": met, "goal_rate": pct(met, len(goals)), "thin": len(m) < MIN_N}
 
 
 def _pattern_out(p: Pattern, findings: int, sessions: int) -> dict[str, Any]:
