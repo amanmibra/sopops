@@ -1,6 +1,6 @@
 // A/B tests: an agent's versions side by side. A version is the sessions with the same agent, release and config
-// (models, voice, prompt, ...), labeled A, B, C by its first session. The versions table shows what differs; pick up
-// to five to compare, the first one picked is the baseline. Procedures and rules follow, each version against the
+// (models, voice, prompt, ...), listed by its hash id. The versions table shows what differs; pick up to five to
+// compare, lettered A to E in the order picked, and A is the baseline. Procedures and rules follow, each version against the
 // baseline with the release compare's flags. With nothing to compare yet, a short setup guide and the docs link.
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, FlaskConical } from "lucide-react";
@@ -34,10 +34,30 @@ function settingValue(v: VersionOut, k: string): string | null {
   return x == null ? null : String(x);
 }
 
-/** "A" in the baseline's color, any other version in the candidate color. */
-function VersionBadge({ label, baseline, className }: { label: string; baseline?: boolean; className?: string }) {
+const LETTERS = "ABCDEFGHIJ";
+/** A picked version's letter: A for the baseline, then B, C... in the order picked. Unpicked versions have none. */
+const letterOf = (d: VersionsResponse, id: string) => {
+  const i = d.selected.indexOf(id);
+  return i < 0 ? null : LETTERS[i];
+};
+const shortId = (v: VersionOut) => v.id.slice(0, 8);
+
+/** A picked version's letter, in the baseline's color for A and the candidate color otherwise; hover for its id. */
+function VersionBadge({ v, letter, baseline, className }: { v: VersionOut; letter: string; baseline?: boolean; className?: string }) {
   return (
-    <span className={cn("inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded px-1 text-[11px] font-bold", SIDES[baseline ? "a" : "b"].badge, className)}>{label}</span>
+    <Hint
+      focusable={false}
+      tip={
+        <span className="grid gap-0.5">
+          <span>
+            Version <span className="font-mono">{v.id}</span>
+          </span>
+          {v.config.llm != null && <span className="text-muted-foreground">{String(v.config.llm)}</span>}
+        </span>
+      }
+    >
+      <span className={cn("inline-flex h-5 min-w-5 shrink-0 cursor-help items-center justify-center rounded px-1 text-[11px] font-bold", SIDES[baseline ? "a" : "b"].badge, className)}>{letter}</span>
+    </Hint>
   );
 }
 
@@ -75,7 +95,7 @@ function VersionsTable({ d, onPick }: { d: VersionsResponse; onPick: (v: string[
   return (
     <WidgetCard
       title="Versions"
-      subtitle={`Sessions with the same agent, release and settings are one version. Pick up to ${d.max_versions} to compare; the first is the baseline.`}
+      subtitle={`Sessions with the same agent, release and settings are one version, named by a hash of them. Pick up to ${d.max_versions} to compare: they're lettered A, B, C in the order you pick them, and A is the baseline.`}
       help="Settings that differ between the versions you picked are in bold. sopops reads the models and voice itself where it can (the LiveKit SDK, ElevenLabs and Vapi with an API key in Settings); anything else comes from what each call reported."
       flush
     >
@@ -99,6 +119,7 @@ function VersionsTable({ d, onPick }: { d: VersionsResponse; onPick: (v: string[
             {d.versions.map((v) => {
               const on = picked.includes(v.id);
               const isBase = v.id === d.baseline;
+              const letter = letterOf(d, v.id);
               return (
                 <tr key={v.id} className={cn("hover:bg-muted/60", !on && "opacity-70")}>
                   <td className={td}>
@@ -109,12 +130,15 @@ function VersionsTable({ d, onPick }: { d: VersionsResponse; onPick: (v: string[
                       checked={on}
                       disabled={!on && picked.length >= d.max_versions}
                       onChange={() => toggle(v.id)}
-                      aria-label={`Compare version ${v.label}`}
+                      aria-label={`Compare version ${shortId(v)}`}
                     />
                   </td>
                   <td className={td}>
                     <span className="inline-flex items-center gap-2">
-                      <VersionBadge label={v.label} baseline={isBase} />
+                      {letter && <VersionBadge v={v} letter={letter} baseline={isBase} />}
+                      <span className="font-mono text-[12.5px]" title={v.id}>
+                        {shortId(v)}
+                      </span>
                       {isBase && <span className="text-muted-foreground text-xs">baseline</span>}
                     </span>
                   </td>
@@ -191,7 +215,7 @@ function Columns({ d }: { d: VersionsResponse }) {
         const v = by.get(id);
         return (
           <th key={id} className={th}>
-            {v && <VersionBadge label={v.label} baseline={id === d.baseline} />}
+            {v && <VersionBadge v={v} letter={letterOf(d, id) ?? "?"} baseline={id === d.baseline} />}
           </th>
         );
       })}
@@ -288,8 +312,8 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
 /** What a version, the baseline and a better or worse flag mean, next to the numbers they explain. */
 function HowToRead({ minN, points }: { minN?: number; points?: number }) {
   const items: [string, string][] = [
-    ["Version", "Calls that ran with the same agent, release and settings. A change to the model, voice or prompt starts a new version, labeled B, C and so on in the order of their first call."],
-    ["Baseline", "The version the others are measured against, usually the one already running. Each other version shows its pass rate as points above or below it. Make baseline switches it."],
+    ["Version", "Calls that ran with the same agent, release and settings, named by a hash of them. A change to the model, voice or prompt starts a new version. The versions you pick get letters A to E; hover a letter for its full id."],
+    ["Baseline", "Version A, the one the others are measured against: usually the one already running. Each other version shows its pass rate as points above or below it. Make baseline switches it."],
     [
       "Better or worse",
       `Shown only when the difference is unlikely to be chance: ${minN ?? 10} or more checked calls on each version, a change of at least ${points ?? 5} points, and 95% ranges that don't overlap. Otherwise it says "no clear difference" or "too few to compare".`,

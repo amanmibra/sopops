@@ -4,7 +4,7 @@ Compare versions of an agent on your procedures: a different LLM, voice, speech 
 
 ## How sopops tells versions apart
 
-Each session keeps what the agent ran with as its config: `llm`, `stt` and `tts` (each `<provider>/<model>`), `voice`, and any other setting you report. sopops hashes the config, and sessions with the same agent, release and config hash are one version. Versions get labels A, B, C in the order of their first call.
+Each session keeps what the agent ran with as its config: `llm`, `stt` and `tts` (each `<provider>/<model>`), `voice`, and any other setting you report. sopops hashes the config, and sessions with the same agent, release and config hash are one version. Each version is listed by an id hashed from those three.
 
 The release is the prompt. sopops already knows which release each session ran, so you don't need to send your prompt. If you build the prompt outside sopops, report it as `prompt` (see [Prompts built outside sopops](#prompts-built-outside-sopops)).
 
@@ -82,7 +82,7 @@ Add `test` and `config` to the session you post (`POST /v1/workspaces/{ws}/sessi
 
 ## Read the results
 
-Under Insights → A/B tests, pick a test, or leave it on all versions. The versions table shows each version's settings, with the ones that differ in bold. Pick up to five to compare; the first one picked is the baseline, and **Make baseline** changes it.
+Under Insights → A/B tests, pick a test, or leave it on all versions. The versions table shows each version's settings, with the ones that differ in bold. Pick up to five to compare. They're lettered A to E in the order you pick them; hover a letter to see its version id. A is the baseline, the version the others are measured against, and **Make baseline** changes it.
 
 - **Procedures:** pass rate, how often the goal was met, and how many calls each procedure applied to.
 - **Rules:** pass rate per step and never rule. Warning signs show how often they came up, without a verdict, since the caller brings them.
