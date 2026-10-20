@@ -1,0 +1,54 @@
+name: deploy
+
+# Deploys the hosted sopops (app.sopops.dev) on Railway after ci passes on a push to main.
+# Railway builds the private sopops-cloud Dockerfile, which fetches this repo at SOPOPS_REF.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: # by hand: deploys the main HEAD it runs on
+
+permissions: {}
+
+# One deploy at a time; a newer green main replaces one still waiting.
+concurrency:
+  group: deploy-railway
+  cancel-in-progress: true
+
+jobs:
+  railway:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    env:
+      # A project token for the sopops project, production environment. It picks the project,
+      # so there's no `railway link`.
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - run: npm install -g @railway/cli@5.49.2
+      # Pin the build to this commit, then rebuild. `redeploy` builds the last uploaded
+      # sopops-cloud source again with the current variables, so the new SOPOPS_REF build arg
+      # busts the cache from the git fetch on. It also returns the deployment id to wait on.
+      - name: Rebuild at this commit
+        run: |
+          railway variable set --service sopops --environment production --skip-deploys "SOPOPS_REF=$SHA" --json
+          railway redeploy --service sopops --environment production --yes --json | tee deploy.json
+          echo "DEPLOYMENT_ID=$(jq -r .id deploy.json)" >> "$GITHUB_ENV"
+      - name: Wait for the deployment
+        timeout-minutes: 25
+        run: |
+          while true; do
+            status=$(railway deployment list --service sopops --environment production --json \
+              | jq -r --arg id "$DEPLOYMENT_ID" '.[] | select(.id == $id) | .status')
+            echo "$status"
+            case "$status" in
+              SUCCESS) break ;;
+              FAILED|CRASHED|REMOVED) exit 1 ;;
+            esac
+            sleep 15
+          done
+      - name: Health check
+        run: curl -fsS --retry 5 --retry-all-errors https://app.sopops.dev/healthz
