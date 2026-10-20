@@ -168,7 +168,7 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                   <td className="border-b px-3 py-1.5">
                     <SettingsLine v={v} />
                   </td>
-                  <td className="border-b px-3 py-1.5 text-right tabular-nums">
+                  <td className="border-b px-3 py-1.5 text-right whitespace-nowrap tabular-nums">
                     {v.sessions}
                     {v.checked !== v.sessions && <span className="text-muted-foreground"> ({v.checked} checked)</span>}
                   </td>
