@@ -82,7 +82,10 @@ Add `test` and `config` to the session you post (`POST /v1/workspaces/{ws}/sessi
 
 ## Read the results
 
-Under Insights → A/B tests, pick a test, or leave it on all versions. The versions table shows each version's settings, with the ones that differ in bold. Pick up to five to compare. They're lettered A to E in the order you pick them; hover a letter to see its version id. A is the baseline, the version the others are measured against, and **Make baseline** changes it.
+Insights → A/B tests works in two steps:
+
+1. **Pick versions.** Each version is one row: its id, agent, release and settings. Tick up to five and press **Compare**. They're lettered A to E in the order you tick them, and A is the baseline, the version the others are measured against.
+2. **Compare.** What differs between the versions, a chart of each procedure's pass rate with its 95% range, then the procedure and rule tables. Hover a letter to see its version id. **Make baseline** changes A, and **Change versions** goes back to step 1.
 
 - **Procedures:** pass rate, how often the goal was met, and how many calls each procedure applied to.
 - **Rules:** pass rate per step and never rule. Warning signs show how often they came up, without a verdict, since the caller brings them.

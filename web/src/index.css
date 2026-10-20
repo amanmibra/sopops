@@ -43,6 +43,10 @@
   /* release compare: side A (baseline) and side B (candidate), blue against orange so they stay apart under CVD */
   --side-a: #2563b0;
   --side-b: #c2410c;
+  /* A/B tests: versions C to E */
+  --side-c: #0f766e;
+  --side-d: #7c3aed;
+  --side-e: #a16207;
   color-scheme: light;
 }
 
@@ -81,6 +85,9 @@
   --grid: #252c36;
   --side-a: #7fb0f0;
   --side-b: #f59a62;
+  --side-c: #5fd3c2;
+  --side-d: #c4b5fd;
+  --side-e: #f2c35b;
   color-scheme: dark;
 }
 
