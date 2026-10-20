@@ -5,7 +5,7 @@
 // the release compare's flags. With nothing to compare yet, a short setup guide and the docs link.
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, BookOpen, Check, FlaskConical } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { InsightFilters, VersionOut, VersionProcedure, VersionProcedureCell, VersionRule, VersionRuleCell, VersionsResponse } from "@/lib/api";
 import { q } from "@/lib/api";
 import { fmtPct, insightsHref, ruleName, windowPhrase } from "@/lib/insights";
@@ -97,11 +97,9 @@ function SettingsLine({ v }: { v: VersionOut }) {
 /** Step 1: tick the versions to compare. */
 function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: string[]; onCompare: (v: string[]) => void }) {
   const withSettings = d.versions.filter((v) => v.config_hash);
-  const [all, setAll] = useState(withSettings.length < 2);
+  const without = d.versions.filter((v) => !v.config_hash);
   const [picked, setPicked] = useState<string[]>(initial);
   useEffect(() => setPicked(initial), [initial.join()]);
-  const shown = all ? d.versions : withSettings;
-  const hidden = d.versions.length - shown.length;
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : p.length >= d.max_versions ? p : [...p, id]));
   return (
     <section className="bg-card overflow-hidden rounded-lg border">
@@ -110,11 +108,6 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
           <b className="font-semibold">Pick up to {d.max_versions} versions.</b>{" "}
           <span className="text-muted-foreground">The first you pick is A, the baseline the others are measured against.</span>
         </div>
-        {(hidden > 0 || all) && withSettings.length > 0 && (
-          <button type="button" className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2" onClick={() => setAll(!all)}>
-            {all ? "Only versions with settings" : `Show ${hidden} without settings`}
-          </button>
-        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-[13px]">
@@ -129,13 +122,20 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
             </tr>
           </thead>
           <tbody>
-            {shown.map((v) => {
+            {[...withSettings, ...without].map((v, n) => {
               const i = picked.indexOf(v.id);
               const on = i >= 0;
               const full = !on && picked.length >= d.max_versions;
               return (
+                <Fragment key={v.id}>
+                {n === withSettings.length && withSettings.length > 0 && (
+                  <tr>
+                    <td colSpan={6} className="text-muted-foreground bg-muted/30 border-b px-3 py-1.5 text-xs">
+                      No settings reported: these versions differ only by agent or release.
+                    </td>
+                  </tr>
+                )}
                 <tr
-                  key={v.id}
                   className={cn("cursor-pointer", on ? "bg-muted/50" : "hover:bg-muted/40", full && "cursor-not-allowed opacity-50")}
                   onClick={() => !full && toggle(v.id)}
                 >
@@ -174,6 +174,7 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                   </td>
                   <td className="text-muted-foreground border-b px-3 py-1.5 text-xs whitespace-nowrap">{when(v.last_at)}</td>
                 </tr>
+                </Fragment>
               );
             })}
           </tbody>
