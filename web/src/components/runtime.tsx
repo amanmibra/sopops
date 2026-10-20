@@ -9,6 +9,7 @@ import { listNames, usePlatforms } from "@/lib/platforms";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { PlatformIcon, PlatformLabel } from "./brand-icon";
+import { Backfill } from "./backfill";
 import { LiveKitCapture, SessionsBack } from "./capture";
 import { ConnectGuide } from "./connect-guide";
 import { Button } from "./ui/button";
@@ -312,6 +313,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
           </ol>
         </div>
         <SessionsBack platform={creds.platform} />
+        {creds.api_key.set && <Backfill platform={creds.platform} />}
       </div>
     </div>
   );

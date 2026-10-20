@@ -116,7 +116,7 @@ A session is one call or chat. The **Sessions** page lists them live, each with 
 | | |
 |---|---|
 | [Import](docs/import.md) | Coding agents, sopc projects, paste and platform import |
-| [Connect](docs/connect.md) | SDKs, webhooks, no-code capture, tokens |
+| [Connect](docs/connect.md) | SDKs, webhooks, no-code capture, backfilling the last 7 days, tokens |
 | [A/B tests](docs/ab-tests.md) | Compare versions of an agent: models, voices, prompts |
 | [Sessions and review](docs/sessions-and-review.md) | The check pipeline, patterns, verdicts, suggestions, models and spend |
 | [Configuration](docs/configuration.md) | Every environment variable |

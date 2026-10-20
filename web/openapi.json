@@ -6799,6 +6799,210 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/capture/{platform}/backfill/preview": {
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Backfill Preview",
+        "description": "What a backfill would bring in: each agent on the platform at head, with its finished calls in the window\n(read now with the stored API key), how many are already in sopops, how many are new, and roughly what\nchecking them costs. Agents whose calls can't be listed (no key, a refusal) carry the reason.",
+        "operationId": "backfill_preview",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Up to 7; more counts as 7.",
+              "default": 7,
+              "title": "Days"
+            },
+            "description": "Up to 7; more counts as 7."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/capture/{platform}/backfill": {
+      "post": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Start Backfill",
+        "description": "Start bringing the window's calls in, in the background; each new session is checked like one a webhook\nsent. Calls already in sopops are skipped, so running it again only adds what's new. While one runs, this\nreturns it.",
+        "operationId": "start_backfill",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BackfillIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "capture"
+        ],
+        "summary": "Get Backfill",
+        "description": "The latest backfill for the platform and its progress: found, imported, skipped (already in sopops) and\nfailed, in all and per agent. Null before the first.",
+        "operationId": "get_backfill",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
+              "type": "string",
+              "title": "Platform"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/BackfillOut"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Backfill"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/tokens": {
       "get": {
         "tags": [
@@ -14183,6 +14387,338 @@
           "platforms"
         ],
         "title": "AuthState"
+      },
+      "BackfillAgent": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent"
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          },
+          "imported": {
+            "type": "integer",
+            "title": "Imported"
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Already in sopops."
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "capped": {
+            "type": "boolean",
+            "title": "Capped"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform_id",
+          "found",
+          "imported",
+          "skipped",
+          "failed",
+          "capped",
+          "error"
+        ],
+        "title": "BackfillAgent"
+      },
+      "BackfillAgentPreview": {
+        "properties": {
+          "agent": {
+            "type": "string",
+            "title": "Agent",
+            "description": "The sopc agent."
+          },
+          "platform_id": {
+            "type": "string",
+            "title": "Platform Id",
+            "description": "Its agent (ElevenLabs) or assistant (Vapi) id."
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found",
+            "description": "Finished calls in the window."
+          },
+          "already_imported": {
+            "type": "integer",
+            "title": "Already Imported"
+          },
+          "to_import": {
+            "type": "integer",
+            "title": "To Import"
+          },
+          "capped": {
+            "type": "boolean",
+            "title": "Capped",
+            "description": "The listing stopped at the page limit, so there may be more calls."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why this agent's calls couldn't be listed."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agent",
+          "platform_id",
+          "found",
+          "already_imported",
+          "to_import",
+          "capped",
+          "error"
+        ],
+        "title": "BackfillAgentPreview"
+      },
+      "BackfillIn": {
+        "properties": {
+          "days": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Days",
+            "description": "How many days back: up to 7, and more counts as 7.",
+            "default": 7
+          }
+        },
+        "type": "object",
+        "title": "BackfillIn"
+      },
+      "BackfillOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found",
+            "description": "Finished calls in the window, for every agent."
+          },
+          "imported": {
+            "type": "integer",
+            "title": "Imported",
+            "description": "New sessions so far."
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "description": "Calls already in sopops."
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed",
+            "description": "Calls that couldn't be read or converted."
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/BackfillAgent"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "platform",
+          "days",
+          "status",
+          "found",
+          "imported",
+          "skipped",
+          "failed",
+          "agents",
+          "error",
+          "created_by",
+          "created_at",
+          "updated_at",
+          "finished_at"
+        ],
+        "title": "BackfillOut"
+      },
+      "BackfillPreview": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "enum": [
+              "elevenlabs",
+              "vapi"
+            ],
+            "title": "Platform"
+          },
+          "days": {
+            "type": "integer",
+            "title": "Days"
+          },
+          "key_set": {
+            "type": "boolean",
+            "title": "Key Set",
+            "description": "An API key is stored and can be read."
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error",
+            "description": "Why nothing could be listed (no API key)."
+          },
+          "agents": {
+            "items": {
+              "$ref": "#/components/schemas/BackfillAgentPreview"
+            },
+            "type": "array",
+            "title": "Agents"
+          },
+          "found": {
+            "type": "integer",
+            "title": "Found"
+          },
+          "already_imported": {
+            "type": "integer",
+            "title": "Already Imported"
+          },
+          "to_import": {
+            "type": "integer",
+            "title": "To Import"
+          },
+          "cost_per_session_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Per Session Usd",
+            "description": "This team's model spend per checked session over the last 30 days; null without any."
+          },
+          "estimated_cost_usd": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost Usd",
+            "description": "`to_import` times `cost_per_session_usd`: roughly what checking them costs."
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "days",
+          "key_set",
+          "error",
+          "agents",
+          "found",
+          "already_imported",
+          "to_import",
+          "cost_per_session_usd",
+          "estimated_cost_usd"
+        ],
+        "title": "BackfillPreview"
       },
       "BlockRequest": {
         "properties": {

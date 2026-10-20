@@ -79,3 +79,61 @@ class CaptureTestOut(BaseModel):
 class WebhookReceipt(BaseModel):
     status: str
     session_id: str | None = None
+
+
+# --- backfill (`sopops_server.capture.backfill`) ---------------------------------------------------------------
+
+
+class BackfillAgentPreview(BaseModel):
+    agent: str = Field(description="The sopc agent.")
+    platform_id: str = Field(description="Its agent (ElevenLabs) or assistant (Vapi) id.")
+    found: int = Field(description="Finished calls in the window.")
+    already_imported: int
+    to_import: int
+    capped: bool = Field(description="The listing stopped at the page limit, so there may be more calls.")
+    error: str | None = Field(description="Why this agent's calls couldn't be listed.")
+
+
+class BackfillPreview(BaseModel):
+    platform: Literal["elevenlabs", "vapi"]
+    days: int
+    key_set: bool = Field(description="An API key is stored and can be read.")
+    error: str | None = Field(description="Why nothing could be listed (no API key).")
+    agents: list[BackfillAgentPreview]
+    found: int
+    already_imported: int
+    to_import: int
+    cost_per_session_usd: float | None = Field(description="This team's model spend per checked session over the last 30 days; null without any.")
+    estimated_cost_usd: float | None = Field(description="`to_import` times `cost_per_session_usd`: roughly what checking them costs.")
+
+
+class BackfillAgent(BaseModel):
+    agent: str
+    platform_id: str
+    found: int
+    imported: int
+    skipped: int = Field(description="Already in sopops.")
+    failed: int
+    capped: bool
+    error: str | None
+
+
+class BackfillOut(BaseModel):
+    id: str
+    platform: Literal["elevenlabs", "vapi"]
+    days: int
+    status: Literal["running", "done", "failed"]
+    found: int = Field(description="Finished calls in the window, for every agent.")
+    imported: int = Field(description="New sessions so far.")
+    skipped: int = Field(description="Calls already in sopops.")
+    failed: int = Field(description="Calls that couldn't be read or converted.")
+    agents: list[BackfillAgent]
+    error: str | None
+    created_by: str | None
+    created_at: datetime
+    updated_at: datetime
+    finished_at: datetime | None
+
+
+class BackfillIn(BaseModel):
+    days: int = Field(7, ge=1, description="How many days back: up to 7, and more counts as 7.")

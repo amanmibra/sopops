@@ -3,7 +3,8 @@
 Under /v1/workspaces/<ws>: `capture` (settings; secrets are write-only), `capture/livekit/webhook` (LiveKit Cloud's
 room and participant events, signed with the project's API key) and `capture/elevenlabs/post-call` (ElevenLabs'
 post-call transcription webhook, HMAC-signed). Vapi's messages come to its Server URL (`runtime.py`), handled by
-`vapi_message` here.
+`vapi_message` here. `capture/<platform>/backfill` brings the last 7 days of ElevenLabs or Vapi calls in
+(`capture.backfill`): a preview, a start, and the latest run's progress.
 """
 
 from __future__ import annotations
@@ -13,18 +14,22 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, BackgroundTasks, Request, Response
+from fastapi import APIRouter, BackgroundTasks, Query, Request, Response
 from fastapi.concurrency import run_in_threadpool
 
 from ..capture import LIVEKIT_KEY, LIVEKIT_SECRET, POSTCALL_SECRET, Capture, LiveRoomRef
 from ..capture import elevenlabs as el
 from ..capture import livekit as lk
-from ..capture import agent_config, vapi
+from ..capture import vapi
+from ..capture.backfill import MAX_DAYS, Backfills, from_end_of_call, from_post_call
 from ..errors import workspace_id
 from ..jobs import Jobs
 from ..runtime.service import BadRequest
 from ..schemas import SessionEventIn
 from ..schemas.capture import (
+    BackfillIn,
+    BackfillOut,
+    BackfillPreview,
     CaptureOut,
     CaptureTestOut,
     ElevenLabsCapture,
@@ -34,7 +39,7 @@ from ..schemas.capture import (
     PostCallSecretIn,
     WebhookReceipt,
 )
-from ..schemas.runtime import SecretInfo
+from ..schemas.runtime import PushPlatform, SecretInfo
 from ..store import Store
 from ..tokens import Unauthorized
 from .deps import OPEN
@@ -51,6 +56,7 @@ SIGNED = {401: {"description": "Not signed with this workspace's secret."}}
 def router(store: Store, jobs: Jobs) -> APIRouter:
     r = APIRouter()
     cap = Capture(store)
+    backfills = Backfills(store, jobs)
 
     # --- settings -----------------------------------------------------------------------------
 
@@ -204,15 +210,35 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
         await run_in_threadpool(check)
         body = _json_object(raw)
-        session = el.post_call(body)
+        session = await run_in_threadpool(from_post_call, store, ws, body)
         if session is None:
             return {"status": "ignored"}
-        agent = await run_in_threadpool(store.agent_settings.get, ws, "elevenlabs", (body.get("data") or {}).get("agent_id"))
-        session.config = agent_config.elevenlabs(agent, el.call_override(body))
         done = await run_in_threadpool(store.sessions.ingest, ws, session)
         if done.changed:
             jobs.process_session(done.ref, background)
         return {"status": "created" if done.created else "updated" if done.updated else "unchanged", "session_id": done.id}
+
+    # --- backfill: the last days of calls, from the platform's API ------------------------------------------------
+
+    @r.get(f"{WS}/capture/{{platform}}/backfill/preview", response_model=BackfillPreview, dependencies=OPEN, tags=["capture"])
+    def backfill_preview(workspace: str, platform: PushPlatform, days: int = Query(MAX_DAYS, ge=1, description="Up to 7; more counts as 7.")) -> dict:
+        """What a backfill would bring in: each agent on the platform at head, with its finished calls in the window
+        (read now with the stored API key), how many are already in sopops, how many are new, and roughly what
+        checking them costs. Agents whose calls can't be listed (no key, a refusal) carry the reason."""
+        return backfills.preview(workspace, platform, days)
+
+    @r.post(f"{WS}/capture/{{platform}}/backfill", response_model=BackfillOut, status_code=202, dependencies=OPEN, tags=["capture"])
+    def start_backfill(workspace: str, platform: PushPlatform, req: BackfillIn | None = None) -> dict:
+        """Start bringing the window's calls in, in the background; each new session is checked like one a webhook
+        sent. Calls already in sopops are skipped, so running it again only adds what's new. While one runs, this
+        returns it."""
+        return backfills.start(workspace, platform, (req or BackfillIn()).days)
+
+    @r.get(f"{WS}/capture/{{platform}}/backfill", response_model=BackfillOut | None, dependencies=OPEN, tags=["capture"])
+    def get_backfill(workspace: str, platform: PushPlatform) -> dict | None:
+        """The latest backfill for the platform and its progress: found, imported, skipped (already in sopops) and
+        failed, in all and per agent. Null before the first."""
+        return backfills.latest(workspace, platform)
 
     return r
 
@@ -223,11 +249,7 @@ def vapi_message(store: Store, jobs: Jobs, workspace: str, message: dict, backgr
     the open session. Anything else is ignored."""
     kind = str(message.get("type") or "")
     if kind == "end-of-call-report":
-        if (session := vapi.end_of_call(message)) is not None:
-            assistant, overrides = vapi.assistant_of(message)
-            if assistant is None:
-                assistant = store.agent_settings.get(workspace, "vapi", vapi.call_of(message).get("assistantId"))
-            session.config = agent_config.vapi(assistant, overrides)
+        if (session := from_end_of_call(store, workspace, message)) is not None:
             done = store.sessions.ingest(workspace, session)
             if done.changed:
                 jobs.process_session(done.ref, background)

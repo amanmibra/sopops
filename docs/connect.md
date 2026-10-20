@@ -47,11 +47,15 @@ sopops joins each room an agent joins, hidden and subscribe-only. It streams the
 
 **Sessions from code:** the TypeScript SDK's `elevenLabsSession` (posted, optionally streamed).
 
+**Calls from before you connected:** once the API key is saved, Settings, then Platforms, shows **Backfill the last 7 days** under ElevenLabs. It counts each agent's finished conversations from the last 7 days first (and what checking the new ones costs, once the team has spent something), then brings them in as sessions, the same ones the post-call webhook makes. Conversations already in sopops are skipped, so you can run it again. See [the API](../API.md#backfill-from-elevenlabs-or-vapi).
+
 ## Connect Vapi
 
 **Instructions:** push to the system message in `model.messages`. Or set the phone number's Server URL to `/v1/workspaces/{ws}/runtime/vapi/assistant-request?agent={id}`, with the secret as a Bearer Token credential.
 
 **Sessions with no code:** on the assistant, under Server Messages, turn on `end-of-call-report` (with tool calls), `conversation-update` and `transcript` (live) beside `assistant-request`. Auth is the same.
+
+**Calls from before you connected:** once the API key is saved, Settings, then Platforms, shows **Backfill the last 7 days** under Vapi. It counts each assistant's ended calls from the last 7 days, then brings them in as sessions, the same ones the end-of-call report makes. Calls already in sopops are skipped.
 
 ## Retell
 

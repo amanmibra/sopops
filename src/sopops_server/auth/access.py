@@ -74,6 +74,8 @@ ROUTES: dict[str, str] = {
     "create_join_link": ADMIN, "delete_join_link": ADMIN,
     # a team's AI keys and models: they spend money, so owners and admins change them
     "set_typesafe_key": ADMIN, "set_ai_provider": ADMIN, "set_ai_models": ADMIN, "reset_ai_setting": ADMIN,
+    # bringing past calls in reads the platform with the stored key, and checking them spends money
+    "backfill_preview": ADMIN, "start_backfill": ADMIN, "get_backfill": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
     # everything else in the app: any member

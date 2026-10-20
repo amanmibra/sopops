@@ -149,7 +149,7 @@ Sign-in is on once a login provider is set up (`SOPOPS_GITHUB_OAUTH_CLIENT_ID`/`
 | webhook | the sender's signature or secret, no login | `POST /v1/github/webhook`, `/v1/workspaces/{ws}/capture/livekit/webhook`, `/v1/workspaces/{ws}/capture/elevenlabs/post-call`, `/v1/workspaces/{ws}/runtime/elevenlabs/conversation-init`, `/v1/workspaces/{ws}/runtime/vapi/assistant-request` |
 | token or session | a `runtime` token, or a login session | `GET /v1/workspaces/{ws}/agents/{agent}`, `/v1/workspaces/{ws}/prompt`, `/v1/workspaces/{ws}/sops/{id}`. With sign-in on these always need one, even before the workspace has a runtime token |
 | signed in | a login session, with or without an org | `POST /v1/auth/logout`, `PUT /v1/auth/org`, `POST /v1/auth/invites/accept`, `POST /v1/auth/join/accept`, `POST /v1/auth/password/change` |
-| admin | a login session as an owner or admin | `PATCH /v1/org`, `POST /v1/org/members`, `PATCH/DELETE /v1/org/members/{user_id}`, `POST /v1/org/members/{user_id}/password-link`, `GET/POST /v1/org/invites`, `POST /v1/org/invites/{id}/resend`, `DELETE /v1/org/invites/{id}`, `POST /v1/org/setup`, `GET/POST/DELETE /v1/org/join-link`, `POST /v1/github/app/manifest` and its callback |
+| admin | a login session as an owner or admin | `PATCH /v1/org`, `POST /v1/org/members`, `PATCH/DELETE /v1/org/members/{user_id}`, `POST /v1/org/members/{user_id}/password-link`, `GET/POST /v1/org/invites`, `POST /v1/org/invites/{id}/resend`, `DELETE /v1/org/invites/{id}`, `POST /v1/org/setup`, `GET/POST/DELETE /v1/org/join-link`, `POST /v1/github/app/manifest` and its callback, `/v1/workspaces/{ws}/capture/{platform}/backfill` and its preview |
 | session | a login session as a member of the workspace's org | everything else, including `POST /v1/orgs` and `PATCH /v1/org/platforms` |
 
 Without a session: `401 {"detail": "sign in first"}`. Signed in but in no org: `403`. A workspace in an org you're not in answers `404`. A new workspace goes into the org you're working in.
@@ -244,6 +244,18 @@ A sender can also stream a session as it happens, then close it. Nothing is chec
 | `POST /v1/workspaces/{ws}/sessions/{platform}/{external_id}/close` | `{ended_at?, partial?, test?, config?}`; `config` is merged over the one sent at open. Closes it with what streamed in and runs `process_session`. |
 
 The full post to `POST /v1/workspaces/{ws}/sessions` still works at any point and wins: it replaces whatever streamed in. An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `incomplete` and checked, the next time that workspace opens a session or by the daily job. All three take the `ingest` token.
+
+### Backfill from ElevenLabs or Vapi
+
+Brings the last 7 days of calls in from the platform's API, with the API key stored under `runtime/platforms`, for each agent at head on that platform. Each call is converted with the same code as the webhook that would have sent it (the ElevenLabs post-call webhook, the Vapi end-of-call report), so it's the same session: the same `external_id`, `config`, `test`, tool calls and metadata. Calls already in sopops are skipped, and a webhook arriving later for a backfilled call changes nothing. New sessions are checked like any other. Calls still running are left for their webhook. An owner or admin can use these.
+
+| Endpoint | What it does |
+|---|---|
+| `GET /v1/workspaces/{ws}/capture/{platform}/backfill/preview` | `?days=` (default 7; more counts as 7). Reads the platform now and returns `{platform, days, key_set, error, agents, found, already_imported, to_import, cost_per_session_usd, estimated_cost_usd}`. Each agent is `{agent, platform_id, found, already_imported, to_import, capped, error}`; an agent whose calls can't be listed (no key, a refusal) has the reason in `error`. The cost is `to_import` times this team's model spend per checked session over the last 30 days, or null with none. |
+| `POST /v1/workspaces/{ws}/capture/{platform}/backfill` | `{days?}`: start it in the background. `202` with the run (below). While one is running for the platform, it returns that one. |
+| `GET /v1/workspaces/{ws}/capture/{platform}/backfill` | The latest run, or null: `{id, platform, days, status: running \| done \| failed, found, imported, skipped, failed, agents, error, created_by, created_at, updated_at, finished_at}`. `skipped` calls were already in sopops; `failed` ones couldn't be read or converted. Each agent has the same counts and its last error. |
+
+`platform` is `elevenlabs` or `vapi`. ElevenLabs: `GET /v1/convai/conversations` (by `agent_id` and `call_start_after_unix`, 100 a page), then `GET /v1/convai/conversations/{id}` for each new call. Vapi: `GET /call` (by `assistantId` and `createdAtGt`, 100 a page, then `createdAtLt` the oldest seen), each call whole. Requests are spaced out, a `429` waits for `Retry-After` and tries again, and each agent stops after 20 pages (`capped`). A run that stops moving for 15 minutes (the server restarted) reads as `failed`; starting again picks up the rest.
 
 ### The canonical format
 

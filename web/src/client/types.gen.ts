@@ -770,6 +770,226 @@ export type AuthState = {
 };
 
 /**
+ * BackfillAgent
+ */
+export type BackfillAgent = {
+    /**
+     * Agent
+     */
+    agent: string;
+    /**
+     * Platform Id
+     */
+    platform_id: string;
+    /**
+     * Found
+     */
+    found: number;
+    /**
+     * Imported
+     */
+    imported: number;
+    /**
+     * Skipped
+     *
+     * Already in sopops.
+     */
+    skipped: number;
+    /**
+     * Failed
+     */
+    failed: number;
+    /**
+     * Capped
+     */
+    capped: boolean;
+    /**
+     * Error
+     */
+    error: string | null;
+};
+
+/**
+ * BackfillAgentPreview
+ */
+export type BackfillAgentPreview = {
+    /**
+     * Agent
+     *
+     * The sopc agent.
+     */
+    agent: string;
+    /**
+     * Platform Id
+     *
+     * Its agent (ElevenLabs) or assistant (Vapi) id.
+     */
+    platform_id: string;
+    /**
+     * Found
+     *
+     * Finished calls in the window.
+     */
+    found: number;
+    /**
+     * Already Imported
+     */
+    already_imported: number;
+    /**
+     * To Import
+     */
+    to_import: number;
+    /**
+     * Capped
+     *
+     * The listing stopped at the page limit, so there may be more calls.
+     */
+    capped: boolean;
+    /**
+     * Error
+     *
+     * Why this agent's calls couldn't be listed.
+     */
+    error: string | null;
+};
+
+/**
+ * BackfillIn
+ */
+export type BackfillIn = {
+    /**
+     * Days
+     *
+     * How many days back: up to 7, and more counts as 7.
+     */
+    days?: number;
+};
+
+/**
+ * BackfillOut
+ */
+export type BackfillOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Days
+     */
+    days: number;
+    /**
+     * Status
+     */
+    status: 'running' | 'done' | 'failed';
+    /**
+     * Found
+     *
+     * Finished calls in the window, for every agent.
+     */
+    found: number;
+    /**
+     * Imported
+     *
+     * New sessions so far.
+     */
+    imported: number;
+    /**
+     * Skipped
+     *
+     * Calls already in sopops.
+     */
+    skipped: number;
+    /**
+     * Failed
+     *
+     * Calls that couldn't be read or converted.
+     */
+    failed: number;
+    /**
+     * Agents
+     */
+    agents: Array<BackfillAgent>;
+    /**
+     * Error
+     */
+    error: string | null;
+    /**
+     * Created By
+     */
+    created_by: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Updated At
+     */
+    updated_at: string;
+    /**
+     * Finished At
+     */
+    finished_at: string | null;
+};
+
+/**
+ * BackfillPreview
+ */
+export type BackfillPreview = {
+    /**
+     * Platform
+     */
+    platform: 'elevenlabs' | 'vapi';
+    /**
+     * Days
+     */
+    days: number;
+    /**
+     * Key Set
+     *
+     * An API key is stored and can be read.
+     */
+    key_set: boolean;
+    /**
+     * Error
+     *
+     * Why nothing could be listed (no API key).
+     */
+    error: string | null;
+    /**
+     * Agents
+     */
+    agents: Array<BackfillAgentPreview>;
+    /**
+     * Found
+     */
+    found: number;
+    /**
+     * Already Imported
+     */
+    already_imported: number;
+    /**
+     * To Import
+     */
+    to_import: number;
+    /**
+     * Cost Per Session Usd
+     *
+     * This team's model spend per checked session over the last 30 days; null without any.
+     */
+    cost_per_session_usd: number | null;
+    /**
+     * Estimated Cost Usd
+     *
+     * `to_import` times `cost_per_session_usd`: roughly what checking them costs.
+     */
+    estimated_cost_usd: number | null;
+};
+
+/**
  * BlockRequest
  */
 export type BlockRequest = {
@@ -14445,6 +14665,120 @@ export type ElevenlabsPostCallResponses = {
 };
 
 export type ElevenlabsPostCallResponse = ElevenlabsPostCallResponses[keyof ElevenlabsPostCallResponses];
+
+export type BackfillPreviewData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+    };
+    query?: {
+        /**
+         * Days
+         *
+         * Up to 7; more counts as 7.
+         */
+        days?: number;
+    };
+    url: '/v1/workspaces/{workspace}/capture/{platform}/backfill/preview';
+};
+
+export type BackfillPreviewErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type BackfillPreviewError = BackfillPreviewErrors[keyof BackfillPreviewErrors];
+
+export type BackfillPreviewResponses = {
+    /**
+     * Successful Response
+     */
+    200: BackfillPreview;
+};
+
+export type BackfillPreviewResponse = BackfillPreviewResponses[keyof BackfillPreviewResponses];
+
+export type GetBackfillData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/{platform}/backfill';
+};
+
+export type GetBackfillErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetBackfillError = GetBackfillErrors[keyof GetBackfillErrors];
+
+export type GetBackfillResponses = {
+    /**
+     * Response Get Backfill
+     *
+     * Successful Response
+     */
+    200: BackfillOut | null;
+};
+
+export type GetBackfillResponse = GetBackfillResponses[keyof GetBackfillResponses];
+
+export type StartBackfillData = {
+    /**
+     * Req
+     */
+    body?: BackfillIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Platform
+         */
+        platform: 'elevenlabs' | 'vapi';
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/capture/{platform}/backfill';
+};
+
+export type StartBackfillErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartBackfillError = StartBackfillErrors[keyof StartBackfillErrors];
+
+export type StartBackfillResponses = {
+    /**
+     * Successful Response
+     */
+    202: BackfillOut;
+};
+
+export type StartBackfillResponse = StartBackfillResponses[keyof StartBackfillResponses];
 
 export type ListTokensData = {
     body?: never;
