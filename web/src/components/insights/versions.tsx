@@ -285,6 +285,28 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
   );
 }
 
+/** What a version, the baseline and a better or worse flag mean, next to the numbers they explain. */
+function HowToRead({ minN, points }: { minN?: number; points?: number }) {
+  const items: [string, string][] = [
+    ["Version", "Calls that ran with the same agent, release and settings. A change to the model, voice or prompt starts a new version, labeled B, C and so on in the order of their first call."],
+    ["Baseline", "The version the others are measured against, usually the one already running. Each other version shows its pass rate as points above or below it. Make baseline switches it."],
+    [
+      "Better or worse",
+      `Shown only when the difference is unlikely to be chance: ${minN ?? 10} or more checked calls on each version, a change of at least ${points ?? 5} points, and 95% ranges that don't overlap. Otherwise it says "no clear difference" or "too few to compare".`,
+    ],
+  ];
+  return (
+    <div className="bg-muted/40 grid gap-3 rounded-lg border p-4 text-[13px] sm:grid-cols-3">
+      {items.map(([term, text]) => (
+        <div key={term} className="grid gap-1">
+          <div className="font-semibold">{term}</div>
+          <p className="text-muted-foreground leading-relaxed">{text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function VersionsView({ filters, onFilters, test, v, onTest, onPick }: { filters: InsightFilters; onFilters: (f: InsightFilters) => void; test?: string; v?: string[]; onTest: (t?: string) => void; onPick: (v: string[]) => void }) {
   const { ws } = useWs();
   const res = useQuery({ ...q.insightsVersions(ws, filters, test, v), ...LIVE });
@@ -336,6 +358,7 @@ export function VersionsView({ filters, onFilters, test, v, onTest, onPick }: { 
         ) : (
           <>
             <VersionsTable d={d} onPick={onPick} />
+            <HowToRead minN={t?.min_n} points={t?.flag_points} />
             <WidgetCard
               title="Procedures"
               subtitle={`Pass rate per procedure on each version, with how often its goal was met and how many calls it applied to.`}
