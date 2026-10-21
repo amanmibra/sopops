@@ -75,9 +75,12 @@ def decision_model(env: Mapping[str, str] | None = None) -> str | None:
 
 
 def gateway(env: Mapping[str, str] | None = None) -> tuple[str, str] | None:
-    """The model gateway's base URL and key, when this deployment has one."""
+    """The model gateway's base URL and key, when this deployment has one. `SOPOPS_LM_URL` may be a full URL or a bare
+    `host:port` (as a platform's private-network reference gives it), which means `http://host:port/v1`."""
     env = os.environ if env is None else env
     url = (env.get(LM_URL_ENV) or "").strip().rstrip("/")
+    if url and "://" not in url:
+        url = f"http://{url}/v1"
     return (url, (env.get(LM_KEY_ENV) or "").strip()) if url else None
 
 

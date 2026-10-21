@@ -238,3 +238,9 @@ def test_the_estimate_uses_the_teams_own_calls_once_it_has_enough(client):
     assert calls == estimate.MIN_CALLS and tokens["decision"] == (1000, 100) and tokens["reasoning"] == (4000, 300)
     got = client.get(f"{AI}/estimate", params={"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-sonnet-5-5"}).json()
     assert got["basis"] == "yours" and got["basis_calls"] == estimate.MIN_CALLS
+
+
+def test_the_gateway_takes_a_bare_host_and_port():
+    assert lm.gateway({lm.LM_URL_ENV: "sopops-lm:4000", lm.LM_KEY_ENV: "k"}) == ("http://sopops-lm:4000/v1", "k")
+    assert lm.gateway({lm.LM_URL_ENV: "https://lm.example/v1/"}) == ("https://lm.example/v1", "")
+    assert lm.gateway({}) is None
