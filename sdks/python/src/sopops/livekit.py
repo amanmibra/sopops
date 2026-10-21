@@ -242,7 +242,14 @@ def _model_name(provider: Any, model: Any) -> str | None:
     provider = provider if isinstance(provider, str) and provider.lower() not in ("", "unknown", "livekit") else None
     if not model:
         return None
-    return model if "/" in model or not provider else f"{provider.lower()}/{model}"
+    return model if "/" in model or not provider else f"{_provider_name(provider)}/{model}"
+
+
+def _provider_name(provider: str) -> str:
+    """Some plugins report their API host as the provider (`api.anthropic.com`): keep the company's name."""
+    host = provider.lower().split("://")[-1].split("/")[0]
+    labels = [p for p in host.split(".") if p]
+    return labels[-2] if len(labels) >= 2 else host
 
 
 def _userdata(session: Any) -> Any:

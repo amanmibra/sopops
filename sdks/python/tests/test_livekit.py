@@ -105,6 +105,7 @@ def test_agent_config_reads_the_sessions_models():
     s = ModelSession(llm=Model("livekit", "openai/gpt-4.1-mini"), stt=Model("deepgram", "nova-3"), tts=Model("cartesia", "sonic-2", voice="ava"))
     assert agent_config(s) == {"llm": "openai/gpt-4.1-mini", "stt": "deepgram/nova-3", "tts": "cartesia/sonic-2", "voice": "ava"}
     assert agent_config(ModelSession(llm=Model("unknown", "unknown"))) == {} and agent_config(Session()) == {}
+    assert agent_config(ModelSession(llm=Model("api.anthropic.com", "claude-haiku-4-5"))) == {"llm": "anthropic/claude-haiku-4-5"}
 
 
 @respx.mock
