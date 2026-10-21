@@ -11,7 +11,7 @@
      head   Inter Tight 600 32/40  page titles (h1)                       .t-head  text-2xl and up
      lead   Inter Tight 500 20/24  panel and section titles, big figures  .t-lead  text-lg, text-xl
      body   Plex Mono   400 16/24  intro lines, large inputs              .t-body  text-base
-     small  Plex Mono   400 13/16  tables, forms, lists, the default      .t-small text-xs, text-sm
+     small  Plex Mono   400 13/20  running text, tables, forms, lists     .t-small text-sm (13/16 for one-line meta: text-xs)
      label  Plex Mono   600 13/16  capitals, tracked: column heads, tags,  .t-label
                                    buttons, nav group names
      (display, 72/72, is the landing page's alone.) */
@@ -133,7 +133,7 @@
   --text-xs--line-height: 16px;
   --text-xs--letter-spacing: -0.01em;
   --text-sm: 13px;
-  --text-sm--line-height: 16px;
+  --text-sm--line-height: 20px;
   --text-sm--letter-spacing: -0.01em;
   --text-base: 16px;
   --text-base--line-height: 24px;
@@ -152,8 +152,8 @@
   --text-3xl--letter-spacing: -0.03em;
   --leading-none: 16px;
   --leading-tight: 16px;
-  --leading-snug: 16px;
-  --leading-normal: 16px;
+  --leading-snug: 20px;
+  --leading-normal: 20px;
   --leading-relaxed: 24px;
   --tracking-tight: 0em;
   --color-background: var(--background);
@@ -208,7 +208,7 @@
   html { font-feature-settings: "tnum", "kern"; font-variant-numeric: tabular-nums; }
   body {
     @apply bg-background text-foreground antialiased;
-    font: 400 13px / 16px var(--body-face);
+    font: 400 13px / 20px var(--body-face);
     letter-spacing: -0.01em;
   }
   /* heads and leads are set in the grotesk; a heading at small size is a label */

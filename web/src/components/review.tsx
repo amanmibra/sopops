@@ -55,9 +55,9 @@ export { SUGGESTION_STATUS, ReviewStateChip, SuggestionStatusTag, VerdictChip, a
 
 export function VerdictLegend({ className }: { className?: string }) {
   return (
-    <dl className={cn("grid gap-x-4 gap-y-2 text-sm xl:grid-cols-[repeat(2,minmax(0,1fr))]", className)}>
+    <dl className={cn("grid gap-x-6 gap-y-4 text-sm xl:grid-cols-[repeat(2,minmax(0,1fr))]", className)}>
       {VERDICTS.map((v) => (
-        <div key={v} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+        <div key={v} className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
           <dt className="shrink-0">
             <kbd className="text-muted-foreground mr-2 rounded border px-1 font-mono text-sm">{VERDICT[v].key}</kbd>
             <span className={cn("rounded-full px-2 py-px text-xs font-medium", VERDICT[v].tone)}>{VERDICT[v].label}</span>
@@ -581,7 +581,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
             <ChevronRight className="text-muted-foreground size-4 transition-transform group-open:rotate-90" />
             What the verdicts mean
           </summary>
-          <VerdictLegend className="mt-3 gap-y-2" />
+          <VerdictLegend className="mt-3" />
           <p className="text-muted-foreground mt-3 text-sm">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
         </details>
       )}
