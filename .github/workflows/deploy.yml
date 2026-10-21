@@ -7,7 +7,12 @@ on:
     workflows: [ci]
     types: [completed]
     branches: [main]
-  workflow_dispatch: # by hand: deploys the main HEAD it runs on
+  # By hand, without waiting for ci: Actions > deploy > Run workflow, or `gh workflow run deploy`.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full commit SHA to deploy (empty: the latest on main). Skips ci."
+        required: false
 
 permissions: {}
 
@@ -26,7 +31,7 @@ jobs:
       # A project token for the sopops project, production environment. It picks the project,
       # so there's no `railway link`.
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+      SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
     steps:
       - run: npm install -g @railway/cli@5.49.2
       # Pin the build to this commit, then rebuild. `redeploy` builds the last uploaded

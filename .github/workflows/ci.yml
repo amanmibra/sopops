@@ -4,30 +4,38 @@ on:
   push:
   pull_request:
 
+# A newer push to the same branch cancels the run it replaces.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend:
+    # Both databases in parallel: SQLite is the self-host default, Postgres is what app.sopops.dev runs on.
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, postgres]
+    name: backend (${{ matrix.db }})
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: postgres
-        ports: ["5432:5432"]
-        options: --health-cmd "pg_isready -U postgres" --health-interval 2s --health-retries 30
     env:
       SOPC_BIN: /usr/local/bin/sopc
+      SOPOPS_TEST_DATABASE_URL: ${{ matrix.db == 'postgres' && 'postgresql://postgres:postgres@localhost:5432/postgres' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
+      # Started by hand, not as a service, to raise max_connections: each parallel worker opens its own pools.
+      - name: Start Postgres
+        if: matrix.db == 'postgres'
+        run: |
+          docker run -d --name pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:16-alpine -c max_connections=500
+          until docker exec pg pg_isready -U postgres; do sleep 1; done
+          sleep 3  # the image restarts once after its first start
       - name: Install sopc
         run: curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=v0.0.17 SOPC_INSTALL_DIR=/usr/local/bin sudo -E sh
       - run: uv sync --all-extras --python 3.12
-      - name: Tests (SQLite)
-        run: uv run pytest -q
-      - name: Tests (Postgres)
-        run: uv run pytest -q
-        env:
-          SOPOPS_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      # Spread across the runner's cores; each worker gets its own database (tests/conftest.py).
+      - run: uv run pytest -q -n auto
 
   web:
     runs-on: ubuntu-latest

@@ -1,10 +1,11 @@
+import functools
 import os
 import shutil
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
+from sqlalchemy import make_url, text
 
 from sopops_server import Sopc, Store, create_app
 from sopops_server.ai.lm import ROLE_ENV, set_ai
@@ -63,10 +64,30 @@ def files():
     return read_files(FIXTURE / "sops")
 
 
+@functools.cache
+def worker_db(url: str) -> str:
+    """Under pytest-xdist each worker gets its own Postgres database (`<name>_gw0`, ...), created on first use."""
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return url
+    base = make_url(url)
+    name = f"{base.database}_{worker}"
+    engine = engine_from_url(url).execution_options(isolation_level="AUTOCOMMIT")
+    with engine.connect() as conn:
+        # Two CREATE DATABASEs at once both copy template1 and one fails, so workers take turns.
+        conn.execute(text("SELECT pg_advisory_lock(7241)"))
+        if not conn.execute(text("SELECT 1 FROM pg_database WHERE datname = :n"), {"n": name}).scalar():
+            conn.execute(text(f'CREATE DATABASE "{name}"'))
+        conn.execute(text("SELECT pg_advisory_unlock(7241)"))
+    engine.dispose()
+    return base.set(database=name).render_as_string(hide_password=False)
+
+
 def fresh_db_url(tmp_path: Path, name: str = "test.db") -> str:
     """SQLite by default; with SOPOPS_TEST_DATABASE_URL, that Postgres database with its tables dropped first."""
     url = os.environ.get("SOPOPS_TEST_DATABASE_URL")
     if url:
+        url = worker_db(url)
         engine = engine_from_url(url)
         metadata.drop_all(engine)
         with engine.begin() as conn:

@@ -49,7 +49,7 @@ sopops = { path = "sdks/python", editable = true }
 
 [dependency-groups]
 # sopops[mcp]: tests/test_mcp.py runs sopops-mcp against the app in-process.
-dev = ["pytest>=8", "httpx2", "respx>=0.23.1", "sopops[mcp]"]
+dev = ["pytest>=8", "pytest-xdist>=3.6", "httpx2", "respx>=0.23.1", "sopops[mcp]"]
 
 [build-system]
 requires = ["hatchling"]
