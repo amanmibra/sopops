@@ -1,0 +1,36 @@
+name: release-sdk-node
+
+# Publishes sdks/node to npm as `sopops`. Tag a release (`node-v0.1.0`) or run it by hand.
+# Needs an npm granular automation token with publish rights, as the NPM_TOKEN repository secret.
+# Bump `version` in sdks/node/package.json before tagging; npm refuses a repeat version.
+on:
+  push:
+    tags: ["node-v*"]
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      id-token: write   # provenance: npm records which workflow and commit built this
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - name: Install, test, build
+        working-directory: sdks/node
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm build
+      - name: Publish
+        working-directory: sdks/node
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

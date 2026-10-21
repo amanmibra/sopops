@@ -9,6 +9,11 @@ dependencies = ["httpx>=0.27"]
 keywords = ["sopops", "sopc", "voice agents", "livekit", "prompts", "mcp"]
 classifiers = ["Typing :: Typed"]
 
+[project.urls]
+Homepage = "https://sopops.dev"
+Documentation = "https://docs.sopops.dev"
+Repository = "https://github.com/amanmibra/sopops"
+
 [project.optional-dependencies]
 livekit = ["livekit-agents>=1.0"]
 # sopops-mcp: the onboarding MCP server a coding agent (Claude Code, Codex) runs, talking to sopops over HTTP.

@@ -40,5 +40,26 @@
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"
   },
-  "packageManager": "pnpm@10.32.1"
+  "packageManager": "pnpm@10.32.1",
+  "homepage": "https://sopops.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/amanmibra/sopops.git",
+    "directory": "sdks/node"
+  },
+  "bugs": {
+    "url": "https://github.com/amanmibra/sopops/issues"
+  },
+  "keywords": [
+    "sopops",
+    "sopc",
+    "voice agents",
+    "livekit",
+    "elevenlabs",
+    "prompts"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
 }
