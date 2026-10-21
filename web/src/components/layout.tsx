@@ -3,6 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
 import {
+  CircleAlert,
+  Wrench,
   Bot,
   Boxes,
   ChartLine,
@@ -11,8 +13,6 @@ import {
   Plus,
   FileText,
   House,
-  Layers,
-  Lightbulb,
   ListOrdered,
   type LucideIcon,
   Menu,
@@ -481,8 +481,8 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws)} icon={House} label="Home" active={home} />
         </RailGroup>
         <RailGroup label="Review" collapsed={c}>
-          <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={Layers} label="Mistakes" count={needsReview} countTitle="Mistakes to review: no verdict yet, or back after a fix" />
-          <RailItem collapsed={c} href={wsHref(ws, "suggestions")} icon={Lightbulb} label="Fixes" count={proposed} countTitle="Fixes waiting for a decision" />
+          <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={CircleAlert} label="Mistakes" count={needsReview} countTitle="Mistakes to review: no verdict yet, or back after a fix" />
+          <RailItem collapsed={c} href={wsHref(ws, "suggestions")} icon={Wrench} label="Fixes" count={proposed} countTitle="Fixes waiting for a decision" />
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
         </RailGroup>
         <RailGroup label="Results" collapsed={c}>
