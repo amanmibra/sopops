@@ -202,7 +202,7 @@ export function Kpi({
 }: {
   label: string;
   value: ReactNode;
-  /** A small mark before the label, in the figure's color. */
+  /** A small mark in the tile's top-right corner, in the figure's color. */
   icon?: LucideIcon;
   accent?: keyof typeof ACCENT;
   help: ReactNode;
@@ -215,10 +215,20 @@ export function Kpi({
 }) {
   const body = (
     <>
-      {/* Inline flow, so a label that wraps keeps its help mark right after the last word. */}
-      <div className="text-muted-foreground min-h-8 text-sm">
-        {Icon && <Icon className="mr-1 inline size-[15px] align-[-3px]" strokeWidth={2.25} style={{ color: ACCENT[accent] }} aria-hidden />}
-        {label} <span className="inline-block align-[-2px]"><Help text={help} /></span>
+      <div className="flex items-start justify-between gap-3">
+        {/* Inline flow, so a label that wraps keeps its help mark right after the last word. */}
+        <div className="text-muted-foreground min-h-8 min-w-0 text-sm">
+          {label} <span className="inline-block align-[-2px]"><Help text={help} /></span>
+        </div>
+        {Icon && (
+          <span
+            className="grid size-8 shrink-0 place-items-center"
+            style={{ background: `color-mix(in oklch, ${ACCENT[accent]} 14%, transparent)`, color: ACCENT[accent] }}
+            aria-hidden
+          >
+            <Icon className="size-4" strokeWidth={2.25} />
+          </span>
+        )}
       </div>
       <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
       {(prior || (delta && delta.value != null)) && (
