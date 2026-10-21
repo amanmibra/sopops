@@ -288,7 +288,7 @@ function ModelField({
       </Label>
       {options ? (
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger id={id} className="w-full min-w-0 font-mono text-xs [&>span]:truncate">
+          <SelectTrigger id={id} className="w-full min-w-0 font-mono text-xs overflow-hidden *:data-[slot=select-value]:block! *:data-[slot=select-value]:min-w-0 *:data-[slot=select-value]:truncate">
             <SelectValue placeholder="Pick a model" />
           </SelectTrigger>
           <SelectContent>
