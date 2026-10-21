@@ -282,13 +282,13 @@ function ModelField({
 }) {
   const options = choices?.models.length ? (value && !choices.models.includes(value) ? [value, ...choices.models] : choices.models) : null;
   return (
-    <div className="grid gap-1.5">
+    <div className="grid min-w-0 gap-1.5">
       <Label htmlFor={id} className="text-[13px]">
         {label} {source === "default" && <span className="text-muted-foreground font-normal">(default)</span>}
       </Label>
       {options ? (
         <Select value={value} onValueChange={onChange}>
-          <SelectTrigger id={id} className="w-full font-mono text-xs">
+          <SelectTrigger id={id} className="w-full min-w-0 font-mono text-xs [&>span]:truncate">
             <SelectValue placeholder="Pick a model" />
           </SelectTrigger>
           <SelectContent>
