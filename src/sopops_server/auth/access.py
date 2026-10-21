@@ -99,7 +99,7 @@ ROUTES: dict[str, str] = {
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",
         "create_import", "import_sopc_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
         "update_import_proposal", "resolve_import_finding", "get_import_review", "decide_import_group", "edit_import_variable", "apply_import",
-        "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models",
+        "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models", "estimate_ai_cost",
     )},
 }
 
