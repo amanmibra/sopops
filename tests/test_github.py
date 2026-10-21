@@ -209,7 +209,7 @@ def test_connect_checks_the_repo_and_never_returns_the_token(client, gh):
     assert res.status_code == 200, res.text
     out = res.json()
     assert out["owner"] == "acme" and out["repo"] == "agents" and out["base_branch"] == "main" and out["path"] == "sops"
-    assert out["auth"] == "token" and out["token_hint"] == "…cdef" and out["pulled_sha"] is None
+    assert out["auth"] == "token" and out["token_hint"] == "git…abcdef" and out["pulled_sha"] is None
     assert out["url"] == "https://github.com/acme/agents/tree/main/sops"
     assert TOKEN not in res.text and TOKEN not in client.get(f"{WS}/repo").text
     assert client.get(f"{WS}/repo").json() == out
@@ -259,7 +259,7 @@ def test_reconnect_keeps_the_token_and_disconnect_forgets_it(client, gh, files):
     assert connect(client).status_code == 200
     gh.push("main", {f"lib/{p}": c for p, c in files.items()})
     res = client.post(f"{WS}/repo", json={"owner": "acme", "repo": "agents", "path": "/lib/"})
-    assert res.status_code == 200 and res.json()["path"] == "lib" and res.json()["token_hint"] == "…cdef"
+    assert res.status_code == 200 and res.json()["path"] == "lib" and res.json()["token_hint"] == "git…abcdef"
     assert client.delete(f"{WS}/repo").status_code == 204
     assert client.get(f"{WS}/repo").json() is None  # 200 with null: not connected
     assert client.delete(f"{WS}/repo").status_code == 404

@@ -39,5 +39,8 @@ def decrypt(token: str) -> str:
 
 
 def hint(plain: str) -> str:
-    """The last 4 characters, for telling keys apart in the UI."""
+    """The first 3 and last 6 characters of a long key (`sk-…a1b2c3`), the last 4 of a shorter one, for telling keys
+    apart in the UI."""
+    if len(plain) >= 24:
+        return plain[:3] + "…" + plain[-6:]
     return "…" + plain[-4:] if len(plain) >= 12 else "…"
