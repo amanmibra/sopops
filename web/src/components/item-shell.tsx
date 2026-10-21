@@ -112,7 +112,8 @@ export function Missing({ kind, id }: { kind: Kind; id: string }) {
 }
 
 export function Page({ wide, children }: { wide?: boolean; children: ReactNode }) {
-  // With the rail collapsed the canvas is wider than the page, so it centres instead of leaving a gap on the right.
+  // Wide pages (lists, tables, the import review) take the whole canvas. A reading page keeps its measure, and
+  // centres when the rail is collapsed instead of leaving a gap on the right.
   const collapsed = useRailCollapsed();
-  return <div className={cn("min-w-0", wide ? "max-w-[1320px]" : "max-w-[860px]", collapsed && "mx-auto")}>{children}</div>;
+  return <div className={cn("min-w-0", wide ? "w-full" : "max-w-[860px]", !wide && collapsed && "mx-auto")}>{children}</div>;
 }
