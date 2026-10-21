@@ -161,7 +161,7 @@ function Fixed() {
             ))}
           </ul>
           {rows.length > SHOWN_FIXES && (
-            <p className="border-t px-4 py-2">
+            <p className="border-t bg-[var(--band)] px-4 py-2">
               <HrefLink href={wsHref(ws, "patterns") + "?tab=fixing"} className="text-muted-foreground">
                 {rows.length - SHOWN_FIXES} more in Mistakes
               </HrefLink>

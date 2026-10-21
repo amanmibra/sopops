@@ -253,7 +253,7 @@ function ReviewCard({
       aria-label={item.name}
       className={cn("bg-card scroll-mt-20 rounded-lg border outline-none", focused ? "border-foreground" : "hover:border-input")}
     >
-      <div className="border-b px-4 py-3">
+      <div className="border-b bg-[var(--band)] px-4 py-3">
         <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-2 text-xs">
           <span className="text-k-procedure font-medium">{proc}</span>
           {item.theme_name && (
@@ -299,7 +299,7 @@ function ReviewCard({
         <h4 className="text-muted-foreground mb-2 text-xs font-semibold">Examples</h4>
         <Examples items={item.examples.map(exOf)} procedureId={item.procedure_id} ruleId={item.rule_id} />
       </div>
-      <div className="bg-muted/40 border-t px-4 py-3">
+      <div className="border-t bg-[var(--band)] px-4 py-3">
         <VerdictPicker current={item.verdict?.verdict} onPick={onPick} noteRef={noteRef} />
       </div>
     </article>

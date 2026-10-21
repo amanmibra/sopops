@@ -285,7 +285,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
         </table>
       </div>
       {sorted.length > TOP_N && (
-        <div className="border-t px-4 py-2">
+        <div className="border-t bg-[var(--band)] px-4 py-2">
           <Button size="xs" variant="ghost" onClick={() => setAll((v) => !v)}>
             {all ? <ChevronUp /> : <ChevronDown />} {all ? `Show the top ${TOP_N}` : `Show all ${sorted.length}`}
           </Button>
