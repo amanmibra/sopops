@@ -31,7 +31,7 @@ export const LIVE = { refetchInterval: 60_000 } as const;
 
 export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT; scope?: Scope; procedure?: string; loading?: boolean }) {
   const { ws } = useWs();
-  if (loading || !tiles || !scope) return <KpiGrid loading />;
+  if (loading || !tiles || !scope) return <KpiGrid loading narrow />;
   const c = tiles.current;
   const p = tiles.prior;
   const hasPrior = p.sessions_checked > 0;
@@ -40,7 +40,7 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
   const was = (v: string) => (hasPrior ? v : null);
   const n = (x: number) => x.toLocaleString();
   return (
-    <KpiGrid note={hasPrior ? null : "No earlier data to compare with: the same length of time just before has no checked sessions."}>
+    <KpiGrid narrow note={hasPrior ? null : "No earlier data to compare with: the same length of time just before has no checked sessions."}>
       <Kpi
         label="Sessions checked"
         icon={ListChecks}

@@ -149,7 +149,7 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
                 {d.procedures.length > 1 && <h2 className="mt-2 text-lg font-semibold">{proc.procedure_name}</h2>}
                 {proc.themes.map((t) => (
                   <details key={t.theme_id ?? "none"} open className="group bg-card rounded-lg border">
-                    <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 border-b px-4 py-3 group-not-open:border-b-0">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-baseline gap-x-3 border-b bg-[var(--band)] px-4 py-3 group-not-open:border-b-0">
                       <ChevronDown className="text-muted-foreground size-4 self-center transition-transform group-not-open:-rotate-90" />
                       <h3 className="text-lg font-semibold">{t.name}</h3>
                       <span className="text-muted-foreground text-sm tabular-nums">
