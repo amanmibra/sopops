@@ -9,6 +9,11 @@ bring its keys.
 Every key is tried before it's saved: a TypeSafe key with one tiny Jev decision, a provider key by listing its models
 (Anthropic, OpenAI, Google) or, for any other LiteLLM provider, with one short completion. Saving models tries each one.
 
+A hosted sopops offers its own models as the provider `sopops` (`sopops/sopops-decision`, `sopops/sopops-fast`,
+`sopops/sopops-reasoning`) when its model gateway is set (`SOPOPS_LM_URL`, `lm.gateway`). The deployment's decision
+model (`SOPOPS_MODEL_DECISION`) answers decisions only while the team uses the deployment's provider: a team on its own
+key gets its own fast model for them, or Jev with a TypeSafe key.
+
 `AIKeys.ai(ws)` is the implementation a workspace's model calls use. When `lm.set_ai` replaced the implementation
 (tests, the benchmark), that one serves every workspace.
 """
@@ -59,7 +64,14 @@ PROVIDERS: dict[str, Provider] = {p.id: p for p in [
     Provider("gemini", "Google", "GEMINI_API_KEY", "gemini/", "https://aistudio.google.com/apikey",
              ("gemini-2.5-flash",), ("gemini-2.5-pro",)),
     Provider("other", "Other", None, "", "https://docs.litellm.ai/docs/providers"),
+    Provider("sopops", "sopops", lm.LM_KEY_ENV, lm.SOPOPS_PREFIX, None, ("sopops-fast",), ("sopops-reasoning",)),
 ]}
+SOPOPS_MODELS = ("sopops/sopops-decision", "sopops/sopops-fast", "sopops/sopops-reasoning")
+
+
+def offered() -> list[Provider]:
+    """The providers a team can pick: sopops only where this deployment has the model gateway."""
+    return [p for p in PROVIDERS.values() if p.id != "sopops" or lm.gateway()]
 TYPESAFE_KEY_URL = "https://docs.typesafe.ai"
 TYPESAFE_ENV = "TYPESAFE_API_KEY"
 NOT_CHAT = ("embed", "audio", "realtime", "tts", "transcribe", "whisper", "image", "dall-e", "moderation", "search",
@@ -83,6 +95,8 @@ def _now() -> datetime:
 def _env(name: str | None) -> str | None:
     if not name:
         return None
+    if name == lm.LM_KEY_ENV:  # the gateway may sit on a private network without a key: its URL is what counts
+        return "gateway" if lm.gateway() else None
     return (os.environ.get(name) or "").strip() or None
 
 
@@ -119,6 +133,14 @@ class AIKeys:
         reasoning = (row.reasoning_model if row else None) or lm.model_for("reasoning")
         provider = (row.provider if row else None) or provider_of(fast)
         team_key = crypto.decrypt(row.provider_ciphertext) if row and row.provider_ciphertext else None
+        own = lambda m: bool(m) and not m.startswith(lm.SOPOPS_PREFIX)  # noqa: E731
+        team_provider = bool(row and ((row.provider and row.provider != "sopops") or own(row.fast_model) or own(row.reasoning_model)))
+        if team_ts or team_provider:
+            decision = None
+        elif provider == "sopops":
+            decision = lm.decision_model() or SOPOPS_MODELS[0]
+        else:
+            decision = lm.decision_model()
         return {
             "typesafe_key": team_ts or _env(TYPESAFE_ENV),
             "typesafe_source": "team" if team_ts else ("default" if _env(TYPESAFE_ENV) else None),
@@ -130,6 +152,7 @@ class AIKeys:
             "fast_source": "team" if row and row.fast_model else ("default" if fast else None),
             "reasoning": reasoning,
             "reasoning_source": "team" if row and row.reasoning_model else ("default" if reasoning else None),
+            "decision": decision,
         }
 
     def status(self, workspace: str) -> dict[str, Any]:
@@ -141,9 +164,10 @@ class AIKeys:
                          "hint": row.provider_hint if row and row.provider_ciphertext else None, "api_base": r["api_base"]},
             "fast": {"model": r["fast"], "source": r["fast_source"]},
             "reasoning": {"model": r["reasoning"], "source": r["reasoning_source"]},
-            "ready": bool(r["typesafe_key"] and r["fast"] and r["reasoning"]),
+            "decision": {"model": r["decision"], "source": "default" if r["decision"] else None},
+            "ready": bool((r["typesafe_key"] or r["decision"]) and r["fast"] and r["reasoning"]),
             "providers": [{"id": p.id, "label": p.label, "lists_models": p.id != "other", "key_url": p.key_url,
-                           "has_default_key": bool(_env(p.env))} for p in PROVIDERS.values()],
+                           "has_default_key": bool(_env(p.env))} for p in offered()],
             "typesafe_key_url": TYPESAFE_KEY_URL,
         }
 
@@ -159,7 +183,8 @@ class AIKeys:
             if hit and hit[0] == row.updated_at:
                 return hit[1]
         r = self._resolved(row)
-        ai = lm.Models({"fast": r["fast"], "reasoning": r["reasoning"]}, jev=bool(r["typesafe_key"]) or lm.jev_enabled(),
+        models = {"fast": r["fast"], "reasoning": r["reasoning"], lm.DECIDE: r["decision"]}
+        ai = lm.Models(models, jev=bool(r["typesafe_key"]) or lm.jev_enabled(),
                        api_base=r["api_base"], api_key=r["provider_key"], jev_api_key=r["typesafe_key"])
         with self._lock:
             self._cache[row.workspace] = (row.updated_at, ai)
@@ -181,7 +206,7 @@ class AIKeys:
     def set_provider(self, workspace: str, provider: str, key: str | None, api_base: str | None = None) -> dict[str, Any]:
         """Use this provider, with this key (or the deployment's, when it has one). Returns the models it offers."""
         p = PROVIDERS.get(provider)
-        if p is None:
+        if p is None or p not in offered():
             raise KeyRejected(f"Unknown provider '{provider}'.")
         key = (key or "").strip() or None
         api_base = (api_base or "").strip() or None
@@ -194,7 +219,9 @@ class AIKeys:
         else:
             fields |= {"provider_ciphertext": None, "provider_hint": None}
         row = self.row(workspace)
-        if row is not None and row.provider != p.id:  # models from another provider won't work with this key
+        if p.id == "sopops":  # its models have fixed names
+            fields |= {"fast_model": SOPOPS_MODELS[1], "reasoning_model": SOPOPS_MODELS[2]}
+        elif row is not None and row.provider != p.id:  # models from another provider won't work with this key
             fields |= {"fast_model": None, "reasoning_model": None}
         self._save(workspace, **fields)
         return {"models": models, "suggested": suggest(p, models)}
@@ -228,6 +255,17 @@ class AIKeys:
         self._save(workspace, fast_model=fast, reasoning_model=reasoning)
         return self.status(workspace)
 
+    def estimate(self, workspace: str, fast: str, reasoning: str, calls_per_month: int) -> dict[str, Any]:
+        """What checking calls would cost with these models (`ai.estimate`): Jev for decisions when the team has a
+        TypeSafe key or the deployment turns it on, else the fast model."""
+        from . import estimate
+
+        r = self._resolved(self.row(workspace))
+        jev = bool(r["typesafe_key"]) or lm.jev_enabled()
+        decision = (os.environ.get("SOPOPS_JEV_MODEL") or lm.JEV_MODEL) if jev else fast
+        models = {"decision": decision, "fast": fast.strip(), "reasoning": reasoning.strip()}
+        return estimate.estimate(models, calls_per_month, estimate.measured(self.store.engine, workspace))
+
     def reset(self, workspace: str, what: str) -> dict[str, Any]:
         """Go back to the deployment's default: `typesafe`, `provider` (the key, the base URL and the models) or
         `models`."""
@@ -244,6 +282,8 @@ class AIKeys:
 
 def list_models(p: Provider, key: str) -> list[str]:
     """The chat models a key can use, as LiteLLM model strings. KeyRejected if the provider refuses the key."""
+    if p.id == "sopops":  # fixed names; the gateway decides what serves them
+        return list(SOPOPS_MODELS[1:])
     try:
         if p.id == "anthropic":
             res = httpx.get("https://api.anthropic.com/v1/models", params={"limit": 1000},

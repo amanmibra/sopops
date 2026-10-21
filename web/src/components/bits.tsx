@@ -200,13 +200,13 @@ export function Segmented<T extends string>({
   small,
 }: {
   value: T;
-  options: [T, string][];
+  options: [T, ReactNode][];
   onChange: (v: T) => void;
   label: string;
   small?: boolean;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex overflow-hidden rounded-md border border-input bg-card">
+    <div role="group" aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto rounded-md border border-input bg-card">
       {options.map(([v, l]) => (
         <button
           key={v}
@@ -214,7 +214,7 @@ export function Segmented<T extends string>({
           aria-pressed={value === v}
           onClick={() => onChange(v)}
           className={cn(
-            "border-r border-border last:border-r-0 cursor-pointer",
+            "inline-flex items-center gap-1.5 border-r border-border last:border-r-0 cursor-pointer",
             small ? "px-2.5 py-0.5 text-[13px]" : "px-3 py-1.5",
             value === v ? "bg-brand-soft font-semibold" : "hover:bg-muted",
           )}

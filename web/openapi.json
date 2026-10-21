@@ -10090,6 +10090,81 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/ai/estimate": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Estimate Ai Cost",
+        "description": "What checking calls would cost with these models, per call and per month: tokens per call (the team's own\naverage once it has 30 checked calls, else a typical call) times list prices, before caching or batch discounts.",
+        "operationId": "estimate_ai_cost",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "fast",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Fast"
+            }
+          },
+          {
+            "name": "reasoning",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Reasoning"
+            }
+          },
+          {
+            "name": "calls",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000000,
+              "minimum": 0,
+              "default": 25000,
+              "title": "Calls"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstimate"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/ai/{what}": {
       "delete": {
         "tags": [
@@ -13156,7 +13231,7 @@
         "properties": {
           "typesafe": {
             "$ref": "#/components/schemas/KeyState",
-            "description": "The TypeSafe key for Jev, which answers every decision. Required to check calls."
+            "description": "The TypeSafe key for Jev, which answers decisions. Required to check calls unless the deployment has a decision model."
           },
           "provider": {
             "$ref": "#/components/schemas/ProviderState"
@@ -13169,10 +13244,14 @@
             "$ref": "#/components/schemas/ModelState",
             "description": "Reviews, rule splitting, pattern names and suggestions."
           },
+          "decision": {
+            "$ref": "#/components/schemas/ModelState",
+            "description": "The deployment's decision model (sopops-decision on a hosted sopops), which answers decisions when there's no TypeSafe key. Null when the team uses its own provider."
+          },
           "ready": {
             "type": "boolean",
             "title": "Ready",
-            "description": "A TypeSafe key and both models are set, so calls get checked."
+            "description": "Decisions (a TypeSafe key or the decision model) and both models are set, so calls get checked."
           },
           "providers": {
             "items": {
@@ -13192,6 +13271,7 @@
           "provider",
           "fast",
           "reasoning",
+          "decision",
           "ready",
           "providers",
           "typesafe_key_url"
@@ -15805,6 +15885,86 @@
           "at"
         ],
         "title": "ConflictOut"
+      },
+      "CostEstimate": {
+        "properties": {
+          "basis": {
+            "type": "string",
+            "enum": [
+              "yours",
+              "typical"
+            ],
+            "title": "Basis",
+            "description": "yours: this team's average over its last 30 days of checked calls; typical: a typical call."
+          },
+          "basis_calls": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Basis Calls",
+            "description": "How many checked calls the average covers, when it's the team's own."
+          },
+          "calls_per_month": {
+            "type": "integer",
+            "title": "Calls Per Month"
+          },
+          "per_call": {
+            "$ref": "#/components/schemas/CostRange",
+            "description": "USD per checked call, at list prices, before caching or batch discounts. Unpriced models are left out."
+          },
+          "per_month": {
+            "$ref": "#/components/schemas/CostRange"
+          },
+          "roles": {
+            "items": {
+              "$ref": "#/components/schemas/RoleCost"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "unpriced": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unpriced",
+            "description": "Models with no price on file, left out of the totals."
+          }
+        },
+        "type": "object",
+        "required": [
+          "basis",
+          "basis_calls",
+          "calls_per_month",
+          "per_call",
+          "per_month",
+          "roles",
+          "unpriced"
+        ],
+        "title": "CostEstimate"
+      },
+      "CostRange": {
+        "properties": {
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "low",
+          "high"
+        ],
+        "title": "CostRange"
       },
       "CreateImport": {
         "properties": {
@@ -22666,7 +22826,8 @@
               "anthropic",
               "openai",
               "gemini",
-              "other"
+              "other",
+              "sopops"
             ],
             "title": "Provider"
           },
@@ -22709,7 +22870,8 @@
               "anthropic",
               "openai",
               "gemini",
-              "other"
+              "other",
+              "sopops"
             ],
             "title": "Id"
           },
@@ -25141,6 +25303,97 @@
         },
         "type": "object",
         "title": "RewriteIn"
+      },
+      "RoleCost": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "decision",
+              "fast",
+              "reasoning"
+            ],
+            "title": "Role"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "description": "Input tokens per checked call for this role."
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens"
+          },
+          "input_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Price",
+            "description": "USD per million input tokens, or null when no price is on file."
+          },
+          "output_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Price"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low",
+            "description": "USD per call, the low end; null when unpriced."
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "model",
+          "input_tokens",
+          "output_tokens",
+          "input_price",
+          "output_price",
+          "low",
+          "high"
+        ],
+        "title": "RoleCost"
       },
       "RoleIn": {
         "properties": {

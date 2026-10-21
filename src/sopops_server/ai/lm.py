@@ -6,7 +6,11 @@
   from the usual variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...).
 - `decide`: what answers the decision signatures (outputs that are all `Noul` / `Choice`): TypeSafe's Jev
   (`dspy.experimental.TypeSafe`) when it's on (`TYPESAFE_API_KEY`, or `SOPOPS_JEV=on`; `pip install 'sopops-server[jev]'`),
-  else the fast model, which DSPy asks for probability evidence and decodes the same way.
+  else the decision model (`SOPOPS_MODEL_DECISION`, default the fast model), which DSPy asks for probability evidence
+  and decodes the same way.
+- `sopops/<name>` (`sopops/sopops-decision`, `sopops/sopops-fast`, `sopops/sopops-reasoning`): a hosted sopops's own
+  models, served by its private model gateway at `SOPOPS_LM_URL` (an OpenAI-compatible endpoint, key `SOPOPS_LM_KEY`).
+  The gateway decides which model answers each name, so a team only ever sees the sopops name.
 
 `Models.predict(role, predictor, **inputs)` runs one `dspy.Predict` (or a signature) with that role's model, on its
 own copy of the client, and adds the call's tokens and cost to `usage`; each call is also recorded for the workspace
@@ -36,6 +40,9 @@ from . import spend
 
 ROLES = ("fast", "reasoning")
 ROLE_ENV = {"fast": "SOPOPS_MODEL_FAST", "reasoning": "SOPOPS_MODEL_REASONING"}
+DECISION_ENV = "SOPOPS_MODEL_DECISION"
+SOPOPS_PREFIX = "sopops/"  # a hosted sopops's own models, through its model gateway
+LM_URL_ENV, LM_KEY_ENV = "SOPOPS_LM_URL", "SOPOPS_LM_KEY"
 RULES = "rules"  # not a model: onboarding's model-free mode
 DECIDE = "decide"
 JEV_MODEL = "jev-1.13.0"  # pinned, not jev-latest, so calibrated thresholds don't move under us
@@ -58,6 +65,20 @@ def model_for(role: str, env: Mapping[str, str] | None = None) -> str | None:
     env = os.environ if env is None else env
     other = "reasoning" if role == "fast" else "fast"
     return (env.get(ROLE_ENV.get(role, ""), "") or "").strip() or (env.get(ROLE_ENV[other], "") or "").strip() or None
+
+
+def decision_model(env: Mapping[str, str] | None = None) -> str | None:
+    """The deployment's decision model when Jev doesn't answer decisions, or None (the fast model answers them)."""
+    env = os.environ if env is None else env
+    m = (env.get(DECISION_ENV) or "").strip()
+    return None if not m or m == RULES else m
+
+
+def gateway(env: Mapping[str, str] | None = None) -> tuple[str, str] | None:
+    """The model gateway's base URL and key, when this deployment has one."""
+    env = os.environ if env is None else env
+    url = (env.get(LM_URL_ENV) or "").strip().rstrip("/")
+    return (url, (env.get(LM_KEY_ENV) or "").strip()) if url else None
 
 
 def jev_enabled(env: Mapping[str, str] | None = None) -> bool:
@@ -147,7 +168,11 @@ class Models:
 
     def model(self, role: str) -> str | None:
         if role == DECIDE:
-            return self.jev_model if self.jev else self.model("fast")
+            if self.jev:
+                return self.jev_model
+            if self._models is not None and DECIDE in self._models:
+                return self._models[DECIDE] or self.model("fast")
+            return decision_model() or self.model("fast")
         m = self._models.get(role) if self._models is not None and role in self._models else model_for(role)
         return None if not m or m == RULES else m
 
@@ -165,6 +190,13 @@ class Models:
             if key not in self._clients:
                 if jev:
                     self._clients[key] = TypeSafe(model, api_key=self.jev_api_key, cache=self.cache, timeout=JEV_TIMEOUT_S)
+                elif model.startswith(SOPOPS_PREFIX):
+                    gw = gateway()
+                    if gw is None:
+                        raise NotConfigured(f"{model} needs the model gateway: set {LM_URL_ENV} and {LM_KEY_ENV}")
+                    # The gateway speaks OpenAI's API and maps the sopops name to whichever model serves it.
+                    self._clients[key] = dspy.LM("openai/" + model.removeprefix(SOPOPS_PREFIX), engine="auto", api_base=gw[0], api_key=gw[1] or "none",
+                                                 max_tokens=MAX_TOKENS, num_retries=3, timeout=TIMEOUT_S, cache=self.cache)
                 else:
                     extra = {"api_base": self.api_base} if self.api_base else {}
                     if self.api_key:

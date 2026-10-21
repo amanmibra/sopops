@@ -25,6 +25,8 @@ See [Models](sessions-and-review.md#models). These are the defaults: each team c
 |---|---|---|
 | `SOPOPS_MODEL_FAST`, `SOPOPS_MODEL_REASONING` | unset | The two model roles. `SOPOPS_MODEL_REASONING=rules` tries importing without a model. |
 | `SOPOPS_LLM_API_BASE`, `SOPOPS_LLM_TIMEOUT`, `SOPOPS_MAX_TOKENS` | unset, `300`, `16000` | OpenAI-compatible base URL for every call; per-call timeout (s); output limit. |
+| `SOPOPS_MODEL_DECISION` | unset (the fast model) | The model that answers decisions when Jev doesn't. Applies only to teams on the deployment's models. |
+| `SOPOPS_LM_URL`, `SOPOPS_LM_KEY` | unset | A model gateway (an OpenAI-compatible endpoint) that serves models named `sopops/<name>`, such as `sopops/sopops-fast`. When set, teams can pick these as the provider "sopops" in setup and Settings, and never see the models behind them. |
 | `TYPESAFE_API_KEY`, `SOPOPS_JEV`, `SOPOPS_JEV_MODEL` | unset, auto, `jev-1.13.0` | Jev for decisions. On when the key is set, unless `SOPOPS_JEV=off`. |
 | `SOPOPS_CHECK_MODE`, `SOPOPS_CHECK_REVIEW`, `SOPOPS_DECISIONS` | `decide`, `on`, unset | Check mode; reviewer on or off; decision thresholds and bands as JSON, e.g. `{"never": [0.05, 0.7, 0.7]}`. |
 | `SOPOPS_MODEL_PRICES` | unset | Prices for spend estimates, JSON in USD per million tokens, e.g. `{"openai/gpt-5-mini": [0.25, 2]}`. Adds to or overrides the built-in table (Jev, current Claude models). |

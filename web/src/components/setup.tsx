@@ -392,7 +392,9 @@ function PeopleStep({ flow }: { flow: Flow }) {
 function ModelsStep({ flow }: { flow: Flow }) {
   const s = useSteps(flow, "models");
   const ai = useAISettings().data;
-  const defaults = ai?.ready && ai.typesafe.source === "default" && ai.fast.source === "default" && ai.reasoning.source === "default";
+  // A hosted sopops asks sopops models or your own in the form itself; elsewhere, say when the deployment's defaults are ready.
+  const hosted = ai?.providers.some((p) => p.id === "sopops");
+  const defaults = !hosted && ai?.ready && ai.typesafe.source === "default" && ai.fast.source === "default" && ai.reasoning.source === "default";
   return (
     <StepShell
       flow={flow}
@@ -400,7 +402,7 @@ function ModelsStep({ flow }: { flow: Flow }) {
       wide
       sub={
         <>
-          sopops checks every call with these. Keys are stored encrypted and never shown again. You can change them later in Settings, under Checks.
+          sopops uses these models to check every call. Keys you paste are stored encrypted and never shown again. You can change this later in Settings, under Checks.
         </>
       }
       back={s.back}
@@ -411,7 +413,7 @@ function ModelsStep({ flow }: { flow: Flow }) {
       {defaults && (
         <Banner tone="ok">
           <Check className="mr-1.5 inline size-4" />
-          This sopops comes with keys and models already. Continue, or use your own below.
+          This sopops already has keys and models set up. Continue, or use your own below.
         </Banner>
       )}
       <AIModelsForm />

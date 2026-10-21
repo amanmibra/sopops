@@ -27,7 +27,7 @@ export type AbTestOut = {
  */
 export type AiSettingsOut = {
     /**
-     * The TypeSafe key for Jev, which answers every decision. Required to check calls.
+     * The TypeSafe key for Jev, which answers decisions. Required to check calls unless the deployment has a decision model.
      */
     typesafe: KeyState;
     provider: ProviderState;
@@ -40,9 +40,13 @@ export type AiSettingsOut = {
      */
     reasoning: ModelState;
     /**
+     * The deployment's decision model (sopops-decision on a hosted sopops), which answers decisions when there's no TypeSafe key. Null when the team uses its own provider.
+     */
+    decision: ModelState;
+    /**
      * Ready
      *
-     * A TypeSafe key and both models are set, so calls get checked.
+     * Decisions (a TypeSafe key or the decision model) and both models are set, so calls get checked.
      */
     ready: boolean;
     /**
@@ -1573,6 +1577,57 @@ export type ConflictOut = {
      * At
      */
     at: string;
+};
+
+/**
+ * CostEstimate
+ */
+export type CostEstimate = {
+    /**
+     * Basis
+     *
+     * yours: this team's average over its last 30 days of checked calls; typical: a typical call.
+     */
+    basis: 'yours' | 'typical';
+    /**
+     * Basis Calls
+     *
+     * How many checked calls the average covers, when it's the team's own.
+     */
+    basis_calls: number | null;
+    /**
+     * Calls Per Month
+     */
+    calls_per_month: number;
+    /**
+     * USD per checked call, at list prices, before caching or batch discounts. Unpriced models are left out.
+     */
+    per_call: CostRange;
+    per_month: CostRange;
+    /**
+     * Roles
+     */
+    roles: Array<RoleCost>;
+    /**
+     * Unpriced
+     *
+     * Models with no price on file, left out of the totals.
+     */
+    unpriced: Array<string>;
+};
+
+/**
+ * CostRange
+ */
+export type CostRange = {
+    /**
+     * Low
+     */
+    low: number;
+    /**
+     * High
+     */
+    high: number;
 };
 
 /**
@@ -5625,7 +5680,7 @@ export type ProviderIn = {
     /**
      * Provider
      */
-    provider: 'anthropic' | 'openai' | 'gemini' | 'other';
+    provider: 'anthropic' | 'openai' | 'gemini' | 'other' | 'sopops';
     /**
      * Key
      *
@@ -5647,7 +5702,7 @@ export type ProviderOption = {
     /**
      * Id
      */
-    id: 'anthropic' | 'openai' | 'gemini' | 'other';
+    id: 'anthropic' | 'openai' | 'gemini' | 'other' | 'sopops';
     /**
      * Label
      */
@@ -7109,6 +7164,50 @@ export type RewriteIn = {
      * Reviewer
      */
     reviewer?: string | null;
+};
+
+/**
+ * RoleCost
+ */
+export type RoleCost = {
+    /**
+     * Role
+     */
+    role: 'decision' | 'fast' | 'reasoning';
+    /**
+     * Model
+     */
+    model: string | null;
+    /**
+     * Input Tokens
+     *
+     * Input tokens per checked call for this role.
+     */
+    input_tokens: number;
+    /**
+     * Output Tokens
+     */
+    output_tokens: number;
+    /**
+     * Input Price
+     *
+     * USD per million input tokens, or null when no price is on file.
+     */
+    input_price: number | null;
+    /**
+     * Output Price
+     */
+    output_price: number | null;
+    /**
+     * Low
+     *
+     * USD per call, the low end; null when unpriced.
+     */
+    low: number | null;
+    /**
+     * High
+     */
+    high: number | null;
 };
 
 /**
@@ -16261,6 +16360,49 @@ export type SetAiModelsResponses = {
 };
 
 export type SetAiModelsResponse = SetAiModelsResponses[keyof SetAiModelsResponses];
+
+export type EstimateAiCostData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query: {
+        /**
+         * Fast
+         */
+        fast: string;
+        /**
+         * Reasoning
+         */
+        reasoning: string;
+        /**
+         * Calls
+         */
+        calls?: number;
+    };
+    url: '/v1/workspaces/{workspace}/ai/estimate';
+};
+
+export type EstimateAiCostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type EstimateAiCostError = EstimateAiCostErrors[keyof EstimateAiCostErrors];
+
+export type EstimateAiCostResponses = {
+    /**
+     * Successful Response
+     */
+    200: CostEstimate;
+};
+
+export type EstimateAiCostResponse = EstimateAiCostResponses[keyof EstimateAiCostResponses];
 
 export type ResetAiSettingData = {
     body?: never;

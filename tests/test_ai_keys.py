@@ -17,6 +17,8 @@ def env(monkeypatch):
     for p in PROVIDERS.values():
         if p.env:
             monkeypatch.delenv(p.env, raising=False)
+    for name in (lm.LM_URL_ENV, lm.DECISION_ENV):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
@@ -145,3 +147,94 @@ def test_without_a_secret_key_nothing_is_stored(client, monkeypatch, jev_ok):
     monkeypatch.delenv("SOPOPS_SECRET_KEY")
     res = client.put(f"{AI}/typesafe", json={"key": "ts-good-team-key-2222"})
     assert res.status_code == 503 and "SOPOPS_SECRET_KEY" in res.json()["detail"]
+
+
+def hosted(monkeypatch):
+    """A hosted sopops: its model gateway, and the sopops names as the deployment's models."""
+    monkeypatch.setenv(lm.LM_URL_ENV, "http://sopops-lm.internal:4000/v1")
+    monkeypatch.setenv(lm.LM_KEY_ENV, "sk-gateway-3333")
+    monkeypatch.setenv(lm.DECISION_ENV, "sopops/sopops-decision")
+    monkeypatch.setenv("SOPOPS_MODEL_FAST", "sopops/sopops-fast")
+    monkeypatch.setenv("SOPOPS_MODEL_REASONING", "sopops/sopops-reasoning")
+
+
+def test_sopops_models_are_offered_only_with_the_gateway(client, monkeypatch):
+    assert "sopops" not in [p["id"] for p in client.get(AI).json()["providers"]]
+    assert client.put(f"{AI}/provider", json={"provider": "sopops"}).status_code >= 400
+
+    hosted(monkeypatch)
+    got = client.get(AI).json()
+    assert got["ready"] and got["typesafe"]["source"] is None  # the decision model stands in for Jev
+    assert got["provider"]["id"] == "sopops" and got["provider"]["source"] == "default"
+    assert got["decision"] == {"model": "sopops/sopops-decision", "source": "default"}
+    assert next(p for p in got["providers"] if p["id"] == "sopops")["has_default_key"]
+    assert client.put(f"{AI}/provider", json={"provider": "sopops"}).json()["models"] == ["sopops/sopops-fast", "sopops/sopops-reasoning"]
+
+
+def test_the_decision_model_is_the_deployments_only_while_the_team_uses_its_provider(client, monkeypatch, jev_ok):
+    hosted(monkeypatch)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-deployment-1111")
+    store = client.app.state.store
+    assert lm.get_ai().model(lm.DECIDE) == "sopops/sopops-decision"
+
+    # a team on its own models answers decisions with its own fast model, so it never runs on the gateway
+    client.put(f"{AI}/models", json={"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-sonnet-5-5"})
+    got = client.get(AI).json()
+    assert got["decision"] == {"model": None, "source": None} and not got["ready"]
+    assert store.ai_keys.ai("demo").model(lm.DECIDE) == "anthropic/claude-haiku-4-5"
+
+    client.delete(f"{AI}/provider")
+    assert store.ai_keys.ai("demo").model(lm.DECIDE) == "sopops/sopops-decision"
+
+    # picking sopops by name brings all three of its models back
+    client.put(f"{AI}/models", json={"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-sonnet-5-5"})
+    client.put(f"{AI}/provider", json={"provider": "sopops"})
+    ai = store.ai_keys.ai("demo")
+    assert [ai.model(r) for r in (lm.DECIDE, "fast", "reasoning")] == ["sopops/sopops-decision", "sopops/sopops-fast", "sopops/sopops-reasoning"]
+
+
+def test_a_sopops_model_runs_through_the_gateway_by_its_sopops_name(monkeypatch):
+    hosted(monkeypatch)
+    llm = lm.Models(cache=False).client("reasoning")
+    assert llm.model == "openai/sopops-reasoning"
+    assert llm.kwargs["api_base"] == "http://sopops-lm.internal:4000/v1" and llm.kwargs["api_key"] == "sk-gateway-3333"
+
+    monkeypatch.delenv(lm.LM_URL_ENV)
+    with pytest.raises(lm.NotConfigured):
+        lm.Models(cache=False).client("fast")
+
+
+def test_the_estimate_prices_each_role_and_says_what_it_is_based_on(client, monkeypatch):
+    got = client.get(f"{AI}/estimate", params={"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-sonnet-5-5", "calls": 25000}).json()
+    assert got["basis"] == "typical" and got["unpriced"] == []
+    roles = {r["role"]: r for r in got["roles"]}
+    assert roles["decision"]["model"] == "anthropic/claude-haiku-4-5"  # no Jev: the fast model decides
+    assert roles["reasoning"]["input_price"] == 2.0 and roles["reasoning"]["output_price"] == 10.0
+    assert 0 < got["per_call"]["low"] < got["per_call"]["high"]
+    assert got["per_month"]["high"] == pytest.approx(got["per_call"]["high"] * 25000)
+
+    # with Jev, decisions are priced as Jev; a model with no price is named and left out
+    monkeypatch.setenv("TYPESAFE_API_KEY", "ts-deployment-key-0000")
+    got = client.get(f"{AI}/estimate", params={"fast": "other/made-up-model", "reasoning": "anthropic/claude-sonnet-5-5"}).json()
+    assert {r["role"]: r["model"] for r in got["roles"]}["decision"].startswith("jev")
+    assert got["unpriced"] == ["other/made-up-model"]
+
+
+def test_the_estimate_uses_the_teams_own_calls_once_it_has_enough(client):
+    from datetime import datetime, timezone
+
+    from sopops_server.ai import estimate
+    from sopops_server.orm.model_calls import ModelCall
+    from sqlmodel import Session
+
+    store = client.app.state.store
+    assert estimate.measured(store.engine, "demo") is None
+    now = datetime.now(timezone.utc)
+    with Session(store.engine) as db, db.begin():
+        for i in range(estimate.MIN_CALLS):
+            db.add(ModelCall(workspace_id="demo", session_id=f"s{i}", purpose="check", model="m", input_tokens=1000, output_tokens=100, created_at=now))
+            db.add(ModelCall(workspace_id="demo", session_id=f"s{i}", purpose="review", model="m", input_tokens=4000, output_tokens=300, created_at=now))
+    tokens, calls = estimate.measured(store.engine, "demo")
+    assert calls == estimate.MIN_CALLS and tokens["decision"] == (1000, 100) and tokens["reasoning"] == (4000, 300)
+    got = client.get(f"{AI}/estimate", params={"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-sonnet-5-5"}).json()
+    assert got["basis"] == "yours" and got["basis_calls"] == estimate.MIN_CALLS

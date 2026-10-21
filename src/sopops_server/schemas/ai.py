@@ -8,7 +8,7 @@ from pydantic import Field
 
 from .base import BaseModel
 
-ProviderId = Literal["anthropic", "openai", "gemini", "other"]
+ProviderId = Literal["anthropic", "openai", "gemini", "other", "sopops"]
 Source = Literal["team", "default"]
 
 
@@ -38,11 +38,12 @@ class ProviderOption(BaseModel):
 
 
 class AISettingsOut(BaseModel):
-    typesafe: KeyState = Field(description="The TypeSafe key for Jev, which answers every decision. Required to check calls.")
+    typesafe: KeyState = Field(description="The TypeSafe key for Jev, which answers decisions. Required to check calls unless the deployment has a decision model.")
     provider: ProviderState
     fast: ModelState = Field(description="Routing, rule checks and pattern assignment, when Jev doesn't answer them.")
     reasoning: ModelState = Field(description="Reviews, rule splitting, pattern names and suggestions.")
-    ready: bool = Field(description="A TypeSafe key and both models are set, so calls get checked.")
+    decision: ModelState = Field(description="The deployment's decision model (sopops-decision on a hosted sopops), which answers decisions when there's no TypeSafe key. Null when the team uses its own provider.")
+    ready: bool = Field(description="Decisions (a TypeSafe key or the decision model) and both models are set, so calls get checked.")
     providers: list[ProviderOption]
     typesafe_key_url: str
 
@@ -65,6 +66,32 @@ class ModelChoices(BaseModel):
 class ModelsIn(BaseModel):
     fast: str = Field(description="A LiteLLM model string. Each model gets one short test call before it's saved.")
     reasoning: str
+
+
+class CostRange(BaseModel):
+    low: float
+    high: float
+
+
+class RoleCost(BaseModel):
+    role: Literal["decision", "fast", "reasoning"]
+    model: str | None
+    input_tokens: int = Field(description="Input tokens per checked call for this role.")
+    output_tokens: int
+    input_price: float | None = Field(description="USD per million input tokens, or null when no price is on file.")
+    output_price: float | None
+    low: float | None = Field(description="USD per call, the low end; null when unpriced.")
+    high: float | None
+
+
+class CostEstimate(BaseModel):
+    basis: Literal["yours", "typical"] = Field(description="yours: this team's average over its last 30 days of checked calls; typical: a typical call.")
+    basis_calls: int | None = Field(description="How many checked calls the average covers, when it's the team's own.")
+    calls_per_month: int
+    per_call: CostRange = Field(description="USD per checked call, at list prices, before caching or batch discounts. Unpriced models are left out.")
+    per_month: CostRange
+    roles: list[RoleCost]
+    unpriced: list[str] = Field(description="Models with no price on file, left out of the totals.")
 
 
 ResetWhat = Literal["typesafe", "provider", "models"]

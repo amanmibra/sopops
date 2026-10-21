@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from ..ai.keys import KeyRejected
-from ..schemas import AISettingsOut, ModelChoices, ModelsIn, ProviderIn, ResetWhat, TypeSafeKeyIn
+from ..schemas import AISettingsOut, CostEstimate, ModelChoices, ModelsIn, ProviderIn, ResetWhat, TypeSafeKeyIn
 from ..store import Store
 
 WS = "/v1/workspaces/{workspace}/ai"
@@ -48,6 +48,13 @@ def router(store: Store) -> APIRouter:
     def set_ai_models(workspace: str, req: ModelsIn) -> dict:
         """Use these models, after one short call to each."""
         return checked(keys.set_models, workspace, req.fast, req.reasoning)
+
+    @r.get(f"{WS}/estimate", response_model=CostEstimate)
+    def estimate_ai_cost(workspace: str, fast: str = Query(min_length=1), reasoning: str = Query(min_length=1),
+                         calls: int = Query(25000, ge=0, le=100_000_000)) -> dict:
+        """What checking calls would cost with these models, per call and per month: tokens per call (the team's own
+        average once it has 30 checked calls, else a typical call) times list prices, before caching or batch discounts."""
+        return keys.estimate(workspace, fast, reasoning, calls)
 
     @r.delete(f"{WS}/{{what}}", response_model=AISettingsOut)
     def reset_ai_setting(workspace: str, what: ResetWhat) -> dict:
