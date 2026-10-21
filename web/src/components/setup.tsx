@@ -459,6 +459,7 @@ function BlocksStep({ flow }: { flow: Flow }) {
     <StepShell
       flow={flow}
       step="blocks"
+      wide
       sub={
         <>
           Most teams run several agents that are alike in some ways and different in others: one for each restaurant, customer or task. sopops splits their instructions
