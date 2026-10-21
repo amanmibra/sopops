@@ -5,6 +5,7 @@ import httpx
 import pytest
 import respx
 
+import sopops
 from sopops import Sopops, SopopsError, SopopsUnavailable, release_pin
 
 URL = "http://sopops.test/v1/workspaces/prod"
@@ -123,3 +124,28 @@ def test_open_session_and_append_events(client):
     respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(404, json={"detail": "no such session"}))
     with pytest.raises(SopopsError, match="no such session"):
         run(client.append_events("livekit", "AJ_1", [turn]))
+
+
+@respx.mock
+def test_fetch_blocks_and_takes_an_optional_release(tmp_path, monkeypatch):
+    monkeypatch.setenv("SOPOPS_URL", URL)
+    monkeypatch.setenv("SOPOPS_TOKEN", "sopops_tok")
+    monkeypatch.setenv("SOPOPS_CACHE_DIR", str(tmp_path))
+    route = respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+
+    ins = sopops.fetch("tonys-pizza")
+    assert (ins.text, ins.release, ins.source) == ("You are Tony's.", 3, "live")
+    assert "release" not in route.calls.last.request.url.params
+
+    sopops.fetch("tonys-pizza", 14)
+    assert route.calls.last.request.url.params["release"] == "14"
+
+
+def test_fetch_refuses_to_block_inside_async_code(monkeypatch):
+    monkeypatch.setenv("SOPOPS_URL", URL)
+
+    async def main():
+        with pytest.raises(RuntimeError, match="fetch_instructions"):
+            sopops.fetch("tonys-pizza")
+
+    run(main())

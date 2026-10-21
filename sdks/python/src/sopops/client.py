@@ -67,6 +67,38 @@ def release_pin(metadata: str | Mapping[str, Any] | None) -> int | None:
         return None
 
 
+def fetch(
+    agent: str,
+    release: int | None = None,
+    *,
+    fallback: str | None = None,
+    url: str | None = None,
+    token: str | None = None,
+    timeout: float = 2.0,
+    cache_dir: str | os.PathLike[str] | None = None,
+) -> Instructions:
+    """The agent's instructions, blocking: one call for code that isn't async.
+
+    `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; without it you get
+    the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `Sopops` reads them.
+
+    Falls back the same way `Sopops.fetch_instructions` does: the last good copy on disk, then `fallback`, else
+    `SopopsUnavailable`. Inside async code, await that method on a `Sopops` you keep, so the client is reused.
+
+        ins = sopops.fetch("tonys-pizza")           # the live release
+        ins = sopops.fetch("tonys-pizza", 14)       # pinned, e.g. one arm of an A/B test
+        prompt = ins.text
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        pass
+    else:
+        raise RuntimeError("sopops.fetch blocks: in async code use `await Sopops(...).fetch_instructions(agent, release)`")
+    client = Sopops(url, token, timeout=timeout, cache_dir=cache_dir)
+    return asyncio.run(client.fetch_instructions(agent, release, fallback=fallback))
+
+
 class Sopops:
     """A sopops workspace.
 

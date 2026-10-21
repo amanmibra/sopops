@@ -43,6 +43,19 @@ await sopops.post_session({"platform": "api", "external_id": call_id, "agent": "
 | `SOPOPS_TOKEN` | A workspace token (sopops Settings → Tokens) with the scopes the agent needs: `runtime` to fetch instructions, `ingest` to send sessions. `SOPOPS_INGEST_TOKEN` is read too. A workspace without a runtime token serves instructions without one. |
 | `SOPOPS_CACHE_DIR` | Where the last good instructions are kept, default `~/.cache/sopops`. |
 
+Outside async code, one call does the same:
+
+```python
+import sopops
+
+ins = sopops.fetch("tonys-pizza")          # the live release
+ins = sopops.fetch("tonys-pizza", 14)      # pinned, e.g. one arm of an A/B test
+prompt = ins.text
+```
+
+It reads the same environment variables, caches and falls back the same way, and builds a client per call, so inside
+async code keep a `Sopops` and await `fetch_instructions` instead.
+
 **A sopops outage never blocks a call.** The fetch gives up after `timeout` (2s by default). Then it returns the last good copy for that agent and release from disk (`ins.source == "cache"`), else your `fallback` (`"fallback"`), else raises `SopopsUnavailable`. Sessions are retried on connection errors, 429 and 5xx; sending the same session again is safe.
 
 ## Streaming (optional)
