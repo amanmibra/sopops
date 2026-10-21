@@ -13,6 +13,7 @@ import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { UserMenu } from "./account";
+import { RailSetUp } from "./checklist";
 import { Tag } from "./bits";
 import { HrefLink, useGo } from "./href-link";
 import { Logo } from "./logo";
@@ -267,6 +268,7 @@ export function Rail() {
       className="bg-card border-b px-2.5 pt-3.5 pb-10 md:sticky md:top-[53px] md:h-[calc(100vh-53px)] md:overflow-auto md:border-r md:border-b-0"
       aria-label={legacy ? "Team files" : mode === "qa" ? "QA" : "Instructions"}
     >
+      {!legacy && <RailSetUp />}
       {legacy ? (
         <div className="mb-[18px]">{releases}</div>
       ) : mode === "qa" ? (

@@ -52,4 +52,7 @@ export const setupProgress = {
 export const checklist = {
   hidden: (ws: string) => prefs.get(`checklist.${ws}`) === "hidden",
   hide: (ws: string) => prefs.set(`checklist.${ws}`, "hidden"),
+  /** The rail's "Finish setting up" card, closed on its own; the card on the team's home still shows. */
+  railClosed: (ws: string) => prefs.get(`checklist-rail.${ws}`) === "closed",
+  closeRail: (ws: string) => prefs.set(`checklist-rail.${ws}`, "closed"),
 };

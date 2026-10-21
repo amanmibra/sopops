@@ -1,7 +1,9 @@
 // A new team's home: one "Get set up" card of what's left, each ticked from what's really there, each linking to where
 // it's done. Hidden once everything's done, or when someone hides it.
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, Check } from "lucide-react";
+import { useLocation } from "@tanstack/react-router";
+import { ArrowRight, Check, X } from "lucide-react";
+import { useState } from "react";
 import { call, sdk } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { platformName } from "@/lib/kinds";
@@ -125,6 +127,43 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
           <HrefLink href={wsHref(ws, "insights")}>Go to Insights</HrefLink>
         )}
       </p>
+    </div>
+  );
+}
+
+/** At the top of the side rail while the home's card would show: how far along, and a way back to it. Closes per team. */
+export function RailSetUp() {
+  const { ws } = useWs();
+  const { pathname } = useLocation();
+  const [, closed] = useState(0);
+  const { show, items } = useChecklist();
+  const home = pathname === wsHref(ws) || pathname === `${wsHref(ws)}/`;
+  if (!show || !items || home || checklist.railClosed(ws)) return null;
+  const done = items.filter((i) => i.done).length;
+  return (
+    <div className="bg-brand-soft hover:bg-brand-soft/80 relative mb-[18px] rounded-lg">
+      <HrefLink href={wsHref(ws)} className="text-foreground block px-2.5 py-2 pr-8 hover:no-underline">
+        <span className="block text-[13px] font-medium">Finish setting up</span>
+        <span className="text-muted-foreground block text-[12px] tabular-nums">
+          {done} of {items.length} done
+        </span>
+        <span className="bg-background mt-1.5 block h-1 overflow-hidden rounded-full" aria-hidden>
+          <span className="bg-primary block h-full rounded-full" style={{ width: `${(done / items.length) * 100}%` }} />
+        </span>
+      </HrefLink>
+      <Button
+        size="icon-xs"
+        variant="ghost"
+        className="text-muted-foreground absolute top-1 right-1"
+        aria-label="Close"
+        title="Close. Your team's home still shows the steps."
+        onClick={() => {
+          checklist.closeRail(ws);
+          closed((n) => n + 1);
+        }}
+      >
+        <X />
+      </Button>
     </div>
   );
 }
