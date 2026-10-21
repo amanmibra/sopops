@@ -1,7 +1,7 @@
 // The Insights kit: widget cards with their loading / empty / error states, KPI tiles with deltas, hover hints,
 // outcome and status bars, sparklines, legends and the chart tooltip. Every Insights page is built from these.
 import { ArrowDownRight, ArrowUpRight, CircleHelp, type LucideIcon } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { Children, type ReactNode, useRef, useState } from "react";
 import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import { ApiError, type WordingRef } from "@/lib/api";
 import { OUTCOMES, STATUS_MARK, STATUS_ORDER, fmtDelta, fmtPct } from "@/lib/insights";
@@ -202,44 +202,43 @@ export function Kpi({
 }: {
   label: string;
   value: ReactNode;
-  icon: LucideIcon;
+  /** A small mark before the label, in the figure's color. */
+  icon?: LucideIcon;
   accent?: keyof typeof ACCENT;
   help: ReactNode;
   delta?: Delta;
   /** The n behind the value, and anything else that qualifies it. */
   sub?: ReactNode;
-  /** The prior window's value, already formatted; null when there was nothing to compare. */
+  /** The prior window's value, already formatted. Leave it out when there's nothing to compare (KpiGrid says so once). */
   prior?: string | null;
   href?: string;
 }) {
   const body = (
     <>
-      <div className="mb-1.5 flex items-start justify-between gap-2">
-        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium">
-          {label}
-          <Help text={help} />
-        </span>
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md" style={{ background: `color-mix(in srgb, ${ACCENT[accent]} 13%, transparent)`, color: ACCENT[accent] }}>
-          <Icon className="size-3.5" strokeWidth={2.5} />
-        </span>
+      {/* Inline flow, so a label that wraps keeps its help mark right after the last word. */}
+      <div className="text-muted-foreground text-[13px] leading-snug">
+        {Icon && <Icon className="mr-1 inline size-[15px] align-[-3px]" strokeWidth={2.25} style={{ color: ACCENT[accent] }} aria-hidden />}
+        {label} <span className="inline-block align-[-2px]"><Help text={help} /></span>
       </div>
-      <div className="text-[24px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
-      <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
-        {delta && delta.value != null && (
-          <Hint
-            focusable={false}
-            tip={`${delta.unit === "pts" ? "Change in percentage points" : "Change in percent"} against the same length of time just before.${delta.good ? " Green is better, red is worse." : ""}`}
-          >
-            <DeltaMark delta={delta} />
-          </Hint>
-        )}
-        <span className="text-muted-foreground">{prior === undefined ? null : prior === null ? "no earlier data" : `was ${prior} before`}</span>
-      </div>
-      {sub && <div className="text-muted-foreground mt-0.5 text-[11.5px]">{sub}</div>}
+      <div className="mt-1 text-[26px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
+      {(prior || (delta && delta.value != null)) && (
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]">
+          {delta && delta.value != null && (
+            <Hint
+              focusable={false}
+              tip={`${delta.unit === "pts" ? "Change in percentage points" : "Change in percent"} against the same length of time just before.${delta.good ? " Green is better, red is worse." : ""}`}
+            >
+              <DeltaMark delta={delta} />
+            </Hint>
+          )}
+          {prior && <span className="text-muted-foreground">was {prior} before</span>}
+        </div>
+      )}
+      {sub && <div className="text-muted-foreground mt-0.5 text-xs">{sub}</div>}
     </>
   );
   return (
-    <div className={cn("bg-card min-w-0 rounded-lg border px-4 py-3.5", href && "hover:border-ring/60 transition-colors")}>
+    <div className={cn("bg-card min-w-0 px-4 py-3.5", href && "hover:bg-accent/40 transition-colors")}>
       {href ? (
         <HrefLink href={href} className="text-foreground block hover:no-underline" aria-label={`${label}: open these sessions`}>
           {body}
@@ -251,18 +250,31 @@ export function Kpi({
   );
 }
 
-export function KpiGrid({ children, loading, count = 6, narrow }: { children?: ReactNode; loading?: boolean; count?: number; narrow?: boolean }) {
+const COLS: Record<number, string> = {
+  3: "grid-cols-1 sm:grid-cols-3",
+  4: "grid-cols-2 xl:grid-cols-4",
+  6: "grid-cols-2 md:grid-cols-3 xl:grid-cols-6",
+};
+
+/** Peer figures as one divided strip: label over number, no tiles. `note` qualifies them all at once (e.g. "no
+ * earlier data") instead of repeating it under each. */
+export function KpiGrid({ children, loading, count, narrow, note }: { children?: ReactNode; loading?: boolean; count?: number; narrow?: boolean; note?: ReactNode }) {
+  const n = loading ? (count ?? 6) : Children.toArray(children).filter(Boolean).length;
+  const cols = narrow && n === 6 ? "grid-cols-2 md:grid-cols-3" : (COLS[n] ?? "grid-cols-2 md:grid-cols-3");
   return (
-    <div className={cn("grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 md:grid-cols-3", !narrow && "xl:grid-cols-6")}>
-      {loading
-        ? Array.from({ length: count }, (_, i) => (
-            <div key={i} className="bg-card grid gap-2 rounded-lg border px-4 py-3.5" aria-busy>
-              <Skel className="h-3.5 w-2/3" />
-              <Skel className="h-7 w-1/2" />
-              <Skel className="h-3 w-3/4" />
-            </div>
-          ))
-        : children}
+    <div className="grid gap-1.5">
+      <div className={cn("bg-border grid gap-px overflow-hidden rounded-lg border", cols)}>
+        {loading
+          ? Array.from({ length: n }, (_, i) => (
+              <div key={i} className="bg-card grid gap-2 px-4 py-3.5" aria-busy>
+                <Skel className="h-3.5 w-2/3" />
+                <Skel className="h-7 w-1/2" />
+                <Skel className="h-3 w-3/4" />
+              </div>
+            ))
+          : children}
+      </div>
+      {note && !loading && <p className="text-muted-foreground text-xs">{note}</p>}
     </div>
   );
 }
@@ -439,7 +451,7 @@ export function ChartTip({
           <span className="font-semibold tabular-nums">{format(e.value, e)}</span>
         </div>
       ))}
-      {footer && <div className="text-muted-foreground mt-1 max-w-64 text-[11px] leading-snug">{footer(text, payload)}</div>}
+      {footer && <div className="text-muted-foreground mt-1 max-w-64 text-xs leading-snug">{footer(text, payload)}</div>}
     </div>
   );
 }
@@ -452,15 +464,15 @@ export function RateN({ rate, n, thin, tone, suppressed, className }: { rate: nu
   return (
     <span className={cn("tabular-nums whitespace-nowrap", className)}>
       <b className={cn("font-semibold", tone === "bad" && "text-err", tone === "warn" && "text-warn", thin && "text-muted-foreground")}>{fmtPct(rate)}</b>{" "}
-      <span className="text-muted-foreground text-[11.5px]">of {n}</span>
+      <span className="text-muted-foreground text-xs">of {n}</span>
       {!!suppressed && (
         <Hint tip="Findings hidden by a verdict (acceptable, or the checker was wrong) or marked incorrect; they don't count here." focusable={false}>
-          <span className="text-muted-foreground ml-1 text-[11px]">{suppressed} suppressed</span>
+          <span className="text-muted-foreground ml-1 text-xs">{suppressed} suppressed</span>
         </Hint>
       )}
       {thin && n > 0 && (
         <Hint tip={`Only ${n} results, too few to judge. The rate gets no color and no flag until there are more.`} focusable={false}>
-          <span className="text-muted-foreground ml-1 rounded border px-1 text-[10px] uppercase">too few</span>
+          <span className="text-muted-foreground ml-1 rounded border px-1 text-[11px] uppercase">too few</span>
         </Hint>
       )}
     </span>
@@ -491,7 +503,7 @@ export function RewordedTag({ releasedIn, history, current, className }: { relea
         </TipBody>
       }
     >
-      <span className={cn("bg-warn-soft text-warn rounded-full px-1.5 text-[11px] font-medium whitespace-nowrap", className)}>
+      <span className={cn("bg-warn-soft text-warn rounded-full px-1.5 text-xs font-medium whitespace-nowrap", className)}>
         {releasedIn != null ? `reworded in release ${releasedIn}` : "reworded"}
       </span>
     </Hint>

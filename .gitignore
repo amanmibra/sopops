@@ -9,3 +9,4 @@ web/dist/
 src/sopops_server/static/
 *.tsbuildinfo
 .env
+.taste-skill/

@@ -40,7 +40,7 @@ export function TilesRow({ tiles, scope, procedure, loading }: { tiles?: TilesT;
   const was = (v: string) => (hasPrior ? v : null);
   const n = (x: number) => x.toLocaleString();
   return (
-    <KpiGrid>
+    <KpiGrid note={hasPrior ? null : "No earlier data to compare with: the same length of time just before has no checked sessions."}>
       <Kpi
         label="Sessions checked"
         icon={ListChecks}
@@ -229,7 +229,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                     <HrefLink href={sessionsHref(ws, { procedure: r.procedure_id }, scope)} className="text-foreground font-semibold" onClick={(e) => e.stopPropagation()}>
                       {r.checks}
                     </HrefLink>
-                    {r.not_measurable > 0 && <div className="text-muted-foreground text-[11px]">{r.not_measurable} not measurable</div>}
+                    {r.not_measurable > 0 && <div className="text-muted-foreground text-xs">{r.not_measurable} not measurable</div>}
                   </td>
                   <td className={td}>
                     <OutcomeBar followed={r.followed} partial={r.partial} deviated={r.deviated} />

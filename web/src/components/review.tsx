@@ -1,7 +1,7 @@
 // Patterns: every cluster (themes, rule patterns, their failure modes) in tabs by review state (needs review, open,
 // fixing, fixed, all), one pattern's page with where its fix stands, and the "wrong?" control on a single finding.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Keyboard, Loader2, RefreshCw, RotateCcw, Sparkles, Undo2, X, Check } from "lucide-react";
+import { ChevronRight, Download, Keyboard, Loader2, RefreshCw, RotateCcw, Sparkles, Undo2, X, Check } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { type PatternOut, type RulePatternOut, type RuleRef, call, q, refresh, sdk } from "@/lib/api";
@@ -26,6 +26,7 @@ import {
   exOf,
   writing,
 } from "@/lib/review";
+import { prefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, Note, PageTitle, RuleText, Sub, Tag } from "./bits";
@@ -39,6 +40,14 @@ import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
+
+
+/** The verdict legend starts open, and stays folded in this browser once someone gives a verdict or folds it. */
+const verdictLegend = {
+  open: () => prefs.get("verdict-legend") !== "closed",
+  close: () => prefs.set("verdict-legend", "closed"),
+  reopen: () => prefs.remove("verdict-legend"),
+};
 
 export { SUGGESTION_STATUS, ReviewStateChip, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 
@@ -101,7 +110,7 @@ function VerdictPicker({
               setNoting(false);
             }}
           >
-            <kbd className="text-muted-foreground rounded border px-1 font-mono text-[10px] leading-4">{VERDICT[v].key}</kbd>
+            <kbd className="text-muted-foreground rounded border px-1 font-mono text-[11px] leading-4">{VERDICT[v].key}</kbd>
             {VERDICT[v].label}
           </Button>
         ))}
@@ -112,7 +121,7 @@ function VerdictPicker({
             className="text-muted-foreground col-span-2 justify-start sm:col-span-1"
             onClick={() => setNoting(true)}
           >
-            <kbd className="rounded border px-1 font-mono text-[10px] leading-4">n</kbd> Add a note
+            <kbd className="rounded border px-1 font-mono text-[11px] leading-4">n</kbd> Add a note
           </Button>
         )}
       </div>
@@ -212,7 +221,7 @@ function ReviewCard({
           <span className={cn("rounded-full px-2 py-px text-xs font-medium", m.tone)}>{m.label}</span>
           {decision.phase === "waiting" || decision.phase === "sending" ? (
             <Button size="xs" variant="outline" onClick={onUndo} disabled={decision.phase === "sending"}>
-              <Undo2 /> Undo <kbd className="text-muted-foreground font-mono text-[10px]">u</kbd>
+              <Undo2 /> Undo <kbd className="text-muted-foreground font-mono text-[11px]">u</kbd>
             </Button>
           ) : (
             <Button size="xs" variant="ghost" onClick={onReopen}>
@@ -346,6 +355,7 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
   const pick = useCallback(
     (id: string, v: Verdict, note: string) => {
       const d: Decision = { verdict: v, note, phase: "waiting" };
+      verdictLegend.close();
       pending.current[id] = d;
       setDecided((s) => ({ ...s, [id]: d }));
       window.clearTimeout(timers.current[id]);
@@ -365,12 +375,15 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
   };
   const reopen = (id: string) => setDecided(({ [id]: _, ...rest }) => rest);
 
+  // The first card gets focus on load without scrolling, so the page opens at its title; later moves scroll to the card.
+  const landed = useRef(false);
   useEffect(() => {
     const el = current && document.querySelector<HTMLElement>(`[data-card="${CSS.escape(current.pattern_id)}"]`);
     if (el && !el.contains(document.activeElement)) {
       el.focus({ preventScroll: true });
-      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      if (landed.current) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
+    if (el) landed.current = true;
   }, [current]);
 
   useEffect(() => {
@@ -548,7 +561,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
                   {t.label}
                   {n != null && n > 0 && (
                     <Hint focusable={false} tip={t.badge}>
-                      <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
+                      <span className={cn("rounded-full px-1.5 text-xs tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
                     </Hint>
                   )}
                 </TabsTrigger>
@@ -559,11 +572,18 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
       </Tabs>
       <p className="text-muted-foreground mt-2 mb-3 text-[13px]">{meta.help}</p>
       {tab === "review" && (
-        <section className="bg-card mb-4 rounded-lg border px-4 py-3">
-          <h2 className="mb-2 text-[13.5px] font-semibold">What the verdicts mean</h2>
-          <VerdictLegend className="sm:grid-cols-2 xl:grid-cols-4" />
-          <p className="text-muted-foreground mt-3 text-xs">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
-        </section>
+        <details
+          open={verdictLegend.open()}
+          onToggle={(e) => (e.currentTarget.open ? verdictLegend.reopen() : verdictLegend.close())}
+          className="bg-card group mb-4 rounded-lg border px-4 py-3"
+        >
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[14px] font-semibold [&::-webkit-details-marker]:hidden">
+            <ChevronRight className="text-muted-foreground size-4 transition-transform group-open:rotate-90" />
+            What the verdicts mean
+          </summary>
+          <VerdictLegend className="mt-3 gap-y-2" />
+          <p className="text-muted-foreground mt-3 text-[13px]">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
+        </details>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <FilterSelect label="Procedure" value={search.procedure} options={procedures} onChange={(v) => set({ procedure: v })} />

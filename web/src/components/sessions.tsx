@@ -33,6 +33,8 @@ const STATUS: Record<Status, { label: string; tone: string; help: string }> = {
   failed: { label: "failed", tone: "bg-err-soft text-err border-transparent", help: "Processing failed." },
 };
 
+const NUMERIC = new Set(["Duration", "Turns", "Release"]);
+
 export function StatusTag({ status, big }: { status: Status; big?: boolean }) {
   const s = STATUS[status];
   return (
@@ -73,7 +75,7 @@ export function FilterSelect<T extends string>({
 }) {
   return (
     <Select value={value ?? ANY} onValueChange={(v) => onChange(v === ANY ? undefined : (v as T))}>
-      <SelectTrigger size="sm" className="min-w-36" aria-label={label}>
+      <SelectTrigger size="sm" className="min-w-28" aria-label={label}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -159,6 +161,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
   const outcomeKey = focus ? "procedure_result" : "result";
   const outcome = (focus ? filters.procedure_result : filters.result) ?? "all";
   const ids = rows.map((r) => r.id);
+  const showStatus = rows.some((r) => r.status !== "checked");
 
   return (
     <Page wide>
@@ -186,14 +189,16 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         <FilterSelect label="Channel" value={filters.channel} options={[["voice", "Voice"], ["text", "Text"]]} onChange={(channel) => set({ channel })} />
         <FilterSelect label="Status" value={filters.status} options={(Object.keys(STATUS) as Status[]).map((s) => [s, s])} onChange={(status) => set({ status })} />
         <FilterSelect label="Result" value={filters.result} options={(Object.keys(RESULT) as Result[]).map((r) => [r, RESULT[r].label])} onChange={(result) => set({ result })} />
-        <label className="text-muted-foreground flex items-center gap-1.5 text-[13px]">
-          From
-          <Input type="datetime-local" className="h-8 w-auto" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
-        </label>
-        <label className="text-muted-foreground flex items-center gap-1.5 text-[13px]">
-          to
-          <Input type="datetime-local" className="h-8 w-auto" value={filters.until ?? ""} onChange={(e) => set({ until: e.target.value || undefined })} />
-        </label>
+        <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[13px]">
+          <label className="flex items-center gap-1.5">
+            From
+            <Input type="datetime-local" className="h-8 w-auto" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
+          </label>
+          <label className="flex items-center gap-1.5">
+            to
+            <Input type="datetime-local" className="h-8 w-auto" value={filters.until ?? ""} onChange={(e) => set({ until: e.target.value || undefined })} />
+          </label>
+        </div>
         {filtered && (
           <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => onFilters({})}>
             Clear
@@ -222,8 +227,8 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
           <table className="w-full border-collapse">
             <thead>
               <tr>
-                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", "Status", "Result", ...(focus ? ["Rules"] : [])].map((h) => (
-                  <th key={h} className="text-muted-foreground border-b px-2.5 py-2 text-left text-[13px] font-semibold whitespace-nowrap">
+                {["Started", "Agent", "Channel", "Duration", "Turns", "Release", ...(showStatus ? ["Status"] : []), "Result", ...(focus ? ["Rules"] : [])].map((h) => (
+                  <th key={h} className={cn("text-muted-foreground border-b px-2.5 py-2 text-left text-xs font-medium whitespace-nowrap", NUMERIC.has(h) && "text-right")}>
                     {h}
                   </th>
                 ))}
@@ -249,12 +254,15 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                     <div className="text-muted-foreground text-xs"><PlatformLabel platform={s.platform} size={12} /></div>
                   </td>
                   <td className="border-b px-2.5 py-2 capitalize">{s.channel}</td>
-                  <td className="border-b px-2.5 py-2 font-mono text-[13px]">{clock(s.duration_s) || "—"}</td>
-                  <td className="border-b px-2.5 py-2 font-mono text-[13px]">{s.turn_count}</td>
-                  <td className="border-b px-2.5 py-2 text-[13px]">{s.release_id != null ? `#${s.release_id}` : <span className="text-muted-foreground">—</span>}</td>
-                  <td className="border-b px-2.5 py-2">
-                    <StatusTag status={s.status} />
-                  </td>
+                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{clock(s.duration_s) || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{s.turn_count}</td>
+                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{s.release_id != null ? `#${s.release_id}` : <span className="text-muted-foreground">—</span>}</td>
+                  {showStatus && (
+                    <td className="border-b px-2.5 py-2">
+                      {/* Checked is the normal end state, so only the others are marked. */}
+                      {s.status !== "checked" && <StatusTag status={s.status} />}
+                    </td>
+                  )}
                   <td className="border-b px-2.5 py-2">
                     <ResultTag result={focus ? s.procedure_check?.result : s.result} />
                   </td>

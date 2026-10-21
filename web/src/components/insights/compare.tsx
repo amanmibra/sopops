@@ -26,7 +26,7 @@ type Flag = "thin" | "regressed" | "improved" | "steady";
 
 /** "A" or "B" in its side's color: the one marker for a side, everywhere on the page. */
 function SideBadge({ side, className }: { side: Side; className?: string }) {
-  return <span className={cn("inline-flex size-5 shrink-0 items-center justify-center rounded text-[11px] font-bold", SIDES[side].badge, className)}>{SIDES[side].letter}</span>;
+  return <span className={cn("inline-flex size-5 shrink-0 items-center justify-center rounded text-xs font-bold", SIDES[side].badge, className)}>{SIDES[side].letter}</span>;
 }
 
 /** "A · #12": a side named with its release, never bare. */
@@ -58,10 +58,10 @@ function Change({ delta, range, flag, minN, points, an, bn, compact }: { delta: 
       <span className={cn("inline-grid cursor-help gap-px tabular-nums", compact ? "justify-items-end text-right" : "")}>
         <span className={cn("font-semibold whitespace-nowrap", tone)}>
           {delta == null ? "" : `${signed(delta)} pts `}
-          <span className={cn("font-medium", compact && "text-[11.5px]")}>{word}</span>
+          <span className={cn("font-medium", compact && "text-xs")}>{word}</span>
         </span>
         {range && delta != null && (
-          <span className="text-muted-foreground text-[11px] whitespace-nowrap">
+          <span className="text-muted-foreground text-xs whitespace-nowrap">
             95% range {signed(range[0])} to {signed(range[1])}
           </span>
         )}
@@ -84,9 +84,9 @@ function SideBySide({ label, help, a, b, aSub, bSub, change, icon: Icon, release
       <div className="grid grid-cols-2 gap-3">
         {(["a", "b"] as const).map((s) => (
           <div key={s} className="min-w-0 border-l-[3px] pl-2.5" style={{ borderColor: SIDES[s].color }}>
-            <SideName side={s} release={release[s]} className="text-[11.5px]" />
+            <SideName side={s} release={release[s]} className="text-xs" />
             <div className="text-[22px] leading-tight font-semibold tracking-tight tabular-nums">{s === "a" ? a : b}</div>
-            {(s === "a" ? aSub : bSub) && <div className="text-muted-foreground text-[11.5px]">{s === "a" ? aSub : bSub}</div>}
+            {(s === "a" ? aSub : bSub) && <div className="text-muted-foreground text-xs">{s === "a" ? aSub : bSub}</div>}
           </div>
         ))}
       </div>
@@ -112,7 +112,7 @@ function ProcSide({ r, thin }: { r: CompareRate; thin: boolean }) {
       <OutcomeBar followed={r.followed} partial={r.partial} deviated={r.deviated} className="w-24" />
       {r.interval && (
         <Hint focusable={false} tip="Where the true pass rate most likely sits, given how many checks there are.">
-          <span className="text-muted-foreground cursor-help text-[11px]">
+          <span className="text-muted-foreground cursor-help text-xs">
             95% range {r.interval[0]} to {r.interval[1]}%
           </span>
         </Hint>
@@ -142,7 +142,7 @@ function SidePanel({ side, release, sessions, options, onPick, filters }: { side
         {SIDES[side].letter} · release #{release ?? "?"}
         {r?.note && <span className="text-foreground font-normal"> {r.note}</span>}
       </div>
-      <dl className="text-muted-foreground mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[12.5px]">
+      <dl className="text-muted-foreground mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[13px]">
         <dt>Sessions</dt>
         <dd className="text-foreground tabular-nums">{sessions}</dd>
         <dt>Dates</dt>
@@ -234,7 +234,7 @@ function RulesTable({ d, filters }: { d: CompareResponse; filters: InsightFilter
                           />
                         ) : r.rule_change && (
                           <Hint focusable={false} tip={ruleChangeTip[r.rule_change as keyof typeof ruleChangeTip]}>
-                            <span className={cn("ml-1.5 rounded-full px-1.5 text-[11px] font-medium", r.rule_change === "removed" ? "bg-err-soft text-err" : "bg-warn-soft text-warn")}>
+                            <span className={cn("ml-1.5 rounded-full px-1.5 text-xs font-medium", r.rule_change === "removed" ? "bg-err-soft text-err" : "bg-warn-soft text-warn")}>
                               {ruleChangeLabel[r.rule_change as keyof typeof ruleChangeLabel] ?? r.rule_change}
                             </span>
                           </Hint>
@@ -368,7 +368,7 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
                     </span>
                   </div>
                   <div className="text-[22px] leading-tight font-semibold tabular-nums" style={{ color: SIDES.a.color }}>{flagged.filter((r) => r.flag === "regressed").length}</div>
-                  <div className="text-muted-foreground text-[11.5px]">of {d.rules.length} rules compared</div>
+                  <div className="text-muted-foreground text-xs">of {d.rules.length} rules compared</div>
                 </div>
                 <div className="bg-card min-w-0 rounded-lg border px-4 py-3.5">
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -378,7 +378,7 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
                     </span>
                   </div>
                   <div className="text-[22px] leading-tight font-semibold tabular-nums" style={{ color: SIDES.b.color }}>{flagged.filter((r) => r.flag === "improved").length}</div>
-                  <div className="text-muted-foreground text-[11.5px]">
+                  <div className="text-muted-foreground text-xs">
                     <Hint focusable={false} tip={`Rules with fewer than ${minN} results on a release can't be called better or worse yet.`}>
                       <span className="cursor-help border-b border-dotted border-current">{d.rules.filter((r) => r.flag === "thin").length} with too few results</span>
                     </Hint>

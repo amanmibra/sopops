@@ -62,7 +62,7 @@ function VersionBadge({ v, d, className }: { v: VersionOut; d: VersionsResponse;
       }
     >
       <span
-        className={cn("dark:text-background inline-flex h-5 min-w-5 shrink-0 cursor-help items-center justify-center rounded px-1 text-[11px] font-bold text-white", className)}
+        className={cn("dark:text-background inline-flex h-5 min-w-5 shrink-0 cursor-help items-center justify-center rounded px-1 text-xs font-bold text-white", className)}
         style={{ background: s.color }}
       >
         {s.letter}
@@ -79,7 +79,7 @@ function SettingsLine({ v }: { v: VersionOut }) {
   const keys = Object.keys(v.config).filter((k) => k !== "prompt").sort((a, b) => rank(a) - rank(b));
   if (!keys.length && !v.config.prompt) return <span className="text-muted-foreground text-xs">No settings reported</span>;
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px]">
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[13px]">
       {keys.map((k) => (
         <span key={k} className="whitespace-nowrap">
           <span className="text-muted-foreground">{settingName(k)}</span> <span className="font-mono text-[12px]">{String(v.config[k])}</span>
@@ -152,13 +152,13 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                         aria-label={`Compare version ${shortId(v)}`}
                       />
                       {on && (
-                        <span className="dark:text-background inline-flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[10px] font-bold text-white" style={{ background: COLORS[i] }}>
+                        <span className="dark:text-background inline-flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[11px] font-bold text-white" style={{ background: COLORS[i] }}>
                           {LETTERS[i]}
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="border-b px-3 py-1.5 font-mono text-[12.5px]" title={v.id}>
+                  <td className="border-b px-3 py-1.5 font-mono text-[13px]" title={v.id}>
                     {shortId(v)}
                   </td>
                   <td className="border-b px-3 py-1.5 whitespace-nowrap">
@@ -288,7 +288,7 @@ function Chart({ d }: { d: VersionsResponse }) {
                       </>
                     )}
                   </div>
-                  <span className="flex items-center gap-1.5 text-[12.5px] whitespace-nowrap tabular-nums">
+                  <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap tabular-nums">
                     {c.pass_rate == null ? <span className="text-muted-foreground">no results</span> : <b>{fmtPct(c.pass_rate)}</b>}
                     <span className="text-muted-foreground text-xs">of {c.n}</span>
                     {c.flag && c.flag !== "thin" && <FlagTag flag={c.flag} minN={t.min_n} points={t.flag_points} />}
@@ -298,7 +298,7 @@ function Chart({ d }: { d: VersionsResponse }) {
             })}
           </div>
         ))}
-        <div className="text-muted-foreground grid grid-cols-[1.5rem_1fr_13rem] gap-2 text-[11px] tabular-nums">
+        <div className="text-muted-foreground grid grid-cols-[1.5rem_1fr_13rem] gap-2 text-xs tabular-nums">
           <span />
           <span className="flex justify-between">
             <span>0%</span>
@@ -342,7 +342,7 @@ function Steps({ step, onStep }: { step: 0 | 1; onStep: (s: 0 | 1) => void }) {
             onClick={() => onStep(i as 0 | 1)}
             className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-0.5", i === step ? "border-foreground font-medium" : "text-muted-foreground", i === 1 && step === 0 && "cursor-default")}
           >
-            <span className={cn("inline-flex size-4 items-center justify-center rounded-full text-[10px]", i === step ? "bg-foreground text-background" : "bg-muted")}>
+            <span className={cn("inline-flex size-4 items-center justify-center rounded-full text-[11px]", i === step ? "bg-foreground text-background" : "bg-muted")}>
               {i < step ? <Check className="size-3" /> : i + 1}
             </span>
             {label}
@@ -361,7 +361,7 @@ function ProcCell({ c, minN, points }: { c: VersionProcedureCell; minN: number; 
         {c.flag && c.flag !== "thin" && <FlagTag flag={c.flag} minN={minN} points={points} />}
       </span>
       <OutcomeBar followed={c.followed} partial={c.partial} deviated={c.deviated} className="w-24" />
-      <span className="text-muted-foreground text-[11.5px] tabular-nums">
+      <span className="text-muted-foreground text-xs tabular-nums">
         Goal met {fmtPct(c.goal_rate)} of {c.goal_n} · applied to {fmtPct(c.trigger_rate)}
       </span>
     </span>
@@ -479,7 +479,7 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
 /** What a version, the baseline and a better or worse flag mean, folded away until asked for. */
 function HowToRead({ minN, points }: { minN: number; points: number }) {
   return (
-    <details className="text-muted-foreground text-[12.5px]">
+    <details className="text-muted-foreground text-[13px]">
       <summary className="hover:text-foreground cursor-pointer select-none">How to read this</summary>
       <ul className="mt-1.5 grid max-w-[90ch] list-disc gap-1 pl-5">
         <li>

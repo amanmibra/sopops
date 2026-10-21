@@ -29,7 +29,7 @@ export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined;
   const label = ruleName(rule.kind, rule.index);
   return (
     <Hint focusable={false} tip={<TipBody head={label}>{rule.text ? <RuleText text={rule.text} /> : "The rule's text isn't known yet."}</TipBody>}>
-      <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-[11px] font-normal whitespace-nowrap", className)}>{label}</span>
+      <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-xs font-normal whitespace-nowrap", className)}>{label}</span>
     </Hint>
   );
 }

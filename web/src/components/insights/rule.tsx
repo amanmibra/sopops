@@ -138,7 +138,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
                     <HrefLink href={wsHref(ws, "sessions", f.session_id)} className="font-semibold">
                       {when(f.started_at)}
                     </HrefLink>
-                    <span className="bg-err-soft text-err rounded-full px-1.5 text-[11px] font-medium">{f.status.replace("_", " ")}</span>
+                    <span className="bg-err-soft text-err rounded-full px-1.5 text-xs font-medium">{f.status.replace("_", " ")}</span>
                   </div>
                   {f.reason && <div className="text-muted-foreground mt-0.5">{f.reason}</div>}
                   {f.evidence.slice(0, 2).map((e, i) => (

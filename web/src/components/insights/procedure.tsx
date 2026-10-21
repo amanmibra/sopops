@@ -31,7 +31,7 @@ export function FlagTag({ flag, minN = 10, points = 5 }: { flag: string; minN?: 
   const f = FLAG[flag] ?? FLAG.steady;
   return (
     <Hint tip={f.help(minN, points)} focusable={false}>
-      <span className={cn("inline-block rounded-full border px-2 py-px text-[11px] font-medium whitespace-nowrap", f.className)}>{f.label}</span>
+      <span className={cn("inline-block rounded-full border px-2 py-px text-xs font-medium whitespace-nowrap", f.className)}>{f.label}</span>
     </Hint>
   );
 }
@@ -82,9 +82,9 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
             <span className="min-w-0">
               <span className="line-clamp-2"><RuleText text={r.text} /></span>
               <span className="mt-0.5 flex flex-wrap gap-1">
-                {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-[11px] font-medium">Most failed</span>}
+                {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-xs font-medium">Most failed</span>}
                 {r.wordings > 1 && <RewordedTag releasedIn={r.reworded_in} history={r.wording_history} current={r.text} />}
-                {r.patterns > 0 && <span className="text-muted-foreground text-[11px]">{r.patterns === 1 ? "1 pattern" : `${r.patterns} patterns`}</span>}
+                {r.patterns > 0 && <span className="text-muted-foreground text-xs">{r.patterns === 1 ? "1 pattern" : `${r.patterns} patterns`}</span>}
               </span>
             </span>
             <span className={hideNarrow}>
@@ -101,8 +101,8 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
               {warn ? (
                 <Hint tip="How often the sign came up. Warning signs never count toward a pass rate." focusable={false}>
                   <span className="tabular-nums">
-                    <b className="font-semibold">{fmtPct(r.present_rate)}</b> <span className="text-muted-foreground text-[11.5px]">of {r.n}</span>
-                    <span className="text-muted-foreground block text-[11px]">came up{r.unheeded ? `, ${r.unheeded} unheeded` : ""}</span>
+                    <b className="font-semibold">{fmtPct(r.present_rate)}</b> <span className="text-muted-foreground text-xs">of {r.n}</span>
+                    <span className="text-muted-foreground block text-xs">came up{r.unheeded ? `, ${r.unheeded} unheeded` : ""}</span>
                   </span>
                 </Hint>
               ) : (
@@ -158,7 +158,7 @@ function NeverList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
               <span className="min-w-0 flex-1 text-[13.5px]"><RuleText text={r.text} /></span>
               <span className="text-right tabular-nums">
                 <b className={cn("font-semibold", r.fails ? "text-err" : "text-muted-foreground")}>{r.fails ?? 0}</b>
-                <span className="text-muted-foreground block text-[11px]">of {r.n}</span>
+                <span className="text-muted-foreground block text-xs">of {r.n}</span>
               </span>
             </HrefLink>
           </li>
@@ -195,7 +195,7 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
               {w.present_n ? (
                 <span className="text-right text-[13px] whitespace-nowrap tabular-nums">
                   <span className="text-muted-foreground">{fmtPct(w.absent_pass_rate)}</span> → <b className={cn("font-semibold", w.flag && "text-err")}>{fmtPct(w.present_pass_rate)}</b>
-                  <span className="text-muted-foreground block text-[11px]">
+                  <span className="text-muted-foreground block text-xs">
                     of {w.absent_n} → of {w.present_n}
                     {w.delta_points != null && (
                       <>
@@ -224,7 +224,7 @@ function PatternLine({ p, depth, scope, known, split, rule }: { p: PatternOut; d
         {p.name}
       </HrefLink>
       {p.kind === "rule" && <RuleTag rule={rule} className="self-center" />}
-      {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-1.5 text-[11px]">retired</span>}
+      {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-1.5 text-xs">retired</span>}
       <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-muted-foreground text-xs tabular-nums" title="Its sessions">
         {p.sessions} sessions · {p.findings} findings
       </HrefLink>

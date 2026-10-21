@@ -18,7 +18,7 @@ export function KindBadge({ kind }: { kind: BlockKind | null }) {
   return (
     <span
       className={cn(
-        "inline-block shrink-0 rounded-[5px] px-1.5 py-px text-[11px] font-semibold tracking-wide uppercase whitespace-nowrap",
+        "inline-block shrink-0 rounded-[5px] px-1.5 py-px text-xs font-medium capitalize whitespace-nowrap",
         kind ? BADGE[kind] : "text-err bg-err-soft",
       )}
     >

@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { KIND, type Kind, plural } from "@/lib/kinds";
 import type { Use } from "@/lib/api";
+import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { Banner, KindBadge, PageTitle, Tag } from "./bits";
@@ -111,5 +112,7 @@ export function Missing({ kind, id }: { kind: Kind; id: string }) {
 }
 
 export function Page({ wide, children }: { wide?: boolean; children: ReactNode }) {
-  return <div className={cn("min-w-0", wide ? "max-w-[1320px]" : "max-w-[860px]")}>{children}</div>;
+  // With the rail collapsed the canvas is wider than the page, so it centres instead of leaving a gap on the right.
+  const collapsed = useRailCollapsed();
+  return <div className={cn("min-w-0", wide ? "max-w-[1320px]" : "max-w-[860px]", collapsed && "mx-auto")}>{children}</div>;
 }

@@ -9,7 +9,7 @@ import { KIND, type Kind, type ListKind, itemOfPath, kindOfComponent, platformNa
 import type { Item } from "@/lib/model";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Banner, ConfirmButton, Counts, ErrorBanner, IssueList, KindBadge, LintList, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
+import { Banner, ConfirmButton, Counts, ErrorBanner, IssueList, LintList, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
 import { ChangeList, useFieldChanges } from "./change-list";
 import { DiffView } from "./diff-view";
 import { author } from "./form";
@@ -171,11 +171,7 @@ export function OverviewView() {
             title: KIND[kind].many,
             rows: items.map((it) => ({
               id: it.id,
-              head: (
-                <>
-                  <KindBadge kind={kind} /> <HrefLink href={href(kind, it.id)}>{model.itemName(kind, it.id)}</HrefLink>
-                </>
-              ),
+              head: <HrefLink href={href(kind, it.id)}>{model.itemName(kind, it.id)}</HrefLink>,
               cell: (agent: string) => {
                 const u = uses.get(agent)!;
                 const direct = u.direct.has(it.id);

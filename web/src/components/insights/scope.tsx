@@ -4,6 +4,7 @@ import { CalendarRange, RefreshCw } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { type InsightFilters, WINDOWS } from "@/lib/api";
 import { WINDOW_LABEL, WINDOW_SHORT, insightsHref } from "@/lib/insights";
+import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { HrefLink } from "../href-link";
@@ -78,7 +79,7 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
               To (leave empty to run up to now)
               <Input type="date" max={today()} min={start || undefined} value={end} onChange={(e) => setEnd(e.target.value)} />
             </label>
-            <p className="text-muted-foreground text-[11.5px]">Up to 366 days, both days included. Every number is compared with the same length of time just before.</p>
+            <p className="text-muted-foreground text-xs">Up to 366 days, both days included. Every number is compared with the same length of time just before.</p>
             <Button size="sm" type="submit" disabled={!!bad}>
               Apply
             </Button>
@@ -156,9 +157,10 @@ export function InsightsShell({
   children: ReactNode;
 }) {
   const { ws } = useWs();
+  const collapsed = useRailCollapsed();
   const keep: InsightFilters = { ...filters };
   return (
-    <div className="max-w-[1320px] min-w-0">
+    <div className={cn("max-w-[1320px] min-w-0", collapsed && "mx-auto")}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>

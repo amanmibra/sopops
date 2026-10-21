@@ -8,6 +8,8 @@ import { ConvertView } from "@/components/views";
 import { q } from "@/lib/api";
 import { rememberPage } from "@/lib/mode";
 import { prefs } from "@/lib/prefs";
+import { railCols, useRailCollapsed } from "@/lib/rail";
+import { cn } from "@/lib/utils";
 import { WsContext, makeWs } from "@/lib/workspace";
 
 export const Route = createFileRoute("/w/$ws")({ component: WorkspaceLayout });
@@ -19,6 +21,7 @@ function WorkspaceLayout() {
   const config = useQuery(q.config(ws));
   const draft = useQuery(q.draft(ws));
   const releases = useQuery(q.releases(ws));
+  const collapsed = useRailCollapsed();
   useEffect(() => prefs.set("ws", ws), [ws]);
   useEffect(() => rememberPage(ws, pathname, searchStr), [ws, pathname, searchStr]);
   const value = useMemo(
@@ -50,7 +53,7 @@ function WorkspaceLayout() {
     );
   return (
     <WsContext.Provider value={value}>
-      <div className="grid min-h-[calc(100vh-53px)] grid-cols-1 md:grid-cols-[264px_minmax(0,1fr)]">
+      <div className={cn("grid min-h-[calc(100vh-53px)] grid-cols-1", railCols(collapsed))}>
         <Rail />
         <main className="min-w-0 px-4 pt-5 pb-10 md:px-8 md:pt-6">
           <SetupBar ws={ws} />

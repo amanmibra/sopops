@@ -134,7 +134,7 @@ export function PublishButton({ ws }: { ws: string }) {
   return (
     <>
       <Button variant="outline" size="sm" disabled={!value} onClick={() => setOpen(true)} title={unsaved.length ? `Unsaved edits: ${unsaved.map((u) => u.label).join(", ")}` : undefined}>
-        Publish changes
+        Publish<span className="max-sm:hidden"> changes</span>
         {n > 0 && (
           <span className="bg-warn text-card rounded-full px-1.5 text-xs font-semibold" aria-label={`${n} saved draft changes`}>
             {n}
