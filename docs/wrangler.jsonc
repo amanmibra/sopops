@@ -1,0 +1,10 @@
+// docs.sopops.dev: VitePress's static build, served as assets by a Cloudflare Worker (no Worker code).
+{
+  "name": "sopops-docs",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": ".vitepress/dist",
+    "not_found_handling": "404-page",
+    "html_handling": "drop-trailing-slash"
+  }
+}

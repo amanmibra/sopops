@@ -17,7 +17,7 @@ import-sessions/
 | La Casita | 1 | a Vapi call answered in Spanish, with a delivery-zone check |
 | Pho House | 1 | an agent the workspace doesn't have, and no release |
 
-Each line is a session in the [canonical format](../../API.md#the-canonical-format): `platform` and `external_id` (together, the session's key), `agent`, the `release` it ran on, `started_at` and `ended_at`, then `turns` (`role`, `text`, `offset_s`) and `tool_calls` (`name`, `arguments`, `result`). One line, with the turns cut short:
+Each line is a session in the [canonical format](../../docs/api/sessions.md#the-canonical-format): `platform` and `external_id` (together, the session's key), `agent`, the `release` it ran on, `started_at` and `ended_at`, then `turns` (`role`, `text`, `offset_s`) and `tool_calls` (`name`, `arguments`, `result`). One line, with the turns cut short:
 
 ```json
 {"platform": "livekit", "external_id": "AJ_tp_8f2k1", "channel": "voice", "agent": "tonys-pizza", "release": 1,
@@ -56,4 +56,4 @@ Write one line per session in the same format and import it the same way. `-` re
 python convert_my_logs.py | uv run sopops import - --workspace prod
 ```
 
-To send sessions from a running sopops instead of the database, `POST …/sessions` takes the same JSON with an `ingest` token (see [API.md](../../API.md#sessions)).
+To send sessions from a running sopops instead of the database, `POST …/sessions` takes the same JSON with an `ingest` token (see [API reference](../../docs/api/sessions.md)).

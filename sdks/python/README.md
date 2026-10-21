@@ -68,7 +68,7 @@ await sopops.post_session(full_session)
 
 `Sopops.open_session` and `Sopops.append_events` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`). Streaming needs the `ingest` scope, like posting.
 
-The session format is in [API.md](../../API.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
+The session format is in [API reference](../../docs/api/sessions.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
 
 ## sopops-mcp (onboarding)
 

@@ -85,7 +85,7 @@ export interface FetchOptions {
   fallback?: string;
 }
 
-/** A canonical sopops session (see API.md, "The canonical format"). */
+/** A canonical sopops session (see docs/api/sessions.md, "The canonical format"). */
 export interface SessionIn {
   platform: "livekit" | "elevenlabs" | "vapi" | "otel" | "import" | "api";
   external_id: string;

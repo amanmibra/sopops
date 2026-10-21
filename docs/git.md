@@ -17,7 +17,7 @@ python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"file
 
 ## Connect a GitHub repository
 
-sopops can sync the workspace and the repo's sopc folder both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`).
+sopops can sync a workspace with a sopc folder in your repo, both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`).
 
 ### With the GitHub App (preferred)
 
@@ -41,7 +41,7 @@ Use a personal access token for the one repository, with the same permissions. I
 
 ## Sync from GitHub
 
-A push to the branch that touches the folder syncs it into drafts. Pushes arrive by webhook, or by polling about once a minute while Settings is open and on the `sopops pr-status` cron. Automatic syncs start after the first one.
+A push to the connected branch that touches the folder syncs it into drafts. Pushes arrive by webhook, or by polling about once a minute while Settings is open and on the `sopops pr-status` cron. Automatic syncs start after the first one.
 
 - Files changed only on GitHub are written.
 - Files changed both ways merge line by line. Ones that can't merge show in Settings as conflicts: keep yours, take GitHub's, or edit.
@@ -54,9 +54,9 @@ A push to the branch that touches the folder syncs it into drafts. Pushes arrive
 
 sopops never pushes to the base branch.
 
-- **Send drafts to GitHub** (`POST /v1/workspaces/{ws}/repo/send`) commits the drafts' changes to `sopops/sync` and opens one pull request. Sending again updates it. After merge, drafts sync back with nothing new.
+- **Send drafts to GitHub** (`POST /v1/workspaces/{ws}/repo/send`) commits the drafts' changes to `sopops/sync` and opens one pull request. Sending again updates it. After you merge it, the drafts sync back with nothing new.
 - **Suggestions** go to their own `sopops/<id>` branch and pull request.
-- With the App, sopops also opens onboarding's pull request.
+- With the App, sopops also opens the onboarding pull request.
 
 ## Test webhooks locally
 

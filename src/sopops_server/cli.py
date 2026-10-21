@@ -57,7 +57,7 @@ def serve(argv: list[str]) -> None:
 
 
 def import_sessions(argv: list[str]) -> None:
-    """Read canonical session JSON, one per line (see API.md), into a workspace. Re-importing a file is safe."""
+    """Read canonical session JSON, one per line (see docs/api/sessions.md), into a workspace. Re-importing a file is safe."""
     parser = argparse.ArgumentParser(prog="sopops import", description="Import sessions from a JSONL file (one canonical session per line). '-' reads stdin.")
     parser.add_argument("file")
     parser.add_argument("--workspace", "-w", required=True)

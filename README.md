@@ -6,7 +6,7 @@
 
 Instructions are what your platform may call the prompt or system prompt.
 
-[Quickstart](#quickstart) · [Walkthrough](examples/walkthrough/WALKTHROUGH.md) · [Connect your agent](#connect-your-agent) · [Docs](#docs) · [API](API.md)
+[Quickstart](#quickstart) · [Walkthrough](examples/walkthrough/WALKTHROUGH.md) · [Connect your agent](#connect-your-agent) · [Docs](https://docs.sopops.dev) · [API](docs/api/index.md)
 
 </div>
 
@@ -113,6 +113,8 @@ A session is one call or chat. The **Sessions** page lists them live, each with 
 
 ## Docs
 
+Every guide is also at [docs.sopops.dev](https://docs.sopops.dev), with search.
+
 | | |
 |---|---|
 | [Import](docs/import.md) | Coding agents, sopc projects, paste and platform import |
@@ -122,7 +124,7 @@ A session is one call or chat. The **Sessions** page lists them live, each with 
 | [Configuration](docs/configuration.md) | Every environment variable |
 | [Sign in](docs/sign-in.md) | Passwords, teams and join links, GitHub, Google, email |
 | [Git](docs/git.md) | Keeping instructions in a repo, and two-way GitHub sync |
-| [API.md](API.md) | Every endpoint. The OpenAPI spec is at `/openapi.json`. |
+| [API reference](docs/api/index.md) | Every endpoint, by area. The OpenAPI spec is at `/openapi.json`. |
 
 ## Status
 

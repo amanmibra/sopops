@@ -10,3 +10,5 @@ src/sopops_server/static/
 *.tsbuildinfo
 .env
 .taste-skill/
+docs/.vitepress/dist/
+docs/.vitepress/cache/

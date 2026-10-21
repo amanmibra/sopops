@@ -7,9 +7,9 @@ Agents get their instructions from sopops and send their sessions back. Paths be
 Set this per agent under the gear icon → Delivery.
 
 - **Pull:** the agent, or its platform's call-start webhook, fetches the live release when a call starts.
-- **Push:** publishing, or making a release live, writes the instructions into the agent on its platform. The release shows results and retry.
+- **Push:** publishing, or making a release live, writes the instructions into the agent on its platform. The release page shows each push's result and lets you retry it.
 
-No-code session capture lives under the gear icon → Agents and platforms → Platforms. It uses the same ingest and streaming as the SDKs. A session that streams and later arrives whole stays one session, and the full post wins.
+Set up session capture without code under the gear icon → Agents and platforms → Platforms. It uses the same ingest and streaming as the SDKs. A session that streams during a call and then arrives whole stays one session, and the full copy replaces what streamed.
 
 ## Connect LiveKit
 
@@ -25,7 +25,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
-`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `Sopops().fetch_instructions(agent)` and `post_session(...)`. Full agent: [examples/livekit-restaurant](../examples/livekit-restaurant).
+`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `Sopops().fetch_instructions(agent)` and `post_session(...)`. A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
 
 **Sessions with no code** (no tool calls):
 
@@ -47,7 +47,7 @@ sopops joins each room an agent joins, hidden and subscribe-only. It streams the
 
 **Sessions from code:** the TypeScript SDK's `elevenLabsSession` (posted, optionally streamed).
 
-**Calls from before you connected:** once the API key is saved, Settings, then Platforms, shows **Backfill the last 7 days** under ElevenLabs. It counts each agent's finished conversations from the last 7 days first (and what checking the new ones costs, once the team has spent something), then brings them in as sessions, the same ones the post-call webhook makes. Conversations already in sopops are skipped, so you can run it again. See [the API](../API.md#backfill-from-elevenlabs-or-vapi).
+**Calls from before you connected:** once the API key is saved, Settings, then Platforms, shows **Backfill the last 7 days** under ElevenLabs. It counts each agent's finished conversations from the last 7 days first (and what checking the new ones costs, once the team has spent something), then brings them in as sessions, the same ones the post-call webhook makes. Conversations already in sopops are skipped, so you can run it again. See [the API](api/sessions.md#backfill-from-elevenlabs-or-vapi).
 
 ## Connect Vapi
 
@@ -57,7 +57,7 @@ sopops joins each room an agent joins, hidden and subscribe-only. It streams the
 
 **Calls from before you connected:** once the API key is saved, Settings, then Platforms, shows **Backfill the last 7 days** under Vapi. It counts each assistant's ended calls from the last 7 days, then brings them in as sessions, the same ones the end-of-call report makes. Calls already in sopops are skipped.
 
-## Retell
+## Connect Retell
 
 Coming later. You can mark agents as Retell, but nothing is delivered yet.
 

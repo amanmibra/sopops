@@ -1,0 +1,143 @@
+/* Raster, as on sopops.dev: after Josef Müller-Brockmann. An 8px baseline (--bl): every line height and vertical gap is
+   a multiple of it. Flat colour, square corners, thin rules.
+
+   Two faces: Inter Tight (grotesk, heads) and IBM Plex Mono (body). Six type styles, the only ones used:
+     1 display  Inter Tight 600  56/64   the home page title
+     2 head     Inter Tight 600  32/40   a page's title (h1)
+     3 lead     Inter Tight 500  20/24   sections (h2)
+     4 body     Plex Mono   400  15/24   running text
+     5 small    Plex Mono   400  13/16   code, tables, the sidebar and outline
+     6 label    Plex Mono   600  13/16   capitals: sub-sections (h3), sidebar groups, the nav */
+
+:root {
+  --paper: oklch(0.975 0.003 175);
+  --surface: oklch(1 0 0);
+  --tone: oklch(0.94 0.01 178);
+  --ink: oklch(0.2 0.02 180);
+  --muted: oklch(0.46 0.02 180);
+  --line: oklch(0.86 0.01 175);
+  --brand: oklch(0.48 0.09 184);
+  --brand-deep: oklch(0.4 0.08 184);
+  --brand-soft: oklch(0.93 0.035 178);
+  --brand-ink: oklch(1 0 0);
+  --miss: oklch(0.53 0.17 42);
+
+  --grotesk: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --bl: 8px;
+
+  --t-display: 600 56px / calc(8 * var(--bl)) var(--grotesk);
+  --t-head: 600 32px / calc(5 * var(--bl)) var(--grotesk);
+  --t-lead: 500 20px / calc(3 * var(--bl)) var(--grotesk);
+  --t-body: 400 15px / calc(3 * var(--bl)) var(--mono);
+  --t-small: 400 13px / calc(2 * var(--bl)) var(--mono);
+  --t-label: 600 13px / calc(2 * var(--bl)) var(--mono);
+
+  --vp-font-family-base: var(--mono);
+  --vp-font-family-mono: var(--mono);
+  --vp-c-bg: var(--paper);
+  --vp-c-bg-alt: var(--tone);
+  --vp-c-bg-elv: var(--surface);
+  --vp-c-bg-soft: var(--tone);
+  --vp-c-text-1: var(--ink);
+  --vp-c-text-2: var(--muted);
+  --vp-c-text-3: var(--muted);
+  --vp-c-divider: var(--line);
+  --vp-c-gutter: var(--line);
+  --vp-c-border: var(--line);
+  --vp-c-brand-1: var(--brand);
+  --vp-c-brand-2: var(--brand-deep);
+  --vp-c-brand-3: var(--brand);
+  --vp-c-brand-soft: var(--brand-soft);
+  --vp-c-tip-1: var(--brand);
+  --vp-c-tip-soft: var(--brand-soft);
+  --vp-code-font-size: 13px;
+  --vp-code-line-height: calc(3 * var(--bl));
+  --vp-code-block-bg: var(--tone);
+  --vp-code-bg: var(--tone);
+  --vp-code-color: var(--ink);
+  --vp-button-brand-bg: var(--ink);
+  --vp-button-brand-border: var(--ink);
+  --vp-button-brand-text: var(--paper);
+  --vp-button-brand-hover-bg: var(--brand);
+  --vp-button-brand-hover-border: var(--brand);
+  --vp-button-brand-hover-text: var(--brand-ink);
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-border: var(--ink);
+  --vp-button-alt-text: var(--ink);
+  --vp-button-alt-hover-bg: var(--ink);
+  --vp-button-alt-hover-text: var(--paper);
+  --vp-home-hero-name-color: var(--ink);
+  --vp-local-search-bg: var(--paper);
+  --vp-local-search-result-bg: var(--surface);
+  --vp-sidebar-bg-color: var(--paper);
+  --vp-nav-bg-color: var(--paper);
+}
+
+.dark {
+  --paper: oklch(0.22 0.02 182);
+  --surface: oklch(0.26 0.02 182);
+  --tone: oklch(0.28 0.02 182);
+  --ink: oklch(0.96 0.005 175);
+  --muted: oklch(0.74 0.015 178);
+  --line: oklch(1 0 0 / 0.14);
+  --brand: oklch(0.78 0.1 178);
+  --brand-deep: oklch(0.86 0.08 178);
+  --brand-soft: oklch(0.78 0.1 178 / 0.14);
+  --brand-ink: oklch(0.2 0.02 182);
+}
+
+/* type */
+body { font: var(--t-body); letter-spacing: -0.02em; font-kerning: normal; font-feature-settings: "kern", "calt"; }
+.vp-doc { font: var(--t-body); letter-spacing: -0.02em; }
+.vp-doc h1 { font: var(--t-head); letter-spacing: -0.03em; margin-bottom: calc(3 * var(--bl)); }
+.vp-doc h2 { font: var(--t-lead); letter-spacing: -0.015em; border-top: 1px solid var(--line); margin-top: calc(6 * var(--bl)); padding-top: calc(3 * var(--bl)); }
+.vp-doc h3 { font: var(--t-label); letter-spacing: 0.04em; text-transform: uppercase; margin-top: calc(4 * var(--bl)); }
+.vp-doc h4, .vp-doc h5, .vp-doc h6 { font: var(--t-label); letter-spacing: 0.04em; }
+.vp-doc p, .vp-doc li { line-height: calc(3 * var(--bl)); }
+.vp-doc p, .vp-doc ul, .vp-doc ol { margin: calc(2 * var(--bl)) 0; }
+.vp-doc table, .vp-doc th, .vp-doc td { font: var(--t-small); letter-spacing: -0.01em; }
+.vp-doc th { font: var(--t-label); letter-spacing: 0.04em; text-transform: uppercase; }
+.vp-doc a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; font-weight: 400; }
+.vp-doc :not(pre) > code { font-size: 13px; padding: 0 4px; }
+.vp-doc strong { font-weight: 600; }
+
+/* square corners, flat fields, thin rules */
+.vp-doc div[class*="language-"], .vp-doc .custom-block, .vp-doc :not(pre) > code, .vp-doc table, .VPButton, .VPNavBarSearch .DocSearch-Button,
+.VPLocalSearchBox .shell, .VPLocalSearchBox .result, .VPLocalSearchBox .search-bar, .vp-doc img, .VPFeature, .VPDocFooter .pager-link { border-radius: 0 !important; }
+.vp-doc table { border-collapse: collapse; display: block; width: 100%; max-width: 100%; overflow-x: auto; }
+/* Tables stay inside the column: headers and the first column (names, variables, endpoints) keep their words whole,
+   long values in the other columns (URLs, package specs) wrap anywhere, and a table still too wide scrolls in its own box. */
+.vp-doc th { white-space: nowrap; }
+.vp-doc td:not(:first-child), .vp-doc td:not(:first-child) code { overflow-wrap: anywhere; }
+.vp-doc td:first-child { min-width: 12ch; }
+.vp-doc tr { background: transparent !important; }
+.vp-doc th, .vp-doc td { border: 0; border-bottom: 1px solid var(--line); padding: var(--bl) calc(2 * var(--bl)) var(--bl) 0; }
+.vp-doc div[class*="language-"] { margin: calc(2 * var(--bl)) 0; }
+.vp-doc img { border: 1px solid var(--line); }
+.vp-doc .custom-block { border: 0; border-left: 3px solid var(--brand); background: var(--tone); }
+
+/* nav and sidebar: small and label styles */
+.VPNavBarTitle .title { font: var(--t-lead); letter-spacing: -0.015em; }
+.VPNavBarMenuLink, .VPNavBarMenuGroup .text { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
+.VPSidebarItem.level-0 > .item > .text, .VPSidebarItem.level-0 > .item > .link > .text { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
+.VPSidebarItem .text, .VPDocAsideOutline .outline-link, .VPDocAsideOutline .outline-title, .VPDocFooter, .VPFooter { font: var(--t-small) !important; letter-spacing: -0.01em; }
+.VPDocAsideOutline .outline-title { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
+.VPButton { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* home */
+.VPHero .name, .VPHero .text { font: var(--t-display) !important; letter-spacing: -0.045em; }
+.VPHero .tagline { font: var(--t-body); letter-spacing: -0.02em; color: var(--muted); max-width: 46ch; padding-top: calc(2 * var(--bl)); }
+.VPHero .text { color: var(--muted); }
+@media (max-width: 640px) {
+  :root { --t-display: 600 40px / calc(6 * var(--bl)) var(--grotesk); --t-head: 600 26px / calc(4 * var(--bl)) var(--grotesk); }
+}
+
+.VPButton { line-height: calc(5 * var(--bl)) !important; padding: 0 calc(2 * var(--bl)) !important; border-width: 1.5px !important; }
+.VPHero .actions { gap: var(--bl); }
+.VPHome .vp-doc { margin-top: calc(6 * var(--bl)); }
+.VPHome .vp-doc .guides { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0 calc(3 * var(--bl)); padding: 0; list-style: none; border-top: 1px solid var(--line); }
+.VPHome .vp-doc .guides li { margin: 0; padding: calc(2 * var(--bl)) 0; border-bottom: 1px solid var(--line); max-width: none; }
+.VPHome .vp-doc .guides a { display: block; font: var(--t-lead); letter-spacing: -0.015em; text-decoration: none; color: var(--ink); }
+.VPHome .vp-doc .guides a:hover { color: var(--brand); }
+.VPHome .vp-doc .guides span { display: block; font: var(--t-small); letter-spacing: -0.01em; color: var(--muted); margin-top: var(--bl); }

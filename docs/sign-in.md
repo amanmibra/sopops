@@ -24,7 +24,7 @@ Invites:
 
 - Existing accounts join right away. Others open the link and set a password, or sign in with that email another way.
 - With SMTP, sopops emails the link. You can always copy it.
-- Links last 7 days and are stored hashed. Under "Invited, not signed in yet", cancel, resend (with email) or copy a new link (without). A new link kills the old one.
+- Links last 7 days and are stored hashed. Under "Invited, not signed in yet", cancel, resend (with email) or copy a new link (without). A new link replaces the old one, which stops working.
 - An invite can't set a password for an existing account.
 
 ## Teams and roles
@@ -58,14 +58,14 @@ sopops reset-password ana@example.com   # add --url https://sopops.example.com w
 
 `SOPOPS_OPEN_SIGNUP=true` (with sign-in on) lets anyone sign up at `/sign-up` and own a new team, with the same setup plus how sopops builds instructions. Existing addresses are told to sign in. Addresses with an open invite, or at a team's member domain, are turned away. Tries count against the password limits.
 
-> **Warning:** sopops doesn't verify the email belongs to them, and every team uses this server's model keys. Turn it on only to host sopops for anyone.
+> **Warning:** sopops doesn't check that people own the email they sign up with, and every team runs on this server's model keys. Turn it on only when sopops is open to the public.
 
 ## Sign in with email
 
 Set `SOPOPS_SMTP_HOST` and `SOPOPS_SMTP_FROM`, plus `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER` and `SOPOPS_SMTP_PASSWORD` as needed. The sign-in page gets "Email me a sign-in link instead" and "Forgot password?". Add `SOPOPS_ALLOWED_EMAIL_DOMAINS` to let people at those domains make accounts through an emailed set-password link.
 
 - Links work once, for 15 minutes. Limit: 5 per address and 20 per client per 15 minutes.
-- The code sits after `#`, which browsers never send, and the page needs one click. Mail scanners can't use it up.
+- The code sits after `#`, which browsers never send to the server, and the page needs one click, so mail scanners that open links can't use it up.
 - The page always says "If that address can sign in, we sent a link".
 
 `SOPOPS_EMAIL_DEV=1` turns on email sign-in with no SMTP, for demos. Links go to the server log at INFO, marked `[SOPOPS_EMAIL_DEV]`.
@@ -94,7 +94,7 @@ Only addresses Google marks `email_verified` count.
 ## Run behind a proxy
 
 - Set `SOPOPS_PUBLIC_URL` (e.g. `https://sopops.example.com`) so callback, sign-in and invite links match what you registered.
-- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client email limit counts clients instead of the proxy.
+- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client email limit counts each real client, so the proxy's own address doesn't use up the limit.
 
 ## Security
 

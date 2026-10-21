@@ -1,6 +1,6 @@
 # A/B tests
 
-Compare versions of an agent on your procedures: a different LLM, voice, speech model or release of your instructions. The results are under **Insights → A/B tests**.
+Compare versions of an agent on your procedures: a different LLM, voice, speech model or release of your instructions. Results are under **Insights → A/B tests**.
 
 ## How sopops tells versions apart
 
