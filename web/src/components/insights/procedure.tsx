@@ -7,6 +7,7 @@ import { q } from "@/lib/api";
 import { FAIL_STATUSES, STATUS_MARK, statusTip, type Scope, bucketHref, fmtPct, insightsHref, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
+import { RuleText } from "../bits";
 import { HrefLink, useGo } from "../href-link";
 import { ReviewStateChip, RuleTag, VerdictChip, usePatternIndex } from "../review-bits";
 import { Button } from "../ui/button";
@@ -79,7 +80,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
               {r.index}
             </span>
             <span className="min-w-0">
-              <span className="line-clamp-2">{r.text}</span>
+              <span className="line-clamp-2"><RuleText text={r.text} /></span>
               <span className="mt-0.5 flex flex-wrap gap-1">
                 {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-[11px] font-medium">Most failed</span>}
                 {r.wordings > 1 && <RewordedTag releasedIn={r.reworded_in} history={r.wording_history} current={r.text} />}
@@ -154,7 +155,7 @@ function NeverList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
           <li key={r.rule_id}>
             <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: r.rule_id, rule_status: ["violated"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2.5 hover:no-underline", !r.fails && "pointer-events-none")}>
               <Ban className={cn("mt-0.5 size-4 shrink-0", r.fails ? "text-err" : "text-muted-foreground")} />
-              <span className="min-w-0 flex-1 text-[13.5px]">{r.text}</span>
+              <span className="min-w-0 flex-1 text-[13.5px]"><RuleText text={r.text} /></span>
               <span className="text-right tabular-nums">
                 <b className={cn("font-semibold", r.fails ? "text-err" : "text-muted-foreground")}>{r.fails ?? 0}</b>
                 <span className="text-muted-foreground block text-[11px]">of {r.n}</span>
@@ -185,7 +186,7 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
             <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: w.rule_id, rule_status: ["present", "unheeded"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2.5 hover:no-underline", !w.present_n && "pointer-events-none")}>
               <TriangleAlert className={cn("mt-0.5 size-4 shrink-0", w.present_n ? "text-warn" : "text-muted-foreground")} />
               <span className="min-w-0 flex-1 text-[13.5px]">
-                {w.text}
+                <RuleText text={w.text} />
                 <span className="text-muted-foreground block text-xs">
                   Came up on {w.present_n} of {w.present_n + w.absent_n}
                   {w.unheeded ? `, ${w.unheeded} unheeded` : ""}
@@ -251,7 +252,7 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
               <div key={p.pattern_id} className="mb-1.5">
                 <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} rule={p.rule} split={p.sub_patterns.some((s) => s.kind === "sub")} />
                 {p.rule?.text && (
-                  <div className="text-muted-foreground mb-0.5 text-xs">{p.rule.text}</div>
+                  <div className="text-muted-foreground mb-0.5 text-xs"><RuleText text={p.rule.text} /></div>
                 )}
                 {p.sub_patterns
                   .filter((s) => s.findings > 0 || s.kind === "sub")

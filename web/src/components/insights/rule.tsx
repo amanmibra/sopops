@@ -8,6 +8,7 @@ import { fmtPct, insightsHref, ruleName, sessionsHref, windowPhrase } from "@/li
 import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
+import { RuleText } from "../bits";
 import { HrefLink } from "../href-link";
 import { ReviewStateChip, VerdictChip, usePatternIndex } from "../review-bits";
 import { RateByGroup, ReleaseTimeline } from "./charts";
@@ -55,7 +56,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
               />
             )}
           </div>
-          {d?.text && <p className="mt-1 max-w-[90ch] text-[14px]">“{d.text}”</p>}
+          {d?.text && <p className="mt-1 max-w-[90ch] text-[14px]">“<RuleText text={d.text} />”</p>}
           <p className="text-muted-foreground mt-1 text-xs">Over {windowPhrase(filters)}. A reworded rule keeps its earlier results.</p>
         </section>
         {d && scope ? (

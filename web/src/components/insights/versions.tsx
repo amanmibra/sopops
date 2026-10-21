@@ -12,7 +12,7 @@ import { fmtPct, insightsHref, ruleName } from "@/lib/insights";
 import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
-import { Segmented } from "../bits";
+import { RuleText, Segmented } from "../bits";
 import { HrefLink } from "../href-link";
 import { Button } from "../ui/button";
 import { Hint, OutcomeBar, OutcomeLegend, RateN, Skel, StatusBar, WidgetCard } from "./kit";
@@ -421,7 +421,7 @@ function RulesTable({ d, filters }: { d: VersionsResponse; filters: InsightFilte
                     {ruleName(r.kind, r.index)}
                   </HrefLink>
                   {d.procedures.length > 1 && <span className="text-muted-foreground ml-1.5 text-xs">{names.get(r.procedure_id) ?? r.procedure_id}</span>}
-                  <div className="text-muted-foreground line-clamp-2 text-[13px]">{r.text}</div>
+                  <div className="text-muted-foreground line-clamp-2 text-[13px]"><RuleText text={r.text} /></div>
                 </td>
                 {r.cells.map((c) => (
                   <td key={c.version} className={td}>

@@ -9,7 +9,7 @@ import { when } from "@/lib/kinds";
 import { REVIEW_STATE, type ReviewState, type SuggestionSummary, VERDICT, type VerdictOut, rq, writing } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { wsHref, useWs } from "@/lib/workspace";
-import { Note, Tag } from "./bits";
+import { Note, RuleText, Tag } from "./bits";
 import { HrefLink } from "./href-link";
 import { Hint, TipBody } from "./insights/kit";
 
@@ -28,7 +28,7 @@ export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined;
   if (!rule?.kind) return null;
   const label = ruleName(rule.kind, rule.index);
   return (
-    <Hint focusable={false} tip={<TipBody head={label}>{rule.text ?? "The rule's text isn't known yet."}</TipBody>}>
+    <Hint focusable={false} tip={<TipBody head={label}>{rule.text ? <RuleText text={rule.text} /> : "The rule's text isn't known yet."}</TipBody>}>
       <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-[11px] font-normal whitespace-nowrap", className)}>{label}</span>
     </Hint>
   );

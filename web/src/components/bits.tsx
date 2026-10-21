@@ -51,6 +51,25 @@ export function Tag({ tone, big, children, className }: { tone?: string; big?: b
   );
 }
 
+/** Rule text, with each `{{placeholder}}` still in it (a rule shared by agents that each set their own value) as a chip. */
+export function RuleText({ text }: { text: string | null | undefined }) {
+  if (!text) return null;
+  const parts = text.split(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/);
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 ? (
+          <span key={i} className="bg-muted text-muted-foreground rounded border px-1 font-mono text-[0.9em]" title={`Each agent's own ${part}`}>
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
+}
+
 export function Counts({ add, del }: { add: number; del: number }) {
   return (
     <span className="font-mono text-[13px] font-semibold whitespace-nowrap" aria-label={`${add} lines added, ${del} removed`}>

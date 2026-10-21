@@ -9,7 +9,7 @@ import { type InsightFilters, type LineageRule, call, q, sdk } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
-import { ErrorBanner } from "../bits";
+import { ErrorBanner, RuleText } from "../bits";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
@@ -81,7 +81,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
         {rules.map((r, i) => (
           <li key={r.rule_id} className="px-4 py-2.5 text-[13px]">
             <div className="flex items-start justify-between gap-3">
-              <span className="min-w-0">“{r.text ?? "Not run by any session yet"}”</span>
+              <span className="min-w-0">“{r.text ? <RuleText text={r.text} /> : "Not run by any session yet"}”</span>
               {i > 0 && (
                 <Button size="xs" variant="ghost" className="shrink-0" onClick={() => setPending({ kind: "unlink", rule: r })} title="Say this wording is a new rule, not a rewording">
                   <Unlink /> Not the same rule
@@ -109,7 +109,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
                 {others.map((r) => (
                   <SelectItem key={r.rule_id} value={r.rule_id}>
                     <span className="truncate">
-                      {ruleName(r.kind, r.index)}: {r.text}
+                      {ruleName(r.kind, r.index)}: <RuleText text={r.text} />
                     </span>
                   </SelectItem>
                 ))}
@@ -130,7 +130,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
             <DialogDescription asChild>
               {pending?.kind === "unlink" ? (
                 <div className="grid gap-2">
-                  <p>“{pending.rule.text}”</p>
+                  <p>“<RuleText text={pending.rule.text} />”</p>
                   <p>
                     It stops counting as a rewording of the wording before it. Its findings, and those of any later wording, move to a pattern of their own with no verdict, and Insights shows it as a separate rule. You can
                     link it back later.

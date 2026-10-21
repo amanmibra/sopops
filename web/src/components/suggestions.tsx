@@ -12,7 +12,7 @@ import { plural, when } from "@/lib/kinds";
 import { type MergeConflict, type PlanAgent, SUGGESTION_STATUSES, type SinceWritten, type SuggestionDetail, type SuggestionStatus, review, rq, summaryOf } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Banner, ConfirmButton, Counts, ErrorBanner, Note, PageTitle, Sub, Tag } from "./bits";
+import { Banner, ConfirmButton, Counts, ErrorBanner, Note, PageTitle, RuleText, Sub, Tag } from "./bits";
 import { GitHubIcon } from "./brand-icon";
 import { DiffView, PatchView } from "./diff-view";
 import { author } from "./form";
@@ -148,7 +148,7 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
       {(s.pattern?.kind ?? d?.kind) !== "rule" && (s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-[13px]">{s.pattern?.description ?? d?.description}</p>}
       {d?.rule.text && (
         <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
-          <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> {d.rule.text}
+          <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> <RuleText text={d.rule.text} />
         </blockquote>
       )}
       <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[13px]">

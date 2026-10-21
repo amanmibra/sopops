@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import Session, delete, select
 
 from .orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleResult, SessionRecord
+from .pipeline.procedures import agent_variables, fill
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 from .pipeline.types import SessionRef
 
@@ -149,8 +150,10 @@ class Checks:
 
     # --- reads -----------------------------------------------------------------------
 
-    def for_session(self, session_id: str) -> list[dict[str, Any]]:
-        """Each procedure the router considered, with its rule results (in procedure order: steps, nevers, warnings)."""
+    def for_session(self, session: SessionRecord) -> list[dict[str, Any]]:
+        """Each procedure the router considered, with its rule results (in procedure order: steps, nevers, warnings).
+        Rule text reads as the check read it: with the session's agent's values for its release's placeholders."""
+        session_id = session.id
         order = {"step": 0, "never": 1, "warning": 2}
         with self._db() as db:
             checks = list(db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id == session_id)))
@@ -166,6 +169,7 @@ class Checks:
                 (o.procedure_id, o.rule_id): o.correct
                 for o in db.exec(select(FindingOverride).where(FindingOverride.session_id == session_id).order_by(FindingOverride.created_at))
             }
+        variables = {rel: agent_variables(self.store, session.workspace_id, rel, session.agent_id) for rel in {c.release_id for c in checks} if rel is not None}
         by_proc: dict[str, list[RuleResult]] = {}
         for r in rules:
             by_proc.setdefault(r.procedure_id, []).append(r)
@@ -179,7 +183,7 @@ class Checks:
                 "steps_done": c.steps_done, "nevers_violated": c.nevers_violated, "model": c.model, "prompt_version": c.prompt_version,
                 "checked_at": _utc(c.checked_at),
                 "rules": [
-                    {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "text": r.rule_text, "status": r.status, "evidence": r.evidence,
+                    {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "text": fill(r.rule_text, variables.get(c.release_id, {})), "status": r.status, "evidence": r.evidence,
                      "reason": r.reason, "finding": r.status in FINDING_STATUSES, "pattern_id": pats.get(r.id, (None, None))[0],
                      "pattern_name": pats.get(r.id, (None, None))[1], "finding_id": findings[r.id].id if r.id in findings else None,
                      "suppressed": findings[r.id].suppressed if r.id in findings else False,

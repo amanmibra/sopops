@@ -75,7 +75,7 @@ class Calibrate:
         wording = {lins.get((pid, r.id), r.id): r.id for r in p.rules}
         examples = _relabel(examples, lambda r: wording.get(r, r))  # then on the rule as this release words it
         cfg = decide.DecisionConfig.from_env()
-        splits = decide.rule_checks(ai, self.store.engine, ws, p, cand.variables)
+        splits = decide.rule_checks(ai, self.store.engine, ws, p)
         program = programs.CheckDecisions(p, splits, cand.variables, cfg, ai.client(DECIDE))  # type: ignore[attr-defined]
         stored = calibration.load(self.store.engine, ws, name, decide.question_hashes(program.decide))
         defaults = {n: float(c["threshold"]) for n, c in program.decide.fields.items() if "threshold" in c}

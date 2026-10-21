@@ -47,7 +47,8 @@ from typing import TYPE_CHECKING, Any, Iterable
 from sqlmodel import Session, and_, case, func, or_, select
 
 from . import lineage
-from .orm import Finding, Pattern, ProcedureCheck, PromptText, RuleResult, SessionRecord, Theme
+from .orm import Finding, Pattern, ProcedureCheck, PromptText, RuleResult, SessionRecord, Theme, Workspace
+from .pipeline.procedures import agent_variables, fill
 from .pipeline.rollup import SEVERITY
 
 if TYPE_CHECKING:
@@ -356,15 +357,26 @@ class Insights:
                 "skip_rate": pct(c["skipped"], n) if kind == "step" else None, "present": None, "present_rate": None, "unheeded": None,
                 "not_counted": nc, "not_counted_pct": pct(nc, total)}
 
-    def _rule_texts(self, db: Session, ws: str, procedure_id: str | None) -> dict[tuple[str, str], dict[str, Any]]:
+    def _rule_texts(self, db: Session, f: Filters, procedure_id: str | None) -> dict[tuple[str, str], dict[str, Any]]:
         """{(procedure id, lineage id): the rule as sessions ran it most recently (`rule_id`, kind, index, text), how
-        many wordings it has had, each with the release that published it (`history`), and `reworded_in`}."""
+        many wordings it has had, each with the release that published it (`history`), and `reworded_in`}. Filtered
+        to one agent, the text has that agent's values for its `{{placeholders}}`; across agents it keeps them."""
+        values = self._variables(db, f)
         out: dict[tuple[str, str], dict[str, Any]] = {}
-        for key, group in lineage.wordings(db, ws, procedure_id).items():
+        for key, group in lineage.wordings(db, f.workspace, procedure_id).items():
             cur = lineage.current(group)
-            out[key] = {"rule_id": cur.rule_id, "kind": cur.kind, "index": cur.index, "text": cur.text, "text_hash": cur.text_hash, "wordings": len(group),
-                        "history": [w.out() for w in group], "reworded_in": cur.from_release if len(group) > 1 else None}
+            out[key] = {"rule_id": cur.rule_id, "kind": cur.kind, "index": cur.index, "text": fill(cur.text, values), "text_hash": cur.text_hash, "wordings": len(group),
+                        "history": [{**w.out(), "text": fill(w.text, values)} for w in group], "reworded_in": cur.from_release if len(group) > 1 else None}
         return out
+
+    def _variables(self, db: Session, f: Filters, agent: str | None = None) -> dict[str, str]:
+        """One agent's values for rule placeholders (`agent`, else the filter's): at the version's release when the
+        filter is one version, else the live release. None without one agent, or for one the release doesn't have."""
+        agent, release = agent or f.agent, None
+        if f.version is not None:
+            agent, release = agent or f.version[0], f.version[1]
+        release = release or db.exec(select(Workspace.current_release).where(Workspace.workspace == f.workspace)).first()
+        return agent_variables(self.store, f.workspace, release, agent, known=True) if agent and release is not None else {}
 
     def _pattern_window_counts(self, db: Session, f: Filters, procedure_id: str | None = None, suppressed: bool = False) -> dict[str, tuple[int, int]]:
         """{pattern_id: (findings, sessions)} for findings of sessions in the window (only suppressed ones with `suppressed`)."""
@@ -389,7 +401,7 @@ class Insights:
         counts = self._pattern_window_counts(db, f, procedure_id)
         hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         theme_names = dict(db.exec(select(Theme.id, Theme.name).where(Theme.workspace_id == f.workspace)).all())
-        texts = self._rule_texts(db, f.workspace, procedure_id)
+        texts = self._rule_texts(db, f, procedure_id)
         children: dict[str, list[Pattern]] = defaultdict(list)
         for p in pats:
             if p.parent_id:
@@ -482,7 +494,7 @@ class Insights:
         rules: dict[tuple[Any, str, str], list[tuple]] = defaultdict(list)
         for pid, rid, kind, _i, status, a, n in self._rule_rows(db, f, by="agent"):
             rules[(a, pid, rid)].append((kind, status, n))
-        texts = self._rule_texts(db, f.workspace, f.procedure)
+        texts = self._rule_texts(db, f, f.procedure)
         out = []
         for a, rows in by.items():
             m = [r for r in rows if r[2] in MEASURABLE]
@@ -496,7 +508,7 @@ class Insights:
                 st = self._rule_stats(rr)
                 if st["n"] >= AGENT_MIN_N and st["fails"] and (gap is None or (st["fail_rate"] or 0) > (gap["fail_rate"] or 0)):
                     t = texts.get((pid, rid), {})
-                    gap = {"procedure_id": pid, "rule_id": t.get("rule_id", rid), "kind": t.get("kind"), "index": t.get("index"), "text": t.get("text"), "n": st["n"], "fails": st["fails"],
+                    gap = {"procedure_id": pid, "rule_id": t.get("rule_id", rid), "kind": t.get("kind"), "index": t.get("index"), "text": fill(t["text"], self._variables(db, f, a)) if t.get("text") else None, "n": st["n"], "fails": st["fails"],
                            "fail_rate": st["fail_rate"], "tone": fail_tone(st["fail_rate"], st["n"])}
             durations = [(_utc(e) - _utc(s)).total_seconds() for *_x, s, e in {r[1]: r for r in rows}.values() if e is not None]
             out.append({"agent": a, "sessions": len({r[1] for r in rows}), "checks": len(rows), "measurable": len(m), "followed": fol,
@@ -625,7 +637,7 @@ class Insights:
         per_rule: dict[tuple[str, str], list[tuple]] = defaultdict(list)
         for pid, rid, kind, index, status, n in rules:
             per_rule[(pid, rid)].append((kind, status, n))
-        texts = self._rule_texts(db, f.workspace, f.procedure)
+        texts = self._rule_texts(db, f, f.procedure)
         counts = self._pattern_window_counts(db, f)
         hidden = self._pattern_window_counts(db, f, suppressed=True)
         pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace)))
@@ -686,7 +698,7 @@ class Insights:
         per: dict[str, list[tuple]] = defaultdict(list)
         for _pid, rid, kind, _index, status, n in self._rule_rows(db, f, procedure_id):
             per[rid].append((kind, status, n))
-        texts = self._rule_texts(db, f.workspace, procedure_id)
+        texts = self._rule_texts(db, f, procedure_id)
         counts = self._pattern_window_counts(db, f, procedure_id)
         hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace, Pattern.procedure_id == procedure_id)))
@@ -793,7 +805,8 @@ class Insights:
             lid = lineage.lineage_of(db, f.workspace, procedure_id, rule_id)
             seen = lineage.wordings(db, f.workspace, procedure_id).get((procedure_id, lid), [])
             cur = lineage.current(seen) if seen else None
-            wordings = [{**w.out(), "text_hash": w.text_hash, "first_seen": w.first_seen, "last_seen": w.last_seen, "results": w.results} for w in seen]
+            values = self._variables(db, f)
+            wordings = [{**w.out(), "text": fill(w.text, values), "text_hash": w.text_hash, "first_seen": w.first_seen, "last_seen": w.last_seen, "results": w.results} for w in seen]
             wordings.sort(key=lambda w: w["last_seen"] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
             rule_id = lid  # rows and patterns are keyed by the lineage
             rows = [r for r in self._rule_rows(db, f, procedure_id) if r[1] == rule_id]
@@ -821,7 +834,7 @@ class Insights:
                 for fi, rr, at in db.exec(q.order_by(S.started_at.desc()).limit(5)).all()
             ]
         return {"filters": f.as_dict(), "thresholds": THRESHOLDS, "procedure_id": procedure_id, "rule_id": cur.rule_id if cur else lid, "lineage_id": lid,
-                "kind": kind, "index": index, "text": cur.text if cur else None, "wordings": wordings,
+                "kind": kind, "index": index, "text": fill(cur.text, values) if cur else None, "wordings": wordings,
                 "reworded_in": cur.from_release if cur and len(seen) > 1 else None, "overall": _rate_out(overall), "releases": releases,
                 "agents": agents, "patterns": patterns, "recent_findings": recent}
 
@@ -845,7 +858,7 @@ class Insights:
             for pid, rid, rel in db.exec(f.sessions(select(R.procedure_id, R.rule_id, S.release_id).join(S, S.id == R.session_id))
                                          .where(S.release_id.in_([x for x in (a, b) if x is not None])).distinct()).all():
                 ran[(pid, lins.get((pid, rid), rid), rel)].add(rid)
-            texts = self._rule_texts(db, f.workspace, f.procedure)
+            texts = self._rule_texts(db, f, f.procedure)
             ca = self._checks(db, f.with_(releases=(a,))) if a is not None else []
             cb = self._checks(db, f.with_(releases=(b,))) if b is not None else []
             every = self._checks(db, f)
@@ -939,7 +952,8 @@ class Insights:
             untagged = db.exec(f.sessions(select(func.count(S.id)).where(S.config_hash.is_(None)))).one()
             checks = {v["id"]: self._checks(db, f.with_(version=v["_key"])) for v in picked}
             rows = {v["id"]: self._rule_rows(db, f.with_(version=v["_key"]), f.procedure) for v in picked}
-            texts = self._rule_texts(db, f.workspace, f.procedure)
+            agents = {v["agent"] for v in picked}
+            texts = self._rule_texts(db, f.with_(agent=agents.pop()) if len(agents) == 1 else f, f.procedure)  # one agent's versions: its values
         base = picked[0]["id"] if picked else None
         differs = _differs([v for v in picked] or versions)
 
@@ -1055,7 +1069,7 @@ class Insights:
                 .where(ELIGIBLE, F.pattern_id.in_(ids)).order_by(S.started_at.desc())
             ).all()
             got = [(sid, ev, st, _utc(at)) for _pid, sid, ev, st, at in rows]
-            t = self._rule_texts(db, f.workspace, p.procedure_id).get((p.procedure_id, p.rule_id), {})
+            t = self._rule_texts(db, f, p.procedure_id).get((p.procedure_id, p.rule_id), {})
         return {**me, "rule": {"kind": t.get("kind"), "index": t.get("index"), "text": t.get("text")}, "sub_patterns": (rule or {}).get("sub_patterns", []) if p.kind == "rule" else [],
                 "examples": _examples(got, examples), "session_ids": list(dict.fromkeys(g[0] for g in got))}
 

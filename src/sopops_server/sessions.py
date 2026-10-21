@@ -299,7 +299,7 @@ class Sessions:
         # as normalizing stores them: a session is stored as sent and normalized a moment later (by a run that a re-send
         # can overtake), and normalizing what's already normalized changes nothing
         turns, calls = normalize_turns(row.turns, row.started_at), normalize_tool_calls(row.tool_calls, row.started_at)
-        return {**_summary(row), "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row.id),
+        return {**_summary(row), "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row),
                 **self.store.usage.session(row.workspace_id, row.id)}
 
     def list(

@@ -10,7 +10,7 @@ import { plural } from "@/lib/kinds";
 import { type CalibratedProcedure, type CalibratedRule, review } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
-import { Banner, ConfirmButton, ErrorBanner, Panel } from "./bits";
+import { Banner, ConfirmButton, ErrorBanner, Panel, RuleText } from "./bits";
 import { Hint, TipBody } from "./insights/kit";
 import { Button } from "./ui/button";
 
@@ -110,7 +110,17 @@ function Result({ r }: { r: CalibratedProcedure }) {
     );
   const label = (x: CalibratedRule) => {
     if (!x.rule_id) return "Overall: does the session need attention?";
-    return x.kind ? `${ruleName(x.kind, x.index)}${x.text ? `: ${x.text}` : ""}` : x.field;
+    if (!x.kind) return x.field;
+    return (
+      <>
+        {ruleName(x.kind, x.index)}
+        {x.text && (
+          <>
+            : <RuleText text={x.text} />
+          </>
+        )}
+      </>
+    );
   };
   const up = r.score != null && r.score_before != null ? r.score - r.score_before : null;
   return (

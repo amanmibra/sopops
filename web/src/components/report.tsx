@@ -2,24 +2,25 @@
 // phrasings and the sessions behind each one. Modeled on a hand-made call review.
 import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, CheckCircle2, Layers, ListChecks, LogOut, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 import type { InsightFilters, PatternOut, RulePatternOut, RuleRef } from "@/lib/api";
 import { q } from "@/lib/api";
 import { type Scope, fmtPct, sessionsHref, windowPhrase } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Tag } from "./bits";
+import { RuleText, Tag } from "./bits";
 import { HrefLink } from "./href-link";
 import { Kpi, KpiGrid, WidgetCard } from "./insights/kit";
 import { LIVE } from "./insights/overview";
 import { AsOf, InsightsShell } from "./insights/scope";
 
 /** The rule as the procedure says it. */
-export function ruleQuote(rule: RuleRef | null | undefined): string | null {
+export function ruleQuote(rule: RuleRef | null | undefined): ReactNode {
   if (!rule?.text) return null;
-  if (rule.kind === "never") return `Your procedure says never: ${rule.text.replace(/^never\s+/i, "")}`;
-  if (rule.kind === "warning") return `Warning sign: ${rule.text}`;
-  return `Step ${rule.index}: ${rule.text}`;
+  if (rule.kind === "never") return <>Your procedure says never: <RuleText text={rule.text.replace(/^never\s+/i, "")} /></>;
+  if (rule.kind === "warning") return <>Warning sign: <RuleText text={rule.text} /></>;
+  return <>Step {rule.index}: <RuleText text={rule.text} /></>;
 }
 
 function Examples({ p }: { p: PatternOut }) {

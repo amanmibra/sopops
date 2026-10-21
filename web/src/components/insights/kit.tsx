@@ -6,6 +6,7 @@ import { Line, LineChart, ResponsiveContainer, YAxis } from "recharts";
 import { ApiError, type WordingRef } from "@/lib/api";
 import { OUTCOMES, STATUS_MARK, STATUS_ORDER, fmtDelta, fmtPct } from "@/lib/insights";
 import { cn } from "@/lib/utils";
+import { RuleText } from "../bits";
 import { HrefLink } from "../href-link";
 import { Button } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
@@ -479,7 +480,7 @@ export function RewordedTag({ releasedIn, history, current, className }: { relea
               <span className="block">{earlier.length === 1 ? "It used to say:" : "Earlier wordings, newest first:"}</span>
               {earlier.map((w) => (
                 <span key={w.rule_id} className="mt-1 block">
-                  “{w.text}”{w.from_release != null && <span className="opacity-70"> (release {w.from_release})</span>}
+                  “<RuleText text={w.text} />”{w.from_release != null && <span className="opacity-70"> (release {w.from_release})</span>}
                 </span>
               ))}
             </>

@@ -9,7 +9,7 @@ import { plural, when } from "@/lib/kinds";
 import { type PatternsTab, REVIEW_STATE, type ReviewItem, type SuggestionSummary, type VerdictOut, review, summaryOf, verdictPhrase } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Banner, ErrorBanner, Note } from "./bits";
+import { Banner, ErrorBanner, Note, RuleText } from "./bits";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { ConflictTag, ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
@@ -106,7 +106,7 @@ function StateCard({ item }: { item: ReviewItem }) {
         </div>
         {item.rule?.text && (
           <p className="text-muted-foreground mt-1 line-clamp-2 text-[13px]">
-            {ruleName(item.rule.kind, item.rule.index)}: {item.rule.text}
+            {ruleName(item.rule.kind, item.rule.index)}: <RuleText text={item.rule.text} />
           </p>
         )}
         {v && (

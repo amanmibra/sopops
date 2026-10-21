@@ -3,6 +3,7 @@
 of flagged and unsure rules, splits stored once per rule version, calibrated thresholds, segmenting, assignment,
 settings, and decision signatures decoded from a generative model."""
 
+import json
 from types import SimpleNamespace
 
 import dspy
@@ -85,7 +86,7 @@ def env(tmp_path, files, monkeypatch):
         assert r.status_code in (200, 201), r.text
         return client.get(f"{WS}/sessions/{r.json()['id']}").json()
 
-    return SimpleNamespace(store=store, fake=fake, decider=decider, send=send, monkeypatch=monkeypatch)
+    return SimpleNamespace(store=store, fake=fake, decider=decider, client=client, send=send, monkeypatch=monkeypatch)
 
 
 def calls(fake, signature):
@@ -118,6 +119,56 @@ def test_splits_are_stored_once_per_rule_version(env):
     assert len(calls(env.fake, SplitRule)) == n
     with Session(env.store.engine) as db:
         assert len(db.exec(select(RuleChecks)).all()) == n
+
+
+AGENT_VALUES = {"tonys-pizza": ("tonys.com/allergens", "the manager on duty"), "sakura-sushi": ("sakurasushi.nyc/allergens", "the head chef")}
+
+
+def _checked_as(env, agent):
+    """What one session's check read (its decision questions and the reasoning model's procedure) and its page shows."""
+    n, m = len(env.decider.requests), len(calls(env.fake, CheckRules))
+    s = env.send(session(agent, agent=agent))
+    (_, _, review), = calls(env.fake, CheckRules)[m:]
+    questions = [json.dumps(q["instructions"]) for _, qs in env.decider.requests[n:] for q in qs.values()]
+    return " ".join(questions + [review["procedure"]]), rules_by_key(checks_by_id(s)[ALLERGEN])
+
+
+def test_each_agents_checks_and_rule_text_have_its_own_values(env):
+    """One shared allergen procedure with {{menu_allergen_link}} and {{staff_transfer}}: Sakura sets both, Tony's
+    its link and the workspace's staff_transfer. Each session is checked, and its rules shown, with its agent's values;
+    Insights fills them for one agent and keeps the placeholders across agents."""
+    env.decider.responder = Decisions({ALLERGEN: 0.95}, {NEVER_SAFE: 0.9})  # a flagged rule, so the reasoning model reviews too
+    for agent, (link, staff) in AGENT_VALUES.items():
+        read, rules = _checked_as(env, agent)
+        other_link, other_staff = next(v for a, v in AGENT_VALUES.items() if a != agent)
+        assert link in read and staff in read and "{{" not in read
+        assert other_link not in read and other_staff not in read
+        assert rules["step_3"]["text"] == f"Check each item the customer ordered against {link}"
+        assert rules["warning_1"]["text"] == f"Customer mentions anaphylaxis or an EpiPen; transfer to {staff}"
+    step_3 = f"{WS}/insights/procedures/{ALLERGEN}/rules/{rules['step_3']['rule_id']}"
+    assert env.client.get(step_3, params={"window": "365d", "agent": "sakura-sushi"}).json()["text"].endswith("sakurasushi.nyc/allergens")
+    assert env.client.get(step_3, params={"window": "365d"}).json()["text"].endswith("{{menu_allergen_link}}")  # across agents
+
+
+def test_a_split_that_drops_a_placeholder_is_not_shared_across_agents(env):
+    """A split that wrote one agent's value in place of a placeholder (as one split with that agent's procedure could)
+    is split again; when that loses it too, the rule's own text is the check, so the next agent gets its own value."""
+    tonys_link = AGENT_VALUES["tonys-pizza"][0]
+
+    class Baked(Generative):
+        def __call__(self, role, signature, inputs):
+            got = super().__call__(role, signature, inputs)
+            if signature is SplitRule:
+                got["checks"] = {k: [a.replace("{{menu_allergen_link}}", tonys_link) for a in v] if isinstance(v, list) else v for k, v in got["checks"].items()}
+            return got
+
+    env.fake.responder = Baked()
+    env.decider.responder = Decisions({ALLERGEN: 0.95}, {NEVER_SAFE: 0.9})
+    _checked_as(env, "tonys-pizza")
+    read, _ = _checked_as(env, "sakura-sushi")
+    assert AGENT_VALUES["sakura-sushi"][0] in read and tonys_link not in read
+    with Session(env.store.engine) as db:
+        assert any("{{menu_allergen_link}}" in a for row in db.exec(select(RuleChecks)) for a in row.actions)
 
 
 def test_flagged_and_unsure_rules_go_to_the_reasoning_model(env):
@@ -246,7 +297,7 @@ def _calibration_setup(env, probs, done_above):
     rec = env.store.sessions.load("demo", env.send(session("seed2"))["id"])
     cand = candidates(env.store, rec)
     p = next(x for x in cand.procedures if x.id == ALLERGEN)
-    splits = decide.rule_checks(env.fake, env.store.engine, "demo", p, cand.variables)
+    splits = decide.rule_checks(env.fake, env.store.engine, "demo", p)
     step1 = next(r.id for r in p.rules if r.key == "step_1")
     by_text = {}
 

@@ -8,6 +8,7 @@ import { q } from "@/lib/api";
 import { CHECK_DEF, type Scope, bucketHref, drillHref, fmtDuration, fmtPct, insightsHref, priorPhrase, ruleName, sessionsHref, windowPhrase } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
+import { RuleText } from "../bits";
 import { HrefLink, useGo } from "../href-link";
 import { Button } from "../ui/button";
 import { ProblemsChart, TrendCharts } from "./charts";
@@ -247,7 +248,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                   </td>
                   <td className={cn(td, "max-w-[300px]")}>
                     {top ? (
-                      <Hint tip={<TipBody head={`${ruleName(top.kind, top.index)}: failed ${top.fails} of ${top.n}`}>{top.text}</TipBody>} focusable={false}>
+                      <Hint tip={<TipBody head={`${ruleName(top.kind, top.index)}: failed ${top.fails} of ${top.n}`}><RuleText text={top.text} /></TipBody>} focusable={false}>
                         <span className="block">
                           <HrefLink
                             href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", top.rule_id], { ...filters, procedure: undefined })}
@@ -257,7 +258,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                             {ruleName(top.kind, top.index)} fails {fmtPct(top.fail_rate)}
                           </HrefLink>{" "}
                           <span className="text-muted-foreground text-xs">of {top.n}</span>
-                          <span className="text-muted-foreground line-clamp-1 text-xs">{top.text}</span>
+                          <span className="text-muted-foreground line-clamp-1 text-xs"><RuleText text={top.text} /></span>
                         </span>
                       </Hint>
                     ) : (
@@ -348,7 +349,7 @@ export function AgentsTable({ agents, scope, procedure, minN, agentMinN, loading
                 </td>
                 <td className={cn(td, "max-w-[260px] text-[13px]")}>
                   {a.top_gap ? (
-                    <Hint tip={<TipBody head={`Failed ${a.top_gap.fails} of ${a.top_gap.n}`}>{a.top_gap.text}</TipBody>} focusable={false}>
+                    <Hint tip={<TipBody head={`Failed ${a.top_gap.fails} of ${a.top_gap.n}`}><RuleText text={a.top_gap.text} /></TipBody>} focusable={false}>
                       <HrefLink
                         href={sessionsHref(ws, { agent: a.agent ?? undefined, procedure: a.top_gap.procedure_id, rule: a.top_gap.rule_id, rule_status: a.top_gap.kind === "never" ? ["violated"] : ["skipped", "out_of_order"] }, scope)}
                         className={cn("font-semibold", a.top_gap.tone === "bad" ? "text-err" : a.top_gap.tone === "warn" ? "text-warn" : "text-foreground")}

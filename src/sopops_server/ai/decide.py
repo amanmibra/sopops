@@ -7,7 +7,8 @@ unsure.
 
 **Rules as literal checks.** Jev reads a question literally, so each rule is first rewritten by the reasoning model
 (`SplitRule`) as a condition and positive actions, once per rule version (stored in `rule_checks`, keyed by sopc's rule
-id and the text's hash).
+id and the text's hash). A split serves every agent that uses the procedure, so it keeps the rule's `{{placeholders}}`
+and each session's questions fill them with its agent's values.
 
 **Route.** Per procedure, two questions: did the situation it's for come up, and did the agent act on it. Below the
 threshold: not applicable; situation but no response: ended before finishing. When an answer is unsure and review is
@@ -43,7 +44,7 @@ from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
 from ..orm import RuleChecks as RuleChecksRow
-from ..pipeline.procedures import Procedure, Rule, fill
+from ..pipeline.procedures import Procedure, Rule, fill, placeholders
 from ..pipeline.rollup import Judged
 from ..pipeline.transcript import (
     agent_quote,
@@ -347,18 +348,33 @@ def tidy(rule: Rule, c: RuleChecks) -> RuleChecks:
     )
 
 
-def rule_checks(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[str, str]) -> dict[str, RuleChecks]:
-    """Each rule's literal checks, by rule id: stored ones, and a split (stored) for every rule version not seen yet."""
+def literal(rule: Rule) -> RuleChecks:
+    """The rule's own text as its one check: an action, or a warning sign's situation."""
+    if rule.kind == "warning":
+        return RuleChecks(condition=rule.text, actions=[], forbidden=[])
+    return RuleChecks(condition=None, actions=[rule.text], forbidden=[])
+
+
+def keeps_placeholders(rule: Rule, c: RuleChecks) -> bool:
+    return placeholders(rule.text) <= placeholders(" ".join([c.condition or "", *c.actions, *c.forbidden]))
+
+
+def rule_checks(ai: AI, engine: Engine, workspace: str, p: Procedure) -> dict[str, RuleChecks]:
+    """Each rule's literal checks, by rule id: stored ones, and a split (stored) for every rule version not seen yet.
+    The split sees the procedure with its placeholders, not any agent's values; one that lost a placeholder would
+    check every agent against one wording, so it's split again, and the rule's own text stands in if that loses it too."""
     with _split_lock(workspace, p.id):
         with Session(engine) as db:
             rows = db.exec(select(RuleChecksRow).where(RuleChecksRow.workspace_id == workspace, RuleChecksRow.rule_id.in_([r.id for r in p.rules]))).all()
             have = {(r.rule_id, r.text_hash): RuleChecks(condition=r.condition, actions=list(r.actions), forbidden=list(r.forbidden)) for r in rows}
-        context = render_procedure(p, variables, with_rule_keys=False)
+        context = render_procedure(p, {}, with_rule_keys=False)
         new = []
         for r in p.rules:
-            if (r.id, r.text_hash) in have:
+            if (r.id, r.text_hash) in have and keeps_placeholders(r, have[(r.id, r.text_hash)]):
                 continue
             c = tidy(r, ai.predict("reasoning", SplitRule, kind=r.kind, rule=r.text, procedure=context).checks)
+            if not keeps_placeholders(r, c):
+                c = literal(r)
             have[(r.id, r.text_hash)] = c
             new.append(RuleChecksRow(workspace_id=workspace, rule_id=r.id, text_hash=r.text_hash, kind=r.kind, condition=c.condition, actions=c.actions,
                                      forbidden=c.forbidden, model=ai.model("reasoning"), created_at=datetime.now(timezone.utc)))
@@ -545,7 +561,7 @@ def check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[
           cfg: DecisionConfig, params: dict[str, dict[str, Any]] | None = None) -> Decided:
     if cfg.mode == "review":
         return _review(ai, p, variables, turns, tool_calls, list(p.rules), {}, None, "")
-    items = items_for(p, rule_checks(ai, engine, workspace, p, variables))
+    items = items_for(p, rule_checks(ai, engine, workspace, p))
     brief = procedure_brief(p, variables)
     predictor = decision_predictor(items, variables, cfg)
     if params is None:

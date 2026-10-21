@@ -5,7 +5,7 @@ import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api
 import { sessionsHref } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Note, Tag } from "./bits";
+import { Note, RuleText, Tag } from "./bits";
 import { FindingOverrideControl } from "./finding-override";
 import { HrefLink } from "./href-link";
 
@@ -111,7 +111,7 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
             <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
           </span>
           <span className="text-[13px]">
-            <span className="text-muted-foreground">{ruleLabel(rule)}.</span> {rule.text}
+            <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
           </span>
         </button>
         {rule.finding && rule.finding_id && <FindingOverrideControl findingId={rule.finding_id} override={rule.override} />}

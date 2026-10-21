@@ -10,7 +10,7 @@ import { CHECK_DEF, SIDES, compareFlag, diffInterval, fmtDelta, fmtPct, insights
 import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
-import { Segmented } from "../bits";
+import { RuleText, Segmented } from "../bits";
 import { HrefLink } from "../href-link";
 import { ReleaseTimeline } from "./charts";
 import { HeaderHint, Help, Hint, Legend, OutcomeBar, OutcomeLegend, RateN, RewordedTag, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
@@ -239,7 +239,7 @@ function RulesTable({ d, filters }: { d: CompareResponse; filters: InsightFilter
                             </span>
                           </Hint>
                         )}
-                        <div className="text-muted-foreground line-clamp-2 text-[13px]">{r.text}</div>
+                        <div className="text-muted-foreground line-clamp-2 text-[13px]"><RuleText text={r.text} /></div>
                       </td>
                       <td className={cn(td, "border-l-2")} style={{ borderLeftColor: SIDES.a.color }}>
                         <RuleSide r={r.a} />

@@ -1,7 +1,9 @@
 """The procedures a session is checked against: from the release it ran on, else the workspace's live release.
 
 Rules come from `sopc export`, with sopc's stable ids. When the session's agent is known, only the procedures it
-lists (directly or through a group) are candidates; otherwise every procedure in the release is.
+lists (directly or through a group) are candidates; otherwise every procedure in the release is. Rule text keeps its
+`{{placeholders}}` (rules are shared by every agent that uses the procedure); `fill` puts in the agent's values
+(workspace variables, then the agent's own) wherever a model or a session's page reads it.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import Session, select
 
 from ..orm import FileVersion, Release, Workspace
-from ..sopc import Invalid
+from ..sopc import Invalid, SopcUnavailable
 
 if TYPE_CHECKING:
     from ..orm import SessionRecord
@@ -65,6 +67,7 @@ class Candidates:
 
 _cache: dict[tuple[str, int, str], dict[str, Any]] = {}
 _lock = threading.Lock()
+_PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
 
 
 def candidates(store: Store, session: SessionRecord) -> Candidates:
@@ -77,21 +80,47 @@ def candidates(store: Store, session: SessionRecord) -> Candidates:
         return Candidates(release)
     sops = {s["id"]: s for s in exported["export"].get("sops", [])}
     config = exported["export"].get("config") or {}
-    agents = {a["id"]: a for a in exported["export"].get("agents", [])}
-    variables = {k: str(v) for k, v in (config.get("variables") or {}).items()}
-    agent = agents.get(session.agent_id or "")
+    agent = _agent(exported, session.agent_id)
     if agent is not None:
-        variables.update({k: str(v) for k, v in (agent.get("variables") or {}).items()})
         ids = [b for b in _expand(agent.get("blocks") or [], config.get("groups") or {}) if b in sops]
     else:
         ids = list(sops)
     versions = exported["versions"]
-    return Candidates(release, [_procedure(sops[i], versions, release) for i in dict.fromkeys(ids)], variables)
+    return Candidates(release, [_procedure(sops[i], versions, release) for i in dict.fromkeys(ids)], _variables(exported, agent))
+
+
+def agent_variables(store: Store, ws: str, release: int, agent_id: str | None, known: bool = False) -> dict[str, str]:
+    """The values an agent gives `{{placeholders}}` in a release, as its sessions' checks filled them (an agent the
+    release doesn't have gets the workspace's, unless `known`: then none). For showing rule text: a release sopc
+    can't read (or no sopc) gives none, and the placeholders show as they are."""
+    try:
+        with Session(store.engine) as db:
+            exported = _release_export(store, db, ws, release)
+    except (Invalid, SopcUnavailable):
+        return {}
+    agent = _agent(exported, agent_id) if exported is not None else None
+    return _variables(exported, agent) if exported is not None and (agent is not None or not known) else {}
 
 
 def fill(text: str, variables: dict[str, str]) -> str:
     """{{placeholders}} replaced with the agent's values, where known."""
-    return re.sub(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}", lambda m: variables.get(m.group(1), m.group(0)), text)
+    return _PLACEHOLDER.sub(lambda m: variables.get(m.group(1), m.group(0)), text)
+
+
+def placeholders(text: str) -> set[str]:
+    return set(_PLACEHOLDER.findall(text))
+
+
+def _agent(exported: dict[str, Any], agent_id: str | None) -> dict[str, Any] | None:
+    return next((a for a in exported["export"].get("agents", []) if a["id"] == agent_id), None) if agent_id else None
+
+
+def _variables(exported: dict[str, Any], agent: dict[str, Any] | None) -> dict[str, str]:
+    config = exported["export"].get("config") or {}
+    variables = {k: str(v) for k, v in (config.get("variables") or {}).items()}
+    if agent is not None:
+        variables.update({k: str(v) for k, v in (agent.get("variables") or {}).items()})
+    return variables
 
 
 def _expand(blocks: list[str], groups: dict[str, list[str]], seen: frozenset[str] = frozenset()) -> list[str]:

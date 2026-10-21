@@ -28,7 +28,7 @@ import {
 } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Banner, ErrorBanner, Note, PageTitle, Sub, Tag } from "./bits";
+import { Banner, ErrorBanner, Note, PageTitle, RuleText, Sub, Tag } from "./bits";
 import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
@@ -278,7 +278,7 @@ function ReviewCard({
         {item.kind !== "rule" && item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
         {item.rule?.text && (
           <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
-            <span className="text-muted-foreground">{ruleName(item.rule.kind, item.rule.index)}:</span> {item.rule.text}
+            <span className="text-muted-foreground">{ruleName(item.rule.kind, item.rule.index)}:</span> <RuleText text={item.rule.text} />
           </blockquote>
         )}
         <p className="text-muted-foreground mt-2 text-xs">
@@ -667,7 +667,7 @@ function AllPatterns({
                   {list.map(({ p, subs }) => (
                     <li key={p.pattern_id}>
                       <PatternRow p={p} depth={0} rule={p.rule} split={p.sub_patterns.some((x) => x.kind === "sub")} />
-                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs">{p.rule.text}</div>}
+                      {p.rule?.text && <div className="text-muted-foreground mb-0.5 line-clamp-1 text-xs"><RuleText text={p.rule.text} /></div>}
                       {subs.length > 0 && (
                         <ul className="ml-1 border-l pl-3">
                           {subs.map((s) => (
@@ -808,7 +808,7 @@ export function PatternView({ id }: { id: string }) {
       <RewordedNote reason={d.review_reason} className="mb-3 max-w-[90ch]" />
       {d.rule.text && (
         <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-[14px]">
-          <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> {d.rule.text}
+          <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> <RuleText text={d.rule.text} />
         </blockquote>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
