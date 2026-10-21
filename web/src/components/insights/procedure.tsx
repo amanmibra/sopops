@@ -137,7 +137,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
           </div>
         );
       })}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t bg-[var(--band)] px-4 py-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2">
         <Legend items={["done", "out_of_order", "skipped", "not_reached", "not_applicable", "present", "unheeded"].map((k) => ({ label: k === "present" ? "Sign present" : k === "unheeded" ? "Sign unheeded" : STATUS_MARK[k].label, color: STATUS_MARK[k].color, striped: STATUS_MARK[k].striped, tip: statusTip(k) }))} />
         <span className="text-muted-foreground text-xs">Select a rule to see it by release and by agent, with its patterns and recent findings.</span>
       </div>

@@ -96,7 +96,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
         ))}
       </ol>
       {d && others.length > 0 && (
-        <div className="border-t bg-[var(--band)] px-4 py-3">
+        <div className="border-t px-4 py-3">
           <p className="text-muted-foreground mb-2 text-sm">
             Is this a rewording of another {kind === "step" ? "step" : kind === "never" ? "never rule" : "rule"} that sopops didn't match? Link them, and their findings, verdicts and history become one rule's.
           </p>

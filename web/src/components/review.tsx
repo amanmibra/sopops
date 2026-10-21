@@ -299,7 +299,7 @@ function ReviewCard({
         <h4 className="text-muted-foreground mb-2 text-xs font-semibold">Examples</h4>
         <Examples items={item.examples.map(exOf)} procedureId={item.procedure_id} ruleId={item.rule_id} />
       </div>
-      <div className="border-t bg-[var(--band)] px-4 py-3">
+      <div className="bg-muted/40 border-t px-4 py-3">
         <VerdictPicker current={item.verdict?.verdict} onPick={onPick} noteRef={noteRef} />
       </div>
     </article>

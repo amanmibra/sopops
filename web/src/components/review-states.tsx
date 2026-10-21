@@ -119,7 +119,7 @@ function StateCard({ item }: { item: ReviewItem }) {
           </p>
         )}
       </div>
-      <div className="border-t bg-[var(--band)] px-4 py-2">
+      <div className="bg-muted/40 border-t px-4 py-2">
         {item.review_state === "open" ? <OpenNext item={item} /> : item.review_state === "fixing" ? <FixingNext item={item} /> : <FixedNext item={item} />}
       </div>
     </article>
