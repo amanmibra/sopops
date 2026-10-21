@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryCache, Sopops, SopopsError, SopopsUnavailable, releasePin } from "../src/index.js";
+import { MemoryCache, Sopops, SopopsError, SopopsUnavailable, fetchInstructions, releasePin } from "../src/index.js";
 import { elevenLabsSession } from "../src/elevenlabs.js";
 import { FileCache } from "../src/node.js";
 
@@ -140,5 +140,25 @@ describe("releasePin", () => {
 describe("errors", () => {
   it("are typed", () => {
     expect(new SopopsUnavailable("x")).toBeInstanceOf(SopopsError);
+  });
+});
+
+describe("the fetchInstructions helper", () => {
+  it("takes an agent and an optional release", async () => {
+    const m = mockFetch(json(AGENT));
+    const ins = await fetchInstructions("front-desk", undefined, { url: URL, token: "sopops_tok", fetch: m.fetch, cache: new MemoryCache() });
+    expect([ins.text, ins.release, ins.source]).toEqual(["You are the front desk.", 3, "live"]);
+    expect(m.calls[0]!.url).not.toContain("release=");
+    expect(m.calls[0]!.headers.get("Authorization")).toBe("Bearer sopops_tok");
+
+    const pinned = mockFetch(json(AGENT));
+    await fetchInstructions("front-desk", 14, { url: URL, fetch: pinned.fetch, cache: new MemoryCache() });
+    expect(pinned.calls[0]!.url).toContain("release=14");
+  });
+
+  it("falls back when sopops is down", async () => {
+    const m = mockFetch(new Error("connection refused"));
+    const ins = await fetchInstructions("front-desk", null, { url: URL, fetch: m.fetch, cache: new MemoryCache(), fallback: "You are a helpful host." });
+    expect([ins.text, ins.source]).toEqual(["You are a helpful host.", "fallback"]);
   });
 });

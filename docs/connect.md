@@ -25,7 +25,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
-`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `Sopops().fetch_instructions(agent)` and `post_session(...)`, or `sopops.fetch(agent, release)` where the code isn't async. A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
+`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `Sopops().fetch_instructions(agent)` and `post_session(...)`, or `sopops.fetch(agent, release)` where the code isn't async (`fetchInstructions(agent, release)` in TypeScript). A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
 
 **Sessions with no code** (no tool calls):
 

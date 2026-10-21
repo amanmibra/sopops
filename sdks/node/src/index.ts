@@ -326,6 +326,25 @@ export class Sopops {
  *   await stream.close();
  *   await sopops.postSession(fullSession);
  */
+/** The agent's instructions in one call, for code that doesn't keep a client around.
+ *
+ * `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; leave it out for
+ * the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `Sopops` reads them.
+ * Falls back the same way the method does: the cache, then `fallback`, else `SopopsUnavailable`.
+ *
+ *     const ins = await fetchInstructions("tonys-pizza");       // the live release
+ *     const ins = await fetchInstructions("tonys-pizza", 14);   // pinned, e.g. one arm of an A/B test
+ *
+ * It builds a client per call, so in anything hot keep a `Sopops` and call its `fetchInstructions`. */
+export async function fetchInstructions(
+  agent: string,
+  release?: number | null,
+  options: SopopsOptions & { fallback?: string } = {},
+): Promise<Instructions> {
+  const { fallback, ...client } = options;
+  return new Sopops(client).fetchInstructions(agent, { release: release ?? null, fallback });
+}
+
 export class SessionStream {
   readonly session: SessionOpen;
   /** Not yet used: reserved for runtime guidance in a later version. */
