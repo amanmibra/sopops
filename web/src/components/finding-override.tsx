@@ -45,15 +45,15 @@ export function FindingOverrideControl({ findingId, override }: { findingId: str
             <Tag className={cn("border-transparent", saved ? "bg-brand-soft text-primary" : "bg-warn-soft text-warn")}>{saved ? "confirmed correct" : "marked incorrect"}</Tag>
           </button>
         ) : (
-          <Button size="xs" variant="ghost" className="text-muted-foreground h-6 px-1.5">
+          <Button size="xs" variant="ghost" className="text-muted-foreground h-6 px-2">
             Wrong?
           </Button>
         )}
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80">
-        <h3 className="mb-1 text-[13px] font-semibold">Is this finding right?</h3>
+        <h3 className="mb-1 text-sm font-semibold">Is this finding right?</h3>
         <p className="text-muted-foreground mb-2 text-xs">Incorrect findings are hidden from rates and used to recalibrate the checker.</p>
-        <div className="mb-2 grid grid-cols-2 gap-1.5">
+        <div className="mb-2 grid grid-cols-2 gap-2">
           <Button size="sm" variant="outline" aria-pressed={correct === true} className={cn(correct === true && "bg-brand-soft border-primary/40")} onClick={() => setCorrect(true)}>
             <Check /> Correct
           </Button>
@@ -61,8 +61,8 @@ export function FindingOverrideControl({ findingId, override }: { findingId: str
             <X /> Incorrect
           </Button>
         </div>
-        <Textarea className="mb-2 min-h-12 text-[13px]" placeholder="Note (optional)" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
-        <div className="flex justify-end gap-1.5">
+        <Textarea className="mb-2 min-h-12 text-sm" placeholder="Note (optional)" aria-label="Note" value={note} onChange={(e) => setNote(e.target.value)} />
+        <div className="flex justify-end gap-2">
           <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
             Cancel
           </Button>

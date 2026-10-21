@@ -69,7 +69,7 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
   const resume = setupProgress.get(ws);
   return (
     <div className="max-w-[640px] py-4">
-      <h1 className="mb-1 text-[22px] font-semibold tracking-tight">{auth?.org?.name ? `Welcome to ${auth.org.name}` : "Welcome"}</h1>
+      <h1 className="mb-1 text-2xl font-semibold">{auth?.org?.name ? `Welcome to ${auth.org.name}` : "Welcome"}</h1>
       <p className="text-muted-foreground mb-5">
         {done} of {items.length} done.
         {resume && (
@@ -100,7 +100,7 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
               <HrefLink href={i.href} className="text-foreground flex items-center gap-3 px-4 py-3 hover:bg-muted hover:no-underline">
                 <span
                   className={cn(
-                    "flex size-7 shrink-0 items-center justify-center rounded-full border text-[13px] font-semibold",
+                    "flex size-7 shrink-0 items-center justify-center rounded-full border text-sm font-semibold",
                     i.done ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                   aria-label={i.done ? "Done" : `Step ${n + 1}`}
@@ -109,7 +109,7 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className={cn("block font-medium", i.done && "text-muted-foreground line-through decoration-1")}>{i.title}</span>
-                  {!i.done && <span className="text-muted-foreground block text-[13px]">{i.text}</span>}
+                  {!i.done && <span className="text-muted-foreground block text-sm">{i.text}</span>}
                 </span>
                 {!i.done && <ArrowRight className="text-muted-foreground size-4 shrink-0" />}
               </HrefLink>
@@ -117,7 +117,7 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
           ))}
         </ol>
       </section>
-      <p className="text-muted-foreground mt-4 text-[13px]">
+      <p className="text-muted-foreground mt-4 text-sm">
         {empty ? (
           <>
             Or start from nothing: a <HrefLink href={href("agent", "new")}>new agent</HrefLink>, <HrefLink href={href("instruction", "new")}>shared instruction</HrefLink> or{" "}
@@ -142,12 +142,12 @@ export function RailSetUp() {
   const done = items.filter((i) => i.done).length;
   return (
     <div className="bg-brand-soft hover:bg-brand-soft/80 relative mb-[18px] rounded-lg">
-      <HrefLink href={wsHref(ws)} className="text-foreground block px-2.5 py-2 pr-8 hover:no-underline">
-        <span className="block text-[13px] font-medium">Finish setting up</span>
-        <span className="text-muted-foreground block text-[12px] tabular-nums">
+      <HrefLink href={wsHref(ws)} className="text-foreground block px-2 py-2 pr-8 hover:no-underline">
+        <span className="block text-sm font-medium">Finish setting up</span>
+        <span className="text-muted-foreground block text-sm tabular-nums">
           {done} of {items.length} done
         </span>
-        <span className="bg-background mt-1.5 block h-1 overflow-hidden rounded-full" aria-hidden>
+        <span className="bg-background mt-2 block h-1 overflow-hidden rounded-full" aria-hidden>
           <span className="bg-primary block h-full rounded-full" style={{ width: `${(done / items.length) * 100}%` }} />
         </span>
       </HrefLink>

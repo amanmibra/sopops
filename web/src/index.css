@@ -4,98 +4,155 @@
 /* Dark mode follows the `dark` class on <html>, set from the theme setting (light, dark, or the system's). */
 @custom-variant dark (&:is(.dark *));
 
+/* Raster, after Josef Müller-Brockmann's Grid Systems, the same system as the sopops landing page.
+   An 8px baseline (--bl): every line height, padding and gap is a multiple of it. Flat colour fields, square corners,
+   1px rules instead of shadows. Two faces: Inter Tight (heads) and IBM Plex Mono (everything else).
+   Six type styles, mapped to the app:
+     head   Inter Tight 600 32/40  page titles (h1)                       .t-head  text-2xl and up
+     lead   Inter Tight 500 20/24  panel and section titles, big figures  .t-lead  text-lg, text-xl
+     body   Plex Mono   400 16/24  intro lines, large inputs              .t-body  text-base
+     small  Plex Mono   400 13/16  tables, forms, lists, the default      .t-small text-xs, text-sm
+     label  Plex Mono   600 13/16  capitals, tracked: column heads, tags,  .t-label
+                                   buttons, nav group names
+     (display, 72/72, is the landing page's alone.) */
 :root {
-  --radius: 0.5rem;
-  --background: #f4f6f8;
-  --foreground: #1b2230;
-  --card: #ffffff;
-  --card-foreground: #1b2230;
-  --popover: #ffffff;
-  --popover-foreground: #1b2230;
-  --primary: #0f6e6a;
-  --primary-foreground: #ffffff;
-  --secondary: #eef1f4;
-  --secondary-foreground: #1b2230;
-  --muted: #eef1f4;
-  --muted-foreground: #5e6878;
-  --accent: #eef1f4;
-  --accent-foreground: #1b2230;
-  --destructive: #b42318;
-  --border: #dde1e7;
-  --input: #c5ccd6;
-  --ring: #0f6e6a;
+  --paper: oklch(0.975 0.003 175);
+  --surface: oklch(1 0 0);
+  --tone: oklch(0.94 0.01 178);
+  --ink: oklch(0.2 0.02 180);
+  --muted-ink: oklch(0.46 0.02 180);
+  --line: oklch(0.86 0.01 175);
+  --line-strong: oklch(0.74 0.012 178);
+  --brand: oklch(0.48 0.09 184);
+  --brand-ink: oklch(1 0 0);
+  --miss: oklch(0.53 0.17 42);
+  --miss-soft: oklch(0.95 0.035 55);
+  --grotesk: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --bl: 8px;
+  /* the body face, behind one token: Raster's monospace */
+  --body-face: var(--mono);
+
+  --radius: 0px;
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--surface);
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-ink);
+  --secondary: var(--tone);
+  --secondary-foreground: var(--ink);
+  --muted: var(--tone);
+  --muted-foreground: var(--muted-ink);
+  --accent: var(--tone);
+  --accent-foreground: var(--ink);
+  --destructive: var(--miss);
+  --border: var(--line);
+  --input: var(--line-strong);
+  --ring: var(--brand);
   /* sopops' own: a soft brand tint, statuses, and one color per block kind */
-  --brand-soft: #e2f1ef;
-  --ok: #2e7d4f;
-  --warn: #a15c07;
-  --warn-soft: #fbf0df;
-  --err: #b42318;
-  --err-soft: #fbe9e7;
-  --k-instruction: #2f5fb3;
-  --k-procedure: #7a3fb0;
-  --k-group: #a15c07;
-  /* chart marks for outcomes (followed / partial / deviated), checked with a CVD validator on --card */
-  --o-followed: #2e7d4f;
-  --o-partial: #d9a21b;
-  --o-deviated: #b42318;
-  --o-none: #c5ccd6;
-  --grid: #e8ebef;
-  /* release compare: side A (baseline) and side B (candidate), blue against orange so they stay apart under CVD */
-  --side-a: #2563b0;
-  --side-b: #c2410c;
+  --brand-soft: oklch(0.93 0.035 178);
+  --ok: var(--brand);
+  --warn: oklch(0.52 0.11 75);
+  --warn-soft: oklch(0.95 0.045 85);
+  /* a miss is Raster's orange; a partial is amber, so the two never read as one */
+  --err: var(--miss);
+  --err-soft: var(--miss-soft);
+  --k-instruction: var(--brand);
+  --k-procedure: oklch(0.48 0.12 255);
+  --k-group: oklch(0.52 0.11 75);
+  /* chart marks for outcomes (followed / partial / deviated) */
+  --o-followed: var(--brand);
+  --o-partial: oklch(0.76 0.13 80);
+  --o-deviated: var(--miss);
+  --o-none: var(--line-strong);
+  --grid: var(--line);
+  /* release compare: side A (baseline) and side B (candidate) */
+  --side-a: oklch(0.5 0.13 255);
+  --side-b: var(--miss);
   /* A/B tests: versions C to E */
-  --side-c: #0f766e;
-  --side-d: #7c3aed;
-  --side-e: #a16207;
+  --side-c: var(--brand);
+  --side-d: oklch(0.4 0.03 180);
+  --side-e: oklch(0.6 0.12 80);
   color-scheme: light;
 }
 
 .dark {
-  --background: #12161c;
-  --foreground: #e6eaf0;
-  --card: #1a2028;
-  --card-foreground: #e6eaf0;
-  --popover: #1a2028;
-  --popover-foreground: #e6eaf0;
-  --primary: #4fc1b9;
-  --primary-foreground: #0d1a19;
-  --secondary: #151a21;
-  --secondary-foreground: #e6eaf0;
-  --muted: #151a21;
-  --muted-foreground: #93a0b0;
-  --accent: #232b35;
-  --accent-foreground: #e6eaf0;
-  --destructive: #f08a7e;
-  --border: #2a323d;
-  --input: #3a4552;
-  --ring: #4fc1b9;
-  --brand-soft: #173431;
-  --ok: #6cc597;
-  --warn: #e6a94f;
-  --warn-soft: #2f2616;
-  --err: #f08a7e;
-  --err-soft: #35201e;
-  --k-instruction: #86aef2;
-  --k-procedure: #c7a0f2;
-  --k-group: #e6a94f;
-  --o-followed: #378f64;
-  --o-partial: #b38e2a;
-  --o-deviated: #c04848;
-  --o-none: #3a4552;
-  --grid: #252c36;
-  --side-a: #7fb0f0;
-  --side-b: #f59a62;
-  --side-c: #5fd3c2;
-  --side-d: #c4b5fd;
-  --side-e: #f2c35b;
+  --paper: oklch(0.18 0.015 182);
+  --surface: oklch(0.215 0.018 182);
+  --tone: oklch(0.27 0.02 182);
+  --ink: oklch(0.95 0.006 175);
+  --muted-ink: oklch(0.72 0.018 178);
+  --line: oklch(0.32 0.018 182);
+  --line-strong: oklch(0.44 0.02 182);
+  --brand: oklch(0.78 0.1 180);
+  --brand-ink: oklch(0.2 0.02 180);
+  --miss: oklch(0.74 0.15 48);
+  --miss-soft: oklch(0.3 0.05 48);
+  --destructive: var(--miss);
+  --brand-soft: oklch(0.32 0.045 182);
+  --err: var(--miss);
+  --err-soft: var(--miss-soft);
+  --warn: oklch(0.8 0.12 85);
+  --warn-soft: oklch(0.3 0.05 85);
+  --k-group: oklch(0.8 0.12 85);
+  --k-instruction: var(--brand);
+  --k-procedure: oklch(0.76 0.1 255);
+  --o-partial: oklch(0.72 0.12 80);
+  --o-followed: oklch(0.62 0.09 182);
+  --o-deviated: oklch(0.64 0.15 45);
+  --side-a: oklch(0.76 0.1 255);
+  --side-d: oklch(0.85 0.01 180);
+  --side-e: oklch(0.8 0.12 85);
   color-scheme: dark;
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
+  /* the type scale, folded onto the six styles */
+  --text-xs: 13px;
+  --text-xs--line-height: 16px;
+  --text-xs--letter-spacing: -0.01em;
+  --text-sm: 13px;
+  --text-sm--line-height: 16px;
+  --text-sm--letter-spacing: -0.01em;
+  --text-base: 16px;
+  --text-base--line-height: 24px;
+  --text-base--letter-spacing: -0.02em;
+  --text-lg: 20px;
+  --text-lg--line-height: 24px;
+  --text-lg--letter-spacing: -0.015em;
+  --text-xl: 20px;
+  --text-xl--line-height: 24px;
+  --text-xl--letter-spacing: -0.015em;
+  --text-2xl: 32px;
+  --text-2xl--line-height: 40px;
+  --text-2xl--letter-spacing: -0.03em;
+  --text-3xl: 32px;
+  --text-3xl--line-height: 40px;
+  --text-3xl--letter-spacing: -0.03em;
+  --leading-none: 16px;
+  --leading-tight: 16px;
+  --leading-snug: 16px;
+  --leading-normal: 16px;
+  --leading-relaxed: 24px;
+  --tracking-tight: 0em;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -129,25 +186,52 @@
   --color-o-none: var(--o-none);
   --color-side-a: var(--side-a);
   --color-side-b: var(--side-b);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--body-face);
+  --font-mono: var(--mono);
+  --font-grotesk: var(--grotesk);
 }
+
+/* the six styles as utilities, for the places a Tailwind size doesn't say enough */
+@utility t-head { font: 600 32px / 40px var(--grotesk); letter-spacing: -0.03em; }
+@utility t-lead { font: 500 20px / 24px var(--grotesk); letter-spacing: -0.015em; }
+@utility t-body { font: 400 16px / 24px var(--body-face); letter-spacing: -0.02em; }
+@utility t-small { font: 400 13px / 16px var(--body-face); letter-spacing: -0.01em; }
+@utility t-label { font: 600 13px / 16px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html { font-feature-settings: "tnum", "kern"; font-variant-numeric: tabular-nums; }
   body {
-    @apply bg-background text-foreground font-sans text-sm leading-normal antialiased;
+    @apply bg-background text-foreground antialiased;
+    font: 400 13px / 16px var(--body-face);
+    letter-spacing: -0.01em;
   }
+  /* heads and leads are set in the grotesk; a heading at small size is a label */
+  :is(h1, h2, h3, h4, .text-lg, .text-xl, .text-2xl, .text-3xl, .text-4xl) {
+    font-family: var(--grotesk);
+    font-variant-numeric: tabular-nums;
+  }
+  :is(.text-lg, .text-xl) { font-weight: 500; }
+  :is(h2, h3, h4):is(.text-xs, .text-sm) { font: 600 13px / 16px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  th { font: 600 13px / 16px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 }
+
+@media (max-width: 639px) {
+  :is(.t-head, .text-2xl, .text-3xl) { font-size: 26px !important; line-height: 32px !important; }
+}
+
+/* square corners everywhere; small dots (sized with size-*) and avatars keep their round shape */
+.rounded-full:not([class*="size-"]) { border-radius: 0; }
 
 /* diffs: plain CSS, they're dense and shared by every diff on a page */
 .dv {
-  font: 12.5px/1.6 var(--font-mono);
+  font: 13px/16px var(--font-mono);
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 0;
   overflow: auto;
   max-height: 75vh;
 }
@@ -155,7 +239,7 @@
 .dl.split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .dh { display: grid; grid-template-columns: 42px 18px minmax(0, 1fr); min-width: 0; }
 .dh + .dh { border-left: 1px solid var(--border); }
-.ln { color: var(--muted-foreground); opacity: 0.7; text-align: right; padding-right: 8px; user-select: none; font-size: 11.5px; }
+.ln { color: var(--muted-foreground); opacity: 0.7; text-align: right; padding-right: 8px; user-select: none; font-size: 13px; }
 .sg { user-select: none; text-align: center; color: var(--muted-foreground); }
 .tx { white-space: pre-wrap; word-break: break-word; padding-right: 12px; }
 .dl.add, .dh.add { background: color-mix(in srgb, var(--ok) 13%, transparent); }
@@ -163,20 +247,20 @@
 .dl.add .sg, .dh.add .sg { color: var(--ok); }
 .dl.del .sg, .dh.del .sg { color: var(--err); }
 .dh.pad { background: var(--muted); }
-mark.wadd { background: color-mix(in srgb, var(--ok) 38%, transparent); color: inherit; border-radius: 2px; }
-mark.wdel { background: color-mix(in srgb, var(--err) 34%, transparent); color: inherit; border-radius: 2px; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 60%, transparent); }
-.dv-fold { display: block; width: 100%; text-align: left; border-block: 1px solid var(--border); background: var(--muted); color: var(--primary); padding: 3px 12px 3px 102px; cursor: pointer; font: 12.5px/1.6 var(--font-sans); }
+mark.wadd { background: color-mix(in srgb, var(--ok) 38%, transparent); color: inherit; border-radius: 0; }
+mark.wdel { background: color-mix(in srgb, var(--err) 34%, transparent); color: inherit; border-radius: 0; text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 60%, transparent); }
+.dv-fold { display: block; width: 100%; text-align: left; border-block: 1px solid var(--border); background: var(--muted); color: var(--primary); padding: 4px 16px 4px 102px; cursor: pointer; font: 13px/16px var(--font-sans); }
 .dv.split .dv-fold { padding-left: 60px; }
 .dv-fold:hover { text-decoration: underline; }
 @media (max-width: 860px) {
   .dl { grid-template-columns: 34px 34px 16px minmax(0, 1fr); }
 }
-.was { background: color-mix(in srgb, var(--err) 11%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 55%, transparent); padding: 0 5px; border-radius: 4px; white-space: pre-wrap; }
-.now { background: color-mix(in srgb, var(--ok) 13%, transparent); padding: 0 5px; border-radius: 4px; white-space: pre-wrap; }
-pre.plain { margin: 0; padding: 10px 12px; border-radius: 8px; background: var(--muted); white-space: pre-wrap; word-break: break-word; font: 12.5px/1.6 var(--font-mono); }
+.was { background: color-mix(in srgb, var(--err) 11%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 55%, transparent); padding: 0 5px; border-radius: 0; white-space: pre-wrap; }
+.now { background: color-mix(in srgb, var(--ok) 13%, transparent); padding: 0 5px; border-radius: 0; white-space: pre-wrap; }
+pre.plain { margin: 0; padding: 8px 16px; border-radius: 0; background: var(--muted); white-space: pre-wrap; word-break: break-word; font: 13px/16px var(--font-mono); }
 pre.plain.add { background: color-mix(in srgb, var(--ok) 11%, transparent); }
 pre.plain.del { background: color-mix(in srgb, var(--err) 9%, transparent); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--err) 45%, transparent); }
-pre.prompt { margin: 0; padding: 14px; white-space: pre-wrap; word-break: break-word; font: 13px/1.55 var(--font-mono); overflow: auto; }
+pre.prompt { margin: 0; padding: 16px; white-space: pre-wrap; word-break: break-word; font: 13px/16px var(--font-mono); overflow: auto; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

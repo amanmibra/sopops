@@ -102,17 +102,17 @@ function Hosted(props: SectionProps) {
       {mode === "sopops" ? (
         <section className="grid gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[14px] font-semibold">sopops models</h3>
+            <h3 className="text-sm font-semibold">sopops models</h3>
             {onSopops ? <Tag tone="live">In use</Tag> : <Tag>Recommended</Tag>}
           </div>
-          <p className="text-muted-foreground -mt-1 text-[13px] leading-relaxed">
+          <p className="text-muted-foreground -mt-1 text-sm leading-relaxed">
             sopops runs these models for you. There's nothing to set up, and your plan covers what they cost.
           </p>
           <ul className="grid gap-2">
             {SOPOPS_MODELS.map(([name, what]) => (
               <li key={name} className="grid gap-0.5 rounded-md border px-3 py-2">
                 <span className="font-mono text-xs font-medium">{name}</span>
-                <span className="text-muted-foreground text-[13px]">{what}</span>
+                <span className="text-muted-foreground text-sm">{what}</span>
               </li>
             ))}
           </ul>
@@ -159,10 +159,10 @@ function TypeSafeSection({ d, ws, refresh }: SectionProps) {
   return (
     <section className="grid gap-2">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[14px] font-semibold">TypeSafe key</h3>
+        <h3 className="text-sm font-semibold">TypeSafe key</h3>
         <Source source={d.typesafe.source} hint={d.typesafe.hint} />
       </div>
-      <p className="text-muted-foreground text-[13px] leading-relaxed">
+      <p className="text-muted-foreground text-sm leading-relaxed">
         Jev, a model from TypeSafe, decides which steps apply to a call and whether your agent followed each one. Checks don't run without it.{" "}
         <a className="font-medium underline underline-offset-2" href={d.typesafe_key_url} target="_blank" rel="noreferrer">
           Get a key
@@ -173,7 +173,7 @@ function TypeSafeSection({ d, ws, refresh }: SectionProps) {
           id="typesafe-key"
           type="password"
           autoComplete="off"
-          className="min-w-0 flex-1"
+          className="min-w-0 flex-1 basis-60"
           placeholder={d.typesafe.source ? "Paste a key to replace it" : "Paste your TypeSafe key"}
           value={key}
           onChange={(e) => setKey(e.target.value)}
@@ -268,10 +268,10 @@ function ProviderSection({ d, ws, refresh }: SectionProps) {
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-[14px] font-semibold">Models</h3>
+        <h3 className="text-sm font-semibold">Models</h3>
         <Source source={d.provider.source} hint={d.provider.hint} />
       </div>
-      <p className="text-muted-foreground -mt-1 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground -mt-1 text-sm leading-relaxed">
         Pick two models from one provider: a fast one for quick jobs, and a reviewer that takes a second look at flagged calls, names each kind of mistake and drafts fixes.
       </p>
       <Segmented
@@ -285,7 +285,7 @@ function ProviderSection({ d, ws, refresh }: SectionProps) {
         }}
       />
       <div className="grid gap-2">
-        <Label htmlFor="provider-key" className="text-[13px]">
+        <Label htmlFor="provider-key" className="text-sm">
           {option.label === "Other" ? "API key" : `${option.label} API key`}
           {sameProvider && d.provider.source === "team" && <span className="text-muted-foreground font-normal"> (saved {d.provider.hint})</span>}
         </Label>
@@ -294,7 +294,7 @@ function ProviderSection({ d, ws, refresh }: SectionProps) {
             id="provider-key"
             type="password"
             autoComplete="off"
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 basis-60"
             placeholder={option.has_default_key ? "Optional: leave empty to use the default key" : "Paste your key"}
             value={key}
             onChange={(e) => setKey(e.target.value)}
@@ -309,17 +309,17 @@ function ProviderSection({ d, ws, refresh }: SectionProps) {
           </Button>
         </div>
         {option.key_url && provider !== "other" && (
-          <a className="text-muted-foreground w-fit text-[12px] underline underline-offset-2" href={option.key_url} target="_blank" rel="noreferrer">
+          <a className="text-muted-foreground w-fit text-sm underline underline-offset-2" href={option.key_url} target="_blank" rel="noreferrer">
             Where to get {/^[AEIOU]/.test(option.label) ? "an" : "a"} {option.label} key
           </a>
         )}
         {provider === "other" && (
           <>
-            <Label htmlFor="provider-base" className="mt-1 text-[13px]">
+            <Label htmlFor="provider-base" className="mt-1 text-sm">
               Base URL <span className="text-muted-foreground font-normal">(optional)</span>
             </Label>
             <Input id="provider-base" placeholder="https://… for an OpenAI-compatible endpoint" value={base} onChange={(e) => setBase(e.target.value)} />
-            <p className="text-muted-foreground text-[12px]">
+            <p className="text-muted-foreground text-sm">
               Any model{" "}
               <a className="underline underline-offset-2" href={option.key_url ?? undefined} target="_blank" rel="noreferrer">
                 LiteLLM supports
@@ -375,8 +375,8 @@ function ModelField({
 }) {
   const options = choices?.models.length ? (value && !choices.models.includes(value) ? [value, ...choices.models] : choices.models) : null;
   return (
-    <div className="grid min-w-0 gap-1.5">
-      <Label htmlFor={id} className="text-[13px]">
+    <div className="grid min-w-0 gap-2">
+      <Label htmlFor={id} className="text-sm">
         {label} {source === "default" && <span className="text-muted-foreground font-normal">(default)</span>}
       </Label>
       {options ? (
@@ -424,17 +424,17 @@ function CostEstimateBox({ ws, fast, reasoning }: { ws: string; fast: string; re
   });
   const e = res.data;
   return (
-    <section className="grid gap-3 rounded-md border bg-muted/40 px-3.5 py-3" aria-live="polite">
+    <section className="grid gap-3 rounded-md border bg-muted/40 px-4 py-3" aria-live="polite">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="text-[13px] font-semibold">Estimated model cost</h4>
+        <h4 className="text-sm font-semibold">Estimated model cost</h4>
         <div className="flex items-center gap-2">
-          <Label htmlFor="estimate-calls" className="text-muted-foreground text-[12px] font-normal">
+          <Label htmlFor="estimate-calls" className="text-muted-foreground text-sm font-normal">
             Calls a month
           </Label>
           <Input
             id="estimate-calls"
             inputMode="numeric"
-            className="h-7 w-28 text-right text-[13px] tabular-nums"
+            className="h-7 w-28 text-right text-sm tabular-nums"
             value={calls}
             onChange={(ev) => setCalls(ev.target.value)}
             onBlur={() => setCalls(n.toLocaleString("en-US"))}
@@ -446,14 +446,14 @@ function CostEstimateBox({ ws, fast, reasoning }: { ws: string; fast: string; re
       ) : (
         <>
           <div className="grid gap-0.5 tabular-nums">
-            <p className="text-[20px] leading-tight font-semibold">
-              {money(e.per_call.low)} to {money(e.per_call.high)} <span className="text-muted-foreground text-[13px] font-normal">a call</span>
+            <p className="text-lg font-semibold">
+              {money(e.per_call.low)} to {money(e.per_call.high)} <span className="text-muted-foreground text-sm font-normal">a call</span>
             </p>
-            <p className="text-[13px]">
+            <p className="text-sm">
               {money(e.per_month.low)} to {money(e.per_month.high)} a month at {e.calls_per_month.toLocaleString("en-US")} calls
             </p>
           </div>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 text-[12px] tabular-nums">
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 text-sm tabular-nums">
             {e.roles.map((r) => (
               <div key={r.role} className="col-span-3 grid grid-cols-subgrid items-baseline border-t py-1 first:border-t-0">
                 <dt>{ROLE_NAME[r.role]}</dt>
@@ -472,7 +472,7 @@ function CostEstimateBox({ ws, fast, reasoning }: { ws: string; fast: string; re
               </div>
             ))}
           </dl>
-          <ul className="text-muted-foreground grid list-disc gap-1 pl-4 text-[12px] leading-relaxed">
+          <ul className="text-muted-foreground grid list-disc gap-1 pl-4 text-sm leading-relaxed">
             <li>
               {e.basis === "yours"
                 ? `Based on your last ${e.basis_calls?.toLocaleString("en-US")} checked calls, over 30 days.`

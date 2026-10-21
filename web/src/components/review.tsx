@@ -55,14 +55,14 @@ export { SUGGESTION_STATUS, ReviewStateChip, SuggestionStatusTag, VerdictChip, a
 
 export function VerdictLegend({ className }: { className?: string }) {
   return (
-    <dl className={cn("grid gap-x-4 gap-y-1 text-[13px] sm:grid-cols-2", className)}>
+    <dl className={cn("grid gap-x-4 gap-y-2 text-sm xl:grid-cols-[repeat(2,minmax(0,1fr))]", className)}>
       {VERDICTS.map((v) => (
-        <div key={v} className="flex items-baseline gap-2">
+        <div key={v} className="flex min-w-0 flex-wrap items-baseline gap-x-2">
           <dt className="shrink-0">
-            <kbd className="text-muted-foreground mr-1.5 rounded border px-1 font-mono text-[11px]">{VERDICT[v].key}</kbd>
-            <span className={cn("rounded-full px-1.5 py-px text-xs font-medium", VERDICT[v].tone)}>{VERDICT[v].label}</span>
+            <kbd className="text-muted-foreground mr-2 rounded border px-1 font-mono text-sm">{VERDICT[v].key}</kbd>
+            <span className={cn("rounded-full px-2 py-px text-xs font-medium", VERDICT[v].tone)}>{VERDICT[v].label}</span>
           </dt>
-          <dd className="text-muted-foreground">{VERDICT[v].help}</dd>
+          <dd className="text-muted-foreground min-w-0">{VERDICT[v].help}</dd>
         </div>
       ))}
     </dl>
@@ -90,7 +90,7 @@ function VerdictPicker({
   const ref = noteRef ?? local;
   return (
     <div>
-      <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center">
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         {VERDICTS.map((v) => (
           <Button
             key={v}
@@ -110,7 +110,7 @@ function VerdictPicker({
               setNoting(false);
             }}
           >
-            <kbd className="text-muted-foreground rounded border px-1 font-mono text-[11px] leading-4">{VERDICT[v].key}</kbd>
+            <kbd className="text-muted-foreground rounded border px-1 font-mono text-sm leading-4">{VERDICT[v].key}</kbd>
             {VERDICT[v].label}
           </Button>
         ))}
@@ -121,16 +121,16 @@ function VerdictPicker({
             className="text-muted-foreground col-span-2 justify-start sm:col-span-1"
             onClick={() => setNoting(true)}
           >
-            <kbd className="rounded border px-1 font-mono text-[11px] leading-4">n</kbd> Add a note
+            <kbd className="rounded border px-1 font-mono text-sm leading-4">n</kbd> Add a note
           </Button>
         )}
       </div>
-      {!compact && <p className="text-muted-foreground mt-1.5 min-h-[1.25rem] text-xs">{hover ? VERDICT[hover].help : "Pick what this pattern is. Notes are kept with the verdict."}</p>}
+      {!compact && <p className="text-muted-foreground mt-2 min-h-[1.25rem] text-xs">{hover ? VERDICT[hover].help : "Pick what this pattern is. Notes are kept with the verdict."}</p>}
       {(noting || note) && (
         <Textarea
           ref={ref}
           autoFocus={noting}
-          className="mt-1.5 min-h-12 text-[13px]"
+          className="mt-2 min-h-12 text-sm"
           placeholder="Why? (optional; kept with the verdict, and given to the suggestion writer)"
           aria-label="Note for the verdict"
           value={note}
@@ -157,10 +157,10 @@ function Examples({ items, procedureId, ruleId }: { items: Ex[]; procedureId: st
   const { ws } = useWs();
   if (!items.length) return <Note>No examples in the window.</Note>;
   return (
-    <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
+    <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
       {items.slice(0, 5).map((e) => (
-        <li key={e.key} className="text-[13px]">
-          <HrefLink href={sessionAt(ws, e, procedureId, ruleId)} className="text-foreground hover:bg-muted block rounded-md border px-2.5 py-1.5 hover:no-underline" title="Open the session at this finding">
+        <li key={e.key} className="text-sm">
+          <HrefLink href={sessionAt(ws, e, procedureId, ruleId)} className="text-foreground hover:bg-muted block rounded-md border px-2 py-2 hover:no-underline" title="Open the session at this finding">
             <span className="text-muted-foreground mr-2 text-xs whitespace-nowrap">{e.started_at ? when(e.started_at) : "Session"}</span>
             {e.excerpt ? `“${e.excerpt}”` : <span className="text-muted-foreground italic">No quote; see the reason</span>}
             {e.suppressed && <Tag className="ml-2 align-middle">suppressed</Tag>}
@@ -199,8 +199,8 @@ function ReviewCard({
   const proc = item.procedure_name ?? cfg.procedures.find((p) => p.id === item.procedure_id)?.name ?? item.procedure_id;
   const detail = wsHref(ws, "patterns", item.pattern_id);
   const head = (
-    <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-      <h3 className="min-w-0 text-[15px] leading-snug font-semibold">
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+      <h3 className="min-w-0 text-lg font-semibold">
         <HrefLink href={detail} className="text-foreground">
           {item.name}
         </HrefLink>
@@ -214,14 +214,14 @@ function ReviewCard({
   if (decision) {
     const m = VERDICT[decision.verdict];
     return (
-      <article data-card={item.pattern_id} tabIndex={-1} onFocus={onFocus} className={cn("bg-card rounded-lg border px-4 py-2.5 outline-none", focused && "ring-ring/50 ring-2")}>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+      <article data-card={item.pattern_id} tabIndex={-1} onFocus={onFocus} className={cn("bg-card rounded-lg border px-4 py-2 outline-none", focused && "border-foreground")}>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {decision.phase === "sent" ? <Check className="text-ok size-4 shrink-0" /> : decision.phase === "error" ? <X className="text-err size-4 shrink-0" /> : <Loader2 className="text-muted-foreground size-4 shrink-0 animate-spin" />}
           <span className="min-w-0 flex-1 truncate font-medium">{item.name}</span>
           <span className={cn("rounded-full px-2 py-px text-xs font-medium", m.tone)}>{m.label}</span>
           {decision.phase === "waiting" || decision.phase === "sending" ? (
             <Button size="xs" variant="outline" onClick={onUndo} disabled={decision.phase === "sending"}>
-              <Undo2 /> Undo <kbd className="text-muted-foreground font-mono text-[11px]">u</kbd>
+              <Undo2 /> Undo <kbd className="text-muted-foreground font-mono text-sm">u</kbd>
             </Button>
           ) : (
             <Button size="xs" variant="ghost" onClick={onReopen}>
@@ -229,9 +229,9 @@ function ReviewCard({
             </Button>
           )}
         </div>
-        {decision.note && <p className="text-muted-foreground mt-1 pl-7 text-[13px]">“{decision.note}”</p>}
+        {decision.note && <p className="text-muted-foreground mt-1 pl-7 text-sm">“{decision.note}”</p>}
         {decision.phase === "error" && (
-          <div className="mt-1.5 pl-7">
+          <div className="mt-2 pl-7">
             <ErrorBanner error={decision.error} />
           </div>
         )}
@@ -240,7 +240,7 @@ function ReviewCard({
             <SuggestionState patternId={item.pattern_id} initial={decision.suggestion} />
           </div>
         )}
-        {decision.phase === "sent" && !suggests(decision.verdict) && <p className="text-muted-foreground mt-1 pl-7 text-[13px]">Hidden from Insights rates from now on.</p>}
+        {decision.phase === "sent" && !suggests(decision.verdict) && <p className="text-muted-foreground mt-1 pl-7 text-sm">Hidden from Insights rates from now on.</p>}
       </article>
     );
   }
@@ -251,10 +251,10 @@ function ReviewCard({
       onFocus={onFocus}
       onClick={onFocus}
       aria-label={item.name}
-      className={cn("bg-card scroll-mt-20 rounded-lg border outline-none", focused ? "ring-ring/50 border-primary/40 ring-2" : "hover:border-input")}
+      className={cn("bg-card scroll-mt-20 rounded-lg border outline-none", focused ? "border-foreground" : "hover:border-input")}
     >
       <div className="border-b px-4 py-3">
-        <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-1.5 text-xs">
+        <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-2 text-xs">
           <span className="text-k-procedure font-medium">{proc}</span>
           {item.theme_name && (
             <>
@@ -268,14 +268,14 @@ function ReviewCard({
               <span>{item.kind === "other" ? "unnamed findings" : "failure mode"}</span>
             </>
           )}
-          <span className="ml-auto flex items-center gap-1.5">
+          <span className="ml-auto flex items-center gap-2">
             {item.verdict && !!item.new_findings && <span>{plural(item.new_findings, "new finding", "new findings")} since</span>}
             {item.verdict && <VerdictChip v={item.verdict} />}
             <ReviewStateChip state={item.review_state} note={item.review_note} />
           </span>
         </div>
         {item.review_state === "regressed" && (
-          <div className="bg-err-soft text-err mb-2 flex items-start gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium" role="note">
+          <div className="bg-err-soft text-err mb-2 flex items-start gap-2 rounded-md px-2 py-2 text-sm font-medium" role="note">
             <RotateCcw className="mt-0.5 size-3.5 shrink-0" />
             <span>
               {item.review_note ?? (item.fix_release ? `Came back after release ${item.fix_release}.` : "Came back after the fix.")} Look again: the fix didn't hold.
@@ -284,9 +284,9 @@ function ReviewCard({
         )}
         <RewordedNote reason={item.review_reason} className="mb-2" />
         {head}
-        {item.kind !== "rule" && item.description && <p className="text-muted-foreground mt-1 text-[13px]">{item.description}</p>}
+        {item.kind !== "rule" && item.description && <p className="text-muted-foreground mt-1 text-sm">{item.description}</p>}
         {item.rule?.text && (
-          <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
+          <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2 text-sm">
             <span className="text-muted-foreground">{ruleName(item.rule.kind, item.rule.index)}:</span> <RuleText text={item.rule.text} />
           </blockquote>
         )}
@@ -296,7 +296,7 @@ function ReviewCard({
         </p>
       </div>
       <div className="px-4 py-3">
-        <h4 className="text-muted-foreground mb-1.5 text-xs font-semibold">Examples</h4>
+        <h4 className="text-muted-foreground mb-2 text-xs font-semibold">Examples</h4>
         <Examples items={item.examples.map(exOf)} procedureId={item.procedure_id} ruleId={item.rule_id} />
       </div>
       <div className="bg-muted/40 border-t px-4 py-3">
@@ -427,7 +427,7 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
     );
   if (!visible.length)
     return (
-      <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-1.5 rounded-lg border px-4 py-10 text-center text-[13px]">
+      <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-2 rounded-lg border px-4 py-10 text-center text-sm">
         <Check className="text-ok size-6" />
         <div className="text-foreground font-semibold">Nothing to review</div>
         <p className="max-w-[56ch]">Every pattern here has a verdict. New ones show up as sessions are checked and grouped.</p>
@@ -548,7 +548,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
           </span>
         }
       >
-        Patterns
+        Mistakes
       </PageTitle>
       <Sub className="max-w-[90ch]">Findings grouped by rule and by failure mode. Say what each one is. Real mistakes and wrong SOPs get a fix, and you can follow the fix until it holds.</Sub>
       <Tabs value={tab} onValueChange={(t) => onSearch({ procedure: search.procedure, theme: search.theme, verdict: t === "review" || t === "all" ? search.verdict : undefined, tab: t === "review" ? undefined : (t as PatternsSearch["tab"]) })} className="mb-1 gap-0">
@@ -557,11 +557,11 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
             {TABS.map((t) => {
               const n = countOf(t.tab);
               return (
-                <TabsTrigger key={t.tab} value={t.tab} className="flex-none px-3 text-[13.5px]">
+                <TabsTrigger key={t.tab} value={t.tab} className="flex-none px-3 text-sm">
                   {t.label}
                   {n != null && n > 0 && (
                     <Hint focusable={false} tip={t.badge}>
-                      <span className={cn("rounded-full px-1.5 text-xs tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
+                      <span className={cn("rounded-full px-2 text-xs tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
                     </Hint>
                   )}
                 </TabsTrigger>
@@ -570,19 +570,19 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
           </TabsList>
         </div>
       </Tabs>
-      <p className="text-muted-foreground mt-2 mb-3 text-[13px]">{meta.help}</p>
+      <p className="text-muted-foreground mt-2 mb-3 text-sm">{meta.help}</p>
       {tab === "review" && (
         <details
           open={verdictLegend.open()}
           onToggle={(e) => (e.currentTarget.open ? verdictLegend.reopen() : verdictLegend.close())}
           className="bg-card group mb-4 rounded-lg border px-4 py-3"
         >
-          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[14px] font-semibold [&::-webkit-details-marker]:hidden">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold [&::-webkit-details-marker]:hidden">
             <ChevronRight className="text-muted-foreground size-4 transition-transform group-open:rotate-90" />
             What the verdicts mean
           </summary>
           <VerdictLegend className="mt-3 gap-y-2" />
-          <p className="text-muted-foreground mt-3 text-[13px]">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
+          <p className="text-muted-foreground mt-3 text-sm">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
         </details>
       )}
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -655,7 +655,7 @@ function AllPatterns({
     .filter(({ p, subs }) => keep(p) || subs.length);
   if (!rows.length)
     return (
-      <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-[13px]">
+      <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-sm">
         <div className="text-foreground font-semibold">No patterns {items?.length ? "match these filters" : "yet"}</div>
         <p className="mx-auto mt-1 max-w-[60ch]">{items?.length ? "Try another procedure, theme or verdict." : "Patterns appear once checked sessions have findings. Each rule with findings gets one; past eight findings it's split into named failure modes."}</p>
       </div>
@@ -672,8 +672,8 @@ function AllPatterns({
     <div className="grid gap-4">
       {[...byProc.entries()].map(([pid, themes]) => (
         <section key={pid} className="bg-card min-w-0 overflow-hidden rounded-lg border">
-          <header className="flex items-baseline justify-between gap-3 border-b px-4 py-2.5">
-            <h2 className="text-[13.5px] font-semibold">{procName(pid)}</h2>
+          <header className="flex items-baseline justify-between gap-3 border-b px-4 py-2">
+            <h2 className="text-sm font-semibold">{procName(pid)}</h2>
             <HrefLink href={wsHref(ws, "insights", "procedures", pid)} className="text-xs">
               Insights
             </HrefLink>
@@ -682,7 +682,7 @@ function AllPatterns({
             .sort(([a], [b]) => (a ? (b ? a.localeCompare(b) : -1) : 1))
             .map(([theme, list]) => (
               <div key={theme} className="border-b px-4 py-3 last:border-b-0">
-                <h3 className="text-muted-foreground mb-1.5 text-xs font-semibold tracking-wide uppercase">{theme || "Not in a theme yet"}</h3>
+                <h3 className="text-muted-foreground mb-2 text-xs font-semibold tracking-wide uppercase">{theme || "Not in a theme yet"}</h3>
                 <ul className="grid gap-1">
                   {list.map(({ p, subs }) => (
                     <li key={p.pattern_id}>
@@ -713,7 +713,7 @@ function AllPatterns({
 function PatternRow({ p, depth, split, rule }: { p: PatternOut; depth: number; split?: boolean; rule?: RuleRef | null }) {
   const { ws } = useWs();
   return (
-    <div className={cn("flex flex-wrap items-center gap-x-2.5 gap-y-0.5 py-1", depth && "text-[13px]")}>
+    <div className={cn("flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1", depth && "text-sm")}>
       <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn("min-w-0", depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")}>
         {p.name}
       </HrefLink>
@@ -804,8 +804,8 @@ export function PatternView({ id }: { id: string }) {
   if (d.suppressed_count) facts.push(["Suppressed", plural(d.suppressed_count, "finding hidden from rates", "findings hidden from rates")]);
   return (
     <Page wide>
-      <div className="text-muted-foreground mb-2 text-[13px]">
-        <HrefLink href={wsHref(ws, "patterns")}>Patterns</HrefLink> / {proc}
+      <div className="text-muted-foreground mb-2 text-sm">
+        <HrefLink href={wsHref(ws, "patterns")}>Mistakes</HrefLink> / {proc}
         {d.parent_id && (
           <>
             {" "}
@@ -815,10 +815,10 @@ export function PatternView({ id }: { id: string }) {
       </div>
       <PageTitle
         aside={
-          <span className="flex flex-wrap items-center gap-1.5">
-            {d.kind === "rule" && <RuleTag rule={d.rule} className="text-[12px]" />}
-            <VerdictChip v={verdict} className="text-[13px]" />
-            {!(d.kind === "rule" && subs.some((x) => x.kind === "sub")) && <ReviewStateChip state={d.review_state} note={d.review_note} className="text-[13px]" />}
+          <span className="flex flex-wrap items-center gap-2">
+            {d.kind === "rule" && <RuleTag rule={d.rule} className="text-sm" />}
+            <VerdictChip v={verdict} className="text-sm" />
+            {!(d.kind === "rule" && subs.some((x) => x.kind === "sub")) && <ReviewStateChip state={d.review_state} note={d.review_note} className="text-sm" />}
           </span>
         }
       >
@@ -827,20 +827,20 @@ export function PatternView({ id }: { id: string }) {
       {d.kind !== "rule" && d.description && <Sub>{d.description}</Sub>}
       <RewordedNote reason={d.review_reason} className="mb-3 max-w-[90ch]" />
       {d.rule.text && (
-        <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-[14px]">
+        <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-sm">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> <RuleText text={d.rule.text} />
         </blockquote>
       )}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
-          <section className="bg-card rounded-lg border px-4 py-3.5">
-            <h2 className="mb-2 text-[13.5px] font-semibold">{verdict ? "Change the verdict" : "Give a verdict"}</h2>
+          <section className="bg-card rounded-lg border px-4 py-4">
+            <h2 className="mb-2 text-sm font-semibold">{verdict ? "Change the verdict" : "Give a verdict"}</h2>
             {error != null && <ErrorBanner error={error} />}
             <VerdictPicker current={verdict?.verdict} busy={busy} onPick={(v, n) => void pick(v, n)} />
           </section>
           <section className="bg-card rounded-lg border">
-            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2.5">
-              <h2 className="text-[13.5px] font-semibold">Examples</h2>
+            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2">
+              <h2 className="text-sm font-semibold">Examples</h2>
               <span className="text-muted-foreground text-xs tabular-nums">
                 {plural(d.session_ids.length, "session", "sessions")} · {plural(d.findings + d.suppressed, "finding", "findings")} in the last year
                 {d.suppressed > 0 && ` (${d.suppressed} hidden from Insights by the verdict)`} ·{" "}
@@ -853,7 +853,7 @@ export function PatternView({ id }: { id: string }) {
           </section>
           {subs.length > 0 && (
             <section className="bg-card rounded-lg border px-4 py-3">
-              <h2 className="mb-1.5 text-[13.5px] font-semibold">Failure modes</h2>
+              <h2 className="mb-2 text-sm font-semibold">Failure modes</h2>
               <ul>
                 {subs.map((s) => (
                   <li key={s.pattern_id}>
@@ -869,13 +869,13 @@ export function PatternView({ id }: { id: string }) {
             <FixTimeline d={d} />
           ) : (
             <section className="bg-card rounded-lg border px-4 py-3">
-              <h2 className="mb-1 text-[13.5px] font-semibold">Where it stands</h2>
+              <h2 className="mb-1 text-sm font-semibold">Where it stands</h2>
               <Note>This rule is split into failure modes below. Each one has its own verdict and fix.</Note>
             </section>
           )}
           <section className="bg-card rounded-lg border px-4 py-3">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="text-[13.5px] font-semibold">Suggestions</h2>
+              <h2 className="text-sm font-semibold">Fixes</h2>
               {verdict && suggests(verdict.verdict) && (
                 <Button size="xs" variant="outline" disabled={busy} onClick={() => void regenerate()}>
                   <Sparkles /> {suggestions.length ? "Write again" : "Write a fix"}
@@ -883,9 +883,9 @@ export function PatternView({ id }: { id: string }) {
               )}
             </div>
             {suggestions.length ? (
-              <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {suggestions.map((s) => (
-                  <li key={s.suggestion_id} className="flex items-center gap-2 text-[13px]">
+                  <li key={s.suggestion_id} className="flex items-center gap-2 text-sm">
                     <SuggestionStatusTag status={s.status} />
                     <ConflictTag freshness={s.freshness} />
                     <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="min-w-0 flex-1 truncate">
@@ -900,11 +900,11 @@ export function PatternView({ id }: { id: string }) {
             )}
           </section>
           <section className="bg-card rounded-lg border px-4 py-3">
-            <h2 className="mb-2 text-[13.5px] font-semibold">Verdict history</h2>
+            <h2 className="mb-2 text-sm font-semibold">Verdict history</h2>
             {history.length ? (
               <ol className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {history.map((h, i) => (
-                  <li key={i} className="text-[13px]">
+                  <li key={i} className="text-sm">
                     <div className="flex flex-wrap items-center gap-2">
                       <VerdictChip v={h} />
                       <span className="text-muted-foreground text-xs">
@@ -920,7 +920,7 @@ export function PatternView({ id }: { id: string }) {
             )}
           </section>
           <section className="bg-card rounded-lg border px-4 py-3">
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
               {facts.map(([k, v]) => (
                 <div key={k} className="contents">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -929,7 +929,7 @@ export function PatternView({ id }: { id: string }) {
               ))}
             </dl>
             {verdict ? (
-              <a href={regressionHref(ws, id)} download className="text-primary mt-3 inline-flex items-center gap-1.5 text-[13px] hover:underline" title="Its findings labeled by the verdict, one JSON object per line, for re-checking after a change">
+              <a href={regressionHref(ws, id)} download className="text-primary mt-3 inline-flex items-center gap-2 text-sm hover:underline" title="Its findings labeled by the verdict, one JSON object per line, for re-checking after a change">
                 <Download className="size-3.5" /> Regression cases (NDJSON)
               </a>
             ) : (

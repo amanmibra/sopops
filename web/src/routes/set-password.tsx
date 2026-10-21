@@ -35,7 +35,7 @@ function SetPassword() {
   if (!token || info.isError)
     return (
       <Card title="This link doesn't work">
-        <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
           It may have expired (links work for an hour) or been used already. Ask an owner or admin for a new one, or use "Forgot password?" on the sign-in page
           if it's there.
         </p>
@@ -60,7 +60,7 @@ function SetPassword() {
   };
   return (
     <Card title={has_account ? "Set a new password" : "Make your account"}>
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         For <b className="text-foreground">{email}</b>. {has_account ? "Setting it signs you out everywhere else." : "Then you're signed in."} This link works
         once.
       </p>
@@ -74,7 +74,7 @@ function SetPassword() {
         <input type="email" hidden readOnly autoComplete="username" value={email} />
         {!has_account && (
           <div className="grid gap-1">
-            <Label htmlFor="set-name" className="text-[13px]">
+            <Label htmlFor="set-name" className="text-sm">
               Name
             </Label>
             <Input id="set-name" autoComplete="name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
@@ -82,7 +82,7 @@ function SetPassword() {
         )}
         <NewPassword id="set-password" label={has_account ? "New password" : "Password"} value={password} onChange={setPassword} />
         {error && <Banner tone="err">{error}</Banner>}
-        <Button type="submit" className="h-10 text-[14px]" disabled={busy || password.length < 10}>
+        <Button type="submit" className="h-10 text-sm" disabled={busy || password.length < 10}>
           {has_account ? "Set password and sign in" : "Create account and sign in"}
         </Button>
       </form>

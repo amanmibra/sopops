@@ -71,7 +71,7 @@ export function ImportStart() {
           </ul>
         </Panel>
       )}
-      <div role="radiogroup" aria-label="Where the instructions are" className="mb-6 grid gap-2.5 sm:grid-cols-2">
+      <div role="radiogroup" aria-label="Where the instructions are" className="mb-6 grid gap-2 sm:grid-cols-2">
         {SOURCES.map((s) => (
           <button
             key={s.value}
@@ -85,7 +85,7 @@ export function ImportStart() {
               <PlatformIcon platform={s.value} size={14} />
               {s.title}
             </div>
-            <div className="text-muted-foreground text-[13px]">{s.text}</div>
+            <div className="text-muted-foreground text-sm">{s.text}</div>
           </button>
         ))}
       </div>
@@ -157,7 +157,7 @@ function PasteSource() {
       >
         {rows.map((r, i) => (
           <Panel key={i} className="mb-0">
-            <div className="mb-3 grid gap-2.5 md:grid-cols-[1fr_150px_1fr_auto]">
+            <div className="mb-3 grid gap-2 md:grid-cols-[1fr_150px_1fr_auto]">
               <Input aria-label={`Agent ${i + 1} name`} placeholder="Agent name, e.g. tonys-pizza" value={r.name} onChange={(e) => set(i, { name: e.target.value })} />
               <Select value={r.platform} onValueChange={(v) => set(i, { platform: v as Platform })}>
                 <SelectTrigger aria-label={`Agent ${i + 1} platform`} className="w-full">
@@ -183,13 +183,13 @@ function PasteSource() {
             </div>
             <Textarea
               aria-label={`Agent ${i + 1} instructions`}
-              className="min-h-40 font-mono text-[13px]"
+              className="min-h-40 font-mono text-sm"
               placeholder="The agent's full instructions, exactly as the model gets them"
               value={r.prompt}
               onChange={(e) => set(i, { prompt: e.target.value })}
             />
             <Input
-              className="mt-2.5"
+              className="mt-2"
               aria-label={`Agent ${i + 1} tools`}
               placeholder="Tool names it can call, separated by commas (optional): lookup_allergens, transfer_to_staff"
               value={r.tools}
@@ -262,7 +262,7 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
           <label htmlFor="f-key" className="mb-0.5 block font-semibold">
             {label} API key
           </label>
-          <p className="text-muted-foreground mb-2 max-w-[72ch] text-[13px]">
+          <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">
             Used for this import only: sopops reads your agents' instructions and tool names with it, then forgets it. It isn't stored or logged. A read-only key is enough.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -276,7 +276,7 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
         {agents && (
           <Panel title={`Agents on ${label}`}>
             {agents.length ? (
-              <ul className="grid gap-1.5">
+              <ul className="grid gap-2">
                 {agents.map((a) => (
                   <li key={a.id}>
                     <label className="flex cursor-pointer items-center gap-2">
@@ -349,7 +349,7 @@ function AgentSource() {
         nothing was lost, and sends them here, where you watch it work and review the result.
       </p>
       <div>
-        <div className="mb-1.5 font-semibold">Where should the instructions live?</div>
+        <div className="mb-2 font-semibold">Where should the instructions live?</div>
         <Segmented
           label="Where the instructions live"
           value={mode}
@@ -359,7 +359,7 @@ function AgentSource() {
             ["repo", "In my repo too"],
           ]}
         />
-        <p className="text-muted-foreground mt-2 max-w-[72ch] text-[13px]">
+        <p className="text-muted-foreground mt-2 max-w-[72ch] text-sm">
           {mode === "hosted"
             ? "Instructions are edited and published in sopops. Your repo doesn't change."
             : "Instructions live as a sopc project in your GitHub repository. sopops pulls it into drafts, and fixes arrive as pull requests."}

@@ -47,10 +47,10 @@ export function Card({ title, children }: { title: ReactNode; children: ReactNod
   return (
     <main className="flex min-h-screen items-start justify-center px-4 pt-[12vh] pb-10">
       <div className="bg-card w-full max-w-[420px] rounded-xl border px-6 py-7 shadow-sm">
-        <div className="mb-5 flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+        <div className="mb-5 flex items-center gap-2 text-lg font-semibold">
           <Logo /> sopops
         </div>
-        <h1 className="mb-2 text-[20px] leading-tight font-semibold tracking-tight">{title}</h1>
+        <h1 className="mb-2 text-lg font-semibold">{title}</h1>
         {children}
       </div>
     </main>
@@ -72,7 +72,7 @@ export function useSignedIn() {
 
 function Or() {
   return (
-    <div className="text-muted-foreground my-1 flex items-center gap-3 text-[12px]">
+    <div className="text-muted-foreground my-1 flex items-center gap-3 text-sm">
       <span className="h-px flex-1 bg-current opacity-25" /> or <span className="h-px flex-1 bg-current opacity-25" />
     </div>
   );
@@ -85,7 +85,7 @@ export function RedirectButtons({ auth, next }: { auth: AuthState; next: string 
       {auth.providers
         .filter((p) => p.redirects)
         .map((p) => (
-          <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2.5 text-[14px]">
+          <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2 text-sm">
             <a href={signInHref(p.id, next)}>
               {PROVIDER_ICON[p.id]}
               Continue with {p.label}
@@ -109,19 +109,19 @@ export function SignInButtons({ auth, next, password = true }: { auth: AuthState
   const [form, setForm] = useState<Form>(byPassword ? "password" : "link");
   const redirects = auth.providers.some((p) => p.redirects);
   if (!redirects && !byPassword && !byEmail)
-    return <p className="text-muted-foreground text-[13px]">No way to sign in is set up on this sopops yet. Ask whoever runs it.</p>;
+    return <p className="text-muted-foreground text-sm">No way to sign in is set up on this sopops yet. Ask whoever runs it.</p>;
   // An invite's token waits in this tab, and an emailed link may open in another: signing in accepts the invite anyway.
   const after = next === "/invite" ? "/" : next;
   const back = byPassword ? () => setForm("password") : undefined;
   return (
-    <div className="grid gap-2.5">
+    <div className="grid gap-2">
       <RedirectButtons auth={auth} next={next} />
       {redirects && (byPassword || byEmail) && <Or />}
       {form === "password" && byPassword && <PasswordSignIn next={next} />}
       {form === "link" && byEmail && <EmailSignIn next={after} onBack={back} />}
       {form === "forgot" && <PasswordEmail signUp={false} onBack={() => setForm("password")} />}
       {form === "password" && byPassword && (
-        <div className="text-muted-foreground mt-1 grid gap-1 text-center text-[13px]">
+        <div className="text-muted-foreground mt-1 grid gap-1 text-center text-sm">
           {auth.password_email ? (
             <TextButton onClick={() => setForm("forgot")}>Forgot password?</TextButton>
           ) : (
@@ -167,7 +167,7 @@ function PasswordSignIn({ next }: { next: string }) {
         void submit();
       }}
     >
-      <Label htmlFor="sign-in-email" className="text-[13px]">
+      <Label htmlFor="sign-in-email" className="text-sm">
         Email
       </Label>
       <Input
@@ -180,7 +180,7 @@ function PasswordSignIn({ next }: { next: string }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <Label htmlFor="sign-in-password" className="mt-1 text-[13px]">
+      <Label htmlFor="sign-in-password" className="mt-1 text-sm">
         Password
       </Label>
       <Input
@@ -193,7 +193,7 @@ function PasswordSignIn({ next }: { next: string }) {
         onChange={(e) => setPassword(e.target.value)}
       />
       {error && <Banner tone="err">{error}</Banner>}
-      <Button type="submit" className="mt-1 h-10 text-[14px]" disabled={busy || !email.trim() || !password}>
+      <Button type="submit" className="mt-1 h-10 text-sm" disabled={busy || !email.trim() || !password}>
         Sign in
       </Button>
     </form>
@@ -235,10 +235,10 @@ export function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () 
         void send();
       }}
     >
-      <p className="text-muted-foreground text-[13px] leading-relaxed">
+      <p className="text-muted-foreground text-sm leading-relaxed">
         {signUp ? "We email you a link to set your password and make your account." : "We email you a link to set a new password."}
       </p>
-      <Label htmlFor="password-email" className="text-[13px]">
+      <Label htmlFor="password-email" className="text-sm">
         {signUp ? "Work email" : "Email"}
       </Label>
       <Input
@@ -252,11 +252,11 @@ export function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () 
         onChange={(e) => setEmail(e.target.value)}
       />
       {error && <Banner tone="err">{error}</Banner>}
-      <Button type="submit" className="h-10 gap-2.5 text-[14px]" disabled={busy || !email.trim()}>
+      <Button type="submit" className="h-10 gap-2 text-sm" disabled={busy || !email.trim()}>
         <Mail className="size-[18px]" /> {signUp ? "Email me a link" : "Email me a reset link"}
       </Button>
       <TextButton onClick={onBack}>
-        <span className="text-muted-foreground text-[13px]">Back to sign in</span>
+        <span className="text-muted-foreground text-sm">Back to sign in</span>
       </TextButton>
     </form>
   );
@@ -298,7 +298,7 @@ function EmailSignIn({ next, onBack }: { next: string; onBack?: () => void }) {
         void send();
       }}
     >
-      <Label htmlFor="sign-in-link-email" className="text-[13px]">
+      <Label htmlFor="sign-in-link-email" className="text-sm">
         Email
       </Label>
       <Input
@@ -312,12 +312,12 @@ function EmailSignIn({ next, onBack }: { next: string; onBack?: () => void }) {
         onChange={(e) => setEmail(e.target.value)}
       />
       {error && <Banner tone="err">{error}</Banner>}
-      <Button type="submit" className="h-10 gap-2.5 text-[14px]" disabled={busy || !email.trim()}>
+      <Button type="submit" className="h-10 gap-2 text-sm" disabled={busy || !email.trim()}>
         <Mail className="size-[18px]" /> Email me a sign-in link
       </Button>
       {onBack && (
         <TextButton onClick={onBack}>
-          <span className="text-muted-foreground text-[13px]">Sign in with a password instead</span>
+          <span className="text-muted-foreground text-sm">Sign in with a password instead</span>
         </TextButton>
       )}
     </form>
@@ -328,7 +328,7 @@ function EmailSignIn({ next, onBack }: { next: string; onBack?: () => void }) {
 export function NewPassword({ id, label = "Password", value, onChange }: { id: string; label?: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="grid gap-1">
-      <Label htmlFor={id} className="text-[13px]">
+      <Label htmlFor={id} className="text-sm">
         {label}
       </Label>
       <Input
@@ -342,7 +342,7 @@ export function NewPassword({ id, label = "Password", value, onChange }: { id: s
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-      <span className="text-muted-foreground text-[12px]">At least 10 characters.</span>
+      <span className="text-muted-foreground text-sm">At least 10 characters.</span>
     </div>
   );
 }
@@ -361,7 +361,7 @@ export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "na
     <span
       style={box}
       aria-hidden
-      className={cn("bg-brand-soft text-foreground inline-flex shrink-0 items-center justify-center rounded-full text-[11px] font-semibold", className)}
+      className={cn("bg-brand-soft text-foreground inline-flex shrink-0 items-center justify-center rounded-full text-sm font-semibold", className)}
     >
       {initials}
     </span>
@@ -373,10 +373,10 @@ function NoOrg({ auth }: { auth: AuthState }) {
   const signOut = useSignOut();
   return (
     <Card title="Ask your team for its join link">
-      <p className="mb-3 text-[14px] leading-relaxed">
+      <p className="mb-3 text-sm leading-relaxed">
         You're signed in as <b>{auth.user?.email}</b>, but you're not on a team on this sopops yet.
       </p>
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         Ask an owner or admin for the team's join link, or to add this email in Settings, under Members. Then open the link, or sign in again, and you're in.
       </p>
       <Button variant="outline" onClick={() => void signOut()}>
@@ -412,7 +412,7 @@ export function UserMenu({ auth }: { auth: AuthState }) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-60">
-          <DropdownMenuLabel className="flex items-center gap-2.5 font-normal">
+          <DropdownMenuLabel className="flex items-center gap-2 font-normal">
             <Avatar user={user} size={32} />
             <span className="min-w-0">
               <span className="block truncate font-semibold">{user.name || user.email}</span>
@@ -485,7 +485,7 @@ function CreateTeam({ onDone }: { onDone: () => void }) {
         <DialogDescription>A new team starts empty, and you own it. You stay on your other teams, and switch between them from this menu.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-1">
-        <Label htmlFor="team-name" className="text-[13px]">
+        <Label htmlFor="team-name" className="text-sm">
           What's your team called?
         </Label>
         <Input id="team-name" autoFocus className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
@@ -534,7 +534,7 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
         <DialogDescription>This signs you out everywhere else.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-1">
-        <Label htmlFor="current-password" className="text-[13px]">
+        <Label htmlFor="current-password" className="text-sm">
           Current password
         </Label>
         <Input

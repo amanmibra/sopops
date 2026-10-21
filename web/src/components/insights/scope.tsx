@@ -45,7 +45,7 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
   const [start, setStart] = useState(filters.start ?? "");
   const [end, setEnd] = useState(filters.end ?? "");
   const current = filters.start ? "custom" : (filters.window ?? "7d");
-  const btn = (active: boolean) => cn("cursor-pointer border-r border-border px-2.5 py-1 text-[13px] last:border-r-0", active ? "bg-brand-soft text-foreground font-semibold" : "text-muted-foreground hover:bg-muted hover:text-foreground");
+  const btn = (active: boolean) => cn("cursor-pointer border-r border-border px-2 py-1 text-sm last:border-r-0", active ? "bg-brand-soft text-foreground font-semibold" : "text-muted-foreground hover:bg-muted hover:text-foreground");
   const bad = !start || (end && end < start) || start > today();
   return (
     <div role="group" aria-label="Time range" className="bg-card inline-flex h-8 items-stretch overflow-hidden rounded-md border border-input">
@@ -56,13 +56,13 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
       ))}
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <button type="button" aria-pressed={current === "custom"} className={cn(btn(current === "custom"), "inline-flex items-center gap-1.5")}>
+          <button type="button" aria-pressed={current === "custom"} className={cn(btn(current === "custom"), "inline-flex items-center gap-2")}>
             <CalendarRange className="size-3.5" /> Custom
           </button>
         </PopoverTrigger>
         <PopoverContent align="end" className="w-72">
           <form
-            className="grid gap-2.5"
+            className="grid gap-2"
             onSubmit={(e) => {
               e.preventDefault();
               if (bad) return;
@@ -70,7 +70,7 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
               setOpen(false);
             }}
           >
-            <div className="text-[13px] font-semibold">Custom time range</div>
+            <div className="text-sm font-semibold">Custom time range</div>
             <label className="text-muted-foreground grid gap-1 text-xs">
               From
               <Input type="date" max={today()} value={start} onChange={(e) => setStart(e.target.value)} required />
@@ -127,7 +127,7 @@ const TABS: [View, string, string[]][] = [
 export function AsOf({ at, fetching, onRefresh }: { at: number; fetching: boolean; onRefresh: () => void }) {
   if (!at) return null;
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+    <span className="text-muted-foreground inline-flex items-center gap-2 text-xs">
       As of {new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
       <Button variant="ghost" size="icon-xs" aria-label="Refresh" title="Refresh" onClick={onRefresh} disabled={fetching}>
         <RefreshCw className={cn(fetching && "animate-spin")} />
@@ -163,8 +163,8 @@ export function InsightsShell({
     <div className={cn("max-w-[1320px] min-w-0", collapsed && "mx-auto")}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{title}</h1>
-          <p className="text-muted-foreground mt-1 max-w-[80ch] text-[13.5px]">{subtitle}</p>
+          <h1 className="text-2xl font-semibold">{title}</h1>
+          <p className="text-muted-foreground mt-1 max-w-[80ch] text-sm">{subtitle}</p>
         </div>
         {status}
       </div>
@@ -176,7 +176,7 @@ export function InsightsShell({
               href={insightsHref(ws, path, keep)}
               aria-current={k === view ? "page" : undefined}
               className={cn(
-                "border-b-2 px-2.5 pt-1 pb-2 text-[13.5px] hover:no-underline",
+                "border-b-2 px-2 pt-1 pb-2 text-sm hover:no-underline",
                 k === view ? "border-primary text-foreground font-semibold" : "text-muted-foreground hover:text-foreground border-transparent",
               )}
             >

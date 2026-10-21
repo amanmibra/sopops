@@ -67,17 +67,17 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
 ];
 
 function NeedTag({ need }: { need: Need }) {
-  return <span className={cn("inline-block rounded-full border px-2 py-0.5 text-[11px] font-medium", NEED[need].className)}>{NEED[need].label}</span>;
+  return <span className={cn("inline-block rounded-full border px-2 py-0.5 text-sm font-medium", NEED[need].className)}>{NEED[need].label}</span>;
 }
 
 function CellView({ cell }: { cell: Cell }) {
   return (
-    <td className="border-b px-2.5 py-2.5 align-top">
-      <span className="flex flex-wrap items-center gap-1.5">
+    <td className="border-b px-2 py-2 align-top">
+      <span className="flex flex-wrap items-center gap-2">
         <NeedTag need={cell.need} />
-        {cell.next && <span className="text-muted-foreground rounded-full border border-dashed px-2 py-0.5 text-[11px]">Coming next</span>}
+        {cell.next && <span className="text-muted-foreground rounded-full border border-dashed px-2 py-0.5 text-sm">Coming next</span>}
       </span>
-      <div className="text-muted-foreground mt-1 max-w-[32ch] text-[13px] leading-relaxed">{cell.how}</div>
+      <div className="text-muted-foreground mt-1 max-w-[32ch] text-sm leading-relaxed">{cell.how}</div>
       {cell.next && <div className="text-muted-foreground mt-1 max-w-[32ch] text-xs italic">{cell.next}</div>}
     </td>
   );
@@ -91,16 +91,16 @@ export function ConnectGuide({ className }: { className?: string }) {
       <table className="w-full min-w-[720px] border-collapse text-left">
         <thead>
           <tr className="text-muted-foreground text-xs">
-            <th className="border-b px-2.5 py-1.5 font-medium">Platform</th>
-            <th className="border-b px-2.5 py-1.5 font-medium">Instructions</th>
-            <th className="border-b px-2.5 py-1.5 font-medium">Sessions, after a call</th>
-            <th className="border-b px-2.5 py-1.5 font-medium">Real-time, during a call</th>
+            <th className="border-b px-2 py-2 font-medium">Platform</th>
+            <th className="border-b px-2 py-2 font-medium">Instructions</th>
+            <th className="border-b px-2 py-2 font-medium">Sessions, after a call</th>
+            <th className="border-b px-2 py-2 font-medium">Real-time, during a call</th>
           </tr>
         </thead>
         <tbody>
           {ROWS.filter((r) => plats.has(r.platform)).map((r) => (
             <tr key={r.platform}>
-              <td className="border-b px-2.5 py-2.5 align-top text-[13px] font-semibold">
+              <td className="border-b px-2 py-2 align-top text-sm font-semibold">
                 <PlatformLabel platform={r.platform} />
               </td>
               <CellView cell={r.prompt} />

@@ -92,14 +92,14 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
       {list.isError && <ErrorBanner error={list.error} lead="The members didn't load:" />}
       <ul className="divide-y">
         {(list.data ?? []).map((m) => (
-          <li key={m.user_id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
+          <li key={m.user_id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
             <Avatar user={m} size={30} />
             <span className="min-w-0 flex-1">
               <span className="block truncate font-medium">
                 {m.name || m.email}
                 {m.user_id === auth.user?.id && <span className="text-muted-foreground font-normal"> (you)</span>}
               </span>
-              <span className="text-muted-foreground block truncate text-[13px]">
+              <span className="text-muted-foreground block truncate text-sm">
                 {m.email} · joined {when(m.joined_at)}
               </span>
             </span>
@@ -142,7 +142,7 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
           />
         </Banner>
       )}
-      <ul className="text-muted-foreground mt-3 grid gap-0.5 text-[13px]">
+      <ul className="text-muted-foreground mt-3 grid gap-0.5 text-sm">
         {ROLES.map((r) => (
           <li key={r.role}>
             <b className="text-foreground font-medium">{r.label}</b>: {r.help}
@@ -157,12 +157,12 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
 function LinkBox({ email, link, what = "the invite link", note = "It isn't shown again." }: { email: string; link: string; what?: string; note?: string }) {
   const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Copied."), fail);
   return (
-    <div className="mt-1.5">
-      <div className="text-[13px]">
+    <div className="mt-2">
+      <div className="text-sm">
         Send this link to {email}. {note}
       </div>
-      <div className="bg-card mt-1 flex items-center gap-2 rounded-md border px-2.5 py-1.5">
-        <code className="flex-1 font-mono text-[13px] break-all">{link}</code>
+      <div className="bg-card mt-1 flex items-center gap-2 rounded-md border px-2 py-2">
+        <code className="flex-1 font-mono text-sm break-all">{link}</code>
         <Button size="icon-sm" variant="ghost" aria-label={`Copy ${what} for ${email}`} onClick={() => void copy()}>
           <Copy />
         </Button>
@@ -214,27 +214,27 @@ function ShareJoinLink({ orgName }: { orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Anyone who opens the link can make an account, or sign in, and join {orgName}. Send it however your team talks.
       </p>
       {current.isError && <ErrorBanner error={current.error} lead="The join link didn't load:" />}
       {live && !made && (
-        <p className="mb-3 text-[13px]">
+        <p className="mb-3 text-sm">
           A link is on. People join as {asRole(live.role as Role)}, until {day(live.expires_at)}.{" "}
           {live.joined > 0 && <>{live.joined === 1 ? "1 person has" : `${live.joined} people have`} joined with it. </>}
           <span className="text-muted-foreground">It's shown only once, so make a new one to copy it again.</span>
         </p>
       )}
       {made && (
-        <div className="mb-3 grid gap-1.5">
+        <div className="mb-3 grid gap-2">
           <CopyLink link={made.link} label="Copy the join link" />
-          <span className="text-muted-foreground text-[13px]">
+          <span className="text-muted-foreground text-sm">
             People join as {asRole(made.role as Role)}. It works until {day(made.expires_at)}, and isn't shown again.
           </span>
         </div>
       )}
-      <div className="flex flex-wrap items-center gap-2.5">
-        <Label htmlFor="join-link-role" className="text-[13px]">
+      <div className="flex flex-wrap items-center gap-2">
+        <Label htmlFor="join-link-role" className="text-sm">
           People join as
         </Label>
         <RoleSelect id="join-link-role" value={role} onChange={setRole} />
@@ -283,7 +283,7 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Anyone who already has an account joins {orgName} right away. Everyone else gets an invite link. They open it and set a password, or sign in another way
         with that email, and they're in.{" "}
         {sendsEmail ? "sopops emails them the link." : "sopops doesn't send email here, so you get the link to send them yourself."}
@@ -296,14 +296,14 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
         }}
       >
         <div className="grid max-w-[480px] gap-1">
-          <Label htmlFor="add-emails" className="text-[13px]">
+          <Label htmlFor="add-emails" className="text-sm">
             Emails, separated by commas or new lines
           </Label>
-          <Textarea id="add-emails" rows={2} className="text-[13px]" placeholder="ana@example.com, bo@example.com" value={text} onChange={(e) => setText(e.target.value)} />
+          <Textarea id="add-emails" rows={2} className="text-sm" placeholder="ana@example.com, bo@example.com" value={text} onChange={(e) => setText(e.target.value)} />
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div className="grid gap-1">
-            <Label className="text-[13px]">Role</Label>
+            <Label className="text-sm">Role</Label>
             <Select value={role} onValueChange={(v) => setRole(v as Role)}>
               <SelectTrigger size="sm" className="w-28" aria-label="Role">
                 <SelectValue />
@@ -409,19 +409,19 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
     >
       {list.isError && <ErrorBanner error={list.error} lead="The invites didn't load:" />}
       {invites.length === 0 ? (
-        <p className="text-muted-foreground text-[13px]">Nobody is waiting. People you add who don't have an account yet show up here.</p>
+        <p className="text-muted-foreground text-sm">Nobody is waiting. People you add who don't have an account yet show up here.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full text-sm">
             <tbody>
               {invites.map((i) => (
                 <tr key={i.id}>
-                  <td className="border-b py-1.5 pr-2">{i.email}</td>
-                  <td className="border-b py-1.5 pr-2">
+                  <td className="border-b py-2 pr-2">{i.email}</td>
+                  <td className="border-b py-2 pr-2">
                     <Tag>{i.role}</Tag>
                   </td>
-                  <td className="text-muted-foreground border-b py-1.5 pr-2">invited {when(i.created_at)}</td>
-                  <td className="border-b py-1.5 text-right whitespace-nowrap">
+                  <td className="text-muted-foreground border-b py-2 pr-2">invited {when(i.created_at)}</td>
+                  <td className="border-b py-2 text-right whitespace-nowrap">
                     {sendsEmail ? (
                       <Button size="sm" variant="ghost" onClick={() => void resend(i)}>
                         Resend
@@ -444,7 +444,7 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
       {fresh && (
         <Banner tone="ok" className="mt-3">
           <LinkBox email={fresh.email} link={fresh.link} />
-          <div className="text-muted-foreground mt-1 text-[12px]">The old link stops working. This one works for 7 days.</div>
+          <div className="text-muted-foreground mt-1 text-sm">The old link stops working. This one works for 7 days.</div>
         </Banner>
       )}
     </Panel>
@@ -481,16 +481,16 @@ function Domains({ domains, orgName }: { domains: string[]; orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Anyone who signs in with a verified email at one of these domains joins {orgName} as a member, with no invite. Leave it empty to let people in by invite
         only.
       </p>
-      <Label htmlFor="org-domains" className="mb-1 text-[13px]">
+      <Label htmlFor="org-domains" className="mb-1 text-sm">
         Email domains, one per line
       </Label>
       <Textarea
         id="org-domains"
-        className="mb-3 max-w-[360px] font-mono text-[13px]"
+        className="mb-3 max-w-[360px] font-mono text-sm"
         rows={3}
         placeholder="example.com"
         value={text}

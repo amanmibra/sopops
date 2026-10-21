@@ -23,7 +23,7 @@ import { AsOf, InsightsShell, Pick } from "./scope";
 export const AB_DOCS = "https://github.com/amanmibra/sopops/blob/main/docs/ab-tests.md";
 
 const th = "text-muted-foreground border-b px-3 py-2 text-left text-xs font-medium whitespace-nowrap";
-const td = "border-b px-3 py-2.5 align-top";
+const td = "border-b px-3 py-2 align-top";
 
 const SETTING: Record<string, string> = { agent: "Agent", release: "Release", llm: "LLM", stt: "Speech to text", tts: "Text to speech", voice: "Voice", prompt: "Prompt", version: "Your label", temperature: "Temperature" };
 const settingName = (k: string) => SETTING[k] ?? k.replace(/_/g, " ");
@@ -79,10 +79,10 @@ function SettingsLine({ v }: { v: VersionOut }) {
   const keys = Object.keys(v.config).filter((k) => k !== "prompt").sort((a, b) => rank(a) - rank(b));
   if (!keys.length && !v.config.prompt) return <span className="text-muted-foreground text-xs">No settings reported</span>;
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-[13px]">
+    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
       {keys.map((k) => (
         <span key={k} className="whitespace-nowrap">
-          <span className="text-muted-foreground">{settingName(k)}</span> <span className="font-mono text-[12px]">{String(v.config[k])}</span>
+          <span className="text-muted-foreground">{settingName(k)}</span> <span className="font-mono text-sm">{String(v.config[k])}</span>
         </span>
       ))}
       {v.prompt && (
@@ -104,13 +104,13 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
   return (
     <section className="bg-card overflow-hidden rounded-lg border">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3">
-        <div className="text-[13px]">
+        <div className="text-sm">
           <b className="font-semibold">Pick up to {d.max_versions} versions.</b>{" "}
           <span className="text-muted-foreground">The first you pick is A, the baseline the others are measured against.</span>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-[13px]">
+        <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr>
               <th className={cn(th, "w-14")} />
@@ -130,7 +130,7 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                 <Fragment key={v.id}>
                 {n === withSettings.length && withSettings.length > 0 && (
                   <tr>
-                    <td colSpan={6} className="text-muted-foreground bg-muted/30 border-b px-3 py-1.5 text-xs">
+                    <td colSpan={6} className="text-muted-foreground bg-muted/30 border-b px-3 py-2 text-xs">
                       No settings reported: these versions differ only by agent or release.
                     </td>
                   </tr>
@@ -139,8 +139,8 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                   className={cn("cursor-pointer", on ? "bg-muted/50" : "hover:bg-muted/40", full && "cursor-not-allowed opacity-50")}
                   onClick={() => !full && toggle(v.id)}
                 >
-                  <td className="border-b px-3 py-1.5">
-                    <span className="flex items-center gap-1.5">
+                  <td className="border-b px-3 py-2">
+                    <span className="flex items-center gap-2">
                       <input
                         id={`pick-${v.id}`}
                         type="checkbox"
@@ -152,27 +152,27 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
                         aria-label={`Compare version ${shortId(v)}`}
                       />
                       {on && (
-                        <span className="dark:text-background inline-flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-[11px] font-bold text-white" style={{ background: COLORS[i] }}>
+                        <span className="dark:text-background inline-flex h-4 min-w-4 items-center justify-center rounded px-0.5 text-sm font-bold text-white" style={{ background: COLORS[i] }}>
                           {LETTERS[i]}
                         </span>
                       )}
                     </span>
                   </td>
-                  <td className="border-b px-3 py-1.5 font-mono text-[13px]" title={v.id}>
+                  <td className="border-b px-3 py-2 font-mono text-sm" title={v.id}>
                     {shortId(v)}
                   </td>
-                  <td className="border-b px-3 py-1.5 whitespace-nowrap">
+                  <td className="border-b px-3 py-2 whitespace-nowrap">
                     {v.agent ?? "no agent"}
-                    {v.release != null && <span className="text-muted-foreground ml-1.5 text-xs">release #{v.release}</span>}
+                    {v.release != null && <span className="text-muted-foreground ml-2 text-xs">release #{v.release}</span>}
                   </td>
-                  <td className="border-b px-3 py-1.5">
+                  <td className="border-b px-3 py-2">
                     <SettingsLine v={v} />
                   </td>
-                  <td className="border-b px-3 py-1.5 text-right whitespace-nowrap tabular-nums">
+                  <td className="border-b px-3 py-2 text-right whitespace-nowrap tabular-nums">
                     {v.sessions}
                     {v.checked !== v.sessions && <span className="text-muted-foreground"> ({v.checked} checked)</span>}
                   </td>
-                  <td className="text-muted-foreground border-b px-3 py-1.5 text-xs whitespace-nowrap">{when(v.last_at)}</td>
+                  <td className="text-muted-foreground border-b px-3 py-2 text-xs whitespace-nowrap">{when(v.last_at)}</td>
                 </tr>
                 </Fragment>
               );
@@ -180,7 +180,7 @@ function PickStep({ d, initial, onCompare }: { d: VersionsResponse; initial: str
           </tbody>
         </table>
       </div>
-      <div className="bg-card/95 sticky bottom-0 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2.5 backdrop-blur">
+      <div className="bg-card/95 sticky bottom-0 flex flex-wrap items-center justify-between gap-2 border-t px-4 py-2 backdrop-blur">
         <span className="text-muted-foreground text-xs">
           {picked.length < 2 ? `Pick ${2 - picked.length} more to compare.` : `${picked.length} versions picked.`}
           {picked.length > 0 && (
@@ -205,7 +205,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
   const same = Array.from(new Set(picked.flatMap((v) => Object.keys(v.config)))).filter((k) => !keys.includes(k) && k !== "prompt");
   return (
     <section className="bg-card overflow-x-auto rounded-lg border">
-      <table className="w-full border-collapse text-[13px]">
+      <table className="w-full border-collapse text-sm">
         <thead>
           <tr>
             <th className={cn(th, "w-40")} />
@@ -213,7 +213,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
               <th key={v.id} className={cn(th, "text-foreground")}>
                 <span className="flex items-center gap-2">
                   <VersionBadge v={v} d={d} />
-                  <span className="font-mono text-[12px] font-normal">{shortId(v)}</span>
+                  <span className="font-mono text-sm font-normal">{shortId(v)}</span>
                   {v.id === d.baseline ? (
                     <span className="text-muted-foreground font-normal">baseline</span>
                   ) : (
@@ -233,18 +233,18 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
         <tbody>
           {keys.map((k) => (
             <tr key={k}>
-              <td className="text-muted-foreground border-b px-3 py-1.5 font-medium">{settingName(k)}</td>
+              <td className="text-muted-foreground border-b px-3 py-2 font-medium">{settingName(k)}</td>
               {picked.map((v) => (
-                <td key={v.id} className="border-b px-3 py-1.5 font-mono text-[12px] font-semibold">
+                <td key={v.id} className="border-b px-3 py-2 font-mono text-sm font-semibold">
                   {settingValue(v, k) ?? <span className="text-muted-foreground font-sans font-normal">not reported</span>}
                 </td>
               ))}
             </tr>
           ))}
           <tr>
-            <td className="text-muted-foreground px-3 py-1.5">Calls</td>
+            <td className="text-muted-foreground px-3 py-2">Calls</td>
             {picked.map((v) => (
-              <td key={v.id} className="px-3 py-1.5 tabular-nums">
+              <td key={v.id} className="px-3 py-2 tabular-nums">
                 {v.checked} checked <span className="text-muted-foreground text-xs">of {v.sessions}</span>
               </td>
             ))}
@@ -252,7 +252,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
         </tbody>
       </table>
       {same.length > 0 && (
-        <div className="text-muted-foreground border-t px-3 py-1.5 text-xs">
+        <div className="text-muted-foreground border-t px-3 py-2 text-xs">
           Same on all: {same.map((k) => `${settingName(k)} ${String(picked[0]?.config[k] ?? "")}`).join(" · ")}
         </div>
       )}
@@ -268,8 +268,8 @@ function Chart({ d }: { d: VersionsResponse }) {
     <WidgetCard title="Pass rate by procedure" subtitle="Bars are pass rates; the thin line is the 95% range. Ranges that overlap mean the difference could be chance." flush>
       <div className="grid gap-4 px-4 py-3">
         {d.procedures.map((p: VersionProcedure) => (
-          <div key={p.procedure_id} className="grid gap-1.5">
-            <div className="text-[13px] font-semibold">{p.procedure_name}</div>
+          <div key={p.procedure_id} className="grid gap-2">
+            <div className="text-sm font-semibold">{p.procedure_name}</div>
             {p.cells.map((c: VersionProcedureCell) => {
               const v = by.get(c.version);
               const s = slot(d, c.version);
@@ -288,7 +288,7 @@ function Chart({ d }: { d: VersionsResponse }) {
                       </>
                     )}
                   </div>
-                  <span className="flex items-center gap-1.5 text-[13px] whitespace-nowrap tabular-nums">
+                  <span className="flex items-center gap-2 text-sm whitespace-nowrap tabular-nums">
                     {c.pass_rate == null ? <span className="text-muted-foreground">no results</span> : <b>{fmtPct(c.pass_rate)}</b>}
                     <span className="text-muted-foreground text-xs">of {c.n}</span>
                     {c.flag && c.flag !== "thin" && <FlagTag flag={c.flag} minN={t.min_n} points={t.flag_points} />}
@@ -332,7 +332,7 @@ const STEPS = ["Pick versions", "Compare"] as const;
 
 function Steps({ step, onStep }: { step: 0 | 1; onStep: (s: 0 | 1) => void }) {
   return (
-    <ol className="flex items-center gap-2 text-[13px]">
+    <ol className="flex items-center gap-2 text-sm">
       {STEPS.map((label, i) => (
         <li key={label} className="flex items-center gap-2">
           {i > 0 && <span className="bg-border h-px w-6" />}
@@ -340,9 +340,9 @@ function Steps({ step, onStep }: { step: 0 | 1; onStep: (s: 0 | 1) => void }) {
             type="button"
             disabled={i === 1 && step === 0}
             onClick={() => onStep(i as 0 | 1)}
-            className={cn("flex items-center gap-1.5 rounded-full border px-2.5 py-0.5", i === step ? "border-foreground font-medium" : "text-muted-foreground", i === 1 && step === 0 && "cursor-default")}
+            className={cn("flex items-center gap-2 rounded-full border px-2 py-0.5", i === step ? "border-foreground font-medium" : "text-muted-foreground", i === 1 && step === 0 && "cursor-default")}
           >
-            <span className={cn("inline-flex size-4 items-center justify-center rounded-full text-[11px]", i === step ? "bg-foreground text-background" : "bg-muted")}>
+            <span className={cn("inline-flex size-4 items-center justify-center rounded-full text-sm", i === step ? "bg-foreground text-background" : "bg-muted")}>
               {i < step ? <Check className="size-3" /> : i + 1}
             </span>
             {label}
@@ -406,7 +406,7 @@ function RulesTable({ d, filters }: { d: VersionsResponse; filters: InsightFilte
       emptyMessage="No results for this kind of rule on these versions."
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] border-collapse text-[13.5px]">
+        <table className="w-full min-w-[720px] border-collapse text-sm">
           <thead>
             <tr>
               <th className={th}>Rule</th>
@@ -420,8 +420,8 @@ function RulesTable({ d, filters }: { d: VersionsResponse; filters: InsightFilte
                   <HrefLink href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
                     {ruleName(r.kind, r.index)}
                   </HrefLink>
-                  {d.procedures.length > 1 && <span className="text-muted-foreground ml-1.5 text-xs">{names.get(r.procedure_id) ?? r.procedure_id}</span>}
-                  <div className="text-muted-foreground line-clamp-2 text-[13px]"><RuleText text={r.text} /></div>
+                  {d.procedures.length > 1 && <span className="text-muted-foreground ml-2 text-xs">{names.get(r.procedure_id) ?? r.procedure_id}</span>}
+                  <div className="text-muted-foreground line-clamp-2 text-sm"><RuleText text={r.text} /></div>
                 </td>
                 {r.cells.map((c) => (
                   <td key={c.version} className={td}>
@@ -444,8 +444,8 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
     <section className="bg-card rounded-lg border px-5 py-5">
       <div className="flex items-start gap-3">
         <FlaskConical className="text-primary mt-0.5 size-5 shrink-0" />
-        <div className="grid max-w-[72ch] gap-2.5 text-[13.5px]">
-          <h2 className="text-[15px] font-semibold">{one ? "Only one version so far" : "No versions to compare yet"}</h2>
+        <div className="grid max-w-[72ch] gap-2 text-sm">
+          <h2 className="text-lg font-semibold">{one ? "Only one version so far" : "No versions to compare yet"}</h2>
           <p>
             An A/B test compares calls that ran with different settings, like a different LLM, voice or speech model, or a different release of your instructions. sopops groups calls
             with the same agent, release and settings into a version, and shows how each version follows your procedures.
@@ -479,9 +479,9 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
 /** What a version, the baseline and a better or worse flag mean, folded away until asked for. */
 function HowToRead({ minN, points }: { minN: number; points: number }) {
   return (
-    <details className="text-muted-foreground text-[13px]">
+    <details className="text-muted-foreground text-sm">
       <summary className="hover:text-foreground cursor-pointer select-none">How to read this</summary>
-      <ul className="mt-1.5 grid max-w-[90ch] list-disc gap-1 pl-5">
+      <ul className="mt-2 grid max-w-[90ch] list-disc gap-1 pl-5">
         <li>
           <b className="text-foreground font-medium">Version:</b> calls that ran with the same agent, release and settings, named by a hash of them. Hover a letter for its full id.
         </li>
@@ -580,7 +580,7 @@ export function VersionsView({ filters, onFilters, test, v, onTest, onPick }: { 
                 flush
               >
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
+                  <table className="w-full min-w-[640px] border-collapse text-sm">
                     <thead>
                       <tr>
                         <th className={th}>Procedure</th>

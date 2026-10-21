@@ -18,7 +18,7 @@ export function KindBadge({ kind }: { kind: BlockKind | null }) {
   return (
     <span
       className={cn(
-        "inline-block shrink-0 rounded-[5px] px-1.5 py-px text-xs font-medium capitalize whitespace-nowrap",
+        "inline-block shrink-0 px-1 t-label whitespace-nowrap",
         kind ? BADGE[kind] : "text-err bg-err-soft",
       )}
     >
@@ -40,9 +40,9 @@ export function Tag({ tone, big, children, className }: { tone?: string; big?: b
   return (
     <span
       className={cn(
-        "inline-block rounded-full border px-2 py-px text-xs whitespace-nowrap bg-muted text-muted-foreground",
+        "inline-block max-w-full flex-none truncate align-bottom border px-1 t-label whitespace-nowrap bg-muted text-muted-foreground",
         tone && TAG[tone],
-        big && "px-2.5 py-0.5 text-[13px] font-semibold",
+        big && "px-2 py-1",
         className,
       )}
     >
@@ -59,7 +59,7 @@ export function RuleText({ text }: { text: string | null | undefined }) {
     <>
       {parts.map((part, i) =>
         i % 2 ? (
-          <span key={i} className="bg-muted text-muted-foreground rounded border px-1 font-mono text-[0.9em]" title={`Each agent's own ${part}`}>
+          <span key={i} className="bg-muted text-muted-foreground border px-1" title={`Each agent's own ${part}`}>
             {part}
           </span>
         ) : (
@@ -72,7 +72,7 @@ export function RuleText({ text }: { text: string | null | undefined }) {
 
 export function Counts({ add, del }: { add: number; del: number }) {
   return (
-    <span className="font-mono text-[13px] font-semibold whitespace-nowrap" aria-label={`${add} lines added, ${del} removed`}>
+    <span className="t-label whitespace-nowrap" aria-label={`${add} lines added, ${del} removed`}>
       <span className="text-ok">+{add}</span> <span className="text-err">−{del}</span>
     </span>
   );
@@ -87,7 +87,7 @@ const BANNER = {
 
 export function Banner({ tone = "info", children, className }: { tone?: keyof typeof BANNER; children: ReactNode; className?: string }) {
   return (
-    <div role={tone === "err" ? "alert" : "status"} className={cn("mb-4 rounded-lg border px-3.5 py-2.5 [&_ul]:mt-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold", BANNER[tone], className)}>
+    <div role={tone === "err" ? "alert" : "status"} className={cn("mb-4 border px-4 py-2 [&_ul]:mt-2 [&_ul]:list-disc [&_ul]:pl-5 [&_a]:font-semibold", BANNER[tone], className)}>
       {children}
     </div>
   );
@@ -206,7 +206,7 @@ export function Segmented<T extends string>({
   small?: boolean;
 }) {
   return (
-    <div role="group" aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto rounded-md border border-input bg-card">
+    <div role="group" aria-label={label} className="inline-flex w-fit max-w-full overflow-x-auto border border-input bg-card">
       {options.map(([v, l]) => (
         <button
           key={v}
@@ -214,9 +214,9 @@ export function Segmented<T extends string>({
           aria-pressed={value === v}
           onClick={() => onChange(v)}
           className={cn(
-            "inline-flex items-center gap-1.5 border-r border-border last:border-r-0 cursor-pointer",
-            small ? "px-2.5 py-0.5 text-[13px]" : "px-3 py-1.5",
-            value === v ? "bg-brand-soft font-semibold" : "hover:bg-muted",
+            "inline-flex items-center gap-2 border-r border-input last:border-r-0 cursor-pointer t-label",
+            small ? "h-6 px-2" : "h-10 px-3",
+            value === v ? "bg-foreground text-background" : "text-muted-foreground hover:bg-muted hover:text-foreground",
           )}
         >
           {l}
@@ -228,8 +228,8 @@ export function Segmented<T extends string>({
 
 export function Panel({ title, children, className }: { title?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("mb-4 rounded-xl border bg-card px-4 py-3.5", className)}>
-      {title && <h2 className="mb-2 text-base font-semibold">{title}</h2>}
+    <section className={cn("mb-4 border bg-card px-4 py-4", className)}>
+      {title && <h2 className="t-lead mb-4">{title}</h2>}
       {children}
     </section>
   );
@@ -237,17 +237,17 @@ export function Panel({ title, children, className }: { title?: ReactNode; child
 
 export function PageTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="mb-1 flex flex-wrap items-center gap-2.5">
-      <h1 className="text-[22px] leading-tight font-semibold tracking-tight">{children}</h1>
+    <div className="mb-2 flex flex-wrap items-center gap-4">
+      <h1 className="t-head">{children}</h1>
       {aside}
     </div>
   );
 }
 
 export function Sub({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn("text-muted-foreground mt-1 mb-[18px] max-w-[75ch]", className)}>{children}</p>;
+  return <p className={cn("text-muted-foreground mt-0 mb-6 max-w-[75ch]", className)}>{children}</p>;
 }
 
 export function Note({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("text-muted-foreground text-[13px]", className)}>{children}</span>;
+  return <span className={cn("text-muted-foreground text-sm", className)}>{children}</span>;
 }

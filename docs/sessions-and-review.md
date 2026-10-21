@@ -24,7 +24,7 @@ This runs inside sopops by default. With `HATCHET_CLIENT_TOKEN` it runs on [Hatc
 
 **Patterns.** Each rule with findings is a pattern, named by the reviewer model ("Didn't read the order back") or by the rule's words without one. At 8 findings it splits into named failure modes ("Told the caller a dish is safe") that new findings join. Themes group them by call phase. Names and ids stay stable across reclusters ([how](api/checks-and-review.md#patterns-and-themes)).
 
-**Review.** QA → Patterns → Needs review queues patterns for a verdict (keys `1` to `4`):
+**Review.** Review → Mistakes → Needs review queues patterns for a verdict (keys `1` to `4`):
 
 | Verdict | Means | Then |
 |---|---|---|
@@ -56,7 +56,7 @@ Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, 
 
 **Check modes.** `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand.
 
-**Spend.** Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See QA → Insights → Model spend and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored.
+**Spend.** Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See Results → Insights → Model spend and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored.
 
 **Calibration.** sopops fits decision thresholds per workspace from labeled sessions (verdicts and overrides; checker-wrong labels are negative). Defaults apply until then; `SOPOPS_DECISIONS` overrides them.
 

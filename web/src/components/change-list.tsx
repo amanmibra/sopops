@@ -104,9 +104,9 @@ export function useFieldChanges() {
                   .map((k) => (
                     <tr key={k} className="[&>td]:py-0.5 [&>td]:pr-2 [&>td]:align-top">
                       <td>{k}</td>
-                      <td>{k in va ? <span className="was">{va[k]}</span> : <span className="text-muted-foreground text-[13px]">not set</span>}</td>
+                      <td>{k in va ? <span className="was">{va[k]}</span> : <span className="text-muted-foreground text-sm">not set</span>}</td>
                       <td className="text-muted-foreground">→</td>
-                      <td>{k in vb ? <span className="now">{vb[k]}</span> : <span className="text-muted-foreground text-[13px]">removed</span>}</td>
+                      <td>{k in vb ? <span className="now">{vb[k]}</span> : <span className="text-muted-foreground text-sm">removed</span>}</td>
                     </tr>
                   ))}
               </tbody>
@@ -123,16 +123,16 @@ const BIT = { add: "text-ok", del: "text-err", mod: "text-warn", "": "" };
 
 export function ChangeList({ kind, before, after }: { kind: Kind; before: Record<string, unknown>; after: Record<string, unknown> }) {
   const changes = useFieldChanges()(kind, before, after);
-  if (!changes.length) return <p className="text-muted-foreground text-[13px]">No field changed (the saved text was only reformatted).</p>;
+  if (!changes.length) return <p className="text-muted-foreground text-sm">No field changed (the saved text was only reformatted).</p>;
   return (
     <ul className="grid gap-3">
       {changes.map((c) => (
         <li key={c.label}>
-          <div className="flex flex-wrap items-baseline gap-2.5">
+          <div className="flex flex-wrap items-baseline gap-2">
             <b>{c.label}</b>
             {Array.isArray(c.summary) ? (
               c.summary.map((b, i) => (
-                <span key={i} className={cn("rounded-md bg-muted px-1.5 text-[13px]", BIT[b.c])}>
+                <span key={i} className={cn("rounded-md bg-muted px-2 text-sm", BIT[b.c])}>
                   {b.t}
                 </span>
               ))

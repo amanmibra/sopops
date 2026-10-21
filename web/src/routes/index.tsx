@@ -24,7 +24,7 @@ function TeamHome() {
   if (manager) return <Navigate to="/welcome" search={{ step: "team" }} replace />;
   return (
     <Card title={`${auth.org?.name ?? "Your team"} isn't set up yet`}>
-      <p className="text-muted-foreground text-[13px] leading-relaxed">Ask an owner or admin of your team to finish setting it up, then open sopops again.</p>
+      <p className="text-muted-foreground text-sm leading-relaxed">Ask an owner or admin of your team to finish setting it up, then open sopops again.</p>
     </Card>
   );
 }

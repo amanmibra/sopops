@@ -48,7 +48,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
   const hideNarrow = "hidden md:block";
   const rulePage = (r: LadderRow) => insightsHref(ws, ["insights", "procedures", d.procedure_id, "rules", r.rule_id], filters);
   return (
-    <div className="text-[13.5px]">
+    <div className="text-sm">
       <div className={cn(cols, "text-muted-foreground border-b py-2 text-xs font-medium")}>
         <span />
         <HeaderHint label="Rule" tip="Steps in order, then never rules, then warning signs. S, N and W mark the kind." />
@@ -74,7 +74,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
         const warn = r.kind === "warning";
         const s = split.get(r.rule_id);
         return (
-          <div key={r.rule_id} role="link" tabIndex={0} onClick={() => go(rulePage(r))} onKeyDown={(e) => e.key === "Enter" && go(rulePage(r))} className={cn(cols, "hover:bg-muted/60 cursor-pointer border-b py-2.5 last:border-b-0")}>
+          <div key={r.rule_id} role="link" tabIndex={0} onClick={() => go(rulePage(r))} onKeyDown={(e) => e.key === "Enter" && go(rulePage(r))} className={cn(cols, "hover:bg-muted/60 cursor-pointer border-b py-2 last:border-b-0")}>
             <span className={cn("flex size-7 items-center justify-center rounded-md text-xs font-semibold", r.kind === "step" ? "bg-brand-soft text-primary" : r.kind === "never" ? "bg-err-soft text-err" : "bg-warn-soft text-warn")}>
               {SHORT[r.kind]}
               {r.index}
@@ -82,7 +82,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
             <span className="min-w-0">
               <span className="line-clamp-2"><RuleText text={r.text} /></span>
               <span className="mt-0.5 flex flex-wrap gap-1">
-                {r.most_failed && <span className="bg-err-soft text-err rounded-full px-1.5 text-xs font-medium">Most failed</span>}
+                {r.most_failed && <span className="bg-err-soft text-err rounded-full px-2 text-xs font-medium">Most failed</span>}
                 {r.wordings > 1 && <RewordedTag releasedIn={r.reworded_in} history={r.wording_history} current={r.text} />}
                 {r.patterns > 0 && <span className="text-muted-foreground text-xs">{r.patterns === 1 ? "1 pattern" : `${r.patterns} patterns`}</span>}
               </span>
@@ -110,7 +110,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
               )}
             </span>
             {d.release_split && (
-              <span className={cn(hideNarrow, "text-right text-[13px] whitespace-nowrap tabular-nums")}>
+              <span className={cn(hideNarrow, "text-right text-sm whitespace-nowrap tabular-nums")}>
                 {s ? (
                   <Hint tip={<TipBody head={`Pass rate on #${d.release_split.a}: ${fmtPct(s.a_pass_rate)} of ${s.a_n}; on #${d.release_split.b}: ${fmtPct(s.b_pass_rate)} of ${s.b_n}`}>{s.delta_points == null ? `Too few results to compare (needs ${d.release_split.min_n} on each release).` : `${s.delta_points > 0 ? "+" : ""}${s.delta_points} percentage points.`}</TipBody>} focusable={false}>
                     <span>
@@ -153,9 +153,9 @@ function NeverList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
       <ul className="divide-y">
         {nevers.map((r) => (
           <li key={r.rule_id}>
-            <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: r.rule_id, rule_status: ["violated"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2.5 hover:no-underline", !r.fails && "pointer-events-none")}>
+            <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: r.rule_id, rule_status: ["violated"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2 hover:no-underline", !r.fails && "pointer-events-none")}>
               <Ban className={cn("mt-0.5 size-4 shrink-0", r.fails ? "text-err" : "text-muted-foreground")} />
-              <span className="min-w-0 flex-1 text-[13.5px]"><RuleText text={r.text} /></span>
+              <span className="min-w-0 flex-1 text-sm"><RuleText text={r.text} /></span>
               <span className="text-right tabular-nums">
                 <b className={cn("font-semibold", r.fails ? "text-err" : "text-muted-foreground")}>{r.fails ?? 0}</b>
                 <span className="text-muted-foreground block text-xs">of {r.n}</span>
@@ -183,9 +183,9 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
       <ul className="divide-y">
         {d.warning_impact.map((w: WarningImpact) => (
           <li key={w.rule_id}>
-            <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: w.rule_id, rule_status: ["present", "unheeded"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2.5 hover:no-underline", !w.present_n && "pointer-events-none")}>
+            <HrefLink href={sessionsHref(ws, { procedure: d.procedure_id, rule: w.rule_id, rule_status: ["present", "unheeded"] }, scope)} className={cn("text-foreground hover:bg-muted/60 flex items-start gap-3 px-4 py-2 hover:no-underline", !w.present_n && "pointer-events-none")}>
               <TriangleAlert className={cn("mt-0.5 size-4 shrink-0", w.present_n ? "text-warn" : "text-muted-foreground")} />
-              <span className="min-w-0 flex-1 text-[13.5px]">
+              <span className="min-w-0 flex-1 text-sm">
                 <RuleText text={w.text} />
                 <span className="text-muted-foreground block text-xs">
                   Came up on {w.present_n} of {w.present_n + w.absent_n}
@@ -193,7 +193,7 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
                 </span>
               </span>
               {w.present_n ? (
-                <span className="text-right text-[13px] whitespace-nowrap tabular-nums">
+                <span className="text-right text-sm whitespace-nowrap tabular-nums">
                   <span className="text-muted-foreground">{fmtPct(w.absent_pass_rate)}</span> → <b className={cn("font-semibold", w.flag && "text-err")}>{fmtPct(w.present_pass_rate)}</b>
                   <span className="text-muted-foreground block text-xs">
                     of {w.absent_n} → of {w.present_n}
@@ -219,12 +219,12 @@ function WarningList({ d, scope }: { d: ProcedureInsights; scope: Scope }) {
 function PatternLine({ p, depth, scope, known, split, rule }: { p: PatternOut; depth: number; scope?: Scope; known?: PatternOut; split?: boolean; rule?: RuleRef | null }) {
   const { ws } = useWs();
   return (
-    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-0.5", depth && "pl-5 text-[13px]")}>
+    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-0.5 py-0.5", depth && "pl-5 text-sm")}>
       <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn(depth === 0 && "font-semibold", p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, examples and suggestions">
         {p.name}
       </HrefLink>
       {p.kind === "rule" && <RuleTag rule={rule} className="self-center" />}
-      {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-1.5 text-xs">retired</span>}
+      {p.status === "retired" && <span className="text-muted-foreground rounded-full border px-2 text-xs">retired</span>}
       <HrefLink href={sessionsHref(ws, { pattern: p.pattern_id }, scope)} className="text-muted-foreground text-xs tabular-nums" title="Its sessions">
         {p.sessions} sessions · {p.findings} findings
       </HrefLink>
@@ -246,10 +246,10 @@ export function PatternsByTheme({ themes, scope }: { themes: ThemeOut[]; scope?:
             <h3 className="font-semibold">{t.name}</h3>
             <span className="text-muted-foreground text-xs">{t.sessions} sessions</span>
           </div>
-          {t.description && <p className="text-muted-foreground mb-1 text-[13px]">{t.description}</p>}
+          {t.description && <p className="text-muted-foreground mb-1 text-sm">{t.description}</p>}
           <div className="border-l-2 pl-3">
             {t.patterns.map((p: RulePatternOut) => (
-              <div key={p.pattern_id} className="mb-1.5">
+              <div key={p.pattern_id} className="mb-2">
                 <PatternLine p={p} depth={0} scope={scope} known={index.get(p.pattern_id)} rule={p.rule} split={p.sub_patterns.some((s) => s.kind === "sub")} />
                 {p.rule?.text && (
                   <div className="text-muted-foreground mb-0.5 text-xs"><RuleText text={p.rule.text} /></div>
@@ -296,7 +296,7 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
     <div className="max-w-[1320px] min-w-0">
       <BackBar href={insightsHref(ws, ["insights"], filters)} label="Insights" filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
-        <section className="bg-card flex flex-wrap items-start justify-between gap-4 rounded-lg border px-4 py-3.5">
+        <section className="bg-card flex flex-wrap items-start justify-between gap-4 rounded-lg border px-4 py-4">
           {!d && res.isPending ? (
             <div className="grid w-1/2 gap-2">
               <Skel className="h-5 w-2/3" />
@@ -305,12 +305,12 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
           ) : (
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-2">
-                <h1 className="text-[20px] leading-tight font-semibold tracking-tight">{d?.procedure_name ?? proc?.name ?? id}</h1>
+                <h1 className="text-lg font-semibold">{d?.procedure_name ?? proc?.name ?? id}</h1>
                 <span className="text-muted-foreground text-xs">
                   {[proc?.version != null ? `v${proc.version}` : null, d ? `${d.rules.length} rules` : null, proc?.used_by.length ? `used by ${proc.used_by.length} agents` : null].filter(Boolean).join(" · ")}
                 </span>
               </div>
-              <p className="text-muted-foreground mt-1 text-[13px]">How each rule of this procedure went over {windowPhrase(filters)}, where sessions fail, and the patterns in its findings.</p>
+              <p className="text-muted-foreground mt-1 text-sm">How each rule of this procedure went over {windowPhrase(filters)}, where sessions fail, and the patterns in its findings.</p>
             </div>
           )}
           <Button asChild size="sm" variant="outline">

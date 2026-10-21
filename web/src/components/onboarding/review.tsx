@@ -70,7 +70,7 @@ export function ImportView({ id }: { id: string }) {
       )}
       {(d.status === "applied" || d.pr_state === "merged") && (
         <Panel title="Connect your agents">
-          <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+          <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
             After you publish, each agent needs two things: its instructions from sopops, and a way to send its sessions back for checks. Here's what each
             platform needs.
           </p>
@@ -128,7 +128,7 @@ function OnboardingPullRequest({ imp }: { imp: ImportOut }) {
           {imp.pr_state && <Tag tone={imp.pr_state === "merged" ? "live" : imp.pr_state === "closed" ? "removed" : undefined}>{PR_STATE[imp.pr_state]}</Tag>}
         </div>
         {imp.pr_state === "open" && (
-          <Note className="mt-1.5">
+          <Note className="mt-2">
             It adds <code>{folder}</code> to {imp.repo}. Nothing merges without you: review and merge it on GitHub. When it merges, sopops pulls <code>{folder}</code>{" "}
             into drafts, right away when GitHub tells it, or within a minute.
           </Note>
@@ -149,7 +149,7 @@ function Folded({ imp, live, folded, children }: { imp: ImportOut; live: boolean
   const last = events.data?.at(-1)?.at ?? imp.updated_at;
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+      <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
         <span className="text-muted-foreground">
           {capital(madeBy(imp))} finished at {new Date(last).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
         </span>
@@ -172,7 +172,7 @@ function ProgressLog({ id, live }: { id: string; live: boolean }) {
   return (
     <Panel title="Progress">
       {rows.length ? (
-        <ol className="grid max-h-64 gap-1 overflow-auto text-[13px]" aria-live="polite">
+        <ol className="grid max-h-64 gap-1 overflow-auto text-sm" aria-live="polite">
           {rows.map((e) => (
             <li key={e.id} className="grid grid-cols-[72px_96px_1fr] gap-2">
               <span className="text-muted-foreground tabular-nums">{new Date(e.at).toLocaleTimeString()}</span>
@@ -205,7 +205,7 @@ function CopyBlock({ label, text, rows }: { label: string; text: string; rows?: 
           {done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}
         </Button>
       </div>
-      <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 font-mono text-[12.5px] whitespace-pre-wrap break-all" style={rows ? { maxHeight: `${rows * 1.5}em` } : undefined}>
+      <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 font-mono text-sm whitespace-pre-wrap break-all" style={rows ? { maxHeight: `${rows * 1.5}em` } : undefined}>
         {text}
       </pre>
     </div>
@@ -231,8 +231,8 @@ function EditableCopy({ label, initial, help }: { label: string; initial: string
           {done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}
         </Button>
       </div>
-      {help && <p className="text-muted-foreground mb-1.5 text-[13px]">{help}</p>}
-      <Textarea aria-label={label} className="font-mono text-[12.5px]" value={text} onChange={(e) => setText(e.target.value)} />
+      {help && <p className="text-muted-foreground mb-2 text-sm">{help}</p>}
+      <Textarea aria-label={label} className="font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
     </div>
   );
 }
@@ -274,8 +274,8 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
     >
       {kickoff && token ? (
         <details open={!imp.proposal}>
-          <summary className="text-muted-foreground mb-2 cursor-pointer text-[13px]">{imp.proposal ? "Commands and instructions" : "How to start"}</summary>
-          <p className="mb-3 max-w-[80ch] text-[13px]">
+          <summary className="text-muted-foreground mb-2 cursor-pointer text-sm">{imp.proposal ? "Commands and instructions" : "How to start"}</summary>
+          <p className="mb-3 max-w-[80ch] text-sm">
             In a terminal at the root of your agents' repo, run this. It adds the sopops tools to your coding agent and starts it on the onboarding instructions. The token in it is shown only now.
           </p>
           <div className="mb-3">
@@ -292,7 +292,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
           <CopyBlock label="Run in your agents' repo" text={tool === "claude" ? kickoff.claude_code : kickoff.codex} />
           {tool === "codex" && (
             <details className="mb-3">
-              <summary className="text-muted-foreground cursor-pointer text-[13px]">Or add the server to ~/.codex/config.toml</summary>
+              <summary className="text-muted-foreground cursor-pointer text-sm">Or add the server to ~/.codex/config.toml</summary>
               <CopyBlock label="config.toml" text={kickoff.codex_toml} />
             </details>
           )}
@@ -318,7 +318,7 @@ export function ImportCard({ children }: { children?: ReactNode }) {
   const from = ["Claude Code or Codex in your repo", "pasted or uploaded files", ...plats.shown.filter((p) => p !== "livekit").map(platformName)];
   return (
     <Panel title="Import agents">
-      <p className="mb-3 text-[13px]">
+      <p className="mb-3 text-sm">
         Bring in the instructions your agents run today: from {listNames(from)}. You review the result before it's saved as drafts.
       </p>
       {children}

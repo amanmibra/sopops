@@ -29,7 +29,7 @@ export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined;
   const label = ruleName(rule.kind, rule.index);
   return (
     <Hint focusable={false} tip={<TipBody head={label}>{rule.text ? <RuleText text={rule.text} /> : "The rule's text isn't known yet."}</TipBody>}>
-      <span className={cn("text-muted-foreground rounded border px-1.5 py-px text-xs font-normal whitespace-nowrap", className)}>{label}</span>
+      <span className={cn("text-muted-foreground rounded border px-2 py-px text-xs font-normal whitespace-nowrap", className)}>{label}</span>
     </Hint>
   );
 }
@@ -38,7 +38,7 @@ export function RuleTag({ rule, className }: { rule: RuleRef | null | undefined;
 export function RewordedNote({ reason, className }: { reason: string | null | undefined; className?: string }) {
   if (reason !== "reworded") return null;
   return (
-    <div className={cn("bg-warn-soft text-warn flex items-start gap-2 rounded-md px-2.5 py-1.5 text-[13px]", className)} role="note">
+    <div className={cn("bg-warn-soft text-warn flex items-start gap-2 rounded-md px-2 py-2 text-sm", className)} role="note">
       <PencilLine className="mt-0.5 size-3.5 shrink-0" />
       <span>
         <span className="font-medium">The rule was reworded after this verdict. Check it still applies.</span>{" "}
@@ -145,19 +145,19 @@ export function SuggestionState({ patternId, initial }: { patternId: string; ini
   }, []);
   if (latest?.status === "failed")
     return (
-      <span className="text-err inline-flex items-center gap-1.5 text-[13px]">
+      <span className="text-err inline-flex items-center gap-2 text-sm">
         The fix couldn't be written. <HrefLink href={wsHref(ws, "suggestions", latest.suggestion_id)}>Details</HrefLink>
       </span>
     );
   if (done && latest)
     return (
-      <HrefLink href={wsHref(ws, "suggestions", latest.suggestion_id)} className="inline-flex items-center gap-1.5 text-[13px] font-semibold">
+      <HrefLink href={wsHref(ws, "suggestions", latest.suggestion_id)} className="inline-flex items-center gap-2 text-sm font-semibold">
         <Sparkles className="size-3.5" /> Fix ready: review it
       </HrefLink>
     );
   if (!waiting) return <Note>The fix is taking a while. It will show on the Suggestions page when it's written.</Note>;
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-[13px]" role="status">
+    <span className="text-muted-foreground inline-flex items-center gap-2 text-sm" role="status">
       <Loader2 className="size-3.5 animate-spin" /> Writing the fix…
     </span>
   );

@@ -25,7 +25,7 @@ export function ItemHeader({ kind, id, title, tab }: { kind: Kind; id: string; t
   return (
     <>
       {kind !== "settings" && (
-        <div className="mb-0.5 text-[13px]">
+        <div className="mb-0.5 text-sm">
           <HrefLink href={href(kind)} className="text-muted-foreground">
             {KIND[kind].many}
           </HrefLink>
@@ -62,12 +62,12 @@ export function NewHeader({ kind }: { kind: Kind }) {
   const { href } = useWs();
   return (
     <>
-      <div className="mb-0.5 text-[13px]">
+      <div className="mb-0.5 text-sm">
         <HrefLink href={href(kind)} className="text-muted-foreground">
           {KIND[kind].many}
         </HrefLink>
       </div>
-      <h1 className="mb-5 text-[22px] leading-tight font-semibold tracking-tight">New {KIND[kind].one.toLowerCase()}</h1>
+      <h1 className="mb-5 text-2xl font-semibold">New {KIND[kind].one.toLowerCase()}</h1>
     </>
   );
 }
@@ -87,7 +87,7 @@ export function UsedBy({ kind, uses }: { kind: Kind; uses: Use[] }) {
               <span key={a}>
                 {i ? ", " : ""}
                 <HrefLink href={href("agent", a)}>{a}</HrefLink>
-                {via.length > 0 && <span className="text-muted-foreground text-[13px]"> (through {via.join(", ")})</span>}
+                {via.length > 0 && <span className="text-muted-foreground text-sm"> (through {via.join(", ")})</span>}
               </span>
             );
           })}

@@ -22,9 +22,9 @@ const DOT: Record<BlockKind, string> = { instruction: "bg-k-instruction", proced
 
 function Chip({ kind, children, aside }: { kind: BlockKind; children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className={cn("flex min-w-0 items-baseline gap-2 rounded-md border px-2.5 py-1 font-mono text-[12.5px]", CHIP[kind])}>
+    <div className={cn("flex min-w-0 items-baseline gap-2 rounded-md border px-2 py-1 font-mono text-sm", CHIP[kind])}>
       <span className="min-w-0 truncate">{children}</span>
-      {aside && <span className="ml-auto shrink-0 font-sans text-[11px] opacity-80">{aside}</span>}
+      {aside && <span className="ml-auto shrink-0 font-sans text-sm opacity-80">{aside}</span>}
     </div>
   );
 }
@@ -32,8 +32,8 @@ function Chip({ kind, children, aside }: { kind: BlockKind; children: ReactNode;
 function Column({ title, text, children }: { title: string; text: ReactNode; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase">{title}</div>
-      <p className="text-muted-foreground mb-2.5 text-[13px] leading-snug">{text}</p>
+      <div className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">{title}</div>
+      <p className="text-muted-foreground mb-2 text-sm">{text}</p>
       {children}
     </div>
   );
@@ -50,13 +50,13 @@ function Arrow() {
 
 function KindSection({ kind, title, help, count, children }: { kind: BlockKind; title: string; help?: ReactNode; count?: number; children: ReactNode }) {
   return (
-    <div className="grid gap-1.5">
-      <div className="flex items-center gap-1.5 text-[13px] font-semibold">
-        <span className={cn("size-2 rounded-[3px]", DOT[kind])} />
+    <div className="grid gap-2">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <span className={cn("size-2 rounded-none", DOT[kind])} />
         {title}
         {count !== undefined && <span className="text-muted-foreground font-normal">({count})</span>}
       </div>
-      {help && <p className="text-muted-foreground -mt-1 text-[12.5px] leading-snug">{help}</p>}
+      {help && <p className="text-muted-foreground -mt-1 text-sm">{help}</p>}
       {children}
     </div>
   );
@@ -65,7 +65,7 @@ function KindSection({ kind, title, help, count, children }: { kind: BlockKind; 
 const MAX_BLOCKS = 6;
 
 function More({ n, what }: { n: number; what: string }) {
-  return n > 0 ? <div className="text-muted-foreground pl-1 text-[12px]">and {n} more {what}</div> : null;
+  return n > 0 ? <div className="text-muted-foreground pl-1 text-sm">and {n} more {what}</div> : null;
 }
 
 /**
@@ -124,9 +124,9 @@ export function BlocksDiagram({
             {(help || blocks.groups.length > 0) && (
               <KindSection kind="group" title="Groups" count={count(blocks.groups.length)} help={help && "Blocks that always go together, so you add them as one."}>
                 {blocks.groups.slice(0, MAX_BLOCKS).map((g) => (
-                  <div key={g.id} className={cn("rounded-md border px-2.5 py-1", CHIP.group)}>
-                    <div className="truncate font-mono text-[12.5px]">{g.id}</div>
-                    <div className="text-[12px] opacity-80">{g.members.join(", then ")}</div>
+                  <div key={g.id} className={cn("rounded-md border px-2 py-1", CHIP.group)}>
+                    <div className="truncate font-mono text-sm">{g.id}</div>
+                    <div className="text-sm opacity-80">{g.members.join(", then ")}</div>
                   </div>
                 ))}
                 <More n={blocks.groups.length - MAX_BLOCKS} what="groups" />
@@ -138,23 +138,23 @@ export function BlocksDiagram({
         <Column title="Agents" text="Each agent lists the blocks it uses, in order, after a few lines about itself.">
           <div className="bg-card grid gap-4 rounded-lg border px-3 py-3">
             {agents.map((a) => (
-              <div key={a.id} className="grid gap-1.5">
+              <div key={a.id} className="grid gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   {onAgent ? (
-                    <button type="button" className="text-primary cursor-pointer font-mono text-[13px] font-semibold hover:underline" onClick={() => onAgent(a.id)}>
+                    <button type="button" className="text-primary cursor-pointer font-mono text-sm font-semibold hover:underline" onClick={() => onAgent(a.id)}>
                       {a.id}
                     </button>
                   ) : (
-                    <span className="font-mono text-[13px] font-semibold">{a.id}</span>
+                    <span className="font-mono text-sm font-semibold">{a.id}</span>
                   )}
                   <span className="flex-1" />
-                  {a.platform && <PlatformLabel platform={a.platform} size={12} className="text-muted-foreground text-[12px]" />}
+                  {a.platform && <PlatformLabel platform={a.platform} size={12} className="text-muted-foreground text-sm" />}
                 </div>
-                {a.context && <div className="bg-muted line-clamp-2 rounded-md px-2.5 py-1 text-[12.5px] leading-snug">{a.context}</div>}
+                {a.context && <div className="bg-muted line-clamp-2 rounded-md px-2 py-1 text-sm">{a.context}</div>}
                 <ol className="grid gap-1">
                   {a.blocks.map((b, i) => (
-                    <li key={`${b.id}:${i}`} className="grid grid-cols-[14px_minmax(0,1fr)] items-center gap-1.5">
-                      <span className="text-muted-foreground text-right text-[11px] tabular-nums">{i + 1}</span>
+                    <li key={`${b.id}:${i}`} className="grid grid-cols-[14px_minmax(0,1fr)] items-center gap-2">
+                      <span className="text-muted-foreground text-right text-sm tabular-nums">{i + 1}</span>
                       <Chip kind={b.kind} aside={b.kind === "group" ? "group" : undefined}>
                         {b.id}
                       </Chip>
@@ -168,9 +168,9 @@ export function BlocksDiagram({
         </Column>
         <Arrow />
         <Column title="Full instructions" text="sopops joins the blocks into one set of instructions per agent, and your platform gets them.">
-          <div className="grid gap-2.5">
+          <div className="grid gap-2">
             {prompts.map((p) => (
-              <div key={p.agent} className="bg-muted min-w-0 rounded-lg px-3 py-2.5 font-mono text-[12px] leading-relaxed">
+              <div key={p.agent} className="bg-muted min-w-0 rounded-lg px-3 py-2 font-mono text-sm leading-relaxed">
                 <div className="text-primary mb-1 truncate font-semibold">{p.agent}</div>
                 {p.lines.map((l, i) => (
                   <div key={i} className={cn("truncate", l.startsWith("#") ? "text-k-procedure" : "text-muted-foreground")}>
@@ -180,9 +180,9 @@ export function BlocksDiagram({
               </div>
             ))}
             {help && (
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {plats.shown.map((p) => (
-                    <span key={p} className="bg-card rounded-full border px-2 py-0.5 text-[12px]">
+                    <span key={p} className="bg-card rounded-full border px-2 py-0.5 text-sm">
                       <PlatformLabel platform={p} size={12} />
                     </span>
                   ))}
@@ -191,7 +191,7 @@ export function BlocksDiagram({
           </div>
         </Column>
       </div>
-      {footer && <div className="mt-3 text-[13px]">{footer}</div>}
+      {footer && <div className="mt-3 text-sm">{footer}</div>}
     </div>
   );
 }

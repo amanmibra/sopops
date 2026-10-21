@@ -90,7 +90,7 @@ function DeliveryPanel() {
         </span>
       }
     >
-      <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
+      <div className="text-muted-foreground mb-4 grid max-w-prose gap-2 text-sm leading-relaxed">
         <p>Pick how each agent gets its instructions.</p>
         <ul className="grid list-disc gap-1 pl-5">
           <li>
@@ -111,13 +111,13 @@ function DeliveryPanel() {
             <tbody>
               {rows.data.map((d) => (
                 <tr key={d.agent}>
-                  <td className="border-b px-2.5 py-2">
+                  <td className="border-b px-2 py-2">
                     <b>{d.agent}</b>
                   </td>
-                  <td className="text-muted-foreground border-b px-2.5 py-2 text-[13px]">
+                  <td className="text-muted-foreground border-b px-2 py-2 text-sm">
                     <PlatformLabel platform={d.platform} />: {d.platform_id}
                   </td>
-                  <td className="border-b px-2.5 py-2 text-right">
+                  <td className="border-b px-2 py-2 text-right">
                     {d.modes.length > 1 ? (
                       <Select value={d.mode} onValueChange={(v) => set(d.agent, v as Mode)}>
                         <SelectTrigger size="sm" className="ml-auto min-w-44" aria-label={`Delivery for ${d.agent}`}>
@@ -132,7 +132,7 @@ function DeliveryPanel() {
                         </SelectContent>
                       </Select>
                     ) : (
-                      <span className="text-muted-foreground text-[13px]">{MODE[d.mode]}</span>
+                      <span className="text-muted-foreground text-sm">{MODE[d.mode]}</span>
                     )}
                   </td>
                 </tr>
@@ -163,7 +163,7 @@ function PlatformsPanel() {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-2 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-2 max-w-prose text-sm leading-relaxed">
         API keys and webhook secrets for each platform. They're stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       {creds.isError && <ErrorBanner error={creds.error} />}
@@ -227,14 +227,14 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
         <PlatformIcon platform={creds.platform} size={16} /> {name}
       </h3>
       <div className="grid gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="grid w-48 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="grid w-48 text-sm">
             API key <span className="text-muted-foreground text-xs">Pushes instructions on publish</span>
           </span>
           {creds.api_key.set ? (
             <>
-              <code className="text-[13px]">{creds.api_key.hint}</code>
-              <span className="text-muted-foreground text-[13px]">saved {creds.api_key.created_at ? when(creds.api_key.created_at) : ""}</span>
+              <code className="text-sm">{creds.api_key.hint}</code>
+              <span className="text-muted-foreground text-sm">saved {creds.api_key.created_at ? when(creds.api_key.created_at) : ""}</span>
               <span className="flex-1" />
               <Button size="sm" variant="outline" disabled={busy} onClick={test}>
                 Test
@@ -266,13 +266,13 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
             </form>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="grid w-48 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="grid w-48 text-sm">
             Webhook secret <span className="text-muted-foreground text-xs">Fetches instructions at call start</span>
           </span>
           {creds.webhook_secret.set ? (
             <>
-              <code className="text-[13px]">{creds.webhook_secret.hint}</code>
+              <code className="text-sm">{creds.webhook_secret.hint}</code>
               <span className="flex-1" />
               <ConfirmButton size="sm" variant="outline" disabled={busy} confirm="Click again: the old secret stops working" onConfirm={() => save("webhook-secret", null)}>
                 Replace
@@ -290,18 +290,18 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
         {shown && (
           <Banner tone="ok">
             <b>Copy this secret now. It isn't shown again.</b>
-            <div className="bg-card mt-2 flex items-center gap-2 rounded-md border px-2.5 py-1.5">
-              <code className="flex-1 font-mono text-[13px] break-all">{shown}</code>
+            <div className="bg-card mt-2 flex items-center gap-2 rounded-md border px-2 py-2">
+              <code className="flex-1 font-mono text-sm break-all">{shown}</code>
               <Button size="icon-sm" variant="ghost" aria-label="Copy secret" onClick={() => copy(shown)}>
                 <Copy />
               </Button>
             </div>
           </Banner>
         )}
-        <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+        <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2 text-sm">
           <div className="font-medium">Call-start webhook</div>
-          <div className="bg-card flex items-center gap-2 rounded-md border px-2.5 py-1">
-            <code className="flex-1 font-mono text-[12px] break-all">{hook}</code>
+          <div className="bg-card flex items-center gap-2 rounded-md border px-2 py-1">
+            <code className="flex-1 font-mono text-sm break-all">{hook}</code>
             <Button size="icon-sm" variant="ghost" aria-label="Copy webhook address" onClick={() => copy(hook)}>
               <Copy />
             </Button>
@@ -372,22 +372,22 @@ export function PushResultsPanel({ number, live }: { number: number; live: boole
         <tbody>
           {pushes.data.map((p) => (
             <tr key={p.agent}>
-              <td className="border-b px-2.5 py-2 align-top">
+              <td className="border-b px-2 py-2 align-top">
                 <b>{p.agent}</b>
               </td>
-              <td className="text-muted-foreground border-b px-2.5 py-2 align-top text-[13px]">
+              <td className="text-muted-foreground border-b px-2 py-2 align-top text-sm">
                 <PlatformLabel platform={p.platform} />: {p.platform_id}
               </td>
-              <td className="border-b px-2.5 py-2 align-top">
+              <td className="border-b px-2 py-2 align-top">
                 <Tag className={STATUS[p.status].className}>{STATUS[p.status].label}</Tag>
-                {p.error && <div className="text-err mt-1 text-[13px]">{p.error}</div>}
+                {p.error && <div className="text-err mt-1 text-sm">{p.error}</div>}
               </td>
-              <td className="text-muted-foreground border-b px-2.5 py-2 align-top text-[13px]">
+              <td className="text-muted-foreground border-b px-2 py-2 align-top text-sm">
                 {p.version_id && <div>version {p.version_id}</div>}
                 {when(p.at)}
                 {p.attempts > 1 ? `, attempt ${p.attempts}` : ""}
               </td>
-              <td className="border-b px-2.5 py-2 text-right align-top">
+              <td className="border-b px-2 py-2 text-right align-top">
                 {live && (
                   <Button size="sm" variant="ghost" disabled={busy} onClick={() => retry([p.agent])}>
                     Push again

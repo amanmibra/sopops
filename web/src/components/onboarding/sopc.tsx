@@ -62,7 +62,7 @@ export function SopcSource() {
   return (
     <div className="grid gap-4">
       <Panel title="Your sopc project" className="mb-0">
-        <p className="text-muted-foreground mb-3 text-[13px]">
+        <p className="text-muted-foreground mb-3 text-sm">
           Already keep your instructions as a sopc project, or exported one from wherever your agents' instructions live? Bring it in as it is: sopops checks it with sopc, and next you can add each
           agent's original instructions to check nothing was lost. Applying saves exactly these files as drafts. Nothing is published.
         </p>
@@ -87,7 +87,7 @@ export function SopcSource() {
           )}
         </div>
         {files && (
-          <div className="mt-3 text-[13px]">
+          <div className="mt-3 text-sm">
             {"sopc.yaml" in files ? (
               <Note>
                 {plural(paths.length, "file", "files")}: {paths.slice(0, 6).join(", ")}
@@ -165,7 +165,7 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
           {counts.map(([label, n, tip]) => (
             <Hint key={label} focusable={false} tip={tip}>
               <span className="grid">
-                <span className="text-[20px] leading-tight font-semibold tabular-nums">{n}</span>
+                <span className="text-lg font-semibold tabular-nums">{n}</span>
                 <span className="text-muted-foreground text-xs">{label}</span>
               </span>
             </Hint>
@@ -186,12 +186,12 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
         </Banner>
       )}
       <Panel title="Fidelity">
-        <p className="text-muted-foreground mb-3 text-[13px]">
+        <p className="text-muted-foreground mb-3 text-sm">
           Add the instructions each agent runs today, and sopops compares them with what the project compiles to: the share of its sentences kept, whether every rule appears word for word, how
           similar the two texts are, and the lines that are missing.
         </p>
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-[13px]">
+          <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground text-left text-xs">
               <tr>
                 <th className="px-3 py-2 font-medium">Agent</th>
@@ -236,7 +236,7 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
             <DialogTitle>{editing}: the original instructions</DialogTitle>
             <DialogDescription>Paste the full instructions this agent runs today, exactly as its model gets them. Leave it empty to remove it.</DialogDescription>
           </DialogHeader>
-          <Textarea aria-label="Original instructions" className="max-h-[50vh] min-h-56 font-mono text-[13px]" value={text} onChange={(e) => setText(e.target.value)} />
+          <Textarea aria-label="Original instructions" className="max-h-[50vh] min-h-56 font-mono text-sm" value={text} onChange={(e) => setText(e.target.value)} />
           <DialogFooter>
             <Button variant="outline" disabled={!!busy} onClick={() => setEditing(null)}>
               Cancel
@@ -262,8 +262,8 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
   return (
     <>
       <tr>
-        <td className="px-3 py-1.5 font-medium">{agent}</td>
-        <td className={cn("px-3 py-1.5 text-right tabular-nums", f && (f.ok ? "text-ok" : "text-err"))}>
+        <td className="px-3 py-2 font-medium">{agent}</td>
+        <td className={cn("px-3 py-2 text-right tabular-nums", f && (f.ok ? "text-ok" : "text-err"))}>
           {f ? (
             <Hint focusable={false} tip={<TipBody head={`${pct(f.score)} of the original kept`}>{f.sentences} sentences in the original; a reworded one counts as kept.</TipBody>}>
               <span>{pct(f.score)}</span>
@@ -272,7 +272,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
             dash
           )}
         </td>
-        <td className={cn("px-3 py-1.5 text-right tabular-nums", f && verbatim < rules && "text-warn")}>
+        <td className={cn("px-3 py-2 text-right tabular-nums", f && verbatim < rules && "text-warn")}>
           {f ? (
             <Hint focusable={false} tip={<TipBody head={`${verbatim} of ${rules} rules word for word`}>Steps, never rules and warning signs the full instructions state, found in the original exactly (spacing and case aside).</TipBody>}>
               <span>
@@ -283,7 +283,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
             dash
           )}
         </td>
-        <td className="px-3 py-1.5 text-right tabular-nums">
+        <td className="px-3 py-2 text-right tabular-nums">
           {f ? (
             <Hint focusable={false} tip={<TipBody head={`${pct(f.similarity)} similar`}>How alike the two whole texts are, word by word. Lower when text moved, even if nothing was lost.</TipBody>}>
               <span>{pct(f.similarity)}</span>
@@ -292,7 +292,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
             dash
           )}
         </td>
-        <td className="px-3 py-1.5 text-right tabular-nums">
+        <td className="px-3 py-2 text-right tabular-nums">
           {f ? (
             <Hint focusable={false} tip={<TipBody head={plural(missing.length, "line missing", "lines missing")}>Sentences of the original the full instructions don't have{changed.length ? `; ${changed.length} more changed` : ""}.</TipBody>}>
               <span>{missing.length}</span>
@@ -301,7 +301,7 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
             dash
           )}
         </td>
-        <td className="px-3 py-1.5 text-right whitespace-nowrap">
+        <td className="px-3 py-2 text-right whitespace-nowrap">
           {missing.length + changed.length + loose.length > 0 && (
             <Button size="xs" variant="ghost" onClick={() => setOpen(!open)}>
               {open ? "Hide" : "Show"}

@@ -21,6 +21,22 @@ import { Button } from "./ui/button";
 
 // --- lists ---------------------------------------------------------------------------
 
+/** The Agents page's two views, List (/agents) and Map (/overview, which agent uses which block), and its actions. */
+function AgentsActions({ view }: { view: "list" | "map" }) {
+  const { ws, href } = useWs();
+  const go = useGo();
+  return (
+    <>
+      <span className="flex-1" />
+      <Segmented label="Agents view" value={view} options={[["list", "List"], ["map", "Map"]]} onChange={(v) => go(v === "map" ? wsHref(ws, "overview") : href("agent"))} />
+      <Button variant="outline" onClick={() => go(wsHref(ws, "import"))}>
+        Add agents
+      </Button>
+      <Button onClick={() => go(href("agent", "new"))}>New agent</Button>
+    </>
+  );
+}
+
 const INTRO: Record<ListKind, string> = {
   agent: "One per voice agent. An agent's full instructions are its own text, then the blocks it lists, in that order.",
   instruction: "Text several agents get, such as identity, voice and policies. Edit it once and every agent that lists it changes.",
@@ -59,10 +75,14 @@ export function ListView({ kind }: { kind: ListKind }) {
     <Page>
       <PageTitle
         aside={
-          <>
-            <span className="flex-1" />
-            <Button onClick={() => go(href(kind, "new"))}>New {KIND[kind].one.toLowerCase()}</Button>
-          </>
+          kind === "agent" ? (
+            <AgentsActions view="list" />
+          ) : (
+            <>
+              <span className="flex-1" />
+              <Button onClick={() => go(href(kind, "new"))}>New {KIND[kind].one.toLowerCase()}</Button>
+            </>
+          )
         }
       >
         {KIND[kind].many}
@@ -73,7 +93,7 @@ export function ListView({ kind }: { kind: ListKind }) {
           <thead>
             <tr>
               {cols[kind].map(([h]) => (
-                <th key={h} className="text-muted-foreground border-b px-2.5 py-2 text-left text-[13px] font-semibold">
+                <th key={h} className="text-muted-foreground border-b px-2 py-2 text-left text-sm font-semibold">
                   {h}
                 </th>
               ))}
@@ -86,11 +106,11 @@ export function ListView({ kind }: { kind: ListKind }) {
               return (
                 <tr key={it.id} className="cursor-pointer hover:bg-muted" onClick={() => go(href(kind, it.id))}>
                   {cols[kind].map(([h, fn]) => (
-                    <td key={h} className="border-b px-2.5 py-2 align-top">
+                    <td key={h} className="border-b px-2 py-2 align-top">
                       {fn(it)}
                     </td>
                   ))}
-                  <td className="border-b px-2.5 py-2 text-right">{c && <Tag tone={c.change}>{c.change}</Tag>}</td>
+                  <td className="border-b px-2 py-2 text-right">{c && <Tag tone={c.change}>{c.change}</Tag>}</td>
                 </tr>
               );
             })}
@@ -153,13 +173,13 @@ export function OverviewView() {
   };
   return (
     <Page wide>
-      <PageTitle>Overview</PageTitle>
+      <PageTitle aside={<AgentsActions view="map" />}>Agents</PageTitle>
       <Sub>Which agents use which blocks. Click a cell to add a block to an agent (it goes at the end of the agent's list) or take it out. Each click saves a draft.</Sub>
-      <dl className="mb-5 grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
+      <dl className="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         {TERMS.map(([term, text]) => (
-          <div key={term} className="bg-card rounded-lg border px-3.5 py-2.5">
-            <dt className="text-[13px] font-semibold">{term}</dt>
-            <dd className="text-muted-foreground mt-0.5 text-[12.5px] leading-snug">{text}</dd>
+          <div key={term} className="bg-card rounded-lg border px-4 py-2">
+            <dt className="text-sm font-semibold">{term}</dt>
+            <dd className="text-muted-foreground mt-0.5 text-sm">{text}</dd>
           </div>
         ))}
       </dl>
@@ -194,7 +214,7 @@ export function OverviewView() {
                   >
                     {direct ? "✓" : via ? (
                       <span>
-                        ✓<small className="ml-1 text-[11px] font-medium">{via}</small>
+                        ✓<small className="ml-1 text-sm font-medium">{via}</small>
                       </span>
                     ) : (
                       <span className="text-muted-foreground invisible group-hover:visible">+</span>
@@ -217,7 +237,7 @@ export function OverviewView() {
 function Parts({ components }: { components: Component[] }) {
   const { href, model } = useWs();
   return (
-    <div className="flex flex-wrap gap-1.5" aria-label="Built from">
+    <div className="flex flex-wrap gap-2" aria-label="Built from">
       {components.map((c, i) => {
         const kind = kindOfComponent(c.kind);
         return (
@@ -238,14 +258,14 @@ function Parts({ components }: { components: Component[] }) {
 function PromptBox({ title, aside, components, prompt, empty }: { title: string; aside?: ReactNode; components?: Component[]; prompt: string | null; empty?: string }) {
   return (
     <section className="bg-card min-w-0 overflow-hidden rounded-xl border">
-      <header className="flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5">
+      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
         <b className="mr-auto">{title}</b>
         {aside}
       </header>
       {prompt !== null ? (
         <>
           {components && (
-            <div className="bg-muted border-b px-3.5 py-2.5">
+            <div className="bg-muted border-b px-4 py-2">
               <Parts components={components} />
             </div>
           )}
@@ -303,7 +323,7 @@ export function PromptView({ id }: { id: string }) {
   return (
     <Page wide>
       {head}
-      <div className="mb-3.5 flex flex-wrap items-center gap-2.5">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Sub className="m-0">{sub}</Sub>
         <span className="flex-1" />
         {status !== "unchanged" && <Counts {...textCount(livePrompt, draftPrompt)} />}
@@ -319,7 +339,7 @@ export function PromptView({ id }: { id: string }) {
       </div>
       {showing === "changes" ? (
         <div>
-          <div className="mb-2 grid gap-1.5">
+          <div className="mb-2 grid gap-2">
             {live && (
               <div className="flex flex-wrap items-center gap-2">
                 <Note>Live, release #{live.release}:</Note>
@@ -349,12 +369,12 @@ export function PromptView({ id }: { id: string }) {
 
 export function Collapsible({ open: initial, summary, children }: { open: boolean; summary: ReactNode; children: ReactNode }) {
   return (
-    <details open={initial} className="group bg-card mb-2.5 rounded-xl border">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2.5 px-3.5 py-2.5 [&::-webkit-details-marker]:hidden">
+    <details open={initial} className="group bg-card mb-2 rounded-xl border">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 px-4 py-2 [&::-webkit-details-marker]:hidden">
         <span className="text-muted-foreground transition-transform group-open:rotate-90">▸</span>
         {summary}
       </summary>
-      <div className="px-3.5 pb-3.5">{children}</div>
+      <div className="px-4 pb-3.5">{children}</div>
     </details>
   );
 }
@@ -370,7 +390,7 @@ export function ChangedItem({ i, open = true }: { i: DraftItem; open?: boolean }
     body = (
       <>
         <Note>The released version can't be read field by field, so here is the draft.</Note>
-        <pre className="plain mt-1.5">{model.readable(i.kind, i.after).join("\n")}</pre>
+        <pre className="plain mt-2">{model.readable(i.kind, i.after).join("\n")}</pre>
       </>
     );
   else if (i.change === "added" && i.after) body = <pre className="plain add">{model.readable(i.kind, i.after).join("\n")}</pre>;
@@ -388,7 +408,7 @@ export function ChangedItem({ i, open = true }: { i: DraftItem; open?: boolean }
           {n > 0 && <Note>{plural(n, "field", "fields")}</Note>}
           <span className="flex-1" />
           {i.change !== "deleted" && (
-            <HrefLink href={href(i.kind, i.id)} className="text-[13px]" onClick={(e) => e.stopPropagation()}>
+            <HrefLink href={href(i.kind, i.id)} className="text-sm" onClick={(e) => e.stopPropagation()}>
               Open
             </HrefLink>
           )}
@@ -413,7 +433,7 @@ export function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
           <Counts {...textCount(a.released_prompt, a.prompt)} />
           <span className="flex-1" />
           {a.status !== "removed" && (
-            <HrefLink href={href("agent", a.agent, "prompt")} className="text-[13px]" onClick={(e) => e.stopPropagation()}>
+            <HrefLink href={href("agent", a.agent, "prompt")} className="text-sm" onClick={(e) => e.stopPropagation()}>
               Full instructions
             </HrefLink>
           )}
@@ -452,7 +472,7 @@ export function ChangesView() {
       )}
       <UnsavedBanner lead="Open with edits that aren't saved as drafts (not listed here, and not published):" />
       {d.items.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2.5 pb-1.5">
+        <div className="flex flex-wrap items-center gap-2 pb-2">
           <Button disabled={errors.length > 0} onClick={() => setPublishing(true)}>
             Publish…
           </Button>
@@ -460,11 +480,11 @@ export function ChangesView() {
         </div>
       )}
       <PublishDialog open={publishing} onOpenChange={setPublishing} />
-      <h2 className="mt-6 mb-2.5 text-base font-semibold">{d.items.length ? "What was edited" : "Nothing to publish"}</h2>
+      <h2 className="mt-6 mb-2 text-base font-semibold">{d.items.length ? "What was edited" : "Nothing to publish"}</h2>
       {d.items.length ? d.items.map((i) => <ChangedItem key={`${i.kind}:${i.id}`} i={i} />) : <Note>Edits you save show up here, with what changed in each field and in each agent's instructions.</Note>}
       {d.items.length > 0 && (
         <>
-          <h2 className="mt-6 mb-2.5 text-base font-semibold">
+          <h2 className="mt-6 mb-2 text-base font-semibold">
             {changed.length ? `How ${changed.length === 1 ? "the agent's instructions change" : "agents' instructions change"}` : "No agent's instructions change"}
           </h2>
           {changed.length ? changed.map((a, i) => <ChangedAgent key={a.agent} a={a} open={i < 3} />) : <Note>The saved edits don't change what any agent is told.</Note>}
@@ -500,7 +520,7 @@ export function ReleasesView() {
           <thead>
             <tr>
               {["Release", "Note", "Published", ""].map((h) => (
-                <th key={h} className="text-muted-foreground border-b px-2.5 py-2 text-left text-[13px] font-semibold">
+                <th key={h} className="text-muted-foreground border-b px-2 py-2 text-left text-sm font-semibold">
                   {h}
                 </th>
               ))}
@@ -509,15 +529,15 @@ export function ReleasesView() {
           <tbody>
             {releases.map((r) => (
               <tr key={r.number} className="cursor-pointer hover:bg-muted" onClick={() => go(wsHref(ws, "releases", r.number))}>
-                <td className="border-b px-2.5 py-2">
+                <td className="border-b px-2 py-2">
                   <b>#{r.number}</b>
                 </td>
-                <td className="border-b px-2.5 py-2">{r.note || <span className="text-muted-foreground">No note</span>}</td>
-                <td className="text-muted-foreground border-b px-2.5 py-2 text-[13px]">
+                <td className="border-b px-2 py-2">{r.note || <span className="text-muted-foreground">No note</span>}</td>
+                <td className="text-muted-foreground border-b px-2 py-2 text-sm">
                   {when(r.created_at)}
                   {r.author ? `, ${r.author}` : ""}
                 </td>
-                <td className="border-b px-2.5 py-2 text-right">{r.current && <Tag tone="live">live</Tag>}</td>
+                <td className="border-b px-2 py-2 text-right">{r.current && <Tag tone="live">live</Tag>}</td>
               </tr>
             ))}
           </tbody>
@@ -555,7 +575,7 @@ export function ReleaseView({ number }: { number: number }) {
   };
   return (
     <Page>
-      <div className="mb-0.5 text-[13px]">
+      <div className="mb-0.5 text-sm">
         <HrefLink href={wsHref(ws, "releases")} className="text-muted-foreground">
           Releases
         </HrefLink>
@@ -578,11 +598,11 @@ export function ReleaseView({ number }: { number: number }) {
           <tbody>
             {Object.entries(r.agents).map(([id, a]) => (
               <tr key={id}>
-                <td className="border-b px-2.5 py-2">
+                <td className="border-b px-2 py-2">
                   <b>{id}</b>
                 </td>
-                <td className="text-muted-foreground border-b px-2.5 py-2">{a.platform_ref}</td>
-                <td className="border-b px-2.5 py-2">
+                <td className="text-muted-foreground border-b px-2 py-2">{a.platform_ref}</td>
+                <td className="border-b px-2 py-2">
                   <Note>hash {a.hash.slice(0, 10)}</Note>
                 </td>
               </tr>
@@ -603,8 +623,8 @@ export function ReleaseView({ number }: { number: number }) {
               ] as [string, Kind][]
             ).map(([label, kind]) => (
               <tr key={kind}>
-                <td className="text-muted-foreground w-[180px] border-b px-2.5 py-2 align-top">{label}</td>
-                <td className="border-b px-2.5 py-2">{group(kind)}</td>
+                <td className="text-muted-foreground w-[180px] border-b px-2 py-2 align-top">{label}</td>
+                <td className="border-b px-2 py-2">{group(kind)}</td>
               </tr>
             ))}
           </tbody>
@@ -653,10 +673,10 @@ export function ConvertView() {
         </>
       ) : (
         <>
-          <h2 className="mt-6 mb-2.5 text-base font-semibold">What changes</h2>
+          <h2 className="mt-6 mb-2 text-base font-semibold">What changes</h2>
           <pre className="plain">{plan.data.plan}</pre>
           {error != null && <ErrorBanner error={error} lead="It can't be converted:" />}
-          <div className="mt-6 flex flex-wrap items-center gap-2.5 border-t py-3">
+          <div className="mt-6 flex flex-wrap items-center gap-2 border-t py-3">
             <ConfirmButton confirm="Click again to convert" onConfirm={convert}>
               Convert
             </ConfirmButton>
@@ -675,7 +695,7 @@ export function EmptyWorkspace() {
   const go = useGo();
   return (
     <div className="max-w-[60ch] py-10">
-      <h1 className="mb-2 text-[22px] font-semibold tracking-tight">Your team has no agents yet</h1>
+      <h1 className="mb-2 text-2xl font-semibold">Your team has no agents yet</h1>
       <p className="mb-4">
         Already have agents running? Import them: sopops splits each agent's instructions into shared instructions and procedures and shows where they differ. Or write the text several
         agents share as shared instructions, and each procedure they follow. Then build each agent (one per location or phone line) from those

@@ -71,7 +71,7 @@ export function TokensPanel() {
         </span>
       }
     >
-      <div className="text-muted-foreground mb-4 grid max-w-prose gap-1.5 text-[13px] leading-relaxed">
+      <div className="text-muted-foreground mb-4 grid max-w-prose gap-2 text-sm leading-relaxed">
         <p>
           Send a token as <code>Authorization: Bearer &lt;token&gt;</code>. Its scopes decide what it can do.
         </p>
@@ -90,8 +90,8 @@ export function TokensPanel() {
       {shown && (
         <Banner tone="ok">
           <b>Copy this token now. It isn't shown again.</b>
-          <div className="bg-card mt-2 flex items-center gap-2 rounded-md border px-2.5 py-1.5">
-            <code className="flex-1 font-mono text-[13px] break-all">{shown}</code>
+          <div className="bg-card mt-2 flex items-center gap-2 rounded-md border px-2 py-2">
+            <code className="flex-1 font-mono text-sm break-all">{shown}</code>
             <Button size="icon-sm" variant="ghost" aria-label="Copy token" onClick={() => copy(shown)}>
               <Copy />
             </Button>
@@ -100,25 +100,25 @@ export function TokensPanel() {
         </Banner>
       )}
       {tokens.length ? (
-        <table className="mb-4 w-full text-[13px]">
+        <table className="mb-4 w-full text-sm">
           <tbody>
             {tokens.map((t) => (
               <tr key={t.id} className={t.active ? "" : "text-muted-foreground"}>
-                <td className="border-b py-1.5 pr-2">
+                <td className="border-b py-2 pr-2">
                   <code>{t.prefix}…</code> {t.name && <span>{t.name}</span>}
                 </td>
-                <td className="border-b py-1.5 pr-2">
+                <td className="border-b py-2 pr-2">
                   <span className="flex flex-wrap gap-1">
                     {t.scopes.map((s) => (
                       <Tag key={s}>{s}</Tag>
                     ))}
                   </span>
                 </td>
-                <td className="border-b py-1.5 pr-2">
+                <td className="border-b py-2 pr-2">
                   made {when(t.created_at)}
                   {t.revoked_at ? `, revoked ${when(t.revoked_at)}` : t.expires_at ? `, ${t.active ? "expires" : "expired"} ${when(t.expires_at)}` : ""}
                 </td>
-                <td className="border-b py-1.5 text-right">
+                <td className="border-b py-2 text-right">
                   {t.active && (
                     <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again: it stops working" onConfirm={() => revoke(t)}>
                       Revoke
@@ -134,24 +134,24 @@ export function TokensPanel() {
       )}
       <div className="mt-3 flex flex-wrap items-end gap-3">
         <div className="grid gap-1">
-          <Label htmlFor="tok-name" className="text-[13px]">
+          <Label htmlFor="tok-name" className="text-sm">
             Name
           </Label>
           <Input id="tok-name" className="h-8 w-[200px]" placeholder={`e.g. ${platformName(plats.first)} agents`} value={name} onChange={(e) => setName(e.target.value)} />
         </div>
-        <fieldset className="flex flex-wrap gap-3 pb-1.5">
+        <fieldset className="flex flex-wrap gap-3 pb-2">
           <legend className="sr-only">Scopes</legend>
           {SCOPES.map(({ scope, label, help }) => (
-            <span key={scope} className="flex items-center gap-1.5 text-[13px]" title={help}>
+            <span key={scope} className="flex items-center gap-2 text-sm" title={help}>
               <Checkbox id={`tok-${scope}`} checked={scopes.includes(scope)} onCheckedChange={(v) => toggle(scope, v === true)} />
-              <Label htmlFor={`tok-${scope}`} className="text-[13px] font-normal">
+              <Label htmlFor={`tok-${scope}`} className="text-sm font-normal">
                 {label}
               </Label>
             </span>
           ))}
         </fieldset>
         <div className="grid gap-1">
-          <Label htmlFor="tok-days" className="text-[13px]">
+          <Label htmlFor="tok-days" className="text-sm">
             Expires in (days)
           </Label>
           <Input id="tok-days" className="h-8 w-[110px]" inputMode="numeric" placeholder="never" value={days} onChange={(e) => setDays(e.target.value.replace(/\D/g, ""))} />

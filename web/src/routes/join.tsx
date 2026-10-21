@@ -50,7 +50,7 @@ function Join() {
   if (!token || info.isError)
     return (
       <Card title="This join link doesn't work">
-        <p className="text-muted-foreground text-[13px] leading-relaxed">It may have expired or been turned off. Ask whoever sent it for a new one.</p>
+        <p className="text-muted-foreground text-sm leading-relaxed">It may have expired or been turned off. Ask whoever sent it for a new one.</p>
       </Card>
     );
   if (!info.data) return <Card title="Opening your link…">{null}</Card>;
@@ -80,7 +80,7 @@ function JoinSignedIn({ auth, info, token }: { auth: AuthState; info: JoinInfo; 
   if (info.member)
     return (
       <Card title={`You're in ${info.org_name}`}>
-        <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">You joined this team already.</p>
+        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">You joined this team already.</p>
         {error && <Banner tone="err">{error}</Banner>}
         <Button disabled={busy} onClick={() => void join()}>
           Open {info.org_name}
@@ -89,11 +89,11 @@ function JoinSignedIn({ auth, info, token }: { auth: AuthState; info: JoinInfo; 
     );
   return (
     <Card title={`Join ${info.org_name}?`}>
-      <p className="mb-3 text-[14px] leading-relaxed">
+      <p className="mb-3 text-sm leading-relaxed">
         You're signed in as <b>{auth.user?.email}</b>. You'll join as {asRole(info.role)}.
       </p>
       {current && (
-        <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
           You stay in {current}, with everything in it. Switch between your teams from your account menu, top right.
         </p>
       )}
@@ -129,7 +129,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
   // A team whose platforms are picked already has two steps for you; otherwise a third asks for them.
   const total = info.needs_platforms ? FLOWS.join.length : FLOWS.join.length - 1;
   const signIn = (
-    <p className="text-muted-foreground mt-4 text-[13px]">
+    <p className="text-muted-foreground mt-4 text-sm">
       Have an account here?{" "}
       <a className="text-primary underline-offset-2 hover:underline" href={`/sign-in?next=${encodeURIComponent("/join")}`}>
         Sign in to join
@@ -140,7 +140,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
   if (!passwords)
     return (
       <Card title={`Join ${info.org_name} on sopops`}>
-        <p className="text-muted-foreground mb-4 text-[13px]">Sign in, and you'll join as {asRole(info.role)}.</p>
+        <p className="text-muted-foreground mb-4 text-sm">Sign in, and you'll join as {asRole(info.role)}.</p>
         <Button asChild>
           <a href={`/sign-in?next=${encodeURIComponent("/join")}`}>Sign in to join</a>
         </Button>
@@ -157,7 +157,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
         <Label htmlFor="join-name" className="sr-only">
           Your name
         </Label>
-        <Input id="join-name" autoFocus autoComplete="name" className="h-11 text-[15px]" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="join-name" autoFocus autoComplete="name" className="h-12 text-base" value={name} onChange={(e) => setName(e.target.value)} />
         {signIn}
       </StepShell>
     );
@@ -187,17 +187,17 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
     >
       <div className="grid gap-3">
         <div className="grid gap-1">
-          <Label htmlFor="join-email" className="text-[13px]">
+          <Label htmlFor="join-email" className="text-sm">
             Email
           </Label>
           <Input id="join-email" type="email" autoFocus autoComplete="username" className="h-10" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="grid gap-1">
-          <Label htmlFor="join-password" className="text-[13px]">
+          <Label htmlFor="join-password" className="text-sm">
             Password
           </Label>
           <Input id="join-password" type="password" autoComplete="new-password" className="h-10" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <span className="text-muted-foreground text-[12px]">At least {MIN_PASSWORD} characters.</span>
+          <span className="text-muted-foreground text-sm">At least {MIN_PASSWORD} characters.</span>
         </div>
       </div>
       {signIn}

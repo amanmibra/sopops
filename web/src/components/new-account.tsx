@@ -45,7 +45,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
     return null;
   };
   const signIn = signUp && (
-    <p className="text-muted-foreground mt-4 text-[13px]">
+    <p className="text-muted-foreground mt-4 text-sm">
       Have an account?{" "}
       <a className="text-primary underline-offset-2 hover:underline" href="/sign-in">
         Sign in
@@ -64,7 +64,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
         <Label htmlFor="setup-name" className="sr-only">
           Your name
         </Label>
-        <Input id="setup-name" autoFocus autoComplete="name" className="h-11 text-[15px]" placeholder="Ana Ruiz" value={name} onChange={(e) => setName(e.target.value)} />
+        <Input id="setup-name" autoFocus autoComplete="name" className="h-12 text-base" placeholder="Ana Ruiz" value={name} onChange={(e) => setName(e.target.value)} />
         {signIn}
       </StepShell>
     );
@@ -89,7 +89,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
       >
         <div className="grid gap-3">
           <div className="grid gap-1">
-            <Label htmlFor="setup-email" className="text-[13px]">
+            <Label htmlFor="setup-email" className="text-sm">
               Email
             </Label>
             <Input
@@ -104,7 +104,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
             />
           </div>
           <div className="grid gap-1">
-            <Label htmlFor="setup-password" className="text-[13px]">
+            <Label htmlFor="setup-password" className="text-sm">
               Password
             </Label>
             <Input
@@ -115,12 +115,12 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            <span className="text-muted-foreground text-[12px]">At least {MIN_PASSWORD} characters.</span>
+            <span className="text-muted-foreground text-sm">At least {MIN_PASSWORD} characters.</span>
           </div>
         </div>
         {!signUp && auth.providers.some((p) => p.redirects) && (
           <div className="mt-5 grid gap-2">
-            <p className="text-muted-foreground text-[13px]">Or skip the password:</p>
+            <p className="text-muted-foreground text-sm">Or skip the password:</p>
             <RedirectButtons auth={auth} next="/welcome?step=team" />
           </div>
         )}
@@ -186,7 +186,7 @@ export function TeamForm({
       <Label htmlFor="setup-team" className="sr-only">
         Team name
       </Label>
-      <Input id="setup-team" autoFocus autoComplete="organization" className="h-11 text-[15px]" placeholder="Acme Support" value={team} onChange={(e) => setTeam(e.target.value)} />
+      <Input id="setup-team" autoFocus autoComplete="organization" className="h-12 text-base" placeholder="Acme Support" value={team} onChange={(e) => setTeam(e.target.value)} />
     </StepShell>
   );
 }

@@ -39,7 +39,7 @@ function Stat({ label, value, tip }: { label: string; value: string; tip: React.
     <Hint tip={tip} focusable={false}>
       <span className="grid min-w-[7.5rem] gap-0.5">
         <span className="text-muted-foreground text-xs">{label}</span>
-        <span className="text-[20px] leading-tight font-semibold tabular-nums">{value}</span>
+        <span className="text-lg font-semibold tabular-nums">{value}</span>
       </span>
     </Hint>
   );
@@ -76,13 +76,13 @@ export function SpendCard({ filters }: { filters: InsightFilters }) {
             />
             <Stat label="Model calls" value={tokens(d.total.calls)} tip={<TipBody head={plural(d.total.calls, "model call", "model calls")}>{callsTip(d.total)}</TipBody>} />
           </div>
-          <ul className="grid content-start gap-1.5" aria-label="Cost by purpose">
+          <ul className="grid content-start gap-2" aria-label="Cost by purpose">
             {d.by_purpose.map((p) => {
               const m = PURPOSE[p.purpose];
               return (
                 <li key={p.purpose}>
                   <Hint focusable={false} tip={<TipBody head={`${m.label}: ${usd(p.cost_usd)}`}>{m.help} {callsTip(p)}</TipBody>}>
-                    <span className="grid grid-cols-[6.5rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-[13px]">
+                    <span className="grid grid-cols-[6.5rem_minmax(0,1fr)_4.5rem] items-center gap-2 text-sm">
                       <span className="truncate">{m.label}</span>
                       <span className="bg-muted h-2 overflow-hidden rounded-full" aria-hidden>
                         <span className="bg-primary block h-full rounded-full" style={{ width: `${top ? Math.max(2, (100 * p.cost_usd) / top) : 0}%` }} />
@@ -121,7 +121,7 @@ export function PricesCard() {
   const per = (x: number | null | undefined) => (x == null ? "—" : `$${x}`);
   return (
     <Panel title="Model prices">
-      <p className="text-muted-foreground mb-3 text-[13px]">
+      <p className="text-muted-foreground mb-3 text-sm">
         What Model spend in Insights is estimated with, in dollars per million tokens. Set <code className="text-xs">{d?.env ?? "SOPOPS_MODEL_PRICES"}</code> to change a price or add a model, as JSON:{" "}
         <code className="text-xs">{'{"openai/gpt-5-mini": [0.25, 2]}'}</code>.
       </p>
@@ -130,26 +130,26 @@ export function PricesCard() {
       ) : (
         <div className="grid gap-3">
           <div className="overflow-x-auto rounded-md border">
-            <table className="w-full text-[13px]">
+            <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground text-left text-xs">
                 <tr>
-                  <th className="px-2.5 py-1.5 font-medium">In use</th>
-                  <th className="px-2.5 py-1.5 font-medium">Model</th>
-                  <th className="px-2.5 py-1.5 text-right font-medium">Input</th>
-                  <th className="px-2.5 py-1.5 text-right font-medium">Output</th>
+                  <th className="px-2 py-2 font-medium">In use</th>
+                  <th className="px-2 py-2 font-medium">Model</th>
+                  <th className="px-2 py-2 text-right font-medium">Input</th>
+                  <th className="px-2 py-2 text-right font-medium">Output</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
                 {d.roles.map((r) => (
                   <tr key={r.role}>
-                    <td className="px-2.5 py-1.5">{r.role === "decide" ? "Decisions" : r.role === "fast" ? "Fast" : "Reviewer"}</td>
-                    <td className="px-2.5 py-1.5 font-mono text-xs">{r.model ?? <span className="text-muted-foreground font-sans">not set</span>}</td>
-                    <td className="px-2.5 py-1.5 text-right tabular-nums">
+                    <td className="px-2 py-2">{r.role === "decide" ? "Decisions" : r.role === "fast" ? "Fast" : "Reviewer"}</td>
+                    <td className="px-2 py-2 font-mono text-xs">{r.model ?? <span className="text-muted-foreground font-sans">not set</span>}</td>
+                    <td className="px-2 py-2 text-right tabular-nums">
                       <Hint focusable={false} tip={r.input_per_m == null ? (r.model ? "No price for this model: its calls count, their cost doesn't." : "No model.") : `$${r.input_per_m} per million input tokens.`}>
                         <span>{per(r.input_per_m)}</span>
                       </Hint>
                     </td>
-                    <td className="px-2.5 py-1.5 text-right tabular-nums">
+                    <td className="px-2 py-2 text-right tabular-nums">
                       <Hint focusable={false} tip={r.output_per_m == null ? "—" : `$${r.output_per_m} per million output tokens.`}>
                         <span>{per(r.output_per_m)}</span>
                       </Hint>
@@ -159,7 +159,7 @@ export function PricesCard() {
               </tbody>
             </table>
           </div>
-          <div className="text-[13px]">
+          <div className="text-sm">
             <h3 className="text-muted-foreground mb-1 text-xs font-medium">The price table ({plural(d.prices.length, "model", "models")})</h3>
             <ul className="grid gap-1">
               {d.prices.map((p) => (

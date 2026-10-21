@@ -50,7 +50,7 @@ function Invite() {
   if (!token || info.isError)
     return (
       <Card title="This invite link doesn't work">
-        <p className="text-muted-foreground text-[13px] leading-relaxed">
+        <p className="text-muted-foreground text-sm leading-relaxed">
           It may have expired (links work for 7 days), been used already, or been withdrawn. Ask whoever sent it for a new one.
         </p>
       </Card>
@@ -61,7 +61,7 @@ function Invite() {
   if (joined)
     return (
       <Card title={`You're in ${inv.org_name}`}>
-        <p className="text-muted-foreground mb-5 text-[13px]">You joined as {inv.role === "member" ? "a member" : `an ${inv.role}`}.</p>
+        <p className="text-muted-foreground mb-5 text-sm">You joined as {inv.role === "member" ? "a member" : `an ${inv.role}`}.</p>
         <Button asChild>
           <a href="/">Open sopops</a>
         </Button>
@@ -84,7 +84,7 @@ function Invite() {
 
   return (
     <Card title={`Join ${inv.org_name} on sopops`}>
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         This invite is for <b className="text-foreground">{inv.email}</b>, as {inv.role === "member" ? "a member" : `an ${inv.role}`}.
       </p>
       {error && (
@@ -96,7 +96,7 @@ function Invite() {
         <JoinWithPassword auth={auth} inv={inv} token={token} />
       ) : !auth.user ? (
         <>
-          <p className="mb-3 text-[13px]">Sign in with {inv.email} to join.</p>
+          <p className="mb-3 text-sm">Sign in with {inv.email} to join.</p>
           <SignInButtons auth={auth} next="/invite" />
         </>
       ) : auth.user.email === inv.email ? (
@@ -105,7 +105,7 @@ function Invite() {
         </Button>
       ) : (
         <>
-          <p className="mb-4 text-[13px] leading-relaxed">
+          <p className="mb-4 text-sm leading-relaxed">
             You're signed in as <b>{auth.user.email}</b>. Sign out, then sign in with {inv.email} to join.
           </p>
           <Button variant="outline" onClick={() => void signOut()}>
@@ -148,20 +148,20 @@ function JoinWithPassword({ auth, inv, token }: { auth: AuthState; inv: InviteIn
       >
         <input type="email" hidden readOnly autoComplete="username" value={inv.email} />
         <div className="grid gap-1">
-          <Label htmlFor="join-name" className="text-[13px]">
+          <Label htmlFor="join-name" className="text-sm">
             Your name
           </Label>
           <Input id="join-name" autoComplete="name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <NewPassword id="join-password" value={password} onChange={setPassword} />
         {error && <Banner tone="err">{error}</Banner>}
-        <Button type="submit" className="h-10 text-[14px]" disabled={busy || password.length < 10}>
+        <Button type="submit" className="h-10 text-sm" disabled={busy || password.length < 10}>
           Join {inv.org_name}
         </Button>
       </form>
       {others && (
-        <div className="mt-5 grid gap-2.5">
-          <p className="text-muted-foreground text-[13px]">Or sign in another way with {inv.email}:</p>
+        <div className="mt-5 grid gap-2">
+          <p className="text-muted-foreground text-sm">Or sign in another way with {inv.email}:</p>
           <SignInButtons auth={auth} next="/invite" password={false} />
         </div>
       )}

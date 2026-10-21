@@ -78,7 +78,7 @@ export function ProjectFinding({ repo, mode, useAgent, onAgent }: { repo: RepoOu
   if (p.state === "invalid") return <Invalid project={p} where={where} folder={folder} mode={mode} useAgent={useAgent} onAgent={onAgent} recheck={recheck} />;
   return (
     <Banner className="mb-0">
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         <div>
           <b>No sopc project at {where} yet.</b>
         </div>
@@ -119,10 +119,10 @@ function Invalid({
         <div>
           <b>{where} has a sopc project, but sopc can't build it:</b>
         </div>
-        <ul className="grid gap-0.5 pl-5 text-[13px] [list-style:disc]">
+        <ul className="grid gap-0.5 pl-5 text-sm [list-style:disc]">
           {errors.slice(0, 8).map((i, n) => (
             <li key={n}>
-              {i.path && <code className="text-[12px]">{i.path}</code>} {i.text || i.message}
+              {i.path && <code className="text-sm">{i.path}</code>} {i.text || i.message}
             </li>
           ))}
           {errors.length > 8 && <li>and {errors.length - 8} more</li>}

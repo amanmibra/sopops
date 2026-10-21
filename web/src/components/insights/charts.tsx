@@ -68,8 +68,8 @@ export function TrendCharts({ trend, bucketHref }: { trend: Trend; bucketHref: (
                 />
               )}
             />
-            {OUTCOMES.map((o, i) => (
-              <Bar key={o.key} dataKey={o.key} name={o.label} stackId="o" fill={o.color} maxBarSize={36} radius={i === OUTCOMES.length - 1 ? [3, 3, 0, 0] : 0} stroke="var(--card)" strokeWidth={1} isAnimationActive={false} />
+            {OUTCOMES.map((o) => (
+              <Bar key={o.key} dataKey={o.key} name={o.label} stackId="o" fill={o.color} maxBarSize={36} radius={0} stroke="var(--card)" strokeWidth={1} isAnimationActive={false} />
             ))}
             {marks.map((m) => (
               <ReferenceLine key={m.release} x={m.x} stroke="var(--k-procedure)" strokeDasharray="4 3" label={{ value: `#${m.release}`, position: "top", fontSize: 11, fill: "var(--k-procedure)" }} />
@@ -104,7 +104,7 @@ export function ProblemsChart({ problems, problemHref }: { problems: Problem[]; 
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={problems.map((p) => ({ ...p, lbl: `${p.checks} · ${fmtPct(p.pct)}` }))} layout="vertical" margin={{ top: 0, right: 64, bottom: 0, left: 0 }}>
           <XAxis type="number" hide domain={[0, "dataMax"]} />
-          <YAxis type="category" dataKey="label" width={168} {...AXIS} tick={{ fontSize: 12, fill: "var(--foreground)" }} />
+          <YAxis type="category" dataKey="label" width={200} {...AXIS} tick={{ fontSize: 12, fill: "var(--foreground)" }} />
           <Tooltip
             cursor={{ fill: "var(--muted)" }}
             content={(p) => (
@@ -118,7 +118,7 @@ export function ProblemsChart({ problems, problemHref }: { problems: Problem[]; 
               />
             )}
           />
-          <Bar dataKey="checks" name="Checks" barSize={14} radius={[0, 3, 3, 0]} isAnimationActive={false} className="cursor-pointer" onClick={(d) => go(problemHref(d.payload as Problem))}>
+          <Bar dataKey="checks" name="Checks" barSize={14} radius={0} isAnimationActive={false} className="cursor-pointer" onClick={(d) => go(problemHref(d.payload as Problem))}>
             {problems.map((p) => (
               <Cell key={p.type} fill={color(p)} />
             ))}
@@ -169,7 +169,7 @@ export function ReleaseTimeline({
               />
             )}
           />
-          <Bar dataKey="pass_rate" name="Pass rate" maxBarSize={44} radius={[3, 3, 0, 0]} isAnimationActive={false} onClick={(d) => onPick?.((d.payload as ReleasePoint).release)} className={onPick ? "cursor-pointer" : undefined}>
+          <Bar dataKey="pass_rate" name="Pass rate" maxBarSize={44} radius={0} isAnimationActive={false} onClick={(d) => onPick?.((d.payload as ReleasePoint).release)} className={onPick ? "cursor-pointer" : undefined}>
             {rows.map((r) => (
               <Cell key={r.release} fill={colorOf?.(r.release) ?? (highlight.includes(r.release) ? "var(--primary)" : "var(--o-none)")} fillOpacity={r.thin ? 0.45 : 1} />
             ))}
@@ -203,7 +203,7 @@ export function RateByGroup({ rows }: { rows: { name: string; n: number; passes:
           <XAxis type="number" hide domain={[0, 100]} />
           <YAxis type="category" dataKey="name" width={150} {...AXIS} tick={{ fontSize: 12, fill: "var(--foreground)" }} />
           <Tooltip cursor={{ fill: "var(--muted)" }} content={(p) => <ChartTip {...p} format={(v, e) => `${fmtPct(v as number | null)} (${(e.payload as { passes: number }).passes} of ${(e.payload as { n: number }).n})`} />} />
-          <Bar dataKey="rate" name="Pass rate" barSize={14} radius={[0, 3, 3, 0]} isAnimationActive={false}>
+          <Bar dataKey="rate" name="Pass rate" barSize={14} radius={0} isAnimationActive={false}>
             {data.map((r) => (
               <Cell key={r.name} fill="var(--primary)" fillOpacity={r.thin ? 0.4 : 1} />
             ))}

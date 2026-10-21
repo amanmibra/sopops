@@ -151,7 +151,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
   const [chosen, setChosen] = useState<"prompt" | "changes" | null>(() => (prefs.get("previewmode") as "prompt" | "changes" | null) ?? null);
   const frame = (head: React.ReactNode, body: React.ReactNode) => (
     <section className="bg-card min-w-0 overflow-hidden rounded-xl border" aria-label="Draft instructions">
-      <header className="flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5">{head}</header>
+      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">{head}</header>
       {body}
     </section>
   );
@@ -161,7 +161,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
     return frame(
       <>
         <b className="mr-auto">Draft instructions</b>
-        <span className="text-muted-foreground text-[13px]">{why}</span>
+        <span className="text-muted-foreground text-sm">{why}</span>
       </>,
       <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>,
     );
@@ -189,9 +189,9 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
       />
     </>,
     !r ? (
-      <p className="text-muted-foreground px-3.5 py-3 text-[13px]">Building…</p>
+      <p className="text-muted-foreground px-4 py-3 text-sm">Building…</p>
     ) : !r.valid ? (
-      <div className="px-3.5 py-3">
+      <div className="px-4 py-3">
         <Banner tone="err" className="mb-0">
           This draft can't be built yet:
           <IssueList issues={errors.length ? errors : r.issues} here={here} />
@@ -200,7 +200,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
     ) : shown === "prompt" ? (
       <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>
     ) : (
-      <div className="px-3.5 py-3 [&_.dv]:max-h-[calc(100vh-220px)]">
+      <div className="px-4 py-3 [&_.dv]:max-h-[calc(100vh-220px)]">
         <DiffView before={r.released_prompt} after={r.prompt} empty="Same as the live instructions." />
       </div>
     ),

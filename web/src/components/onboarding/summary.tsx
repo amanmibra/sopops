@@ -45,7 +45,7 @@ export function useReview(ws: string, id: string) {
 function Pager({ page, pages, onPage, what }: { page: number; pages: number; onPage: (p: number) => void; what: string }) {
   if (pages <= 1) return null;
   return (
-    <div className="mt-3 flex items-center gap-2 text-[13px]">
+    <div className="mt-3 flex items-center gap-2 text-sm">
       <Button size="xs" variant="outline" disabled={page === 0} onClick={() => onPage(page - 1)}>
         Previous
       </Button>
@@ -75,8 +75,8 @@ export function Disagreements({ items, disabled, onDecide }: { items: Disagreeme
     <div>
       <div className="grid gap-3">
         {slice.map((d) => (
-          <div key={d.id} className={cn("rounded-lg border px-3.5 py-3", d.decision ? "bg-muted" : "bg-warn-soft border-transparent")}>
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[13px]">
+          <div key={d.id} className={cn("rounded-lg border px-4 py-3", d.decision ? "bg-muted" : "bg-warn-soft border-transparent")}>
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
               <b>
                 {d.minority} of {d.minority + d.majority.agents.length} agents differ
               </b>
@@ -110,8 +110,8 @@ function Wording({ label, text, children }: { label: string; text: string; agent
   return (
     <div className="bg-card mb-2 flex flex-wrap items-start gap-3 rounded-md border px-3 py-2">
       <div className="min-w-[min(16rem,100%)] flex-1">
-        <div className="text-muted-foreground mb-0.5 text-[12px]">{label}</div>
-        <div className="text-[13px] whitespace-pre-wrap">{text}</div>
+        <div className="text-muted-foreground mb-0.5 text-sm">{label}</div>
+        <div className="text-sm whitespace-pre-wrap">{text}</div>
       </div>
       {children}
     </div>
@@ -125,7 +125,7 @@ export function Variables({ rows, disabled, onEdit }: { rows: VariableRow[]; dis
   return (
     <div>
       <div className="max-h-[60vh] overflow-auto rounded-md border">
-        <table className="min-w-full border-collapse text-[13px]">
+        <table className="min-w-full border-collapse text-sm">
           <thead>
             <tr>
               <th className="bg-card sticky top-0 left-0 z-20 min-w-[200px] border-b px-2 py-2 text-left">Variable</th>
@@ -171,7 +171,7 @@ function EditText({ value, disabled, onSave, mono }: { value: string; disabled: 
   }
   return (
     <Input
-      className={cn("h-7 text-[13px]", mono && "font-mono")}
+      className={cn("h-7 text-sm", mono && "font-mono")}
       value={text}
       disabled={disabled}
       onChange={(e) => setText(e.target.value)}
@@ -190,8 +190,8 @@ export function Unique({ items, disabled, onDecide }: { items: UniqueText[]; dis
         {slice.map((u) => (
           <div key={u.id} className="bg-card flex flex-wrap items-start gap-3 rounded-md border px-3 py-2">
             <div className="min-w-[min(16rem,100%)] flex-1">
-              <div className="text-muted-foreground mb-0.5 text-[12px]">{u.agent}</div>
-              <div className="text-[13px] whitespace-pre-wrap">{u.text}</div>
+              <div className="text-muted-foreground mb-0.5 text-sm">{u.agent}</div>
+              <div className="text-sm whitespace-pre-wrap">{u.text}</div>
             </div>
             <Button size="sm" variant={u.decision === "context" ? "secondary" : "outline"} disabled={disabled || u.decision === "context"} onClick={() => onDecide(u.id, "context")}>
               Keep as this agent's context

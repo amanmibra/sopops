@@ -57,7 +57,7 @@ export function Backfill({ platform }: { platform: Platform }) {
   const denied = [latest.error, preview.error].some((e) => e instanceof ApiError && e.status === 403);
 
   return (
-    <div className="grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+    <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="flex items-center gap-2 font-medium">
         <History className="size-4" /> Backfill the last {DAYS} days
       </div>

@@ -59,8 +59,8 @@ export function HistoryView({ kind, id, head: custom }: { kind: Kind; id: string
           <tbody>
             {list.map((h, i) => (
               <tr key={`${h.file}:${h.version}`} className={cn("cursor-pointer hover:bg-muted", i === index && "bg-muted")} onClick={() => setPick(i)}>
-                <td className="border-b px-2.5 py-2 align-top">
-                  <div className="flex flex-wrap items-center gap-1.5">
+                <td className="border-b px-2 py-2 align-top">
+                  <div className="flex flex-wrap items-center gap-2">
                     <b>{label(i)}</b>
                     {i === 0 && <Tag>draft</Tag>}
                     {live[h.file] === h.version && <Tag tone="live">live</Tag>}
@@ -70,7 +70,7 @@ export function HistoryView({ kind, id, head: custom }: { kind: Kind; id: string
                     {when(h.created_at)}
                     {h.author ? `, ${h.author}` : ""}
                   </Note>
-                  {h.note && <div className="text-muted-foreground text-[13px]">{h.note}</div>}
+                  {h.note && <div className="text-muted-foreground text-sm">{h.note}</div>}
                 </td>
               </tr>
             ))}
@@ -96,7 +96,7 @@ export function HistoryView({ kind, id, head: custom }: { kind: Kind; id: string
                   <ChangeList kind={kind} before={o} after={item} />
                   <h3 className="mt-5 mb-1 font-semibold">All of it, line by line</h3>
                   <DiffView before={model.readable(kind, o)} after={model.readable(kind, item)} context={99} />
-                  <div className="mt-6 flex flex-wrap items-center gap-2.5 border-t py-3">
+                  <div className="mt-6 flex flex-wrap items-center gap-2 border-t py-3">
                     <Button
                       variant="outline"
                       onClick={() => {

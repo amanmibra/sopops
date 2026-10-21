@@ -24,7 +24,7 @@ function EmailLink() {
   if (!token || error)
     return (
       <Card title="This sign-in link doesn't work">
-        <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
           {error ? `${error.charAt(0).toUpperCase()}${error.slice(1)}.` : "It's missing its code."} Links work once, for 15 minutes.
         </p>
         <Button asChild variant="outline">
@@ -45,9 +45,9 @@ function EmailLink() {
   };
   return (
     <Card title="Sign in to sopops">
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">You opened the link from your email. Click below to finish signing in.</p>
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">You opened the link from your email. Click below to finish signing in.</p>
       {busy && <Banner className="mb-4">Signing you in…</Banner>}
-      <Button className="h-10 w-full text-[14px]" disabled={busy} onClick={() => void signIn()}>
+      <Button className="h-10 w-full text-sm" disabled={busy} onClick={() => void signIn()}>
         Sign in
       </Button>
     </Card>

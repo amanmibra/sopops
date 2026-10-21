@@ -82,7 +82,7 @@ export const PlatformIcon = ({ platform, ...p }: IconProps & { platform: string 
 
 /** The platform's logo and name, inline with text. */
 export const PlatformLabel = ({ platform, size = 14, className }: IconProps & { platform: string }) => (
-  <span className={cn("inline-flex items-center gap-1.5 align-middle", className)}>
+  <span className={cn("inline-flex items-center gap-2 align-middle", className)}>
     <PlatformIcon platform={platform} size={size} />
     {platformName(platform)}
   </span>

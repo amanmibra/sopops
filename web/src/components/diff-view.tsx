@@ -27,7 +27,7 @@ export function DiffView({
   const rows = useMemo(() => diffRows(ops), [ops]);
   const [mode, setMode] = useState<Mode>(() => (toggle && prefs.get("diffmode") === "split" ? "split" : "unified"));
   const [opened, setOpened] = useState<Set<number>>(new Set());
-  if (!ops.some((o) => o.op !== " ")) return <p className="text-muted-foreground text-[13px] my-2">{empty}</p>;
+  if (!ops.some((o) => o.op !== " ")) return <p className="text-muted-foreground text-sm my-2">{empty}</p>;
 
   const line = (key: string, cls: string, o: number | null, n: number | null, sign: string, content: ReactNode) => (
     <div key={key} role="row" className={`dl ${cls}`}>
@@ -102,7 +102,7 @@ export function DiffView({
   return (
     <div className="my-2">
       {toggle && (
-        <div className="mb-2 flex items-center gap-2.5">
+        <div className="mb-2 flex items-center gap-2">
           <Counts {...c} />
           <span className="flex-1" />
           <Segmented<Mode>
@@ -161,7 +161,7 @@ export function PatchView({ patch, empty = "No differences." }: { patch: string;
     if (sign !== "+") o++;
     if (sign !== "-") n++;
   });
-  if (!rows.length) return <p className="text-muted-foreground my-2 text-[13px]">{empty}</p>;
+  if (!rows.length) return <p className="text-muted-foreground my-2 text-sm">{empty}</p>;
   return (
     <div className="dv unified my-2" role="table" aria-label="Differences">
       {rows}

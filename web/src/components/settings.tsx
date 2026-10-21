@@ -1,14 +1,14 @@
 // Settings: its own side menu of sections, each on its own route (/w/<ws>/settings/<section>), and the heading every
-// section opens with. Settings belongs to no mode, so the menu keeps `?from=<mode>` and leads back to that mode.
+// section opens with. Its Back link returns to the last workspace page you had open.
 import { useLocation } from "@tanstack/react-router";
 import { ArrowLeft, GitBranch, History, KeyRound, ListChecks, type LucideIcon, Menu, Plug, SlidersHorizontal, Users, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { MODES, modeHref } from "@/lib/mode";
+import { lastPageHref } from "@/lib/last-page";
 import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { type SettingsSection, settingsHref, useWs } from "@/lib/workspace";
 import { PageTitle, Sub } from "./bits";
-import { RailFrame, RailItem, useMode } from "./layout";
+import { RailFrame, RailItem } from "./layout";
 import { Button } from "./ui/button";
 
 const MENU: { heading: string; items: { section: SettingsSection; label: string; icon: LucideIcon }[] }[] = [
@@ -46,20 +46,18 @@ function sectionOf(pathname: string): SettingsSection | undefined {
  * menu button above the section. */
 export function SettingsNav() {
   const { ws } = useWs();
-  const mode = useMode(ws);
   const { pathname } = useLocation();
   const here = sectionOf(pathname);
   const [open, setOpen] = useState(false);
   useEffect(() => setOpen(false), [pathname]);
   const collapsed = useRailCollapsed();
-  const back = MODES.find((m) => m.mode === mode)?.label ?? "QA";
-  const backLink = (c: boolean) => <RailItem collapsed={c} muted href={modeHref(ws, mode)} icon={ArrowLeft} label={`Back to ${back}`} active={false} />;
+  const backLink = (c: boolean) => <RailItem collapsed={c} muted href={lastPageHref(ws)} icon={ArrowLeft} label="Back" active={false} />;
   const items = (c: boolean) =>
     MENU.map((g) => (
       <div key={g.heading} className={c ? "mb-3 grid gap-1" : "mb-[18px] max-md:mb-3"}>
-        {!c && <h3 className="text-muted-foreground px-2 pb-1 text-[13px] font-semibold">{g.heading}</h3>}
+        {!c && <h3 className="text-muted-foreground px-2 pb-1 text-sm font-semibold">{g.heading}</h3>}
         {g.items.map((i) => (
-          <RailItem key={i.section} collapsed={c} href={`${settingsHref(ws, i.section)}?from=${mode}`} icon={i.icon} label={i.label} active={here === i.section} />
+          <RailItem key={i.section} collapsed={c} href={settingsHref(ws, i.section)} icon={i.icon} label={i.label} active={here === i.section} />
         ))}
       </div>
     ));
@@ -67,10 +65,10 @@ export function SettingsNav() {
     <>
       <RailFrame label="Settings" collapsed={collapsed}>
         <div className="mb-3">{backLink(collapsed)}</div>
-        {!collapsed && <h2 className="px-2 pb-2 text-[15px] font-semibold">Settings</h2>}
+        {!collapsed && <h2 className="px-2 pb-2 text-lg font-semibold">Settings</h2>}
         {items(collapsed)}
       </RailFrame>
-      <nav className="bg-card border-b px-2.5 py-3 md:hidden" aria-label="Settings">
+      <nav className="bg-card border-b px-2 py-3 md:hidden" aria-label="Settings">
         <div className="flex items-center gap-2">
           {backLink(false)}
           <span className="flex-1" />

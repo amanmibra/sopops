@@ -20,7 +20,7 @@ import { Textarea } from "./ui/textarea";
 function BlockPreview({ id }: { id: string }) {
   const { model, href } = useWs();
   const kind = model.blockKind(id);
-  if (!kind) return <p className="text-muted-foreground text-[13px]">Nothing has this name. Remove it, or create it.</p>;
+  if (!kind) return <p className="text-muted-foreground text-sm">Nothing has this name. Remove it, or create it.</p>;
   const it = model.find(kind, id);
   if (kind === "instruction") return <pre className="plain max-h-80 overflow-auto">{(it as InstructionConfig).text}</pre>;
   if (kind === "procedure") return <pre className="plain max-h-80 overflow-auto">{model.readable("procedure", it as never).join("\n")}</pre>;
@@ -71,7 +71,7 @@ function Card({
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn("bg-card rounded-lg border", errsFor(errors, field, index).length && "border-err", isDragging && "relative z-10 opacity-80 shadow-lg")}
     >
-      <div className="flex min-w-0 items-center gap-2 py-1 pr-1.5 pl-1">
+      <div className="flex min-w-0 items-center gap-2 py-1 pr-2 pl-1">
         <button
           type="button"
           ref={setActivatorNodeRef}
@@ -90,8 +90,8 @@ function Card({
           onClick={() => setOpen(!open)}
           className="group flex min-w-0 flex-1 cursor-pointer items-baseline gap-1 rounded-md px-0.5 py-1 text-left"
         >
-          <b className="whitespace-nowrap group-hover:underline">{kind ? name : id}</b>
-          <span className="text-muted-foreground ml-1.5 min-w-0 truncate text-[13px]">{sub}</span>
+          <b className="max-w-full shrink-0 truncate group-hover:underline">{kind ? name : id}</b>
+          <span className="text-muted-foreground ml-2 min-w-0 truncate text-sm">{sub}</span>
         </button>
         <span className="flex shrink-0 items-center">
           {kind && (
@@ -160,7 +160,7 @@ function Library({ value, owner, onPick, onClose, onNew }: { value: string[]; ow
                     <CommandItem key={x.id} value={`${x.id} ${model.itemName(k, x.id)} ${text}`} disabled={there} onSelect={() => onPick(x.id)}>
                       <KindBadge kind={k} />
                       <span className="min-w-0 flex-1 truncate">{model.itemName(k, x.id)}</span>
-                      <span className="text-muted-foreground text-[13px]">{why}</span>
+                      <span className="text-muted-foreground text-sm">{why}</span>
                     </CommandItem>
                   );
                 })}
@@ -169,7 +169,7 @@ function Library({ value, owner, onPick, onClose, onNew }: { value: string[]; ow
           })}
         </CommandList>
       </Command>
-      <div className="mt-2 flex flex-wrap gap-2 border-t pt-2.5">
+      <div className="mt-2 flex flex-wrap gap-2 border-t pt-2">
         <Button variant="outline" size="sm" type="button" onClick={() => onNew("instruction")}>
           + New shared instruction
         </Button>
@@ -208,12 +208,12 @@ function QuickCreate({ kind, onCreated, onCancel }: { kind: "instruction" | "pro
     }
   };
   return (
-    <div className="bg-card mt-2 rounded-xl border px-4 py-3.5">
+    <div className="bg-card mt-2 rounded-xl border px-4 py-4">
       <h3 className="mb-1 font-semibold">{isProc ? "New procedure" : "New shared instruction"}</h3>
-      <p className="text-muted-foreground mb-2 text-[13px]">
+      <p className="text-muted-foreground mb-2 text-sm">
         {isProc ? "Saved as a draft and added to this list. Open it afterwards to add never-do's, warning signs and tools." : "Saved as a draft and added to this list."}
       </p>
-      <div className="grid gap-2.5">
+      <div className="grid gap-2">
         <label>
           <span className="mb-0.5 block font-semibold">Name</span>
           <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={isProc ? "Takeout" : "hours"} />
@@ -229,8 +229,8 @@ function QuickCreate({ kind, onCreated, onCancel }: { kind: "instruction" | "pro
           <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder={isProc ? "One step per line" : "What the agents are told"} />
         </label>
       </div>
-      {error && <div className="text-err mt-1.5 text-[13px]">{error}</div>}
-      <div className="mt-2.5 flex gap-2">
+      {error && <div className="text-err mt-2 text-sm">{error}</div>}
+      <div className="mt-2 flex gap-2">
         <Button size="sm" type="button" disabled={busy} onClick={create}>
           Create and add
         </Button>
@@ -257,7 +257,7 @@ export function BlockStack({ field = "blocks", value, onChange, errors, owner }:
       {value.length ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={value} strategy={verticalListSortingStrategy}>
-            <ol className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Blocks, in order">
+            <ol className="grid grid-cols-[minmax(0,1fr)] gap-2" aria-label="Blocks, in order">
               {value.map((id, i) => (
                 <Card key={id} id={id} index={i} count={value.length} errors={errors} field={field} onMove={(to) => move(i, to)} onRemove={() => onChange(value.filter((_, j) => j !== i))} />
               ))}
@@ -265,7 +265,7 @@ export function BlockStack({ field = "blocks", value, onChange, errors, owner }:
           </SortableContext>
         </DndContext>
       ) : (
-        <p className="text-muted-foreground text-[13px]">No blocks yet.</p>
+        <p className="text-muted-foreground text-sm">No blocks yet.</p>
       )}
       {mode === "library" ? (
         <Library

@@ -59,18 +59,18 @@ export function CalibrationCard() {
 
   return (
     <Panel title="Calibration">
-      <p className="text-muted-foreground mb-3 text-[13px]">
+      <p className="text-muted-foreground mb-3 text-sm">
         Tune how strict the checker is on each procedure, using your verdicts and “wrong?” marks as the answer key. Preview shows what would change; Apply saves it. It needs at least 5 sessions with a reviewed finding, and
         one rule with 3 judged findings.
       </p>
       {!procs.length ? (
-        <p className="text-muted-foreground text-[13px]">No procedures yet.</p>
+        <p className="text-muted-foreground text-sm">No procedures yet.</p>
       ) : (
         <ul className="divide-y rounded-lg border">
           {procs.map((p) => {
             const r = runs[p.id] ?? {};
             return (
-              <li key={p.id} className="px-3 py-2.5">
+              <li key={p.id} className="px-3 py-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="min-w-0 flex-1 font-medium">{p.name}</span>
                   <Button size="sm" variant="outline" disabled={!!r.busy} onClick={() => void run(p.id, true)} title="Fit the thresholds to your labels without saving">
@@ -80,10 +80,10 @@ export function CalibrationCard() {
                     {r.busy === "apply" && <Loader2 className="animate-spin" />} Apply
                   </ConfirmButton>
                 </div>
-                {r.busy && <p className="text-muted-foreground mt-1.5 text-[13px]" role="status">Fitting to your labels. This can take a minute.</p>}
+                {r.busy && <p className="text-muted-foreground mt-2 text-sm" role="status">Fitting to your labels. This can take a minute.</p>}
                 {r.error != null &&
                   (r.error instanceof ApiError && r.error.status >= 500 ? (
-                    <Banner tone="err" className="mt-2 mb-0 text-[13px]">
+                    <Banner tone="err" className="mt-2 mb-0 text-sm">
                       Calibration failed on the server, so nothing changed. Try again; if it keeps failing, the server log says why.
                     </Banner>
                   ) : (
@@ -104,7 +104,7 @@ export function CalibrationCard() {
 function Result({ r }: { r: CalibratedProcedure }) {
   if (r.skipped)
     return (
-      <Banner tone="warn" className="mt-2 mb-0 text-[13px]">
+      <Banner tone="warn" className="mt-2 mb-0 text-sm">
         {refusal(r.skipped)}
       </Banner>
     );
@@ -124,7 +124,7 @@ function Result({ r }: { r: CalibratedProcedure }) {
   };
   const up = r.score != null && r.score_before != null ? r.score - r.score_before : null;
   return (
-    <div className="mt-2.5 grid gap-2.5">
+    <div className="mt-2 grid gap-2">
       <div className="flex flex-wrap gap-2">
         <Stat label="Labels used" value={`${r.labels}`} tip={<TipBody head="Labels used">{plural(r.labels, "session with a reviewed finding", "sessions with a reviewed finding")}; {plural(r.negative_labels, "finding was", "findings were")} judged wrong.</TipBody>} />
         <Stat
@@ -145,16 +145,16 @@ function Result({ r }: { r: CalibratedProcedure }) {
       </div>
       {r.rules.length > 0 && (
         <div className="overflow-x-auto rounded-md border">
-          <table className="w-full text-[13px]">
+          <table className="w-full text-sm">
             <thead className="bg-muted/50 text-muted-foreground text-left text-xs">
               <tr>
-                <th className="px-2.5 py-1.5 font-medium">Question</th>
-                <th className="px-2.5 py-1.5 text-right font-medium">
+                <th className="px-2 py-2 font-medium">Question</th>
+                <th className="px-2 py-2 text-right font-medium">
                   <Hint tip="The threshold in use now: calibrated earlier, or the default.">
                     <span className="cursor-help border-b border-dotted border-current">Before</span>
                   </Hint>
                 </th>
-                <th className="px-2.5 py-1.5 text-right font-medium">
+                <th className="px-2 py-2 text-right font-medium">
                   <Hint tip="The threshold fitted to your labels. Higher means the checker must be surer before it flags.">
                     <span className="cursor-help border-b border-dotted border-current">After</span>
                   </Hint>
@@ -166,16 +166,16 @@ function Result({ r }: { r: CalibratedProcedure }) {
                 const d = x.after - x.before;
                 return (
                   <tr key={x.field}>
-                    <td className="px-2.5 py-1.5">
+                    <td className="px-2 py-2">
                       <span className="line-clamp-2">{label(x)}</span>
                       {x.skipped && <span className="text-muted-foreground block text-xs">{ruleSkip(x.skipped)}</span>}
                     </td>
-                    <td className="text-muted-foreground px-2.5 py-1.5 text-right tabular-nums">
+                    <td className="text-muted-foreground px-2 py-2 text-right tabular-nums">
                       <Hint focusable={false} tip={`In use now: the checker flags this when it's at least ${fmt(x.before)} sure.`}>
                         <span>{fmt(x.before)}</span>
                       </Hint>
                     </td>
-                    <td className={cn("px-2.5 py-1.5 text-right font-medium tabular-nums whitespace-nowrap", Math.abs(d) < 0.005 && "text-muted-foreground font-normal")}>
+                    <td className={cn("px-2 py-2 text-right font-medium tabular-nums whitespace-nowrap", Math.abs(d) < 0.005 && "text-muted-foreground font-normal")}>
                       <Hint
                         focusable={false}
                         tip={Math.abs(d) < 0.005 ? "Unchanged." : `Fitted to your labels: ${d > 0 ? "stricter" : "looser"} by ${Math.abs(d).toFixed(2)}, so it flags ${d > 0 ? "less" : "more"} often.`}
@@ -200,9 +200,9 @@ function Result({ r }: { r: CalibratedProcedure }) {
 function Stat({ label, value, tip, tone }: { label: string; value: React.ReactNode; tip: React.ReactNode; tone?: "ok" | "err" }) {
   return (
     <Hint tip={tip}>
-      <span className="bg-muted/50 inline-flex flex-col rounded-md border px-2.5 py-1">
-        <span className="text-muted-foreground text-[11px]">{label}</span>
-        <span className={cn("text-[13.5px] font-semibold tabular-nums", tone === "ok" && "text-ok", tone === "err" && "text-err")}>{value}</span>
+      <span className="bg-muted/50 inline-flex flex-col rounded-md border px-2 py-1">
+        <span className="text-muted-foreground text-sm">{label}</span>
+        <span className={cn("text-sm font-semibold tabular-nums", tone === "ok" && "text-ok", tone === "err" && "text-err")}>{value}</span>
       </span>
     </Hint>
   );

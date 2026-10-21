@@ -76,7 +76,7 @@ function fieldErrors(error: unknown): Record<string, string> {
 function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: ReactNode; error?: string; children: ReactNode }) {
   return (
     <div className="grid content-start gap-1">
-      <Label htmlFor={id} className="text-[13px]">
+      <Label htmlFor={id} className="text-sm">
         {label}
       </Label>
       {children}
@@ -212,7 +212,7 @@ function AppConnect({ current, onDone, onCancel, requireProject = true, app, ins
     return (
       <div className="grid gap-3">
         {error != null && <RepoError error={error} />}
-        <p className="text-[13px]">
+        <p className="text-sm">
           Install {app.name ? <b>{app.name}</b> : "the sopops GitHub App"} on the account that owns the repository and give it that repository. GitHub brings you back
           here to pick it.
         </p>
@@ -355,7 +355,7 @@ function TokenForm({ current, onDone, onCancel, requireProject = true }: FormPro
           required: !asToken,
         })}
       </Field>
-      <div className="bg-muted rounded-md px-3 py-2 text-[13px]">
+      <div className="bg-muted rounded-md px-3 py-2 text-sm">
         Use a <b>fine-grained personal access token</b> limited to this repository, with:
         <ul className="mt-1 list-disc pl-5">
           <li>Contents: read and write</li>
@@ -411,14 +411,14 @@ function CreateApp() {
   };
   if (!open)
     return (
-      <div className="text-muted-foreground text-[13px]">
+      <div className="text-muted-foreground text-sm">
         Or skip the token: <Button variant="link" size="xs" className="h-auto px-0" onClick={() => setOpen(true)}>create a GitHub App for this server</Button>. It
         signs in without a personal token, and GitHub tells sopops about changes as they happen.
       </div>
     );
   return (
     <div className="grid gap-3 rounded-md border p-3">
-      <div className="text-[13px]">
+      <div className="text-sm">
         <b>Create a GitHub App.</b> GitHub shows you what it asks for (Contents and Pull requests: read and write, Metadata: read) and creates it. sopops then stores
         its key encrypted. Install it on your repository next.
       </div>
@@ -452,8 +452,8 @@ export function RepoLine({ r, children }: { r: RepoOut; children?: ReactNode }) 
         {r.owner}/{r.repo}
         {r.path ? `/${r.path}` : ""} <ExternalLink className="size-3.5 shrink-0" />
       </a>
-      <span className="text-muted-foreground text-[13px]">
-        on <code className="text-[12.5px]">{r.base_branch}</code> · {r.auth === "app" ? "through the GitHub App" : `token ••••${(r.token_hint ?? "").replace(/^…/, "")}`}
+      <span className="text-muted-foreground text-sm">
+        on <code className="text-sm">{r.base_branch}</code> · {r.auth === "app" ? "through the GitHub App" : `token ••••${(r.token_hint ?? "").replace(/^…/, "")}`}
       </span>
       {children}
     </div>
@@ -507,7 +507,7 @@ export function RepoCard() {
 
   return (
     <Panel title="GitHub repository">
-      <p className="text-muted-foreground mb-3 text-[13px]">
+      <p className="text-muted-foreground mb-3 text-sm">
         Keep your team's sopc project in a repository: changes on GitHub come into drafts here, drafts go back as a pull request, and suggestions are applied as pull
         requests instead of drafts.
       </p>
@@ -653,7 +653,7 @@ function ConflictRow({ folder, path, deleted }: { folder: string; path: string; 
     }
   };
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span>
           <code>{shown}</code> {deleted ? "was deleted on GitHub and changed here." : "changed on GitHub and here."}
@@ -673,11 +673,11 @@ function ConflictRow({ folder, path, deleted }: { folder: string; path: string; 
       {error != null && (error instanceof ApiError && error.status === 422 ? <ErrorBanner error={error} lead="This doesn't build yet:" /> : <RepoError error={error} />)}
       {editing && (
         <div className="grid gap-2">
-          <Textarea className="font-mono text-[12.5px]" rows={10} value={text} onChange={(e) => setText(e.target.value)} aria-label={`${shown}, as you want it`} />
+          <Textarea className="font-mono text-sm" rows={10} value={text} onChange={(e) => setText(e.target.value)} aria-label={`${shown}, as you want it`} />
           {editing.theirs != null && (
-            <details className="text-[13px]">
+            <details className="text-sm">
               <summary className="cursor-pointer">GitHub's version</summary>
-              <pre className="bg-muted mt-1 max-h-64 overflow-auto rounded-md p-2 text-[12px] whitespace-pre-wrap">{editing.theirs}</pre>
+              <pre className="bg-muted mt-1 max-h-64 overflow-auto rounded-md p-2 text-sm whitespace-pre-wrap">{editing.theirs}</pre>
             </details>
           )}
           <div className="flex flex-wrap gap-2">

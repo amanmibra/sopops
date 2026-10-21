@@ -19,7 +19,7 @@ function SignUp() {
   if (auth.open_signup) return <NewAccount auth={auth} start="name" signUp />;
   return (
     <Card title="Join your team with its join link">
-      <p className="text-muted-foreground mb-5 text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-5 text-sm leading-relaxed">
         To join a team, open the join link someone on it sent you. Don't have one? Ask a team owner or admin for it.
       </p>
       {auth.sign_up && (

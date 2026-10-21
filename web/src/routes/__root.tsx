@@ -9,7 +9,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   component: Root,
   notFoundComponent: () => (
     <main className="px-8 py-6">
-      <h1 className="text-[22px] font-semibold">Not found</h1>
+      <h1 className="text-2xl font-semibold">Not found</h1>
       <p className="text-muted-foreground">
         There's no page here. <a href="/">Go home</a>.
       </p>

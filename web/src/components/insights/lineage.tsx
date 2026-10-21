@@ -79,7 +79,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
     >
       <ol className="divide-y">
         {rules.map((r, i) => (
-          <li key={r.rule_id} className="px-4 py-2.5 text-[13px]">
+          <li key={r.rule_id} className="px-4 py-2 text-sm">
             <div className="flex items-start justify-between gap-3">
               <span className="min-w-0">“{r.text ? <RuleText text={r.text} /> : "Not run by any session yet"}”</span>
               {i > 0 && (
@@ -97,7 +97,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
       </ol>
       {d && others.length > 0 && (
         <div className="border-t px-4 py-3">
-          <p className="text-muted-foreground mb-2 text-[13px]">
+          <p className="text-muted-foreground mb-2 text-sm">
             Is this a rewording of another {kind === "step" ? "step" : kind === "never" ? "never rule" : "rule"} that sopops didn't match? Link them, and their findings, verdicts and history become one rule's.
           </p>
           <div className="flex flex-wrap items-center gap-2">

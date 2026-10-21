@@ -32,10 +32,10 @@ function useCapture() {
 function HookBox({ title, path, steps, children }: { title: string; path: string; steps: ReactNode[]; children?: ReactNode }) {
   const url = `${window.location.origin}${path}`;
   return (
-    <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+    <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">{title}</div>
-      <div className="bg-card flex items-center gap-2 rounded-md border px-2.5 py-1">
-        <code className="flex-1 font-mono text-[12px] break-all">{url}</code>
+      <div className="bg-card flex items-center gap-2 rounded-md border px-2 py-1">
+        <code className="flex-1 font-mono text-sm break-all">{url}</code>
         <Button size="icon-sm" variant="ghost" aria-label={`Copy the ${title} address`} onClick={() => copy(url)}>
           <Copy />
         </Button>
@@ -56,8 +56,8 @@ function Received({ at }: { at: string | null | undefined }) {
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5">
-      <span className="grid w-48 text-[13px]">
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="grid w-48 text-sm">
         {label} {hint && <span className="text-muted-foreground text-xs">{hint}</span>}
       </span>
       {children}
@@ -118,7 +118,7 @@ export function LiveKitCapture() {
       <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold">
         <PlatformIcon platform="livekit" size={16} /> LiveKit
       </h3>
-      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Connect your LiveKit Cloud project, and sopops joins each call as a hidden participant. It reads what the agent and the caller say as it happens,
         so your agent needs no changes. Tool calls aren't in the room, so they aren't recorded this way.
       </p>
@@ -249,7 +249,7 @@ function AgentMap() {
   );
 
   return (
-    <div className="grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+    <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">Which agent each call belongs to</div>
       <ul className="text-muted-foreground grid max-w-prose list-disc gap-1 pl-5 leading-relaxed">
         <li>sopops looks for the agent name your LiveKit agent was dispatched with. If it matches a sopops agent, that's the one.</li>
@@ -351,7 +351,7 @@ function ElevenLabsBack() {
         <Field label="Post-call secret" hint="Checks each call came from ElevenLabs">
           {el.post_call_secret.set ? (
             <>
-              <code className="text-[13px]">{el.post_call_secret.hint}</code>
+              <code className="text-sm">{el.post_call_secret.hint}</code>
               <span className="flex-1" />
               <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again: calls stop arriving" onConfirm={removeSecret}>
                 Remove
@@ -382,7 +382,7 @@ function ElevenLabsBack() {
         </Field>
         <Received at={el.last_post_call_at} />
       </HookBox>
-      <div className="grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+      <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
         <label className="flex items-center gap-2 font-medium">
           <Checkbox checked={el.live} onCheckedChange={(v) => setLive(v === true)} aria-label="Enterprise live monitoring" />
           Listen to calls as they happen (ElevenLabs Enterprise)
@@ -417,7 +417,7 @@ function VapiBack() {
     transcript: "sends what's said as it happens",
   };
   return (
-    <div className="grid gap-2 rounded-md border px-3 py-2.5 text-[13px]">
+    <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">Calls back to sopops</div>
       <p className="text-muted-foreground max-w-prose leading-relaxed">
         Vapi sends calls to the same Server URL. On Vapi, under the assistant's <b>Server Messages</b>, turn these on:

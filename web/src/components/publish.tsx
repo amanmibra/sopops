@@ -94,7 +94,7 @@ function PublishBody({ onDone }: { onDone: () => void }) {
             onKeyDown={(e) => e.key === "Enter" && !blocked && publish()}
           />
         )}
-        <HrefLink href={wsHref(ws, "changes")} className="text-[13px]" onClick={onDone}>
+        <HrefLink href={wsHref(ws, "changes")} className="text-sm" onClick={onDone}>
           Open the full Changes page
         </HrefLink>
         <span className="flex-1" />
@@ -136,7 +136,7 @@ export function PublishButton({ ws }: { ws: string }) {
       <Button variant="outline" size="sm" disabled={!value} onClick={() => setOpen(true)} title={unsaved.length ? `Unsaved edits: ${unsaved.map((u) => u.label).join(", ")}` : undefined}>
         Publish<span className="max-sm:hidden"> changes</span>
         {n > 0 && (
-          <span className="bg-warn text-card rounded-full px-1.5 text-xs font-semibold" aria-label={`${n} saved draft changes`}>
+          <span className="bg-warn text-card rounded-full px-2 text-xs font-semibold" aria-label={`${n} saved draft changes`}>
             {n}
           </span>
         )}

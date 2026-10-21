@@ -42,12 +42,12 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
     <div className="max-w-[1320px] min-w-0">
       <BackBar href={insightsHref(ws, ["insights", "procedures", procedureId], filters)} label={procName} filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
-        <section className="bg-card rounded-lg border px-4 py-3.5">
+        <section className="bg-card rounded-lg border px-4 py-4">
           <div className="text-muted-foreground text-xs">
             <HrefLink href={insightsHref(ws, ["insights"], filters)}>Insights</HrefLink> / <HrefLink href={insightsHref(ws, ["insights", "procedures", procedureId], filters)}>{procName}</HrefLink>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <h1 className="text-[20px] leading-tight font-semibold tracking-tight">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>
+            <h1 className="text-lg font-semibold">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>
             {d && d.wordings.length > 1 && (
               <RewordedTag
                 releasedIn={d.reworded_in}
@@ -56,7 +56,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
               />
             )}
           </div>
-          {d?.text && <p className="mt-1 max-w-[90ch] text-[14px]">“<RuleText text={d.text} />”</p>}
+          {d?.text && <p className="mt-1 max-w-[90ch] text-sm">“<RuleText text={d.text} />”</p>}
           <p className="text-muted-foreground mt-1 text-xs">Over {windowPhrase(filters)}. A reworded rule keeps its earlier results.</p>
         </section>
         {d && scope ? (
@@ -133,16 +133,16 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
           >
             <ul className="divide-y">
               {d?.recent_findings.map((f) => (
-                <li key={f.finding_id} className="px-4 py-2.5 text-[13px]">
+                <li key={f.finding_id} className="px-4 py-2 text-sm">
                   <div className="flex flex-wrap items-center gap-2">
                     <HrefLink href={wsHref(ws, "sessions", f.session_id)} className="font-semibold">
                       {when(f.started_at)}
                     </HrefLink>
-                    <span className="bg-err-soft text-err rounded-full px-1.5 text-xs font-medium">{f.status.replace("_", " ")}</span>
+                    <span className="bg-err-soft text-err rounded-full px-2 text-xs font-medium">{f.status.replace("_", " ")}</span>
                   </div>
                   {f.reason && <div className="text-muted-foreground mt-0.5">{f.reason}</div>}
                   {f.evidence.slice(0, 2).map((e, i) => (
-                    <blockquote key={i} className="border-k-procedure/50 mt-1 border-l-2 pl-2.5">
+                    <blockquote key={i} className="border-k-procedure/50 mt-1 border-l-2 pl-2">
                       “{e.quote}”
                     </blockquote>
                   ))}
@@ -164,12 +164,12 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
                 {d?.patterns.flatMap((p) => [p, ...p.sub_patterns.filter((s) => s.findings)]).map((p) => {
                   const r = reviewOf(p);
                   return (
-                    <li key={p.pattern_id} className={cn("grid gap-0.5 px-4 py-2 text-[13px]", p.kind !== "rule" && "pl-8")}>
+                    <li key={p.pattern_id} className={cn("grid gap-0.5 px-4 py-2 text-sm", p.kind !== "rule" && "pl-8")}>
                       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                         <HrefLink href={wsHref(ws, "patterns", p.pattern_id)} className={cn("min-w-0", p.kind === "rule" ? "font-semibold" : p.kind === "other" && "text-muted-foreground")} title="The pattern: verdict, history and suggestions">
                           {p.name}
                         </HrefLink>
-                        <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="flex flex-wrap items-center gap-2">
                           <VerdictChip v={r.verdict} />
                           <ReviewStateChip state={r.state} note={r.note} />
                         </span>

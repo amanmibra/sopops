@@ -37,7 +37,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
   const procName = (id?: string | null) => (id ? (cfg.procedures.find((p) => p.id === id)?.name ?? id) : null);
   return (
     <Page wide>
-      <PageTitle>Suggestions</PageTitle>
+      <PageTitle>Fixes</PageTitle>
       <Sub className="max-w-[90ch]">
         SOP changes written from a pattern's verdict. Review the diff and how each agent's instructions change, then apply it as a draft (or a pull request, with a connected repo) or dismiss it.
       </Sub>
@@ -48,10 +48,10 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
             type="button"
             aria-current={tab === t ? "page" : undefined}
             onClick={() => onStatus(t === "proposed" ? undefined : t)}
-            className={cn("text-muted-foreground hover:text-foreground -mb-px flex shrink-0 cursor-pointer items-center gap-1.5 border-b-2 border-transparent px-3 py-2", tab === t && "border-primary text-foreground font-medium")}
+            className={cn("text-muted-foreground hover:text-foreground -mb-px flex shrink-0 cursor-pointer items-center gap-2 border-b-2 border-transparent px-3 py-2", tab === t && "border-primary text-foreground font-medium")}
           >
             {t === "all" ? "All" : SUGGESTION_STATUS[t].label}
-            {t === "proposed" && !!proposed.data?.items.length && <span className="bg-warn-soft text-warn rounded-full px-1.5 text-[11px] tabular-nums">{proposed.data.items.length}</span>}
+            {t === "proposed" && !!proposed.data?.items.length && <span className="bg-warn-soft text-warn rounded-full px-2 text-sm tabular-nums">{proposed.data.items.length}</span>}
           </button>
         ))}
       </nav>
@@ -69,8 +69,8 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
           </Button>
         </Banner>
       ) : !items.length ? (
-        <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-[13px]">
-          <Sparkles className="text-muted-foreground mx-auto mb-1.5 size-5" />
+        <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-sm">
+          <Sparkles className="text-muted-foreground mx-auto mb-2 size-5" />
           <div className="text-foreground font-semibold">{tab === "proposed" ? "No suggestions waiting" : `Nothing ${tab === "all" ? "yet" : SUGGESTION_STATUS[tab].label.toLowerCase()}`}</div>
           <p className="mx-auto mt-1 max-w-[60ch]">
             A verdict of “real mistake” or “SOP is wrong” on a pattern gets a suggested fix. <HrefLink href={wsHref(ws, "patterns")}>Review patterns</HrefLink>
@@ -111,7 +111,7 @@ function AgentChange({ a, open }: { a: PlanAgent; open: boolean }) {
           <b>{a.agent}</b>
           <Counts add={a.added} del={a.removed} />
           <span className="flex-1" />
-          <HrefLink href={href("agent", a.agent, "prompt")} className="text-[13px]" onClick={(e) => e.stopPropagation()}>
+          <HrefLink href={href("agent", a.agent, "prompt")} className="text-sm" onClick={(e) => e.stopPropagation()}>
             Full instructions
           </HrefLink>
         </>
@@ -132,9 +132,9 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
   const ruleId = s.pattern?.rule_id ?? s.rule_id ?? d?.rule_id ?? "";
   if (!name && pat.isError) return <Note>The source pattern is gone (reclustered away).</Note>;
   return (
-    <section className="bg-card rounded-lg border px-4 py-3.5">
+    <section className="bg-card rounded-lg border px-4 py-4">
       <div className="text-muted-foreground mb-1 text-xs">Source pattern</div>
-      <h2 className="text-[15px] leading-snug font-semibold">
+      <h2 className="text-lg font-semibold">
         <HrefLink href={wsHref(ws, "patterns", s.pattern_id)} className="text-foreground">
           {name ?? "…"}
         </HrefLink>
@@ -145,25 +145,25 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
           {d.suppressed > 0 && ` (${d.suppressed} hidden from Insights by the verdict)`}
         </p>
       )}
-      {(s.pattern?.kind ?? d?.kind) !== "rule" && (s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-[13px]">{s.pattern?.description ?? d?.description}</p>}
+      {(s.pattern?.kind ?? d?.kind) !== "rule" && (s.pattern?.description ?? d?.description) && <p className="text-muted-foreground mt-1 text-sm">{s.pattern?.description ?? d?.description}</p>}
       {d?.rule.text && (
-        <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2.5 text-[13px]">
+        <blockquote className="border-k-procedure/50 mt-2 border-l-2 pl-2 text-sm">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> <RuleText text={d.rule.text} />
         </blockquote>
       )}
-      <div className="mt-2.5 flex flex-wrap items-center gap-2 text-[13px]">
+      <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
         <VerdictChip v={verdict} />
         {d && <ReviewStateChip state={d.review_state} note={d.review_note} />}
         {verdict?.reviewer && <span className="text-muted-foreground text-xs">by {verdict.reviewer}</span>}
       </div>
-      {verdict?.note && <p className="text-muted-foreground mt-1 text-[13px]">“{verdict.note}”</p>}
-      {d && d.review_state && ["fixing", "fixed", "regressed"].includes(d.review_state) && d.review_note && <p className="mt-1 text-[13px]">{d.review_note}</p>}
+      {verdict?.note && <p className="text-muted-foreground mt-1 text-sm">“{verdict.note}”</p>}
+      {d && d.review_state && ["fixing", "fixed", "regressed"].includes(d.review_state) && d.review_note && <p className="mt-1 text-sm">{d.review_note}</p>}
       {d && d.examples.length > 0 && (
         <>
           <h3 className="text-muted-foreground mt-3 mb-1 text-xs font-semibold">Examples</h3>
-          <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
+          <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
             {d.examples.slice(0, 3).map((e, i) => (
-              <li key={i} className="text-[13px]">
+              <li key={i} className="text-sm">
                 <HrefLink href={sessionAt(ws, { session_id: e.session_id, turn: e.turn }, procedureId, ruleId)} className="text-foreground hover:bg-muted block rounded-md border px-2 py-1 hover:no-underline">
                   “{e.quote}”
                 </HrefLink>
@@ -179,7 +179,7 @@ function SourcePattern({ s }: { s: SuggestionDetail }) {
 function ChangesSince({ since, open = false }: { since: SinceWritten; open?: boolean }) {
   if (!since.changes) return null;
   return (
-    <Collapsible open={open} summary={<span className="text-[13px] font-medium">What changed in the procedure since</span>}>
+    <Collapsible open={open} summary={<span className="text-sm font-medium">What changed in the procedure since</span>}>
       <PatchView patch={since.changes} />
     </Collapsible>
   );
@@ -189,14 +189,14 @@ function Side({ label, text }: { label: string; text: string }) {
   return (
     <div className="min-w-0">
       <div className="text-muted-foreground mb-1 text-xs font-medium">{label}</div>
-      <pre className="bg-card overflow-x-auto rounded-md border px-2.5 py-2 font-mono text-xs whitespace-pre-wrap">{text.replace(/^\n+|\n+$/g, "") || <span className="text-muted-foreground italic">Nothing</span>}</pre>
+      <pre className="bg-card overflow-x-auto rounded-md border px-2 py-2 font-mono text-xs whitespace-pre-wrap">{text.replace(/^\n+|\n+$/g, "") || <span className="text-muted-foreground italic">Nothing</span>}</pre>
     </div>
   );
 }
 
 function ConflictPart({ c }: { c: MergeConflict }) {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <div className="text-xs font-semibold">At line {c.line}</div>
       <div className="grid gap-2 md:grid-cols-2">
         <Side label="The procedure now" text={c.current} />
@@ -209,10 +209,10 @@ function ConflictPart({ c }: { c: MergeConflict }) {
 /** A proposed suggestion whose procedure changed since it was written, in the same place (or the merge doesn't compile). */
 function ConflictCallout({ since, busy, onRewrite }: { since: SinceWritten; busy: boolean; onRewrite: () => void }) {
   return (
-    <section role="alert" className="border-err/40 bg-err-soft/60 mb-4 grid gap-3 rounded-lg border px-4 py-3.5">
+    <section role="alert" className="border-err/40 bg-err-soft/60 mb-4 grid gap-3 rounded-lg border px-4 py-4">
       <div>
-        <h2 className="text-err text-[14.5px] font-semibold">This conflicts with changes made since it was written</h2>
-        <p className="mt-0.5 text-[13px]">
+        <h2 className="text-err text-sm font-semibold">This conflicts with changes made since it was written</h2>
+        <p className="mt-0.5 text-sm">
           {since.conflicts.length
             ? `Someone changed the same ${since.conflicts.length === 1 ? "part" : "parts"} of the procedure. Applying it would undo their edit, so it can't be applied.`
             : since.issues && since.changes
@@ -224,7 +224,7 @@ function ConflictCallout({ since, busy, onRewrite }: { since: SinceWritten; busy
       {since.conflicts.map((c, i) => (
         <ConflictPart key={i} c={c} />
       ))}
-      {since.issues && <pre className="bg-card overflow-x-auto rounded-md border px-2.5 py-2 font-mono text-xs whitespace-pre-wrap">{since.issues}</pre>}
+      {since.issues && <pre className="bg-card overflow-x-auto rounded-md border px-2 py-2 font-mono text-xs whitespace-pre-wrap">{since.issues}</pre>}
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={busy} onClick={onRewrite}>
           {busy ? <Loader2 className="animate-spin" /> : <RefreshCw />} Rewrite against the current text
@@ -304,8 +304,8 @@ export function SuggestionView({ id }: { id: string }) {
 
   return (
     <Page wide>
-      <div className="text-muted-foreground mb-2 text-[13px]">
-        <HrefLink href={wsHref(ws, "suggestions")}>Suggestions</HrefLink> /
+      <div className="text-muted-foreground mb-2 text-sm">
+        <HrefLink href={wsHref(ws, "suggestions")}>Fixes</HrefLink> /
       </div>
       <PageTitle aside={<SuggestionStatusTag status={s.status} big />}>{patternName ? `Fix for “${patternName}”` : "Suggested change"}</PageTitle>
       <Sub>
@@ -367,7 +367,7 @@ export function SuggestionView({ id }: { id: string }) {
           )}
           {open &&
             (dismissing ? (
-              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+              <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <Input autoFocus className="h-8 min-w-48 flex-1" placeholder="Why not? (optional)" aria-label="Why it's dismissed" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Escape" && setDismissing(false)} />
                 <ConfirmButton size="sm" variant="outline" confirm="Really dismiss?" disabled={!!busy} onConfirm={() => void act("dismiss")}>
                   Dismiss
@@ -388,7 +388,7 @@ export function SuggestionView({ id }: { id: string }) {
           )}
           {open && !conflict && <Note className="basis-full sm:ml-auto sm:basis-auto">{pr ? `Opens a pull request on ${repo.data!.owner}/${repo.data!.repo}.` : "No repository connected: it lands as an unpublished draft."}</Note>}
           {since?.state === "merges" && (
-            <p className="text-muted-foreground flex basis-full items-center gap-1.5 text-[13px]">
+            <p className="text-muted-foreground flex basis-full items-center gap-2 text-sm">
               <GitMerge className="size-4 shrink-0" /> The procedure changed since this was written. It merges cleanly.
             </p>
           )}
@@ -399,13 +399,13 @@ export function SuggestionView({ id }: { id: string }) {
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
           {s.rationale && (
-            <section className="bg-card rounded-lg border px-4 py-3.5">
-              <h2 className="mb-1.5 text-[13.5px] font-semibold">Why</h2>
-              <p className="max-w-[80ch] text-[14px] whitespace-pre-wrap">{s.rationale}</p>
+            <section className="bg-card rounded-lg border px-4 py-4">
+              <h2 className="mb-2 text-sm font-semibold">Why</h2>
+              <p className="max-w-[80ch] text-sm whitespace-pre-wrap">{s.rationale}</p>
             </section>
           )}
-          <section className="bg-card min-w-0 rounded-lg border px-4 py-3.5">
-            <h2 className="text-[13.5px] font-semibold">
+          <section className="bg-card min-w-0 rounded-lg border px-4 py-4">
+            <h2 className="text-sm font-semibold">
               The change to {procName}
               {s.path && <span className="text-muted-foreground ml-2 font-mono text-xs font-normal">{s.path}</span>}
             </h2>
@@ -413,7 +413,7 @@ export function SuggestionView({ id }: { id: string }) {
           </section>
           {s.new_text != null && (
             <section className="min-w-0">
-              <h2 className="mb-2.5 text-base font-semibold">{agents.length ? `How ${agents.length === 1 ? "the agent's instructions change" : "agents' instructions change"}` : "No agent's instructions change"}</h2>
+              <h2 className="mb-2 text-base font-semibold">{agents.length ? `How ${agents.length === 1 ? "the agent's instructions change" : "agents' instructions change"}` : "No agent's instructions change"}</h2>
               {agents.length ? agents.map((a, i) => <AgentChange key={a.agent} a={a} open={i < 2} />) : <Note>The edit doesn't reach any agent's instructions as it stands.</Note>}
             </section>
           )}

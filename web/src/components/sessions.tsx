@@ -128,14 +128,14 @@ function DrillChips({ filters, onFilters }: { filters: SessionFilters; onFilters
     }
   };
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-1.5" aria-label="Drill-down filters">
+    <div className="mb-3 flex flex-wrap items-center gap-2" aria-label="Drill-down filters">
       {active.map((k) => (
-        <span key={k} className="bg-brand-soft inline-flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2.5 text-[13px]">
+        <span key={k} className="bg-brand-soft inline-flex items-center gap-1 rounded-full py-0.5 pr-1 pl-2 text-sm">
           {label(k)}
           <button
             type="button"
             aria-label={`Remove ${label(k)}`}
-            className="hover:bg-card text-muted-foreground cursor-pointer rounded-full px-1.5"
+            className="hover:bg-card text-muted-foreground cursor-pointer rounded-full px-2"
             onClick={() => onFilters({ ...filters, [k]: undefined, ...(k === "rule" ? { rule_status: undefined } : {}) })}
           >
             ×
@@ -167,7 +167,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
     <Page wide>
       <PageTitle
         aside={
-          <span className={cn("ml-1 flex items-center gap-1.5 text-[13px]", connected ? "text-ok" : "text-muted-foreground")} title={connected ? "New sessions appear as they arrive." : "Reconnecting…"}>
+          <span className={cn("ml-1 flex items-center gap-2 text-sm", connected ? "text-ok" : "text-muted-foreground")} title={connected ? "New sessions appear as they arrive." : "Reconnecting…"}>
             <Radio className="size-3.5" /> {connected ? "Live" : "Offline"}
           </span>
         }
@@ -181,7 +181,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
           </>
         )}
         the API or{" "}
-        <code className="text-[13px]">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink> (the gear icon).
+        <code className="text-sm">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink> (the gear icon).
       </Sub>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
@@ -189,12 +189,12 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         <FilterSelect label="Channel" value={filters.channel} options={[["voice", "Voice"], ["text", "Text"]]} onChange={(channel) => set({ channel })} />
         <FilterSelect label="Status" value={filters.status} options={(Object.keys(STATUS) as Status[]).map((s) => [s, s])} onChange={(status) => set({ status })} />
         <FilterSelect label="Result" value={filters.result} options={(Object.keys(RESULT) as Result[]).map((r) => [r, RESULT[r].label])} onChange={(result) => set({ result })} />
-        <div className="text-muted-foreground flex flex-wrap items-center gap-1.5 text-[13px]">
-          <label className="flex items-center gap-1.5">
+        <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-sm">
+          <label className="flex items-center gap-2">
             From
             <Input type="datetime-local" className="h-8 w-auto" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
           </label>
-          <label className="flex items-center gap-1.5">
+          <label className="flex items-center gap-2">
             to
             <Input type="datetime-local" className="h-8 w-auto" value={filters.until ?? ""} onChange={(e) => set({ until: e.target.value || undefined })} />
           </label>
@@ -207,7 +207,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
       </div>
 
       <DrillChips filters={filters} onFilters={onFilters} />
-      <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">
+      <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
         <Segmented
           small
           label={focus ? "Procedure result" : "Result"}
@@ -228,7 +228,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
             <thead>
               <tr>
                 {["Started", "Agent", "Channel", "Duration", "Turns", "Release", ...(showStatus ? ["Status"] : []), "Result", ...(focus ? ["Rules"] : [])].map((h) => (
-                  <th key={h} className={cn("text-muted-foreground border-b px-2.5 py-2 text-left text-xs font-medium whitespace-nowrap", NUMERIC.has(h) && "text-right")}>
+                  <th key={h} className={cn("text-muted-foreground border-b px-2 py-2 text-left text-xs font-medium whitespace-nowrap", NUMERIC.has(h) && "text-right")}>
                     {h}
                   </th>
                 ))}
@@ -242,32 +242,32 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                   onClick={() => setOpenId(s.id)}
                   aria-selected={openId === s.id}
                 >
-                  <td className="border-b px-2.5 py-2 whitespace-nowrap">
+                  <td className="border-b px-2 py-2 whitespace-nowrap">
                     <HrefLink href={wsHref(ws, "sessions", s.id)} className="text-foreground" onClick={(e) => e.stopPropagation()}>
                       {when(s.started_at)}
                     </HrefLink>
                   </td>
-                  <td className="border-b px-2.5 py-2">
+                  <td className="border-b px-2 py-2 whitespace-nowrap">
                     <span className={cn(!s.agent_id && "text-muted-foreground")} title={s.agent_id ? undefined : "Not matched to an agent in sopops"}>
                       {agentName(s)}
                     </span>
                     <div className="text-muted-foreground text-xs"><PlatformLabel platform={s.platform} size={12} /></div>
                   </td>
-                  <td className="border-b px-2.5 py-2 capitalize">{s.channel}</td>
-                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{clock(s.duration_s) || <span className="text-muted-foreground">—</span>}</td>
-                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{s.turn_count}</td>
-                  <td className="border-b px-2.5 py-2 text-right tabular-nums">{s.release_id != null ? `#${s.release_id}` : <span className="text-muted-foreground">—</span>}</td>
+                  <td className="border-b px-2 py-2 capitalize">{s.channel}</td>
+                  <td className="border-b px-2 py-2 text-right tabular-nums">{clock(s.duration_s) || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="border-b px-2 py-2 text-right tabular-nums">{s.turn_count}</td>
+                  <td className="border-b px-2 py-2 text-right tabular-nums">{s.release_id != null ? `#${s.release_id}` : <span className="text-muted-foreground">—</span>}</td>
                   {showStatus && (
-                    <td className="border-b px-2.5 py-2">
+                    <td className="border-b px-2 py-2">
                       {/* Checked is the normal end state, so only the others are marked. */}
                       {s.status !== "checked" && <StatusTag status={s.status} />}
                     </td>
                   )}
-                  <td className="border-b px-2.5 py-2">
+                  <td className="border-b px-2 py-2">
                     <ResultTag result={focus ? s.procedure_check?.result : s.result} />
                   </td>
                   {focus && (
-                    <td className="border-b px-2.5 py-2">
+                    <td className="border-b px-2 py-2">
                       <RuleDots rules={s.procedure_check?.rules ?? []} />
                     </td>
                   )}
@@ -296,7 +296,7 @@ function RuleDots({ rules }: { rules: { rule_id: string; kind: string; index: nu
     <Hint
       focusable={false}
       tip={
-        <span className="grid grid-cols-[auto_1fr] gap-x-2.5">
+        <span className="grid grid-cols-[auto_1fr] gap-x-2">
           {rules.map((r) => (
             <span key={r.rule_id} className="contents">
               <b>{ruleName(r.kind, r.index)}</b>
@@ -309,7 +309,7 @@ function RuleDots({ rules }: { rules: { rule_id: string; kind: string; index: nu
       <span role="img" aria-label={rules.map((r) => `${ruleName(r.kind, r.index)} ${STATUS_MARK[r.status]?.label ?? r.status}`).join(", ")} className="flex items-center gap-[3px]">
         {rules.map((r) => {
           const m = STATUS_MARK[r.status];
-          return <span key={r.rule_id} className={cn("inline-block size-2 rounded-full", m?.striped && "stripes border", r.kind === "warning" && "rounded-[2px]")} style={m?.striped ? undefined : { background: m?.color ?? "var(--o-none)" }} />;
+          return <span key={r.rule_id} className={cn("inline-block size-2 rounded-full", m?.striped && "stripes border", r.kind === "warning" && "rounded-none")} style={m?.striped ? undefined : { background: m?.color ?? "var(--o-none)" }} />;
         })}
       </span>
     </Hint>
@@ -364,10 +364,10 @@ function SessionDrawer({ id, ids, onOpen, onExpand }: { id: string | null; ids: 
             <ErrorBanner error={res.error} />
           ) : s ? (
             <>
-              <SheetTitle className="text-[17px] font-semibold">
+              <SheetTitle className="text-lg font-semibold">
                 {agentName(s)}, {when(s.started_at)}
               </SheetTitle>
-              <SheetDescription className="text-muted-foreground mt-0.5 mb-3 flex flex-wrap items-center gap-1.5 text-[13px]">
+              <SheetDescription className="text-muted-foreground mt-0.5 mb-3 flex flex-wrap items-center gap-2 text-sm">
                 <StatusTag status={s.status} />
                 {s.result && <ResultTag result={s.result} />}
                 <span>
@@ -376,9 +376,9 @@ function SessionDrawer({ id, ids, onOpen, onExpand }: { id: string | null; ids: 
                   {s.release_id != null ? `, release #${s.release_id}` : ""}
                 </span>
               </SheetDescription>
-              <h3 className="mb-1.5 text-[13px] font-semibold">Procedures</h3>
+              <h3 className="mb-2 text-sm font-semibold">Procedures</h3>
               <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
-              <h3 className="mt-4 mb-1 text-[13px] font-semibold">Transcript</h3>
+              <h3 className="mt-4 mb-1 text-sm font-semibold">Transcript</h3>
               <ol>
                 {s.turns.map((t, i) => (
                   <Turn key={i} index={i} turn={t} marks={marks.get(i)} activeKey={activeKey} onSelect={(k) => select(k)} />
@@ -412,8 +412,8 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
     <li
       id={`turn-${index}`}
       className={cn(
-        "grid scroll-mt-24 grid-cols-[52px_64px_minmax(0,1fr)] gap-3 border-b border-l-2 border-l-transparent py-2 pl-1.5 last:border-b-0",
-        quiet && "text-[13px]",
+        "grid scroll-mt-24 grid-cols-[52px_64px_minmax(0,1fr)] gap-3 border-b border-l-2 border-l-transparent py-2 pl-2 last:border-b-0",
+        quiet && "text-sm",
         finding && "border-l-err",
         active && "bg-muted",
       )}
@@ -421,14 +421,14 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
       <span className="text-muted-foreground pt-px font-mono text-xs" title={`Turn ${index}`}>
         {clock(turn.offset_s)}
       </span>
-      <span className={cn("text-[13px]", r.className)}>{r.label}</span>
+      <span className={cn("text-sm", r.className)}>{r.label}</span>
       <span className={cn("whitespace-pre-wrap", turn.role === "tool" && "font-mono text-muted-foreground", turn.role === "system" && "italic text-muted-foreground")}>
         {turn.text ? <Highlighted text={turn.text} quotes={quotes} strong={!!active} /> : extra.name ? extra.name : <span className="text-muted-foreground">(no text)</span>}
         {extra.interrupted && <Tag className="ml-2 align-middle">interrupted</Tag>}
         {marks && marks.length > 0 && (
           <span className="mt-1 flex flex-wrap gap-1">
             {marks.map((m) => (
-              <button key={m.key} type="button" onClick={() => onSelect(m.key === activeKey ? null : m.key)} title="Show this rule">
+              <button key={m.key} type="button" className="min-w-0 max-w-full" onClick={() => onSelect(m.key === activeKey ? null : m.key)} title="Show this rule">
                 <Tag className={cn("cursor-pointer", m.finding ? "bg-err-soft text-err border-transparent" : "", m.key === activeKey && "ring-ring ring-1")}>
                   {m.label} · {m.status.replace("_", " ")}
                 </Tag>
@@ -480,7 +480,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
     ["Release", s.release_id != null ? <HrefLink href={wsHref(ws, "releases", s.release_id)}>#{s.release_id}{release?.note ? `: ${release.note}` : ""}</HrefLink> : "—"],
     ["Platform version", s.version_ref ?? "—"],
     ["Platform", `${s.platform} (${s.channel})`],
-    ["Platform id", <code className="text-[13px] break-all">{s.external_id}</code>],
+    ["Platform id", <code className="text-sm break-all">{s.external_id}</code>],
     ["Started", when(s.started_at)],
     ["Ended", s.ended_at ? `${when(s.ended_at)} (${clock(s.duration_s)})` : "—"],
     ["Processed", s.processed_at ? when(s.processed_at) : "Not yet"],
@@ -489,12 +489,12 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
   if (s.agent_ref && s.agent_id && s.agent_ref !== s.agent_id) facts.splice(1, 0, ["Sent as", s.agent_ref]);
   return (
     <Page wide>
-      <div className="text-muted-foreground mb-2 text-[13px]">
+      <div className="text-muted-foreground mb-2 text-sm">
         <HrefLink href={wsHref(ws, "sessions")}>Sessions</HrefLink> /
       </div>
       <PageTitle
         aside={
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-2">
             <StatusTag status={s.status} big />
             {s.result && <ResultTag result={s.result} big />}
           </span>
@@ -514,7 +514,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
         .
       </Sub>
       {s.status_reason && <Banner tone={s.status === "failed" ? "err" : "warn"}>{s.status_reason}</Banner>}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <Panel title="Transcript" className="min-w-0">
           {s.turns.length ? (
             <ol>
@@ -531,7 +531,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
             <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
           </Panel>
           <Panel title="Details">
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
               {facts.map(([k, v]) => (
                 <div key={k} className="contents">
                   <dt className="text-muted-foreground">{k}</dt>
@@ -542,9 +542,9 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
           </Panel>
           {s.tool_calls.length > 0 && (
             <Panel title="Tool calls">
-              <ul className="grid gap-2.5">
+              <ul className="grid gap-2">
                 {s.tool_calls.map((t, i) => (
-                  <li key={i} className="text-[13px]">
+                  <li key={i} className="text-sm">
                     <div className="font-mono font-semibold">
                       {String(t.name ?? "tool")}
                       {t.is_error ? <Tag className="bg-err-soft text-err ml-2 border-transparent">error</Tag> : null}

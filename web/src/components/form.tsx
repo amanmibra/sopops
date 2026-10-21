@@ -28,7 +28,7 @@ export function ErrNotes({ errors, field, index }: { errors: Errors; field: stri
   return (
     <>
       {errsFor(errors, field, index).map((i, n) => (
-        <div key={n} className={cn("mt-1.5 text-[13px]", i.severity === "warning" ? "text-warn" : "text-err")}>
+        <div key={n} className={cn("mt-2 text-sm", i.severity === "warning" ? "text-warn" : "text-err")}>
           {i.text || i.message}
         </div>
       ))}
@@ -55,7 +55,7 @@ export function Field({
       <label className="mb-0.5 block font-semibold" htmlFor={`f-${id}`}>
         {name}
       </label>
-      {help && <p className="text-muted-foreground mb-2 max-w-[72ch] text-[13px]">{help}</p>}
+      {help && <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">{help}</p>}
       {children}
       <ErrNotes errors={errors} field={id} />
     </div>
@@ -91,11 +91,11 @@ export function StepRows({
   const lower = noun.toLowerCase();
   return (
     <div id={`f-${id}`}>
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         {value.map((s, i) => {
           const bad = errsFor(errors, id, i).length > 0;
           return (
-            <div key={i} className={cn("grid items-center gap-1.5", steps ? "grid-cols-[26px_1fr_170px_auto_auto] max-md:grid-cols-[22px_1fr_auto]" : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]", bad && "[&_input]:border-err")}>
+            <div key={i} className={cn("grid items-center gap-2", steps ? "grid-cols-[26px_1fr_170px_auto_auto] max-md:grid-cols-[22px_1fr_auto]" : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]", bad && "[&_input]:border-err")}>
               {steps && <span className="text-muted-foreground text-right tabular-nums">{i + 1}.</span>}
               <Input value={s.text} placeholder={placeholder} aria-label={`${noun} ${i + 1}`} onChange={(e) => set(i, { text: e.target.value })} data-step-text />
               <Input
@@ -193,15 +193,15 @@ export function VarRows({ id, value, onChange, placeholder }: { id: string; valu
   const names = rows.map((r) => r.k.trim());
   return (
     <div id={`f-${id}`}>
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         {rows.map((r, i) => {
           const dup = r.k.trim() && names.indexOf(r.k.trim()) !== i;
           return (
-            <div key={i} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_auto] items-center gap-1.5", dup && "[&_input]:border-err")}>
+            <div key={i} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_auto] items-center gap-2", dup && "[&_input]:border-err")}>
               <Input value={r.k} placeholder="name" aria-label="Variable name" onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))} />
               <Input value={r.v} placeholder={placeholder} aria-label={`Value of ${r.k || "variable"}`} onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))} />
               <RemoveVar name={r.k} onClick={() => update(rows.filter((_, j) => j !== i))} />
-              {dup && <div className="text-err col-span-full text-[13px]">This name is used twice; the last value wins.</div>}
+              {dup && <div className="text-err col-span-full text-sm">This name is used twice; the last value wins.</div>}
             </div>
           );
         })}
@@ -244,21 +244,21 @@ export function AgentVars({
   return (
     <div id="f-variables">
       {unset.length > 0 && (
-        <div className="text-warn mb-2 text-[13px]">
+        <div className="text-warn mb-2 text-sm">
           {plural(unset.length, "variable needs", "variables need")} a value: the instructions can't be built without {unset.length === 1 ? "it" : "them"}.
         </div>
       )}
-      <div className="grid gap-1.5">
+      <div className="grid gap-2">
         {rows.map((r, i) => {
           const name = r.k.trim();
           const from = need.get(name);
           const missing = !!from && r.v === "" && !(name in defaults);
           const dup = name && names.indexOf(name) !== i;
           return (
-            <div key={`${r.fixed ? "f" : "c"}${i}`} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_32px] items-center gap-x-1.5 gap-y-0.5", (missing || dup) && "[&_input]:border-err")}>
+            <div key={`${r.fixed ? "f" : "c"}${i}`} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_32px] items-center gap-x-2 gap-y-0.5", (missing || dup) && "[&_input]:border-err")}>
               {r.fixed ? (
                 <span className="truncate">
-                  <code className="text-[13px]">{`{{${name}}}`}</code>
+                  <code className="text-sm">{`{{${name}}}`}</code>
                 </span>
               ) : (
                 <Input value={r.k} placeholder="name" aria-label="Variable name" onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)))} />
@@ -270,8 +270,8 @@ export function AgentVars({
                 onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))}
               />
               {r.fixed ? <span /> : <RemoveVar name={name} onClick={() => update(rows.filter((_, j) => j !== i))} />}
-              {(from || name) && <div className="text-muted-foreground col-start-2 col-end-[-1] text-[13px]">{from ? `Used by ${from.join(", ")}` : "No block uses it"}</div>}
-              {dup && <div className="text-err col-span-full text-[13px]">This name is used twice; the last value wins.</div>}
+              {(from || name) && <div className="text-muted-foreground col-start-2 col-end-[-1] text-sm">{from ? `Used by ${from.join(", ")}` : "No block uses it"}</div>}
+              {dup && <div className="text-err col-span-full text-sm">This name is used twice; the last value wins.</div>}
             </div>
           );
         })}
@@ -427,7 +427,7 @@ export function ActionBar({
           </Button>
         </Banner>
       )}
-      <div className="bg-background/90 sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-2.5 border-t py-3 backdrop-blur-sm">
+      <div className="bg-background/90 sticky bottom-0 z-10 mt-6 flex flex-wrap items-center gap-2 border-t py-3 backdrop-blur-sm">
         <Button type="button" disabled={!isNew && !dirty.dirty} onClick={() => save()}>
           {isNew ? `Create ${KIND[kind].one.toLowerCase()}` : "Save draft"}
         </Button>
@@ -439,7 +439,7 @@ export function ActionBar({
           onChange={(e) => setNote(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (isNew || dirty.dirty) && save()}
         />
-        <span className={cn("text-[13px]", dirty.dirty ? "text-warn" : "text-muted-foreground")}>
+        <span className={cn("text-sm", dirty.dirty ? "text-warn" : "text-muted-foreground")}>
           {dirty.dirty ? "Unsaved edits: not a draft yet" : inDraft ? "Saved as a draft, not published yet" : isNew ? "" : "Saved edits are drafts until you publish."}
         </span>
         <span className="flex-1" />

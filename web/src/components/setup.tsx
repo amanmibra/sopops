@@ -38,7 +38,7 @@ export function StepProgress({ flow, step, total: count }: { flow: Flow; step: S
   const total = steps.length;
   return (
     <div className="mb-5">
-      <div className="text-muted-foreground mb-2 text-[13px] font-medium">
+      <div className="text-muted-foreground mb-2 text-sm font-medium">
         Step {n} of {total}
       </div>
       <div className="flex gap-1" role="progressbar" aria-label="Setup" aria-valuemin={1} aria-valuemax={total} aria-valuenow={n}>
@@ -92,7 +92,7 @@ export function StepShell({
   return (
     <main className="flex min-h-screen items-start justify-center px-4 pt-[8vh] pb-10">
       <div className={cn("bg-card w-full rounded-xl border px-5 py-6 shadow-sm sm:px-7 sm:py-7", wide ? "max-w-[800px]" : "max-w-[520px]")}>
-        <div className="mb-6 flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+        <div className="mb-6 flex items-center gap-2 text-lg font-semibold">
           <Logo /> sopops
           <span className="flex-1" />
           {exit}
@@ -104,8 +104,8 @@ export function StepShell({
             void submit();
           }}
         >
-          <h1 className="mb-2 text-[22px] leading-tight font-semibold tracking-tight">{STEP_TITLE[step]}</h1>
-          {sub && <p className="text-muted-foreground mb-5 text-[14px] leading-relaxed">{sub}</p>}
+          <h1 className="mb-2 text-2xl font-semibold">{STEP_TITLE[step]}</h1>
+          {sub && <p className="text-muted-foreground mb-5 text-sm leading-relaxed">{sub}</p>}
           {children}
           {error && (
             <Banner tone="err" className="mt-4 mb-0">
@@ -120,7 +120,7 @@ export function StepShell({
             )}
             <span className="flex-1" />
             {aside}
-            <Button type="submit" className="ml-auto h-10 min-w-28 text-[14px]" disabled={busy || primary.disabled}>
+            <Button type="submit" className="ml-auto h-10 min-w-28 text-sm" disabled={busy || primary.disabled}>
               {primary.label}
             </Button>
           </div>
@@ -143,7 +143,7 @@ const PICKS: { value: PlatformPick; label: string; text: string }[] = [
 export function PlatformPicker({ value, onChange, compact }: { value: PlatformPick[]; onChange: (v: PlatformPick[]) => void; compact?: boolean }) {
   const toggle = (p: PlatformPick) => onChange(value.includes(p) ? value.filter((x) => x !== p) : PICKS.map((x) => x.value).filter((x) => x === p || value.includes(x)));
   return (
-    <div role="group" aria-label="Platforms" className={cn("grid gap-2.5", compact ? "sm:grid-cols-4" : "sm:grid-cols-2")}>
+    <div role="group" aria-label="Platforms" className={cn("grid gap-2", compact ? "sm:grid-cols-4" : "sm:grid-cols-2")}>
       {PICKS.map((p) => {
         const on = value.includes(p.value);
         return (
@@ -155,7 +155,7 @@ export function PlatformPicker({ value, onChange, compact }: { value: PlatformPi
             onClick={() => toggle(p.value)}
             className={cn(
               "bg-card flex cursor-pointer items-center gap-3 rounded-xl border text-left hover:bg-muted",
-              compact ? "px-3 py-2" : "px-4 py-3.5",
+              compact ? "px-3 py-2" : "px-4 py-4",
               on && "border-primary bg-brand-soft hover:bg-brand-soft",
             )}
           >
@@ -164,7 +164,7 @@ export function PlatformPicker({ value, onChange, compact }: { value: PlatformPi
             </span>
             <span className="min-w-0 flex-1">
               <span className="block font-semibold">{p.label}</span>
-              {!compact && <span className="text-muted-foreground block text-[13px]">{p.text}</span>}
+              {!compact && <span className="text-muted-foreground block text-sm">{p.text}</span>}
             </span>
             <span className={cn("flex size-5 shrink-0 items-center justify-center rounded-full border", on && "border-primary bg-primary text-primary-foreground")}>
               {on && <Check className="size-3.5" />}
@@ -207,9 +207,9 @@ export function PlatformsYouUse() {
     }
   };
   return (
-    <section className="bg-card mb-4 rounded-xl border px-4 py-3.5">
+    <section className="bg-card mb-4 rounded-xl border px-4 py-4">
       <h2 className="mb-1 text-base font-semibold">Platforms you use</h2>
-      <p className="text-muted-foreground mb-3 max-w-prose text-[13px] leading-relaxed">
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         sopops shows only these. Taking one away hides it and keeps everything already set up for it.
       </p>
       {canChange ? (
@@ -219,11 +219,11 @@ export function PlatformsYouUse() {
             <Button size="sm" disabled={busy || !changed || value.length === 0} onClick={() => void submit()}>
               Save
             </Button>
-            {value.length === 0 && <span className="text-muted-foreground text-[13px]">Pick at least one.</span>}
+            {value.length === 0 && <span className="text-muted-foreground text-sm">Pick at least one.</span>}
           </div>
         </>
       ) : (
-        <p className="text-[13px]">
+        <p className="text-sm">
           {listNames(plats.shown.map(platformName), "and")}. <span className="text-muted-foreground">Owners and admins change these.</span>
         </p>
       )}
@@ -236,8 +236,8 @@ export function PlatformsYouUse() {
 export function CopyLink({ link, label }: { link: string; label: string }) {
   const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Copied."), (e) => toast.error(message(e)));
   return (
-    <div className="bg-card flex items-center gap-2 rounded-md border px-2.5 py-1.5">
-      <code className="flex-1 font-mono text-[13px] break-all">{link}</code>
+    <div className="bg-card flex items-center gap-2 rounded-md border px-2 py-2">
+      <code className="flex-1 font-mono text-sm break-all">{link}</code>
       <Button type="button" size="sm" variant="outline" aria-label={label} onClick={() => void copy()}>
         <Copy /> Copy
       </Button>
@@ -364,7 +364,7 @@ function PeopleStep({ flow }: { flow: Flow }) {
       primary={made ? { label: "Continue", run: s.next } : { label: "Get a join link", run: () => make(role) }}
     >
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Label htmlFor="join-role" className="text-[13px]">
+        <Label htmlFor="join-role" className="text-sm">
           People join as
         </Label>
         <RoleSelect
@@ -379,7 +379,7 @@ function PeopleStep({ flow }: { flow: Flow }) {
       {made && (
         <div className="grid gap-2">
           <CopyLink link={made.link} label="Copy the join link" />
-          <p className="text-muted-foreground text-[13px] leading-relaxed">
+          <p className="text-muted-foreground text-sm leading-relaxed">
             It works until {new Date(made.expires_at).toLocaleDateString(undefined, { month: "long", day: "numeric" })}. Turn it off or make a new one in Settings,
             under Members.
           </p>
@@ -412,12 +412,12 @@ function ModelsStep({ flow }: { flow: Flow }) {
     >
       {defaults && (
         <Banner tone="ok">
-          <Check className="mr-1.5 inline size-4" />
+          <Check className="mr-2 inline size-4" />
           This sopops already has keys and models set up. Continue, or use your own below.
         </Banner>
       )}
       <AIModelsForm />
-      {!ai?.ready && <p className="text-muted-foreground mt-4 text-[13px]">Until then, calls are saved but not checked.</p>}
+      {!ai?.ready && <p className="text-muted-foreground mt-4 text-sm">Until then, calls are saved but not checked.</p>}
     </StepShell>
   );
 }
@@ -467,7 +467,7 @@ function BlocksStep({ flow }: { flow: Flow }) {
           Most teams run several agents that are alike in some ways and different in others: one for each restaurant, customer or task. sopops splits their instructions
           into blocks. Write a block once and every agent that uses it gets it. Change it once and all of those agents change together, so nobody edits each agent by
           hand. Whatever is unique to one agent stays with that agent.
-          <span className="mt-2 block text-[13px]">Instructions are what your platform may call the prompt or system prompt.</span>
+          <span className="mt-2 block text-sm">Instructions are what your platform may call the prompt or system prompt.</span>
         </>
       }
       back={s.back}
@@ -495,7 +495,7 @@ function AgentsStep({ flow }: { flow: Flow }) {
     >
       {n > 0 && (
         <Banner tone="ok" className="mb-0">
-          <Check className="mr-1.5 inline size-4" />
+          <Check className="mr-2 inline size-4" />
           {plural(n, "agent is", "agents are")} in. <button type="button" className="font-semibold underline underline-offset-2" onClick={() => s.leave(wsHref(s.ws, "import"))}>Import more</button>
         </Banner>
       )}
@@ -520,7 +520,7 @@ function PublishStep({ flow }: { flow: Flow }) {
     >
       {done && (
         <Banner tone="ok" className="mb-0">
-          <Check className="mr-1.5 inline size-4" />
+          <Check className="mr-2 inline size-4" />
           {plural(releases.length, "release is", "releases are")} published, the last {when(releases.reduce((a, b) => (a.number > b.number ? a : b)).created_at)}.
         </Banner>
       )}
@@ -555,7 +555,7 @@ function ConnectStep({ flow }: { flow: Flow }) {
     >
       {done && (
         <Banner tone="ok">
-          <Check className="mr-1.5 inline size-4" />
+          <Check className="mr-2 inline size-4" />
           Calls are connected.
         </Banner>
       )}
@@ -588,7 +588,7 @@ export function SetupBar({ ws }: { ws: string }) {
   const at = setupProgress.get(ws);
   if (!at || pathname === wsHref(ws) || pathname === `${wsHref(ws)}/`) return null;
   return (
-    <div className="bg-brand-soft mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-3.5 py-2 text-[13px]">
+    <div className="bg-brand-soft mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg px-4 py-2 text-sm">
       <span className="font-medium">
         Setup, step {stepNumber(at.flow, at.step)} of {FLOWS[at.flow].length}: {STEP_TITLE[at.step]}
       </span>

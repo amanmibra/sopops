@@ -182,7 +182,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
         </Banner>
       )}
       <section aria-labelledby="review-step-heading">
-        <h2 id="review-step-heading" ref={heading} tabIndex={-1} className="mb-1.5 scroll-mt-40 md:scroll-mt-20 text-lg leading-snug font-semibold outline-none">
+        <h2 id="review-step-heading" ref={heading} tabIndex={-1} className="mb-2 scroll-mt-40 md:scroll-mt-20 text-lg font-semibold outline-none">
           {title[current.id]}
         </h2>
         {review.q.error ? <ErrorBanner error={review.q.error} lead="The review couldn't be loaded:" /> : null}
@@ -224,7 +224,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
           <>
             <Intro>{capital(who)} left these notes while it read your agents' instructions.</Intro>
             <Panel>
-              <ul className="grid list-disc gap-1.5 pl-5">
+              <ul className="grid list-disc gap-2 pl-5">
                 {notes.map((n, i) => (
                   <li key={i}>{n}</li>
                 ))}
@@ -270,7 +270,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
 }
 
 function Intro({ children }: { children: ReactNode }) {
-  return <p className="text-muted-foreground mb-3 max-w-[75ch] text-[13px] leading-relaxed">{children}</p>;
+  return <p className="text-muted-foreground mb-3 max-w-[75ch] text-sm leading-relaxed">{children}</p>;
 }
 
 /** The review's steps by name: earlier ones (and any already reached) can be picked, later ones can't yet. */
@@ -284,7 +284,7 @@ function Stepper({ steps, current, reached, onPick }: { steps: { id: StepId; nam
   }, [current]);
   return (
     <nav ref={nav} aria-label="Review steps" className="relative mb-4 overflow-x-auto border-b">
-      <ol className="flex min-w-max items-center gap-x-1 gap-y-0.5 pb-2 text-[13px] sm:min-w-0 sm:flex-wrap">
+      <ol className="flex min-w-max items-center gap-x-1 gap-y-0.5 pb-2 text-sm sm:min-w-0 sm:flex-wrap">
         {steps.map((s, i) => {
           const here = s.id === current;
           const open = !here && ORDER.indexOf(s.id) <= last;
@@ -292,11 +292,11 @@ function Stepper({ steps, current, reached, onPick }: { steps: { id: StepId; nam
             <li key={s.id} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="text-muted-foreground size-3.5" aria-hidden />}
               {open ? (
-                <button type="button" className="text-primary cursor-pointer rounded px-1.5 py-1 hover:underline" onClick={() => onPick(s.id)}>
+                <button type="button" className="text-primary cursor-pointer rounded px-2 py-1 hover:underline" onClick={() => onPick(s.id)}>
                   {s.name}
                 </button>
               ) : (
-                <span aria-current={here ? "step" : undefined} className={cn("rounded px-1.5 py-1", here ? "bg-brand-soft font-semibold" : "text-muted-foreground")}>
+                <span aria-current={here ? "step" : undefined} className={cn("rounded px-2 py-1", here ? "bg-brand-soft font-semibold" : "text-muted-foreground")}>
                   {s.name}
                 </span>
               )}
@@ -437,7 +437,7 @@ function BlocksStep({
       ) : (
         <div className="grid gap-4">
           {draft.agents.length > AGENTS_PAGE && (
-            <div className="flex items-center gap-2 text-[13px]">
+            <div className="flex items-center gap-2 text-sm">
               <Button size="xs" variant="outline" disabled={agentPage === 0} onClick={() => onAgentPage(agentPage - 1)}>
                 Previous
               </Button>
@@ -480,7 +480,7 @@ function SaveStep({ draft, variables, undecided, onDecide }: { draft: Draft; var
     <>
       <Intro>Applying saves the import as drafts. Nothing goes live until you publish.</Intro>
       <Panel>
-        <ul className="grid gap-1.5">
+        <ul className="grid gap-2">
           <li>
             <b>{plural(draft.agents.length, "agent", "agents")}</b>: {draft.agents.map((a) => a.id).slice(0, 8).join(", ")}
             {draft.agents.length > 8 ? ` and ${draft.agents.length - 8} more` : ""}
@@ -610,7 +610,7 @@ function AgentCard({
             <Input aria-label={`${a.id} platform id`} value={a.platform_id ?? ""} onChange={(e) => onChange({ ...a, platform_id: e.target.value })} />
           </Field>
           <Field id="blocks" name="Blocks, in order" errors={[]}>
-            <ol className="list-decimal pl-5 text-[13px]">
+            <ol className="list-decimal pl-5 text-sm">
               {(a.blocks ?? []).map((b) => (
                 <li key={b}>{blockName(b)}</li>
               ))}

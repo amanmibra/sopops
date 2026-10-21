@@ -104,13 +104,13 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
   const { ws } = useWs();
   return (
-    <li className={cn("rounded-md border border-transparent px-2 py-1.5", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
+    <li className={cn("rounded-md border border-transparent px-2 py-2", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
       <div className="flex items-start gap-1">
         <button type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
           <span className="pt-px">
             <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
           </span>
-          <span className="text-[13px]">
+          <span className="text-sm">
             <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
           </span>
         </button>
@@ -122,7 +122,7 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
         </p>
       )}
       {active && (
-        <div className="mt-1.5 ml-[96px] grid gap-1.5 text-[13px]">
+        <div className="mt-2 ml-[96px] grid gap-2 text-sm">
           {rule.reason && <p className="text-muted-foreground">{rule.reason}</p>}
           {rule.evidence.map((e, i) => (
             <button
@@ -133,11 +133,11 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
               disabled={e.turn == null}
               title={e.turn != null ? `Show turn ${e.turn} in the transcript` : undefined}
             >
-              <span className="text-muted-foreground mr-1.5 font-mono text-xs">{e.source === "tool_calls" ? "tool call" : `#${e.turn}`}</span>“{e.quote}”
+              <span className="text-muted-foreground mr-2 font-mono text-xs">{e.source === "tool_calls" ? "tool call" : `#${e.turn}`}</span>“{e.quote}”
             </button>
           ))}
           {rule.pattern_id && (
-            <span className="text-[13px]">
+            <span className="text-sm">
               Pattern:{" "}
               <HrefLink href={wsHref(ws, "patterns", rule.pattern_id)} title="This pattern: its verdict, examples and suggestions">
                 {rule.pattern_name ?? "this pattern"}
@@ -148,7 +148,7 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
               </HrefLink>
             </span>
           )}
-          <span className="text-muted-foreground font-mono text-[11px]">rule {rule.rule_id}</span>
+          <span className="text-muted-foreground font-mono text-sm">rule {rule.rule_id}</span>
         </div>
       )}
     </li>
@@ -160,14 +160,14 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
   const [open, setOpen] = useState(checked);
   const state = !check.applicable ? "didn't apply" : check.excluded_reason ? "excluded" : checked ? null : "not checked yet";
   return (
-    <section className="border-b py-2.5 last:border-b-0">
+    <section className="border-b py-2 last:border-b-0">
       <button type="button" className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
         {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
         <span className="flex-1 font-semibold">{check.procedure_name ?? check.procedure_id}</span>
         {state ? (
           <Tag>{state}</Tag>
         ) : (
-          <span className="flex items-center gap-1.5">
+          <span className="flex items-center gap-2">
             {check.checked_result && check.checked_result !== check.result && (
               <span className="opacity-60" title="The checker's own result, before suppressed findings were left out">
                 <ResultTag result={check.checked_result} />
@@ -180,9 +180,9 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
       </button>
       {open && (
         <div className="mt-2 pl-6">
-          {(check.excluded_reason || check.route_reason) && <p className="text-muted-foreground mb-2 text-[13px]">{check.excluded_reason ?? check.route_reason}</p>}
+          {(check.excluded_reason || check.route_reason) && <p className="text-muted-foreground mb-2 text-sm">{check.excluded_reason ?? check.route_reason}</p>}
           {checked && (
-            <p className="mb-2 text-[13px]">
+            <p className="mb-2 text-sm">
               Goal{" "}
               {check.goal_reached == null ? <Tag>unclear</Tag> : check.goal_reached ? <Tag className="text-ok border-transparent bg-transparent">reached</Tag> : <Tag className="bg-err-soft text-err border-transparent">not reached</Tag>}
               {check.goal_reason && <span className="text-muted-foreground"> {check.goal_reason}</span>}
@@ -196,7 +196,7 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
             </ul>
           )}
           {checked && (
-            <p className="text-muted-foreground mt-2 text-[11px]">
+            <p className="text-muted-foreground mt-2 text-sm">
               {check.model} · prompt {check.prompt_version}
               {check.release_id != null ? ` · release #${check.release_id}` : ""}
             </p>

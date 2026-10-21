@@ -52,7 +52,7 @@ export function StateList({ tab, items, loading, error, onRetry }: { tab: Exclud
     );
   if (!items.length)
     return (
-      <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-1.5 rounded-lg border px-4 py-10 text-center text-[13px]">
+      <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-2 rounded-lg border px-4 py-10 text-center text-sm">
         <div className="text-foreground font-semibold">{EMPTY[tab].head}</div>
         <p className="max-w-[56ch]">{EMPTY[tab].body}</p>
       </div>
@@ -73,7 +73,7 @@ function StateCard({ item }: { item: ReviewItem }) {
   return (
     <article className="bg-card min-w-0 rounded-lg border">
       <div className="px-4 py-3">
-        <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs">
+        <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="text-k-procedure font-medium">{proc}</span>
           {item.theme_name && (
             <>
@@ -87,13 +87,13 @@ function StateCard({ item }: { item: ReviewItem }) {
               <span>{item.kind === "other" ? "unnamed findings" : "failure mode"}</span>
             </>
           )}
-          <span className="ml-auto flex items-center gap-1.5">
+          <span className="ml-auto flex items-center gap-2">
             <VerdictChip v={v} />
             <ReviewStateChip state={item.review_state} note={item.review_note} />
           </span>
         </div>
-        <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-          <h3 className="min-w-0 text-[15px] leading-snug font-semibold">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <h3 className="min-w-0 text-lg font-semibold">
             <HrefLink href={wsHref(ws, "patterns", item.pattern_id)} className="text-foreground">
               {item.name}
             </HrefLink>
@@ -105,12 +105,12 @@ function StateCard({ item }: { item: ReviewItem }) {
           </Hint>
         </div>
         {item.rule?.text && (
-          <p className="text-muted-foreground mt-1 line-clamp-2 text-[13px]">
+          <p className="text-muted-foreground mt-1 line-clamp-2 text-sm">
             {ruleName(item.rule.kind, item.rule.index)}: <RuleText text={item.rule.text} />
           </p>
         )}
         {v && (
-          <p className="mt-2 text-[13px]">
+          <p className="mt-2 text-sm">
             <span className="text-muted-foreground">
               Marked {verdictPhrase(v.verdict)}
               {v.inherited ? " on the rule" : ""} by {v.reviewer ?? "someone"}, {ago(v.created_at)}
@@ -119,7 +119,7 @@ function StateCard({ item }: { item: ReviewItem }) {
           </p>
         )}
       </div>
-      <div className="bg-muted/40 border-t px-4 py-2.5">
+      <div className="bg-muted/40 border-t px-4 py-2">
         {item.review_state === "open" ? <OpenNext item={item} /> : item.review_state === "fixing" ? <FixingNext item={item} /> : <FixedNext item={item} />}
       </div>
     </article>
@@ -129,7 +129,7 @@ function StateCard({ item }: { item: ReviewItem }) {
 function SuggestionLink({ s }: { s: SuggestionSummary }) {
   const { ws } = useWs();
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       <SuggestionStatusTag status={s.status} />
       <ConflictTag freshness={s.freshness} />
       <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="min-w-0 truncate font-medium">
@@ -196,7 +196,7 @@ function FixingNext({ item }: { item: ReviewItem }) {
   return (
     <div className="grid gap-2">
       {item.suggestion && <SuggestionLink s={item.suggestion} />}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
         <span className="font-medium">{!item.fix_release ? "Waiting for a release" : live ? `In release ${item.fix_release}` : `In release ${item.fix_release}, not live yet`}</span>
         {p ? <Progress n={p.n} of={p.of} /> : item.review_note && <span className="text-muted-foreground">{item.review_note}</span>}
       </div>
@@ -206,8 +206,8 @@ function FixingNext({ item }: { item: ReviewItem }) {
 
 function FixedNext({ item }: { item: ReviewItem }) {
   return (
-    <div className="grid gap-1.5">
-      <span className="text-ok inline-flex items-center gap-1.5 text-[13px] font-medium">
+    <div className="grid gap-2">
+      <span className="text-ok inline-flex items-center gap-2 text-sm font-medium">
         <Check className="size-4" /> {item.fix_release ? `Fixed in release ${item.fix_release}.` : "Fixed."} <span className="text-muted-foreground font-normal">{item.review_note}</span>
       </span>
       {item.suggestion && <SuggestionLink s={item.suggestion} />}
@@ -306,13 +306,13 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
   return (
     <section className="bg-card rounded-lg border px-4 py-3">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[13.5px] font-semibold">Where it stands</h2>
+        <h2 className="text-sm font-semibold">Where it stands</h2>
         <ReviewStateChip state={state} note={d.review_note} />
       </div>
-      {state && <p className="text-muted-foreground mb-3 text-[13px]">{state === "needs_review" && d.review_note ? d.review_note : REVIEW_STATE[state].help}</p>}
+      {state && <p className="text-muted-foreground mb-3 text-sm">{state === "needs_review" && d.review_note ? d.review_note : REVIEW_STATE[state].help}</p>}
       <ol className="grid">
         {steps.map((s, i) => (
-          <li key={s.key} className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-x-2.5 pb-3 last:pb-0">
+          <li key={s.key} className="relative grid grid-cols-[18px_minmax(0,1fr)] gap-x-2 pb-3 last:pb-0">
             {i < steps.length - 1 && <span className={cn("absolute top-[18px] bottom-0 left-[8.5px] w-px", s.done ? "bg-primary/40" : "bg-border")} aria-hidden />}
             <span
               className={cn(
@@ -321,7 +321,7 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
               )}
               aria-hidden
             />
-            <div className="min-w-0 text-[13px]">
+            <div className="min-w-0 text-sm">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2">
                 <span className={cn("font-medium", !s.done && "text-muted-foreground", s.tone === "ok" && "text-ok", s.tone === "err" && "text-err")}>{s.label}</span>
                 {s.at && (
@@ -342,7 +342,7 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
 function SuggestionLinkInline({ s }: { s: SuggestionSummary }) {
   const { ws } = useWs();
   return (
-    <span className="flex min-w-0 items-center gap-1.5">
+    <span className="flex min-w-0 items-center gap-2">
       <SuggestionStatusTag status={s.status} />
       <ConflictTag freshness={s.freshness} />
       <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="block min-w-0 flex-1 truncate" title={summaryOf(s) ?? undefined}>

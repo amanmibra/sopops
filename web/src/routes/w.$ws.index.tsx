@@ -1,6 +1,7 @@
 import { Navigate, createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { GetSetUp, useChecklist } from "@/components/checklist";
+import { HomeView } from "@/components/home";
 import { EmptyWorkspace } from "@/components/views";
 import { useAuth } from "@/lib/auth";
 import { useWs } from "@/lib/workspace";
@@ -9,7 +10,7 @@ export const Route = createFileRoute("/w/$ws/")({ component: WorkspaceHome });
 
 /**
  * A team's home. A new one first asks which platforms the team uses (if nobody has said), then shows "Get set up"
- * until that's done or hidden. After that it opens in QA, on Insights, or says how to start when there's nothing yet.
+ * until that's done or hidden. After that it shows what needs you, or says how to start when there's nothing yet.
  */
 function WorkspaceHome() {
   const { ws, cfg } = useWs();
@@ -21,5 +22,5 @@ function WorkspaceHome() {
   if (!items) return <div className="text-muted-foreground py-6">Loading…</div>;
   if (show) return <GetSetUp items={items} empty={empty} onHide={() => hidden((n) => n + 1)} />;
   if (empty) return <EmptyWorkspace />;
-  return <Navigate to="/w/$ws/insights" params={{ ws }} replace />;
+  return <HomeView />;
 }

@@ -102,17 +102,17 @@ export function WidgetCard({
 }: CardState & { title: ReactNode; subtitle?: ReactNode; help?: ReactNode; action?: ReactNode; flush?: boolean; className?: string; bodyClassName?: string; children?: ReactNode }) {
   return (
     <section className={cn("bg-card flex min-w-0 flex-col overflow-hidden rounded-lg border", className)}>
-      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b px-4 py-2.5">
+      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
         <div className="min-w-[min(100%,16rem)] flex-1">
-          <h2 className="text-[13.5px] leading-snug font-semibold">{title}</h2>
-          {subtitle && <p className="text-muted-foreground mt-px text-xs leading-snug">{subtitle}</p>}
+          <h2 className="text-sm font-semibold">{title}</h2>
+          {subtitle && <p className="text-muted-foreground mt-px text-xs">{subtitle}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {action}
           {help && <Help text={help} />}
         </div>
       </header>
-      <div className={cn(flush ? "" : "px-4 py-3.5", bodyClassName)}>
+      <div className={cn(flush ? "" : "px-4 py-4", bodyClassName)}>
         <CardBody {...state}>{children}</CardBody>
       </div>
     </section>
@@ -130,8 +130,8 @@ function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "
     );
   if (error)
     return (
-      <div role="alert" className="flex flex-col items-center gap-1.5 px-4 py-6 text-center">
-        <div className="text-[13px] font-semibold">These numbers didn't load</div>
+      <div role="alert" className="flex flex-col items-center gap-2 px-4 py-6 text-center">
+        <div className="text-sm font-semibold">These numbers didn't load</div>
         <p className="text-muted-foreground max-w-[52ch] text-xs">
           The card stays empty until they do, so a failed load never reads as zero.{" "}
           {error instanceof ApiError || error instanceof Error ? <span className="font-mono">{error.message}</span> : null}
@@ -145,8 +145,8 @@ function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "
     );
   if (empty)
     return (
-      <div role="status" className="text-muted-foreground flex min-h-28 flex-col items-center justify-center gap-1.5 px-4 py-5 text-center text-xs">
-        {emptyTitle && <div className="text-foreground text-[13px] font-semibold">{emptyTitle}</div>}
+      <div role="status" className="text-muted-foreground flex min-h-28 flex-col items-center justify-center gap-2 px-4 py-5 text-center text-xs">
+        {emptyTitle && <div className="text-foreground text-sm font-semibold">{emptyTitle}</div>}
         <div className="max-w-[60ch]">{emptyMessage}</div>
         {emptyAction}
       </div>
@@ -216,13 +216,13 @@ export function Kpi({
   const body = (
     <>
       {/* Inline flow, so a label that wraps keeps its help mark right after the last word. */}
-      <div className="text-muted-foreground text-[13px] leading-snug">
+      <div className="text-muted-foreground min-h-8 text-sm">
         {Icon && <Icon className="mr-1 inline size-[15px] align-[-3px]" strokeWidth={2.25} style={{ color: ACCENT[accent] }} aria-hidden />}
         {label} <span className="inline-block align-[-2px]"><Help text={help} /></span>
       </div>
-      <div className="mt-1 text-[26px] leading-tight font-semibold tracking-tight tabular-nums">{value}</div>
+      <div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div>
       {(prior || (delta && delta.value != null)) && (
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
           {delta && delta.value != null && (
             <Hint
               focusable={false}
@@ -238,7 +238,7 @@ export function Kpi({
     </>
   );
   return (
-    <div className={cn("bg-card min-w-0 px-4 py-3.5", href && "hover:bg-accent/40 transition-colors")}>
+    <div className={cn("bg-card min-w-0 px-4 py-4", href && "hover:bg-accent/40 transition-colors")}>
       {href ? (
         <HrefLink href={href} className="text-foreground block hover:no-underline" aria-label={`${label}: open these sessions`}>
           {body}
@@ -262,11 +262,11 @@ export function KpiGrid({ children, loading, count, narrow, note }: { children?:
   const n = loading ? (count ?? 6) : Children.toArray(children).filter(Boolean).length;
   const cols = narrow && n === 6 ? "grid-cols-2 md:grid-cols-3" : (COLS[n] ?? "grid-cols-2 md:grid-cols-3");
   return (
-    <div className="grid gap-1.5">
+    <div className="grid gap-2">
       <div className={cn("bg-border grid gap-px overflow-hidden rounded-lg border", cols)}>
         {loading
           ? Array.from({ length: n }, (_, i) => (
-              <div key={i} className="bg-card grid gap-2 px-4 py-3.5" aria-busy>
+              <div key={i} className="bg-card grid gap-2 px-4 py-4" aria-busy>
                 <Skel className="h-3.5 w-2/3" />
                 <Skel className="h-7 w-1/2" />
                 <Skel className="h-3 w-3/4" />
@@ -288,10 +288,10 @@ export function OutcomeBar({ followed, partial, deviated, className }: { followe
   return (
     <Hint
       tip={
-        <span className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-2.5 gap-y-0.5">
+        <span className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-2 gap-y-0.5">
           {OUTCOMES.map((o) => (
             <span key={o.key} className="contents">
-              <span className="inline-flex items-center gap-1.5 font-semibold">
+              <span className="inline-flex items-center gap-2 font-semibold">
                 <Swatch color={o.color} />
                 {o.label}
               </span>
@@ -324,10 +324,10 @@ export function StatusBar({ counts, className, focusable }: { counts: Record<str
       focusable={focusable}
       tip={
         total ? (
-          <span className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-2.5 gap-y-0.5">
+          <span className="grid grid-cols-[auto_auto_1fr] items-baseline gap-x-2 gap-y-0.5">
             {shown.map((s) => (
               <span key={s} className="contents">
-                <span className="inline-flex items-center gap-1.5 font-semibold">
+                <span className="inline-flex items-center gap-2 font-semibold">
                   <Swatch color={STATUS_MARK[s].color} striped={STATUS_MARK[s].striped} />
                   {STATUS_MARK[s].label}
                 </span>
@@ -351,7 +351,7 @@ export function StatusBar({ counts, className, focusable }: { counts: Record<str
 }
 
 export function Swatch({ color, striped, round }: { color: string; striped?: boolean; round?: boolean }) {
-  return <span aria-hidden className={cn("inline-block size-2 shrink-0", round ? "rounded-full" : "rounded-[2px]", striped && "stripes border")} style={striped ? undefined : { background: color }} />;
+  return <span aria-hidden className={cn("inline-block size-2 shrink-0", round ? "rounded-full" : "rounded-none", striped && "stripes border")} style={striped ? undefined : { background: color }} />;
 }
 
 export function Legend({ items, className }: { items: { label: string; color: string; striped?: boolean; line?: boolean; tip?: ReactNode }[]; className?: string }) {
@@ -365,11 +365,11 @@ export function Legend({ items, className }: { items: { label: string; color: st
           </>
         );
         return i.tip ? (
-          <Hint key={i.label} tip={<TipBody head={i.label}>{i.tip}</TipBody>} className="inline-flex items-center gap-1.5">
+          <Hint key={i.label} tip={<TipBody head={i.label}>{i.tip}</TipBody>} className="inline-flex items-center gap-2">
             {body}
           </Hint>
         ) : (
-          <span key={i.label} className="inline-flex items-center gap-1.5">
+          <span key={i.label} className="inline-flex items-center gap-2">
             {body}
           </span>
         );
@@ -442,16 +442,16 @@ export function ChartTip({
   if (!active || !payload?.length) return null;
   const text = String(label ?? "");
   return (
-    <div className="bg-popover text-popover-foreground rounded-md border px-2.5 py-2 text-xs shadow-md">
+    <div className="bg-popover text-popover-foreground rounded-md border px-2 py-2 text-xs shadow-md">
       <div className="text-muted-foreground mb-1">{head ? head(text, payload) : text}</div>
       {payload.map((e) => (
-        <div key={`${String(e.dataKey)}-${e.name}`} className="flex items-center gap-1.5">
+        <div key={`${String(e.dataKey)}-${e.name}`} className="flex items-center gap-2">
           <Swatch color={e.color ?? "var(--muted-foreground)"} />
           <span className="text-muted-foreground">{e.name}:</span>
           <span className="font-semibold tabular-nums">{format(e.value, e)}</span>
         </div>
       ))}
-      {footer && <div className="text-muted-foreground mt-1 max-w-64 text-xs leading-snug">{footer(text, payload)}</div>}
+      {footer && <div className="text-muted-foreground mt-1 max-w-64 text-xs">{footer(text, payload)}</div>}
     </div>
   );
 }
@@ -472,7 +472,7 @@ export function RateN({ rate, n, thin, tone, suppressed, className }: { rate: nu
       )}
       {thin && n > 0 && (
         <Hint tip={`Only ${n} results, too few to judge. The rate gets no color and no flag until there are more.`} focusable={false}>
-          <span className="text-muted-foreground ml-1 rounded border px-1 text-[11px] uppercase">too few</span>
+          <span className="text-muted-foreground ml-1 rounded border px-1 text-sm uppercase">too few</span>
         </Hint>
       )}
     </span>
@@ -503,7 +503,7 @@ export function RewordedTag({ releasedIn, history, current, className }: { relea
         </TipBody>
       }
     >
-      <span className={cn("bg-warn-soft text-warn rounded-full px-1.5 text-xs font-medium whitespace-nowrap", className)}>
+      <span className={cn("bg-warn-soft text-warn rounded-full px-2 text-xs font-medium whitespace-nowrap", className)}>
         {releasedIn != null ? `reworded in release ${releasedIn}` : "reworded"}
       </span>
     </Hint>

@@ -125,8 +125,8 @@ export function Callouts({ callouts, scope, title = "What stands out" }: { callo
           <li key={c.id} className="flex flex-wrap items-start gap-3 px-4 py-3">
             <Sparkles className={cn("mt-0.5 size-4 shrink-0", c.tone === "good" ? "text-ok" : "text-warn")} />
             <div className="min-w-[200px] flex-1">
-              <div className="text-[13.5px] font-semibold">{c.title}</div>
-              <div className="text-muted-foreground mt-0.5 text-[13px]">{c.body}</div>
+              <div className="text-sm font-semibold">{c.title}</div>
+              <div className="text-muted-foreground mt-0.5 text-sm">{c.body}</div>
             </div>
             <Button asChild size="xs" variant="outline">
               <HrefLink href={drillHref(ws, c.drill, scope)} className="text-foreground hover:no-underline">
@@ -151,7 +151,7 @@ type Sort = keyof typeof SORTS;
 const TOP_N = 6;
 
 const th = "text-muted-foreground border-b px-3 py-2 text-left text-xs font-medium whitespace-nowrap";
-const td = "border-b px-3 py-2.5 align-middle";
+const td = "border-b px-3 py-2 align-middle";
 
 function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: ScoreboardRow[]; callouts: Callout[]; filters: InsightFilters; scope: Scope; unit: "day" | "week"; minN: number }) {
   const { ws } = useWs();
@@ -180,7 +180,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
       emptyMessage="Each session is checked against the procedures that apply to it after it ends. Pick a longer time range or clear a filter."
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[920px] border-collapse text-[13.5px]">
+        <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead>
             <tr>
               <th className={th}><HeaderHint label="Procedure" tip="Each procedure, with its number of rules. Select a row to see every rule." /></th>
@@ -204,12 +204,12 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                     <HrefLink href={page(r.procedure_id)} className="text-foreground font-semibold" onClick={(e) => e.stopPropagation()}>
                       {r.procedure_name}
                     </HrefLink>
-                    <div className="text-muted-foreground mt-0.5 flex items-center gap-1.5 text-xs">
+                    <div className="text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2 text-xs whitespace-nowrap">
                       {r.rules} rules
                       {mine.length > 0 && (
                         <Hint
                           tip={
-                            <span className="grid gap-1.5">
+                            <span className="grid gap-2">
                               {mine.map((c) => (
                                 <TipBody key={c.id} head={c.title}>
                                   {c.body}
@@ -234,7 +234,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                   <td className={td}>
                     <OutcomeBar followed={r.followed} partial={r.partial} deviated={r.deviated} />
                   </td>
-                  <td className={cn(td, "text-right")}>
+                  <td className={cn(td, "text-right whitespace-nowrap")}>
                     <RateN rate={r.pass_rate} n={r.measurable} thin={thin} suppressed={r.suppressed} />
                     <div className="text-xs">
                       {r.delta_points != null && r.prior_measurable > 0 ? (
@@ -285,7 +285,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
         </table>
       </div>
       {sorted.length > TOP_N && (
-        <div className="border-t px-4 py-1.5">
+        <div className="border-t px-4 py-2">
           <Button size="xs" variant="ghost" onClick={() => setAll((v) => !v)}>
             {all ? <ChevronUp /> : <ChevronDown />} {all ? `Show the top ${TOP_N}` : `Show all ${sorted.length}`}
           </Button>
@@ -311,7 +311,7 @@ export function AgentsTable({ agents, scope, procedure, minN, agentMinN, loading
       flush
     >
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-[13.5px]">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
             <tr>
               <th className={th}><HeaderHint label="Agent" tip="The agent that ran the sessions, and how many it ran." /></th>
@@ -347,7 +347,7 @@ export function AgentsTable({ agents, scope, procedure, minN, agentMinN, loading
                     {a.delta_points != null ? <DeltaMark delta={{ value: a.delta_points, unit: "pts", good: "up" }} /> : <span className="text-muted-foreground">—</span>}
                   </div>
                 </td>
-                <td className={cn(td, "max-w-[260px] text-[13px]")}>
+                <td className={cn(td, "max-w-[260px] text-sm")}>
                   {a.top_gap ? (
                     <Hint tip={<TipBody head={`Failed ${a.top_gap.fails} of ${a.top_gap.n}`}><RuleText text={a.top_gap.text} /></TipBody>} focusable={false}>
                       <HrefLink
