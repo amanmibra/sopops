@@ -29,7 +29,7 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string;
     ],
   },
   {
-    heading: "QA",
+    heading: "Review",
     items: [{ section: "checks", label: "Checks", icon: ListChecks }],
   },
 ];

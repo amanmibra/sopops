@@ -52,7 +52,7 @@ function Queue({ label, n, items, href, action, empty }: { label: string; n: num
 function Block({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={cn("bg-card min-w-0 border", className)}>
-      <header className="flex items-baseline justify-between gap-4 border-b px-4 py-2">
+      <header className="flex items-baseline justify-between gap-4 border-b bg-[var(--band)] px-4 py-2">
         <h2 className="text-muted-foreground text-sm">{title}</h2>
         {aside}
       </header>

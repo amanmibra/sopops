@@ -226,11 +226,13 @@ export function Segmented<T extends string>({
   );
 }
 
+/** A bordered panel. With a title, the title sits on a header band (`--band`), a step darker than the panel. */
 export function Panel({ title, children, className }: { title?: ReactNode; children: ReactNode; className?: string }) {
+  if (!title) return <section className={cn("mb-4 border bg-card px-4 py-4", className)}>{children}</section>;
   return (
-    <section className={cn("mb-4 border bg-card px-4 py-4", className)}>
-      {title && <h2 className="t-lead mb-4">{title}</h2>}
-      {children}
+    <section className={cn("mb-4 border bg-card", className)}>
+      <h2 className="t-lead border-b bg-[var(--band)] px-4 py-2">{title}</h2>
+      <div className="px-4 py-4">{children}</div>
     </section>
   );
 }

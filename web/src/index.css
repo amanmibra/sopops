@@ -19,6 +19,8 @@
   --paper: oklch(0.975 0.003 175);
   --surface: oklch(1 0 0);
   --tone: oklch(0.94 0.01 178);
+  /* panel header bands: a step darker than the panel, so a header reads as its own field */
+  --band: oklch(0.96 0.007 178);
   --ink: oklch(0.2 0.02 180);
   --muted-ink: oklch(0.46 0.02 180);
   --line: oklch(0.86 0.01 175);
@@ -83,6 +85,7 @@
   --paper: oklch(0.18 0.015 182);
   --surface: oklch(0.215 0.018 182);
   --tone: oklch(0.27 0.02 182);
+  --band: oklch(0.17 0.014 182);
   --ink: oklch(0.95 0.006 175);
   --muted-ink: oklch(0.72 0.018 178);
   --line: oklch(0.32 0.018 182);

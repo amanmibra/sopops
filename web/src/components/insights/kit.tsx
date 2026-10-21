@@ -102,7 +102,7 @@ export function WidgetCard({
 }: CardState & { title: ReactNode; subtitle?: ReactNode; help?: ReactNode; action?: ReactNode; flush?: boolean; className?: string; bodyClassName?: string; children?: ReactNode }) {
   return (
     <section className={cn("bg-card flex min-w-0 flex-col overflow-hidden rounded-lg border", className)}>
-      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b px-4 py-2">
+      <header className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2 border-b bg-[var(--band)] px-4 py-2">
         <div className="min-w-[min(100%,16rem)] flex-1">
           <h2 className="text-sm font-semibold">{title}</h2>
           {subtitle && <p className="text-muted-foreground mt-px text-xs">{subtitle}</p>}

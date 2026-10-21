@@ -672,7 +672,7 @@ function AllPatterns({
     <div className="grid gap-4">
       {[...byProc.entries()].map(([pid, themes]) => (
         <section key={pid} className="bg-card min-w-0 overflow-hidden rounded-lg border">
-          <header className="flex items-baseline justify-between gap-3 border-b px-4 py-2">
+          <header className="flex items-baseline justify-between gap-3 border-b bg-[var(--band)] px-4 py-2">
             <h2 className="text-sm font-semibold">{procName(pid)}</h2>
             <HrefLink href={wsHref(ws, "insights", "procedures", pid)} className="text-xs">
               Insights
@@ -839,7 +839,7 @@ export function PatternView({ id }: { id: string }) {
             <VerdictPicker current={verdict?.verdict} busy={busy} onPick={(v, n) => void pick(v, n)} />
           </section>
           <section className="bg-card rounded-lg border">
-            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b px-4 py-2">
+            <header className="flex flex-wrap items-baseline justify-between gap-2 border-b bg-[var(--band)] px-4 py-2">
               <h2 className="text-sm font-semibold">Examples</h2>
               <span className="text-muted-foreground text-xs tabular-nums">
                 {plural(d.session_ids.length, "session", "sessions")} · {plural(d.findings + d.suppressed, "finding", "findings")} in the last year

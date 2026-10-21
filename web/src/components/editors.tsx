@@ -151,7 +151,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
   const [chosen, setChosen] = useState<"prompt" | "changes" | null>(() => (prefs.get("previewmode") as "prompt" | "changes" | null) ?? null);
   const frame = (head: React.ReactNode, body: React.ReactNode) => (
     <section className="bg-card min-w-0 overflow-hidden rounded-xl border" aria-label="Draft instructions">
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">{head}</header>
+      <header className="flex flex-wrap items-center gap-2 border-b bg-[var(--band)] px-4 py-2">{head}</header>
       {body}
     </section>
   );

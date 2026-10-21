@@ -258,7 +258,7 @@ function Parts({ components }: { components: Component[] }) {
 function PromptBox({ title, aside, components, prompt, empty }: { title: string; aside?: ReactNode; components?: Component[]; prompt: string | null; empty?: string }) {
   return (
     <section className="bg-card min-w-0 overflow-hidden rounded-xl border">
-      <header className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
+      <header className="flex flex-wrap items-center gap-2 border-b bg-[var(--band)] px-4 py-2">
         <b className="mr-auto">{title}</b>
         {aside}
       </header>
