@@ -124,7 +124,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
                 </SelectContent>
               </Select>
             </Field>
-            <Field id="platform_id" name={`${plat.label} ${plat.idLabel.toLowerCase()}`} errors={errors}>
+            <Field id="platform_id" name={plat.idLabel} help={plat.idHelp} errors={errors}>
               <Input id="f-platform_id" value={m.platform_id} placeholder={plat.idLabel} onChange={(e) => set({ platform_id: e.target.value })} />
             </Field>
           </div>

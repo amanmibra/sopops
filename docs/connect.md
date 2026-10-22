@@ -2,6 +2,16 @@
 
 Agents get their instructions from sopops and send their sessions back. Paths below start with `/v1/workspaces/{ws}`, where `{ws}` is the workspace id.
 
+## How sopops knows which agent
+
+Each agent has two names. Its **sopc id** is the readable one in sopops's URLs (`copper-wok-harbor`). Its
+**identifier** is what your code asks for at call start: `platform` plus `platform_id`, written `livekit:<id>`.
+
+On LiveKit the identifier is yours to choose: a LiveKit agent name, a row id from your database, whatever you
+already use to tell locations apart. On ElevenLabs and Vapi it has to be that platform's own id, so pushes and
+webhooks match. Either name works when you fetch: `attach(ctx, session, "copper-wok-harbor")` and
+`attach(ctx, session, "livekit:42")` reach the same agent. sopops keeps identifiers unique in a workspace.
+
 ## Choose pull or push
 
 Set this per agent under the gear icon → Delivery.

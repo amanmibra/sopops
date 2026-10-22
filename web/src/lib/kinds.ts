@@ -17,10 +17,16 @@ export const BLOCK_KINDS: BlockKind[] = ["group", "instruction", "procedure"];
 // The platforms sopops supports, LiveKit first. sopc also knows `retell`; an agent that already uses it keeps it
 // (`legacy`), but it isn't offered for new agents.
 export const PLATFORMS = [
-  { value: "livekit", label: "LiveKit", idLabel: "Agent name", legacy: false },
-  { value: "elevenlabs", label: "ElevenLabs", idLabel: "Agent ID", legacy: false },
-  { value: "vapi", label: "Vapi", idLabel: "Assistant ID", legacy: false },
-  { value: "retell", label: "Retell", idLabel: "Agent ID", legacy: true },
+  {
+    value: "livekit",
+    label: "LiveKit",
+    idLabel: "Identifier",
+    idHelp: "However your code asks for this agent: a LiveKit agent name, a row id from your own database, whatever you already use. It has to be unique here, and it's what you pass as `agent` when you fetch the instructions.",
+    legacy: false,
+  },
+  { value: "elevenlabs", label: "ElevenLabs", idLabel: "Agent ID", idHelp: "The agent's id on ElevenLabs. It has to match, so published instructions and post-call webhooks find it.", legacy: false },
+  { value: "vapi", label: "Vapi", idLabel: "Assistant ID", idHelp: "The assistant's id on Vapi. It has to match, so published instructions and end-of-call reports find it.", legacy: false },
+  { value: "retell", label: "Retell", idLabel: "Agent ID", idHelp: "The agent's id on Retell.", legacy: true },
 ] as const;
 export const platformName = (p: string) => PLATFORMS.find((x) => x.value === p)?.label ?? p;
 

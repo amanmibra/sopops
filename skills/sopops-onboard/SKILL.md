@@ -53,11 +53,18 @@ Cursor (`.cursor/mcp.json`):
 Onboard this project's voice agents into the sopops workspace this session is for (see "This session" in `get_kickoff`). The sopops MCP server does the compiling and checking.
 
 1. Call `get_extraction_guide` and follow it. Call `report_progress` with a short message at each step below, so the person watching the sopops page can follow along.
-2. Find every agent's instructions, wherever they live: agent code, prompt files, env or config, or a database (query it read-only with this project's existing tooling). For ElevenLabs or Vapi agents, `list_platform_agents` and `get_agent_prompt` read them if the key is set. Resolve templating so each original is the exact text the model gets. Note platform, platform id and tool names.
-3. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
-4. Call `check_fidelity` with the proposal and the original instructions. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
-5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
-6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
+2. **Get each agent's identifier right.** It's how their code will ask sopops for that agent, so take it from the
+   code that starts a call, not from a heading or a folder name. On LiveKit that's whatever they dispatch with:
+   often a row id from their own database, sometimes the LiveKit agent name. On ElevenLabs or Vapi it has to be the
+   platform's own id, so pushes and webhooks match. If two places disagree, or you can't tell which value reaches
+   the agent at call start, ask rather than guess: a wrong identifier means calls fetch the wrong instructions.
+   Keep the sopc id readable (`copper-wok-harbor`) and put the real identifier in `platform_id`; they don't have to
+   match, and sopops resolves either.
+3. Find every agent's instructions, wherever they live: agent code, prompt files, env or config, or a database (query it read-only with this project's existing tooling). For ElevenLabs or Vapi agents, `list_platform_agents` and `get_agent_prompt` read them if the key is set. Resolve templating so each original is the exact text the model gets. Note platform, platform id and tool names.
+4. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
+5. Call `check_fidelity` with the proposal and the original instructions. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
+6. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
+7. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
 
 ## Many agents
 
