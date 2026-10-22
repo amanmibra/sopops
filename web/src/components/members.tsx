@@ -1,6 +1,11 @@
 // Settings → Members: the team's people and roles, its join link, adding people by email (they join now, or when they first sign in),
 // reset links for passwords, who's invited and not signed in yet, and the email domains whose people join by signing in.
 // Owners and admins change things; members see who's here.
+//
+// Where the teams aren't sopops's to hand out (every way of signing in here owns them), the page is the same page
+// with fewer parts: one invite form, the list of who's waiting, and nothing that depends on a sopops link. The
+// invite is sent by whoever keeps the teams, so there's no link to copy, nothing to resend, and no join link or
+// email domain for sopops to offer. The server decides the same thing from the team itself and does the same.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Clock, Copy, Globe, Link2, UserPlus, Users } from "lucide-react";
 import { useState } from "react";
@@ -11,6 +16,7 @@ import { Avatar } from "./account";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { CopyLink, RoleSelect } from "./setup";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
@@ -31,24 +37,34 @@ const mq = {
 
 const fail = (e: unknown) => toast.error(e instanceof Error ? e.message : String(e));
 
+/** Whether the teams are kept outside sopops: every way of signing in here owns them, so none of sopops's own ways
+ *  in (a join link, an email domain, an invite link to copy) exists to offer. */
+const teamsElsewhere = (auth: AuthState) => auth.providers.length > 0 && auth.providers.every((p) => p.owns_teams);
+
 export function MembersPanel({ auth }: { auth: AuthState }) {
   const role = auth.org?.role;
   const manager = role === "owner" || role === "admin";
+  const elsewhere = teamsElsewhere(auth);
   const org = useQuery(mq.org());
   return (
     <>
       {org.isError && <ErrorBanner error={org.error} lead="The org didn't load:" />}
-      {manager && <ShareJoinLink orgName={auth.org?.name ?? ""} />}
-      {manager && <AddPeople sendsEmail={org.data?.sends_email ?? false} orgName={auth.org?.name ?? ""} />}
-      <People auth={auth} manager={manager} />
-      {manager && <Pending sendsEmail={org.data?.sends_email ?? false} />}
-      {manager && org.data && <Domains domains={org.data.allowed_domains} orgName={org.data.name} />}
+      {manager && !elsewhere && <ShareJoinLink orgName={auth.org?.name ?? ""} />}
+      {manager &&
+        (elsewhere ? (
+          <InviteSomeone orgName={auth.org?.name ?? ""} />
+        ) : (
+          <AddPeople sendsEmail={org.data?.sends_email ?? false} orgName={auth.org?.name ?? ""} />
+        ))}
+      <People auth={auth} manager={manager} elsewhere={elsewhere} />
+      {manager && <Pending sendsEmail={org.data?.sends_email ?? false} elsewhere={elsewhere} />}
+      {manager && !elsewhere && org.data && <Domains domains={org.data.allowed_domains} orgName={org.data.name} />}
       {!manager && <Note>Owners and admins add people and change roles.</Note>}
     </>
   );
 }
 
-function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
+function People({ auth, manager, elsewhere }: { auth: AuthState; manager: boolean; elsewhere: boolean }) {
   const qc = useQueryClient();
   const list = useQuery(mq.members());
   const [reset, setReset] = useState<PasswordLinkCreated | null>(null);
@@ -121,9 +137,11 @@ function People({ auth, manager }: { auth: AuthState; manager: boolean }) {
             )}
             {canChange(m) && m.user_id !== auth.user?.id && (
               <>
-                <Button size="sm" variant="ghost" onClick={() => void resetLink(m)}>
-                  Reset password
-                </Button>
+                {!elsewhere && (
+                  <Button size="sm" variant="ghost" onClick={() => void resetLink(m)}>
+                    Reset password
+                  </Button>
+                )}
                 <ConfirmButton size="sm" variant="ghost" className="text-err" confirm="Click again to remove" onConfirm={() => void remove(m)}>
                   Remove
                 </ConfirmButton>
@@ -252,6 +270,75 @@ function ShareJoinLink({ orgName }: { orgName: string }) {
   );
 }
 
+/**
+ * One address at a time, for a team that isn't sopops's to hand out: the invite is sent by whoever keeps the teams,
+ * so there's no link here to copy and nothing to resend. Whoever accepts is on the team the moment they sign in.
+ */
+function InviteSomeone({ orgName }: { orgName: string }) {
+  const qc = useQueryClient();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<Role>("member");
+  const [busy, setBusy] = useState(false);
+  const invite = async () => {
+    setBusy(true);
+    try {
+      await call(sdk.createInvite({ body: { email: email.trim(), role } }));
+      setEmail("");
+      await qc.invalidateQueries({ queryKey: ["org", "invites"] });
+      toast.success(`Invited ${email.trim()}. They'll get an email with a link to join.`);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Panel
+      title={
+        <span className="flex items-center gap-2">
+          <UserPlus className="size-4" /> Invite someone
+        </span>
+      }
+    >
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+        They get an email with a link to join {orgName}. Once they've used it and signed in, they're here too, with the role you pick.
+      </p>
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void invite();
+        }}
+      >
+        <div className="grid max-w-[320px] flex-1 gap-1">
+          <Label htmlFor="invite-email" className="text-sm">
+            Email
+          </Label>
+          <Input id="invite-email" type="email" className="h-9 text-sm" placeholder="ana@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div className="grid gap-1">
+          <Label className="text-sm">Role</Label>
+          <Select value={role} onValueChange={(v) => setRole(v as Role)}>
+            <SelectTrigger size="sm" className="w-28" aria-label="Role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.filter((r) => r.role !== "owner").map((r) => (
+                <SelectItem key={r.role} value={r.role}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button type="submit" size="sm" disabled={busy || !email.trim()}>
+          Invite
+        </Button>
+      </form>
+    </Panel>
+  );
+}
+
 function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: string }) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
@@ -357,7 +444,7 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
  * Invited, not signed in yet: send the invite again or cancel it. Without email, "Copy link" copies a new link instead:
  * links are stored hashed, so the old one can't be shown again, and it stops working.
  */
-function Pending({ sendsEmail }: { sendsEmail: boolean }) {
+function Pending({ sendsEmail, elsewhere }: { sendsEmail: boolean; elsewhere: boolean }) {
   const qc = useQueryClient();
   const list = useQuery(mq.invites());
   const [fresh, setFresh] = useState<InviteCreated | null>(null);
@@ -409,7 +496,9 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
     >
       {list.isError && <ErrorBanner error={list.error} lead="The invites didn't load:" />}
       {invites.length === 0 ? (
-        <p className="text-muted-foreground text-sm">Nobody is waiting. People you add who don't have an account yet show up here.</p>
+        <p className="text-muted-foreground text-sm">
+          {elsewhere ? "Nobody is waiting. People you invite show up here until they join." : "Nobody is waiting. People you add who don't have an account yet show up here."}
+        </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -422,7 +511,7 @@ function Pending({ sendsEmail }: { sendsEmail: boolean }) {
                   </td>
                   <td className="text-muted-foreground border-b py-2 pr-2">invited {when(i.created_at)}</td>
                   <td className="border-b py-2 text-right whitespace-nowrap">
-                    {sendsEmail ? (
+                    {elsewhere ? null : sendsEmail ? (
                       <Button size="sm" variant="ghost" onClick={() => void resend(i)}>
                         Resend
                       </Button>

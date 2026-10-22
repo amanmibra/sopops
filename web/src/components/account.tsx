@@ -350,6 +350,51 @@ export function NewPassword({ id, label = "Password", value, onChange }: { id: s
   );
 }
 
+/** The first team, named here. It's made wherever teams are kept, mirrored into sopops, and you land in it. */
+function NameYourTeam({ email }: { email: string }) {
+  const signOut = useSignOut();
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const made = await call(sdk.createTeam({ body: { name: name.trim() } }));
+      window.location.assign(`/w/${encodeURIComponent(made.workspace)}`);
+    } catch (e) {
+      setError(message(e));
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title="Name your team">
+      <form
+        className="grid gap-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Your SOPs, calls and workspace live in a team, and you can invite the rest of yours once it's made.
+        </p>
+        <Input id="new-team-name" autoFocus aria-label="Team name" className="h-10" value={name} onChange={(e) => setName(e.target.value)} />
+        {error && <Banner tone="err">{error}</Banner>}
+        <Button type="submit" className="h-10" disabled={busy || !name.trim()}>
+          Create
+        </Button>
+      </form>
+      <div className="mt-5 text-sm">
+        <span className="text-muted-foreground">Signed in as {email}. </span>
+        <button type="button" className="hover:text-foreground underline underline-offset-2" onClick={() => void signOut()}>
+          Sign out
+        </button>
+      </div>
+    </Card>
+  );
+}
+
 export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "name" | "email" | "avatar_url">; size?: number; className?: string }) {
   const initials = (user.name || user.email)
     .split(/[\s@._-]+/)
@@ -371,26 +416,26 @@ export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "na
   );
 }
 
-/** Signed in but in no org: say who to ask, or, where the teams aren't sopops' to give out, where they are. */
+/**
+ * Signed in but on no team. Where sopops can make the team itself, that's a sopops form and nothing else: a name, a
+ * button, and you're in it. Where it can't (a provider owns the teams but sopops has no way to make one), the
+ * provider's own page is the fallback, and the link says what it does rather than whose page it is.
+ */
 function NoOrg({ auth }: { auth: AuthState }) {
   const signOut = useSignOut();
   const only = auth.providers.length === 1 ? auth.providers[0] : undefined;
+  if (only?.owns_teams && !only.new_team_url) return <NameYourTeam email={auth.user?.email ?? ""} />;
   if (only?.owns_teams)
     return (
       <Card title="You're not on a team yet">
         <p className="mb-3 text-sm leading-relaxed">
-          You're signed in as <b>{auth.user?.email}</b>. Teams live in {only.label}: make one there, or ask someone to invite you to theirs, and it's
-          yours here as soon as you're back.
+          You're signed in as <b>{auth.user?.email}</b>. Make a team, or ask someone to invite you to theirs, and it's yours here as soon as you're back.
         </p>
-        {only.new_team_url ? (
-          <Button asChild className="mb-5 h-10">
-            <a href={only.new_team_url}>
-              <Plus /> Make a team in {only.label}
-            </a>
-          </Button>
-        ) : (
-          <p className="text-muted-foreground mb-5 text-sm leading-relaxed">Make one in {only.label}, then sign in again.</p>
-        )}
+        <Button asChild className="mb-5 h-10">
+          <a href={only.new_team_url ?? "#"}>
+            <Plus /> Make a team
+          </a>
+        </Button>
         <Button variant="outline" onClick={() => void signOut()}>
           <LogOut /> Sign out
         </Button>

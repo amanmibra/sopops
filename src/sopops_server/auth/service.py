@@ -13,7 +13,9 @@ Someone with no membership can sign in but sees only "Ask an owner to invite you
 **A provider that owns the teams** (`owns_teams`: PropelAuth) brings them with it instead, and sign-in mirrors them
 (`_mirror_orgs`). Each team it reports is found or made here, matched on its id there (`orgs.external_id`), and the
 person joins it with the role it gave. One it stops reporting they leave, so leaving a team there takes effect here;
-one made in sopops is never renamed, deleted or left on its say-so, because it never knew about it. The fresh-install
+one made in sopops is never renamed, deleted or left on its say-so, because it never knew about it. A team made from
+sopops's own screens through such a provider's API comes back the same way (`adopt_team`): it is made there, and
+mirrored here by the same rules, so the next sign-in agrees with what the person already sees. The fresh-install
 rule above doesn't apply either: those teams are the teams. Nothing changes for GitHub, Google, email or password,
 which report none, and a sopops that uses them keeps its invites and join links exactly as they are.
 
@@ -85,7 +87,7 @@ from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttem
 from ..runtime import crypto
 from ..tokens import Forbidden
 from . import actor, password, propelauth
-from .providers import ADMIN, MEMBER, OWNER, ROLES, Profile  # the roles live with the provider contract: one maps onto them
+from .providers import ADMIN, MEMBER, OWNER, ROLES, Profile, ProviderOrg  # the roles live with the provider contract: one maps onto them
 from . import providers
 
 if TYPE_CHECKING:
@@ -206,23 +208,7 @@ class Accounts:
         member: the workspace and its files stay, and the provider can put somebody back in it tomorrow.
         """
         mine = {m.org_id: m for m in db.exec(select(Membership).where(Membership.user_id == user.id))}
-        theirs = set()
-        for team in profile.orgs:
-            key = _external_id(profile.provider, team.id)
-            org = db.exec(select(Org).where(Org.external_id == key)).first()
-            if org is None:
-                org, _ = _new_team(db, user.id, team.name, now, role=team.role, external_id=key)
-            else:
-                if team.name and team.name != org.name:
-                    org.name = team.name  # theirs to name; the slug and the workspace keep the names they were made with
-                    db.add(org)
-                m = mine.get(org.id)
-                if m is None:
-                    db.add(Membership(org_id=org.id, user_id=user.id, role=team.role, created_at=now))
-                elif m.role != team.role:
-                    m.role = team.role
-                    db.add(m)
-            theirs.add(org.id)
+        theirs = {self._mirror_team(db, user, profile.provider, team, now, mine).id for team in profile.orgs}
         for org_id, m in mine.items():
             if org_id in theirs:
                 continue
@@ -230,6 +216,30 @@ class Accounts:
             if org is not None and (org.external_id or "").startswith(f"{profile.provider}:"):
                 db.delete(m)
         db.flush()
+
+    def _mirror_team(self, db: Session, user: User, provider: str, team: ProviderOrg, now: datetime,
+                     mine: dict[str, Membership]) -> Org:
+        """One team of the provider's, found or made here, with this person in it at the role it gave. `mine` is
+        their memberships, by org id, so a sign-in mirroring a dozen teams reads them once.
+
+        This is the whole of what mirroring one team means, and both callers want all of it: the sign-in that
+        mirrors everything the provider reports (`_mirror_orgs`), and the team somebody just made there from a
+        sopops screen (`adopt_team`), which must land exactly where the next sign-in would put it."""
+        key = _external_id(provider, team.id)
+        org = db.exec(select(Org).where(Org.external_id == key)).first()
+        if org is None:
+            org, _ = _new_team(db, user.id, team.name, now, role=team.role, external_id=key)
+            return org
+        if team.name and team.name != org.name:
+            org.name = team.name  # theirs to name; the slug and the workspace keep the names they were made with
+            db.add(org)
+        m = mine.get(org.id)
+        if m is None:
+            db.add(Membership(org_id=org.id, user_id=user.id, role=team.role, created_at=now))
+        elif m.role != team.role:
+            m.role = team.role
+            db.add(m)
+        return org
 
     def _join(self, db: Session, user: User, email: str, now: datetime, claim_default: bool = True) -> None:
         """First user on a fresh install: owner. Then open invites for the email, and orgs allowing its domain.
@@ -607,6 +617,33 @@ class Accounts:
                 db.add(s)
         return org, ws
 
+    def adopt_team(self, cur: Current, provider: str, team: ProviderOrg) -> tuple[Org, str]:
+        """Mirror a team the provider has just made for this person and work in it now, as `create_team` does for a
+        team made here. Their other teams stay as they are: this says nothing about any team but the new one.
+
+        It goes through the same mirroring as a sign-in (`_mirror_team`), so the team is keyed on the provider's own
+        id for it and the next sign-in finds it rather than making a second one."""
+        with self._db() as db, db.begin():
+            user = db.get(User, cur.user.id)
+            if user is None:
+                raise NotFound(f"no user '{cur.user.id}'")
+            mine = {m.org_id: m for m in db.exec(select(Membership).where(Membership.user_id == user.id))}
+            org = self._mirror_team(db, user, provider, team, _now(), mine)
+            db.flush()
+            ws = self._team_workspace(db, org.id) or _new_workspace(db, org.id, org.name)
+            s = db.get(LoginSession, cur.session_id)
+            if s is not None:
+                s.org_id = org.id
+                db.add(s)
+        return org, ws
+
+    def provider_user_id(self, user_id: str, provider: str) -> str | None:
+        """What this provider calls this person, if they've ever signed in with it. Its API speaks in its own ids,
+        so making a team there, or changing somebody's role, needs this one and not sopops's."""
+        with self._db() as db:
+            ident = db.exec(select(Identity).where(Identity.user_id == user_id, Identity.provider == provider)).first()
+        return ident.provider_user_id if ident else None
+
     def team_workspaces(self, org_ids: list[str]) -> dict[str, str]:
         """Each org's workspace, the one its team works in: the one changed most recently, else the first by name.
         Orgs with none are left out. (A team has one workspace; older installs can have several, and the others stay
@@ -711,7 +748,7 @@ class Accounts:
     def invite(self, org_id: str, by: str, by_role: str, email: str, role: str = MEMBER) -> tuple[dict, str]:
         """A new invite and its token (returned here only). It replaces the address's open invite, if there's one."""
         email = clean_email(email)
-        _check_role(by_role, role)
+        check_role(by_role, role)
         with self._db() as db, db.begin():
             if self._member_by_email(db, org_id, email) is not None:
                 raise Conflict(f"{email} is already a member")
@@ -735,7 +772,7 @@ class Accounts:
     def add_people(self, org_id: str, by: str, by_role: str, emails: list[str], role: str = MEMBER) -> list[dict]:
         """Add people by email: `added` (they have an account, and joined now), `invited` (with the invite's `token`;
         they join when they sign in with that email), or `already` (a member)."""
-        _check_role(by_role, role)
+        check_role(by_role, role)
         wanted: list[str] = []
         for e in emails:
             e = clean_email(e)
@@ -950,7 +987,9 @@ class Accounts:
         return info["org_id"]
 
 
-def _check_role(by_role: str, role: str) -> None:
+def check_role(by_role: str, role: str) -> None:
+    """Whether somebody with `by_role` may hand out `role`. Public because the API layer checks it too, for the
+    invites that go to a provider that owns the teams instead of into sopops's own table."""
     if role not in ROLES:
         raise ValueError(f"role must be one of {', '.join(ROLES)}")
     if role == OWNER and by_role != OWNER:

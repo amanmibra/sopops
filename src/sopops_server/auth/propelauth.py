@@ -34,9 +34,20 @@ hands those orgs to `sopops_server.auth.service`, which mirrors them into sopops
 in PropelAuth, or is invited to one there, lands in the matching sopops team with no join link in sight. Their role
 names map onto sopops's three; their default hierarchy is Owner, Admin, Member.
 
-Someone with no team at all goes to their hosted create-organization page, `{AUTH_URL}/create_org` (`new_team_url`),
-instead of to a sopops page asking for a join link nobody here can give them. Their API keys are still left alone:
-sopops keeps its own tokens.
+**Teams are made and shared out from sopops's own screens** (`manages_teams`), which is the fifth difference and the
+reason for SOPOPS_PROPELAUTH_API_KEY. Their backend API, under `{AUTH_URL}/api/backend/v1/` with the key as a bearer
+token, does all of it: `POST org/` makes a team, `POST org/add_user` puts the person in it as its owner (making one
+through the API doesn't, because no one is signed in to the call), `POST invite_user` emails an invite,
+`GET pending_org_invites?org_id=…` lists the ones still waiting, `DELETE pending_org_invites` withdraws one by the
+address it was sent to, and `POST org/change_role` moves somebody between roles so the change survives their next
+sign-in. Their role names are the ones `_role` maps back: Owner, Admin, Member.
+
+Without the key none of that is offered: `manages_teams` is false, and somebody with no team goes to their hosted
+create-organization page, `{AUTH_URL}/create_org` (`new_team_url`), as they did before. That page is the fallback, not
+the plan. Their API keys are still left alone otherwise: sopops keeps its own tokens.
+
+Nothing any of this says out loud names PropelAuth. The person reading a sopops screen is told a team couldn't be
+made just now, and the log is told who wouldn't make it.
 """
 
 from __future__ import annotations
@@ -44,25 +55,77 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import re
+from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 import httpx
 
-from .providers import (MEMBER, ROLES, LoginProvider, Profile, ProviderError, ProviderOrg, authorization_url, fetch_tokens,
-                        get_json, register)
+from .providers import (ADMIN, MEMBER, OWNER, ROLES, LoginProvider, Profile, ProviderError, ProviderInvite, ProviderOrg,
+                        authorization_url, fetch_tokens, get_json, register)
 
 log = logging.getLogger("sopops.auth")
 
 URL_ENV = "SOPOPS_PROPELAUTH_URL"
 CLIENT_ID_ENV = "SOPOPS_PROPELAUTH_CLIENT_ID"
 CLIENT_SECRET_ENV = "SOPOPS_PROPELAUTH_CLIENT_SECRET"
+API_KEY_ENV = "SOPOPS_PROPELAUTH_API_KEY"
 SCOPE = "openid email profile"
 # Signing out waits on this, so it's short: a slow PropelAuth must not hold up a sign-out that happens regardless.
 LOGOUT_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
+# Somebody is watching a spinner while these run, so they're short too.
+API_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+INVITES_PER_PAGE = 100
+# Their role names, which `_role` maps back the other way. Their default hierarchy lines up with sopops's three.
+THEIR_ROLE = {OWNER: "Owner", ADMIN: "Admin", MEMBER: "Member"}
+# What they take in an organization's name: letters, numbers, spaces and underscores. Checked here so a name they
+# would bounce costs a message rather than a round trip and a refusal nobody can read.
+NAME_OK = re.compile(r"^[A-Za-z0-9 _]+$")
+BAD_NAME = "A team's name can have letters, numbers, spaces and underscores, and nothing else."
 
 
 def _base() -> str:
     return os.environ.get(URL_ENV, "").strip().rstrip("/")
+
+
+def _api_key() -> str:
+    return os.environ.get(API_KEY_ENV, "").strip()
+
+
+def _api(method: str, path: str, doing: str, json: dict | None = None, params: dict | None = None) -> dict:
+    """One call to their backend API, with the API key as a bearer token. Returns the JSON object it answered with
+    ({} when it answered with nothing, which several of these do).
+
+    Nothing from their side reaches the person: a refusal and a timeout both become `doing` plus "try again", and
+    what actually happened goes to the log. `doing` is a phrase like "Making the team", so the message reads as a
+    sentence about what they were doing, not about who sopops signs people in with."""
+    base, key = _base(), _api_key()
+    if not base or not key:  # `manages_teams` is false without it, so this is a misconfiguration, not a user error
+        raise ProviderError(f"{doing} isn't set up on this sopops yet. Ask whoever runs it.")
+    try:
+        res = httpx.request(method, f"{base}/api/backend/v1/{path}", json=json, params=params, timeout=API_TIMEOUT,
+                            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"})
+    except httpx.HTTPError as e:
+        log.warning("PropelAuth couldn't be reached (%s %s): %s", method, path, type(e).__name__)
+        raise ProviderError(f"{doing} didn't work just now. Try again in a moment.") from None
+    if res.status_code >= 400:
+        log.warning("PropelAuth refused %s %s (HTTP %s): %s", method, path, res.status_code, res.text[:500])
+        raise ProviderError(f"{doing} didn't work just now. Try again in a moment.")
+    try:
+        got = res.json()
+    except ValueError:
+        return {}
+    return got if isinstance(got, dict) else {}
+
+
+def _at(epoch: object) -> datetime | None:
+    """One of their timestamps (seconds since the epoch) as a datetime, or None for anything else."""
+    if not isinstance(epoch, (int, float)) or isinstance(epoch, bool):
+        return None
+    try:
+        return datetime.fromtimestamp(float(epoch), timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 def _orgs(got: object) -> tuple[ProviderOrg, ...]:
@@ -92,6 +155,12 @@ def _role(their: object) -> str:
     would hand someone the members page on the strength of a string nobody here recognises."""
     name = str(their or "").strip().lower()
     return name if name in ROLES else MEMBER
+
+
+def _theirs(ours: str) -> str:
+    """One of sopops's roles as one of theirs. `_role` is this the other way round; an unknown name is a Member,
+    the role that can do the work and change nothing about the team."""
+    return THEIR_ROLE.get(ours, THEIR_ROLE[MEMBER])
 
 
 def end_session(refresh_token: str | None) -> bool:
@@ -132,6 +201,65 @@ class PropelAuthLogin(LoginProvider):
         if back_to:
             url += "?" + urlencode({"rt": base64.b64encode(back_to.encode()).decode()})
         return url
+
+    # --- their teams, made and shared out from sopops's own screens ----------------------
+
+    def manages_teams(self) -> bool:
+        """Only with an API key: their backend API wants one, and without it the hosted create-org page is still
+        there (`new_team_url`). A deployment that sets the key never sends anybody to it."""
+        return bool(self.configured() and _api_key())
+
+    def create_team(self, provider_user_id: str, name: str) -> ProviderOrg:
+        """Make the team there and make this person its owner. Two calls: making an org through the API leaves it
+        with nobody in it, because no one is signed in to that call, so `org/add_user` follows with their role.
+
+        If the second call fails the org is there with nobody in it. That's logged loudly and the person is told it
+        didn't work: an empty org nobody is in costs them nothing, and a half-made team they can't see would."""
+        name = (name or "").strip()[:128]
+        if not name:
+            raise ProviderError("The team needs a name.")
+        if not NAME_OK.match(name):
+            raise ProviderError(BAD_NAME)
+        doing = "Making the team"
+        got = _api("POST", "org/", doing, json={"name": name})
+        id = str(got.get("org_id") or "").strip()
+        if not id:
+            log.warning("PropelAuth made an org but didn't say which: %s", sorted(got))
+            raise ProviderError(f"{doing} didn't work just now. Try again in a moment.")
+        try:
+            _api("POST", "org/add_user", doing, json={"user_id": provider_user_id, "org_id": id, "role": THEIR_ROLE[OWNER]})
+        except ProviderError:
+            log.error("PropelAuth made org %s but wouldn't put user %s in it as its owner; the org is empty", id, provider_user_id)
+            raise
+        return ProviderOrg(id=id, name=str(got.get("name") or name)[:128], role=OWNER)
+
+    def invite_to_team(self, team_id: str, email: str, role: str) -> None:
+        """They email the invite and hold it until it's accepted; sopops keeps no invite of its own for it."""
+        _api("POST", "invite_user", "Sending the invite", json={"email": email, "org_id": team_id, "role": _theirs(role)})
+
+    def team_invites(self, team_id: str) -> list[ProviderInvite]:
+        """The invites they're still holding for this team. One page of them: a team with more people waiting than
+        that has a problem no list can fix."""
+        got = _api("GET", "pending_org_invites", "Loading the invites",
+                   params={"org_id": team_id, "page_size": INVITES_PER_PAGE, "page_number": 0})
+        out = []
+        for i in got.get("invites") or []:
+            if not isinstance(i, dict):
+                continue
+            email = str(i.get("invitee_email") or "").strip().lower()
+            if email:
+                out.append(ProviderInvite(email=email, role=_role(i.get("role_in_org")), created_at=_at(i.get("created_at")),
+                                          expires_at=_at(i.get("expires_at"))))
+        return out
+
+    def revoke_team_invite(self, team_id: str, email: str) -> None:
+        """Withdrawn by the address it was sent to: their pending invites have no id of their own."""
+        _api("DELETE", "pending_org_invites", "Withdrawing the invite", json={"org_id": team_id, "invitee_email": email})
+
+    def set_team_role(self, team_id: str, provider_user_id: str, role: str) -> None:
+        """Their roles win at every sign-in, so a role changed only in sopops would come back. This changes theirs."""
+        _api("POST", "org/change_role", "Changing the role",
+             json={"user_id": provider_user_id, "org_id": team_id, "role": _theirs(role)})
 
     def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
         return authorization_url(f"{_base()}/propelauth/oauth/authorize", os.environ[CLIENT_ID_ENV].strip(), SCOPE, redirect_uri, state, code_verifier)

@@ -409,7 +409,7 @@ EXPECTED = {
     access.OPEN: {"spa", "healthz", "openapi", "swagger_ui_html", "swagger_ui_redirect", "redoc_html", "auth_session", "sign_in", "auth_callback",
                   "lookup_invite", "request_email_link", "confirm_email_link", "password_login", "first_account", "join_with_password",
                   "request_password_link", "lookup_password_link", "set_password", "lookup_join_link", "join_with_link", "onboarding_skill", "sign_up"},
-    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password", "accept_join_link"},
+    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password", "accept_join_link", "create_team"},
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check",
                    "onboarding_kickoff", "onboarding_guide", "onboarding_extraction", "onboarding_project"},

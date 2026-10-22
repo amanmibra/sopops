@@ -67,7 +67,7 @@ ROUTES: dict[str, str] = {
     "vapi_assistant_request": WEBHOOK,
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
-    "create_team": SESSION,  # anyone in an org can make another team, which they own
+    "create_team": SIGNED_IN,  # a team you own: another one, or your first, where a login provider owns the teams
     "set_org_platforms": SESSION,  # anyone in the org makes the first pick; after that, owners and admins (the route checks)
     "update_org": ADMIN, "add_members": ADMIN, "set_member_role": ADMIN, "remove_member": ADMIN, "list_invites": ADMIN, "create_invite": ADMIN,
     "resend_invite": ADMIN, "revoke_invite": ADMIN, "create_password_link": ADMIN, "set_up_org": ADMIN, "get_join_link": ADMIN,

@@ -24,6 +24,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from importlib.metadata import entry_points
 
 import httpx
@@ -38,6 +39,9 @@ TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 # onto them (`ProviderOrg.role`) and so has to know what they are.
 OWNER, ADMIN, MEMBER = "owner", "admin", "member"
 ROLES = (OWNER, ADMIN, MEMBER)
+# What a provider that doesn't do teams says when asked to make one. It reaches the person, so it says what they can
+# do about it and names nobody: whose sign-in this sopops uses is not their problem.
+CANT_MANAGE = "teams aren't made or shared out from here on this sopops"
 
 
 @dataclass(frozen=True)
@@ -49,6 +53,17 @@ class ProviderOrg:
     id: str
     name: str
     role: str
+
+
+@dataclass(frozen=True)
+class ProviderInvite:
+    """Somebody a provider that owns the teams has invited to one, who isn't in it yet. The address is what names it
+    there, and what withdraws it: these invites have no id of their own. `role` is already one of sopops's."""
+
+    email: str
+    role: str
+    created_at: datetime | None = None
+    expires_at: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -82,8 +97,9 @@ class LoginProvider:
     sign-in is on for another reason, like `password`, sets `turns_on_sign_in = False`.
 
     **A provider that owns the teams** (`owns_teams = True`) sets `Profile.orgs` on every sign-in and sopops mirrors
-    them: its teams are the teams, and nobody joins one from the sopops side. It also says where someone with no team
-    goes to make one (`new_team_url`), so sopops never has to know whose provider it is."""
+    them: its teams are the teams, and nobody joins one from the sopops side. If it can also make them and invite
+    people through its API (`manages_teams`), sopops's own screens do both; if it can't, it says where someone with
+    no team goes to make one (`new_team_url`), so sopops never has to know whose provider it is."""
 
     id: str = ""
     label: str = ""
@@ -100,6 +116,44 @@ class LoginProvider:
         to come back to afterwards, which a provider passes on if its page takes one. None when it has no such page:
         then sopops says where teams come from rather than offering a link that goes nowhere."""
         return None
+
+    # --- managing the teams, for a provider that owns them -------------------------------
+    #
+    # A provider that owns the teams can also let sopops make them and hand them out through its API, and then
+    # sopops's own screens do it: nobody is sent to somebody else's pages to name a team or invite a colleague.
+    # It is a capability, not a duty. The default is "can't", so GitHub, Google, email and password are untouched,
+    # and so is a provider that owns the teams but hasn't been given the credentials its API wants: there
+    # `new_team_url` is still the answer, and `manages_teams` says so.
+    #
+    # Every one of these is a call to somebody else's server. They raise ProviderError, whose message is written to
+    # be shown as it is, and the caller shows it rather than a stack trace.
+
+    def manages_teams(self) -> bool:
+        """Whether sopops can make this provider's teams, and invite people to them, from its own screens."""
+        return False
+
+    def create_team(self, provider_user_id: str, name: str) -> ProviderOrg:
+        """Make a team at the provider, owned by this person (their user id *there*, not sopops's). Returns the team
+        as the provider now has it, ready for sopops to mirror: its id there, its name and their role in it."""
+        raise ProviderError(CANT_MANAGE)
+
+    def invite_to_team(self, team_id: str, email: str, role: str) -> None:
+        """Invite somebody to the team (`team_id` is the team's id *there*). The provider emails them; whoever
+        accepts is in the team there, and in the sopops team that mirrors it the moment they sign in."""
+        raise ProviderError(CANT_MANAGE)
+
+    def team_invites(self, team_id: str) -> list[ProviderInvite]:
+        """The invites still waiting at the provider for this team."""
+        raise ProviderError(CANT_MANAGE)
+
+    def revoke_team_invite(self, team_id: str, email: str) -> None:
+        """Withdraw the invite waiting there for this address."""
+        raise ProviderError(CANT_MANAGE)
+
+    def set_team_role(self, team_id: str, provider_user_id: str, role: str) -> None:
+        """Change somebody's role in the team there, so the change survives their next sign-in (which mirrors the
+        provider's roles over sopops's)."""
+        raise ProviderError(CANT_MANAGE)
 
     def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
         """Where to send the browser to sign in. It comes back to `redirect_uri` with `code` and `state`."""

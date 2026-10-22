@@ -26,6 +26,14 @@ at `/v1/auth/join/lookup`, then makes an account and joins at `/v1/auth/join`, o
 
 Setting up: `/v1/org/setup` names the team and makes its first workspace, and `/v1/org/platforms` sets the platforms it
 uses (with sign-in off, the first org's).
+
+**When a login provider owns the teams** and sopops can reach its API (`providers.LoginProvider.manages_teams`), the
+same routes do the same jobs through it instead: `/v1/orgs` makes the team there and mirrors it back, and the invite
+routes send, list and withdraw the provider's invites rather than sopops's, so the person gets the provider's email
+and lands in the right team. Nothing about that reaches the screen: a sopops form names the team and a sopops list
+shows who's waiting. Everything here is somebody else's server, so every call is wrapped: a refusal or a timeout is
+one plain sentence and a 502, never a 500, and the detail goes to the log. A provider that doesn't own the teams, or
+one with no API credentials set here, keeps sopops's own invites and join links exactly as they were.
 """
 
 from __future__ import annotations
@@ -37,6 +45,7 @@ import json
 import logging
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
@@ -44,7 +53,8 @@ from fastapi.responses import RedirectResponse
 
 from .. import mail
 from ..auth import access, email, mode, providers
-from ..auth.service import INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword, sign_up_domains
+from ..auth.service import (INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword,
+                             check_role, clean_email, sign_up_domains)
 from ..orm import Org
 from ..schemas.auth import (
     AddPeopleIn,
@@ -118,6 +128,37 @@ def set_password_url(public: str, token: str) -> str:
     return f"{public}/set-password#{token}"
 
 
+def team_maker() -> providers.LoginProvider | None:
+    """The provider new teams are made at, if one owns them here and sopops can reach its API. None otherwise, and
+    then a new team is sopops's own, as it has always been."""
+    return next((p for p in providers.configured() if p.owns_teams and p.manages_teams()), None)
+
+
+def team_provider(org: Org) -> tuple[providers.LoginProvider, str] | None:
+    """The provider that owns this team and the team's id there, from `orgs.external_id` (`<provider>:<their id>`).
+
+    None for a team made in sopops, for one mirrored from a provider this deployment no longer offers, and for one
+    whose provider has no API credentials here: in all three sopops's own invites are still the way, so nothing
+    breaks by taking the key out again."""
+    provider, _, id = (org.external_id or "").partition(":")
+    p = providers.get(provider) if provider and id else None
+    return (p, id) if p is not None and p.owns_teams and p.manages_teams() else None
+
+
+def refused(e: providers.ProviderError) -> HTTPException:
+    """A provider's refusal as an answer worth showing: its message, already written for the person, and 502,
+    because what went wrong is upstream of sopops. The provider logged what actually happened."""
+    return HTTPException(502, str(e))
+
+
+def their_invite(i: providers.ProviderInvite) -> dict:
+    """One of the provider's pending invites as sopops's, for the same list. Its address is its id: that's what
+    withdraws it there. Timestamps the provider doesn't give fall back to sopops's own answer for "about now"."""
+    now = datetime.now(timezone.utc)
+    return {"id": i.email, "email": i.email, "role": i.role, "created_at": i.created_at or now,
+            "expires_at": i.expires_at or now + timedelta(days=INVITE_DAYS)}
+
+
 def join_url(public: str, token: str) -> str:
     return f"{public}/join#{token}"
 
@@ -160,8 +201,10 @@ def router(accounts: Accounts) -> APIRouter:
             raise HTTPException(404, "sign-in with a password isn't on for this sopops")
 
     def state(cur: Current | None, request: Request) -> dict:
+        # `new_team_url` is the fallback, so it's offered only when there's nothing better: a provider that owns the
+        # teams and whose API sopops can reach is given a sopops form instead, and says so by sending no URL.
         found = [{"id": p.id, "label": p.label, "redirects": p.redirects, "owns_teams": p.owns_teams,
-                  "new_team_url": p.new_team_url(login_url(request, p.id)) if p.owns_teams else None}
+                  "new_team_url": p.new_team_url(login_url(request, p.id)) if p.owns_teams and not p.manages_teams() else None}
                  for p in providers.configured()]
         pw = passwords()
         by_email = pw and email.EmailLogin().configured()
@@ -485,15 +528,29 @@ def router(accounts: Accounts) -> APIRouter:
             raise HTTPException(400, str(e)) from None
         return {"org": org_out(o, role), "workspace": ws}
 
-    @r.post("/v1/orgs", response_model=SetUpOut, status_code=201)
+    @r.post("/v1/orgs", response_model=SetUpOut, status_code=201,
+            responses={502: {"description": "The provider that owns the teams wouldn't make it."}})
     def create_team(req: TeamIn, request: Request) -> dict:
-        """Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are."""
+        """Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are.
+
+        Where a login provider owns the teams, the team is made there and mirrored back here, so it's the same team
+        at the next sign-in. Either way this answers with the team and the workspace it works in."""
         cur = login(request)
+        maker = team_maker()
         try:
-            o, ws = accounts.create_team(cur, req.name)
+            if maker is None:
+                o, ws = accounts.create_team(cur, req.name)
+            else:
+                who = accounts.provider_user_id(cur.user.id, maker.id)
+                if who is None:  # they signed in some other way, so the team's owner would be a stranger there
+                    raise HTTPException(409, "sign in again before making a team")
+                team = maker.create_team(who, req.name)
+                o, ws = accounts.adopt_team(cur, maker.id, team)
+        except providers.ProviderError as e:
+            raise refused(e) from None
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
-        log.info("user %s made org %s", cur.user.id, o.id)
+        log.info("user %s made org %s%s", cur.user.id, o.id, f" at {maker.id}" if maker else "")
         return {"org": org_out(o, "owner"), "workspace": ws}
 
     @r.patch("/v1/org/platforms", response_model=PlatformsOut, responses={403: {"description": "Only owners and admins change them, once picked."}})
@@ -557,6 +614,9 @@ def router(accounts: Accounts) -> APIRouter:
         """Add people by email, as admins or members (owners can add owners). Someone with an account joins now; anyone
         else gets an invite (emailed when sopops sends email) and joins when they sign in with that email, any way."""
         cur, org_id, role = org_of(request)
+        owner = team_provider(accounts.org(org_id))
+        if owner is not None:  # the provider holds the team, so it holds the invites, and it does the emailing
+            return [{"email": e, "status": "invited"} for e in invite_all(owner, role, req.emails, req.role)]
         try:
             added = accounts.add_people(org_id, cur.user.id, role, req.emails, req.role)
         except ValueError as e:
@@ -571,9 +631,24 @@ def router(accounts: Accounts) -> APIRouter:
 
     @r.patch("/v1/org/members/{user_id}", response_model=MemberOut)
     def set_member_role(user_id: str, req: RoleIn, request: Request) -> dict:
-        """Change someone's role. Only an owner makes or changes an owner, and the org keeps at least one."""
+        """Change someone's role. Only an owner makes or changes an owner, and the org keeps at least one.
+
+        Where a provider owns the team, its roles are mirrored over sopops's at every sign-in, so the change is made
+        there too; sopops's rules are checked first, and a provider that refuses leaves a change that the next
+        sign-in undoes, which is the right way round."""
         _, org_id, role = org_of(request)
-        return accounts.set_role(org_id, role, user_id, req.role)
+        owner = team_provider(accounts.org(org_id))
+        out = accounts.set_role(org_id, role, user_id, req.role)
+        if owner is not None:
+            p, team = owner
+            who = accounts.provider_user_id(user_id, p.id)
+            if who is None:
+                raise HTTPException(409, "they haven't signed in here yet, so their role can't change until they do")
+            try:
+                p.set_team_role(team, who, req.role)
+            except providers.ProviderError as e:
+                raise refused(e) from None
+        return out
 
     @r.delete("/v1/org/members/{user_id}", status_code=204)
     def remove_member(user_id: str, request: Request) -> Response:
@@ -591,17 +666,51 @@ def router(accounts: Accounts) -> APIRouter:
         log.info("user %s made a password link for user %s", cur.user.id, user_id)
         return {**info, "link": set_password_url(public_url(request), token)}
 
-    @r.get("/v1/org/invites", response_model=list[InviteOut])
+    def invite_all(owner: tuple[providers.LoginProvider, str], by_role: str, emails: list[str], role: str) -> list[str]:
+        """Invite each address at the provider that owns the team. The first refusal stops it: the ones already sent
+        have gone, and saying so beats carrying on and reporting something muddled."""
+        p, team = owner
+        check_role(by_role, role)
+        done = []
+        for raw in emails:
+            try:
+                email = clean_email(raw)
+            except ValueError as e:
+                raise HTTPException(400, str(e)) from None
+            if email in done:
+                continue
+            try:
+                p.invite_to_team(team, email, role)
+            except providers.ProviderError as e:
+                raise refused(e) from None
+            done.append(email)
+        return done
+
+    @r.get("/v1/org/invites", response_model=list[InviteOut],
+           responses={502: {"description": "The provider that owns the team wouldn't say."}})
     def list_invites(request: Request) -> list[dict]:
-        """Invites not yet used, withdrawn or expired."""
+        """Invites not yet used, withdrawn or expired. Where a provider owns the team, its invites, whose `id` is
+        the address they were sent to."""
         _, org_id, _ = org_of(request)
-        return accounts.invites(org_id)
+        owner = team_provider(accounts.org(org_id))
+        if owner is None:
+            return accounts.invites(org_id)
+        p, team = owner
+        try:
+            return [their_invite(i) for i in p.team_invites(team)]
+        except providers.ProviderError as e:
+            raise refused(e) from None
 
     @r.post("/v1/org/invites", response_model=InviteCreated, status_code=201)
     def create_invite(req: InviteIn, request: Request) -> dict:
         """Invite someone by email. With SMTP set up it's emailed to them; either way the link comes back to copy. It
         works for 7 days, once, and replaces their open invite."""
         cur, org_id, role = org_of(request)
+        owner = team_provider(accounts.org(org_id))
+        if owner is not None:
+            email = invite_all(owner, role, [req.email], req.role)[0]
+            log.info("user %s invited %s to org %s at %s", cur.user.id, email, org_id, owner[0].id)
+            return {**their_invite(providers.ProviderInvite(email=email, role=req.role)), "link": "", "emailed": True}
         try:
             inv, token = accounts.invite(org_id, cur.user.id, role, req.email, req.role)
         except ValueError as e:
@@ -613,14 +722,25 @@ def router(accounts: Accounts) -> APIRouter:
         """A new link for an open invite, good for 7 more days (the old link stops working), emailed again when sopops
         sends email."""
         cur, org_id, _ = org_of(request)
+        if team_provider(accounts.org(org_id)) is not None:  # their invite, their link, and no way to ask for another
+            raise HTTPException(409, "that invite can't be sent again from here. Cancel it and invite them again")
         inv, token = accounts.resend_invite(org_id, id)
         return send_invite(request, cur, org_id, inv, token)
 
-    @r.delete("/v1/org/invites/{id}", status_code=204)
+    @r.delete("/v1/org/invites/{id}", status_code=204, responses={502: {"description": "The provider wouldn't withdraw it."}})
     def revoke_invite(id: str, request: Request) -> Response:
-        """Withdraw an invite: its link stops working."""
+        """Withdraw an invite: its link stops working. Where a provider owns the team, `id` is the address it was
+        sent to, which is what names it there."""
         _, org_id, _ = org_of(request)
-        accounts.revoke_invite(org_id, id)
+        owner = team_provider(accounts.org(org_id))
+        if owner is None:
+            accounts.revoke_invite(org_id, id)
+            return Response(status_code=204)
+        p, team = owner
+        try:
+            p.revoke_team_invite(team, id)
+        except providers.ProviderError as e:
+            raise refused(e) from None
         return Response(status_code=204)
 
     return r
