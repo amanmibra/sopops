@@ -8,7 +8,7 @@
  * This package doesn't depend on `@livekit/agents`; the shapes below are the parts of `JobContext` and
  * `voice.AgentSession` (v1) it reads.
  */
-import type { AgentConfig, SessionIn, Sopops } from "./index.js";
+import type { AgentConfig, SessionIn, SopOps } from "./index.js";
 
 type Item = Record<string, any>;
 type Turn = NonNullable<SessionIn["turns"]>[number];
@@ -37,7 +37,7 @@ export interface LiveKitSession {
 }
 
 export interface RecordSessionOptions {
-  sopops: Sopops;
+  sopops: SopOps;
   /** The sopc agent id. Default: the job's agent name. */
   agent?: string | null;
   /** The release the call ran on (`Instructions.release`). */

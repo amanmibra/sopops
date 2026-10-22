@@ -27,7 +27,7 @@ from types import SimpleNamespace
 from typing import Any, Awaitable, Callable
 
 from common import API, OUT, client, ingest_token, wait_for_pipeline, wait_until_up
-from sopops import Sopops
+from sopops import SopOps
 from sopops.livekit import attach
 
 
@@ -83,7 +83,7 @@ class JobContext:
             await cb(reason)
 
 
-async def play(job: dict[str, Any], sopops: Sopops, speed: float) -> int | None:
+async def play(job: dict[str, Any], sopops: SopOps, speed: float) -> int | None:
     """One call, start to shutdown. Returns the release it ran on."""
     ctx, session = JobContext(job["job_id"], job["agent_name"], job["room"]), AgentSession()
     ins = await attach(ctx, session, agent=f"livekit:{job['agent_name']}", client=sopops, stream=True)
@@ -111,7 +111,7 @@ async def play(job: dict[str, Any], sopops: Sopops, speed: float) -> int | None:
 
 
 async def replay(jobs: list[dict[str, Any]], token: str, rate: float, speed: float, concurrency: int) -> Counter[int | None]:
-    sopops = Sopops(API, token, cache_dir=OUT / "cache")
+    sopops = SopOps(API, token, cache_dir=OUT / "cache")
     gate = asyncio.Semaphore(concurrency)
     releases: Counter[int | None] = Counter()
 

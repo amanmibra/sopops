@@ -27,7 +27,7 @@ A release in an older format is compared the way `sopc migrate` converts it.
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/workspaces/{ws}/agents` | Agents in the current release (`?release=N` for another). |
-| `GET /v1/workspaces/{ws}/agents/{agent}` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `?release=N` pins a release (A/B). Logs a fetch. |
+| `GET /v1/workspaces/{ws}/agents/{agent}` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `agent` is the sopc id, the platform ref (`livekit:42`), or the platform id alone (`42`) when one agent has it; two agents sharing one across platforms answer `422` with both refs. `?release=N` pins a release (A/B). Logs a fetch. |
 | `GET /v1/workspaces/{ws}/agents/{agent}/prompt` | Just the instructions as text, with `X-Sopc-Release` and `X-Sopc-Hash` headers. Logs a fetch. |
 | `GET /v1/workspaces/{ws}/agents/{agent}/sops/{id}` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. |
 | `GET /v1/workspaces/{ws}/fetches?agent=` | Which release and instructions hash each agent was served, newest first. |
@@ -73,7 +73,7 @@ Instructions that are already live are recorded as `unchanged` without a write. 
 ### Webhook authentication
 
 A request is accepted with any of these:
-- the platform's webhook secret, as `Authorization: Bearer`, `X-Sopops-Secret` or `X-Vapi-Secret`;
+- the platform's webhook secret, as `Authorization: Bearer`, `X-SopOps-Secret` or `X-Vapi-Secret`;
 - an HMAC-SHA256 signature: ElevenLabs' `ElevenLabs-Signature: t=…,v0=…` over `"{t}.{body}"` (at most 30 minutes old), or Vapi's `x-signature` (hex) and `x-timestamp` over `"{timestamp}.{body}"` (within 5 minutes);
 - a token with the `runtime` scope, as a bearer.
 

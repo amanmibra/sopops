@@ -12,7 +12,7 @@
  * With `stream: true`, the conversation's messages and tool results also go to sopops as they happen, and the
  * full conversation is posted when it ends (a token with the `ingest` scope is needed).
  */
-import type { AgentConfig, FetchOptions, Guidance, Instructions, SessionIn, SessionStream, Sopops } from "./index.js";
+import type { AgentConfig, FetchOptions, Guidance, Instructions, SessionIn, SessionStream, SopOps } from "./index.js";
 
 type Turn = NonNullable<SessionIn["turns"]>[number];
 type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
@@ -67,7 +67,7 @@ export interface ElevenLabsSessionInput extends FetchOptions {
 }
 
 /** Fetch the agent's instructions and build the `startSession` options that carry them. */
-export async function elevenLabsSession(sopops: Sopops, input: ElevenLabsSessionInput): Promise<ElevenLabsSession> {
+export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSessionInput): Promise<ElevenLabsSession> {
   const agent = input.agent ?? (input.agentId ? `elevenlabs:${input.agentId}` : undefined);
   if (!agent) throw new Error("pass agent (the sopops agent) or agentId (the ElevenLabs agent id)");
   const instructions = await sopops.fetchInstructions(agent, input);
@@ -125,7 +125,7 @@ class Recorder {
   private readonly startedAt = now();
 
   constructor(
-    private readonly sopops: Sopops,
+    private readonly sopops: SopOps,
     private readonly instructions: Instructions,
     private readonly onGuidance: ((guidance: Guidance) => void) | undefined,
     private readonly tags: { test: string | null; config: AgentConfig },

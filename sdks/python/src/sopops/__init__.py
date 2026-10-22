@@ -4,8 +4,8 @@ Framework adapters live in their own modules and import their framework lazily: 
 `SessionStream` optionally sends a session's events while the call runs.
 """
 
-from .client import Instructions, Sopops, SopopsError, SopopsUnavailable, fetch, release_pin
+from .client import Instructions, SopOps, SopOpsError, SopOpsUnavailable, fetch, release_pin
 from .stream import SessionStream
 
-__version__ = "0.1.0"
-__all__ = ["Instructions", "SessionStream", "Sopops", "SopopsError", "SopopsUnavailable", "fetch", "release_pin"]
+__version__ = "0.2.0"
+__all__ = ["Instructions", "SessionStream", "SopOps", "SopOpsError", "SopOpsUnavailable", "fetch", "release_pin"]

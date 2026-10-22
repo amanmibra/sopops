@@ -19,7 +19,7 @@ import asyncio
 import logging
 from typing import Any, Callable, Literal, Mapping
 
-from .client import Sopops
+from .client import SopOps
 
 log = logging.getLogger("sopops.stream")
 
@@ -30,14 +30,14 @@ OPEN_FIELDS = ("platform", "external_id", "channel", "agent", "release", "versio
 class SessionStream:
     """Streams one session's events to sopops from a background task.
 
-    `session` holds the fields `Sopops.open_session` takes (`platform` and `external_id` are required).
+    `session` holds the fields `SopOps.open_session` takes (`platform` and `external_id` are required).
     Events are sent at most every `flush_interval` seconds, at most `max_batch` per request; at most `max_queue`
     wait to be sent, and the rest are dropped.
     """
 
     def __init__(
         self,
-        client: Sopops,
+        client: SopOps,
         session: Mapping[str, Any],
         *,
         flush_interval: float = 0.5,

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import httpx
 import respx
 
-from sopops import SessionStream, Sopops
+from sopops import SessionStream, SopOps
 from sopops.livekit import agent_config, attach, from_livekit
 
 URL = "http://sopops.test/v1/workspaces/prod"
@@ -75,7 +75,7 @@ def test_attach_fetches_remembers_the_release_and_posts_at_shutdown(tmp_path):
     c, session = ctx(), Session()
 
     async def call():
-        ins = await attach(c, session, client=Sopops(URL, "tok", cache_dir=tmp_path))
+        ins = await attach(c, session, client=SopOps(URL, "tok", cache_dir=tmp_path))
         assert ins.text == "You are Tony's." and session.userdata == {"sopops_release": 3, "sopops_agent": "tonys-pizza"}
         assert len(c.callbacks) == 1
         await c.callbacks[0]("user_left")
@@ -115,7 +115,7 @@ def test_attach_reports_the_models_test_and_config(tmp_path):
     c, session = ctx(), ModelSession(llm=Model("anthropic", "claude-haiku-4-5"), tts=Model("cartesia", "sonic-2"))
 
     async def call():
-        await attach(c, session, client=Sopops(URL, "tok", cache_dir=tmp_path), test="haiku-vs-gpt", config={"version": "v2", "tts": "cartesia/sonic-3"})
+        await attach(c, session, client=SopOps(URL, "tok", cache_dir=tmp_path), test="haiku-vs-gpt", config={"version": "v2", "tts": "cartesia/sonic-3"})
         await c.callbacks[0]("user_left")
 
     asyncio.run(call())
@@ -126,7 +126,7 @@ def test_attach_reports_the_models_test_and_config(tmp_path):
 @respx.mock
 def test_a_release_pinned_in_metadata_is_fetched(tmp_path):
     get = respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={**AGENT, "release": 2}))
-    client = Sopops(URL, cache_dir=tmp_path)
+    client = SopOps(URL, cache_dir=tmp_path)
     session = Session(userdata=SimpleNamespace(sopops_release=None, sopops_agent=None, order=[]))
     asyncio.run(attach(ctx(job_metadata='{"sopops_release": 2}'), session, "tonys-pizza", client=client))
     assert get.calls.last.request.url.params["release"] == "2" and session.userdata.sopops_release == 2
@@ -142,7 +142,7 @@ def test_a_failed_post_never_breaks_shutdown(tmp_path):
     c = ctx()
 
     async def call():
-        ins = await attach(c, Session(), "tonys-pizza", client=Sopops(URL, cache_dir=tmp_path), fallback="Be brief.")
+        ins = await attach(c, Session(), "tonys-pizza", client=SopOps(URL, cache_dir=tmp_path), fallback="Be brief.")
         assert ins.source == "fallback"
         await c.callbacks[0]("done")  # logs, doesn't raise
 
@@ -197,7 +197,7 @@ def test_without_stream_nothing_is_sent_until_shutdown(tmp_path):
     c, session = ctx(), StreamingSession()
 
     async def call():
-        await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path))
+        await attach(c, session, "tonys-pizza", client=SopOps(URL, "tok", cache_dir=tmp_path))
         assert session.handlers == {}
         await c.callbacks[0]("done")
 
@@ -212,7 +212,7 @@ def test_stream_sends_turns_and_tool_calls_in_batches_then_the_full_session(tmp_
     guidance = []
 
     async def call():
-        await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path), stream=True, on_guidance=guidance.append)
+        await attach(c, session, "tonys-pizza", client=SopOps(URL, "tok", cache_dir=tmp_path), stream=True, on_guidance=guidance.append)
         session.emit("conversation_item_added", said("assistant", "Tony's Pizza, how can I help?", 100.0))
         session.emit("conversation_item_added", said("user", "Delivery please.", 104.0))
         session.emit("conversation_item_added", said("user", "Delivery please.", 104.1))  # a repeat: dropped
@@ -251,7 +251,7 @@ def test_stream_failures_never_reach_the_agent(tmp_path):
     c, session = ctx(), StreamingSession()
 
     async def call():
-        await attach(c, session, "tonys-pizza", client=Sopops(URL, cache_dir=tmp_path), stream=True)
+        await attach(c, session, "tonys-pizza", client=SopOps(URL, cache_dir=tmp_path), stream=True)
         session.emit("conversation_item_added", said("user", "Hi", 1.0))
         session.emit("conversation_item_added", SimpleNamespace(item=None))  # malformed: logged
         await asyncio.sleep(0.7)  # the open fails: this batch is dropped
@@ -268,7 +268,7 @@ def test_a_full_queue_drops_events_and_batches_stay_bounded(tmp_path):
         with respx.mock:
             respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
             events = respx.post(f"{URL}/sessions/api/web%20chat%2F1/events").mock(return_value=httpx.Response(200, json={"accepted": 2, "duplicates": 0}))
-            stream = SessionStream(Sopops(URL, cache_dir=tmp_path), {"platform": "api", "external_id": "web chat/1", "agent": None}, max_batch=2, max_queue=5)
+            stream = SessionStream(SopOps(URL, cache_dir=tmp_path), {"platform": "api", "external_id": "web chat/1", "agent": None}, max_batch=2, max_queue=5)
             assert stream.session == {"platform": "api", "external_id": "web chat/1"}
             for i in range(7):
                 stream.turn({"role": "user", "text": str(i)})
@@ -292,7 +292,7 @@ def test_attach_fills_per_call_values(tmp_path):
     c, session = ctx(), Session()
 
     async def call():
-        ins = await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path),
+        ins = await attach(c, session, "tonys-pizza", client=SopOps(URL, "tok", cache_dir=tmp_path),
                            variables={"now": "7:15pm", "caller": "Sam"})
         assert ins.text == "You are Tony's. It's 7:15pm. Greet Sam. Ask about {{special}}."
         assert ins.unfilled == ("special",)

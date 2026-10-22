@@ -59,7 +59,7 @@ Group ids are sopc's, stable across runs.
 
 These take `Authorization: Bearer <onboarding token>`: scope `onboarding:write`, one workspace, 2 hours, stored hashed. `401` when it's unknown, expired or revoked; `403` without the scope.
 
-sopops-mcp also sends `X-Sopops-Client` and `X-Sopops-Client-Version`, its MCP client's clientInfo (e.g. `claude-code`, `2.1.3`). The first request with a token is recorded on the import once (`agent_client`: name, version, label, `connected_at`), with a progress message such as "Claude Code 2.1.3 connected".
+sopops-mcp also sends `X-SopOps-Client` and `X-SopOps-Client-Version`, its MCP client's clientInfo (e.g. `claude-code`, `2.1.3`). The first request with a token is recorded on the import once (`agent_client`: name, version, label, `connected_at`), with a progress message such as "Claude Code 2.1.3 connected".
 
 | Endpoint | What it does |
 |---|---|

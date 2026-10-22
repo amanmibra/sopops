@@ -27,9 +27,9 @@ async def entrypoint(ctx: JobContext):
 ## Any framework
 
 ```python
-from sopops import Sopops
+from sopops import SopOps
 
-sopops = Sopops()                                    # SOPOPS_URL, SOPOPS_TOKEN
+sopops = SopOps()                                    # SOPOPS_URL, SOPOPS_TOKEN
 ins = await sopops.fetch_instructions("tonys-pizza", release=None, fallback="You are a helpful host.")
 ins.text, ins.release, ins.blocks                    # the instructions, their release, the files they were built from
 
@@ -65,9 +65,9 @@ prompt = ins.text
 ```
 
 It reads the same environment variables, caches and falls back the same way, and builds a client per call, so inside
-async code keep a `Sopops` and await `fetch_instructions` instead.
+async code keep a `SopOps` and await `fetch_instructions` instead.
 
-**A sopops outage never blocks a call.** The fetch gives up after `timeout` (2s by default). Then it returns the last good copy for that agent and release from disk (`ins.source == "cache"`), else your `fallback` (`"fallback"`), else raises `SopopsUnavailable`. Sessions are retried on connection errors, 429 and 5xx; sending the same session again is safe.
+**A sopops outage never blocks a call.** The fetch gives up after `timeout` (2s by default). Then it returns the last good copy for that agent and release from disk (`ins.source == "cache"`), else your `fallback` (`"fallback"`), else raises `SopOpsUnavailable`. Sessions are retried on connection errors, 429 and 5xx; sending the same session again is safe.
 
 ## Streaming (optional)
 
@@ -90,7 +90,7 @@ await stream.aclose()                                # sends what's queued (at m
 await sopops.post_session(full_session)
 ```
 
-`Sopops.open_session` and `Sopops.append_events` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`). Streaming needs the `ingest` scope, like posting.
+`SopOps.open_session` and `SopOps.append_events` are the two requests underneath (`POST …/sessions/open`, `POST …/sessions/<platform>/<id>/events`). Streaming needs the `ingest` scope, like posting.
 
 The session format is in [API reference](../../docs/api/sessions.md#the-canonical-format). Adapters for other frameworks go in their own modules next to `sopops.livekit`, each importing its framework only when used. The TypeScript client is in [sdks/node](../node). A complete LiveKit agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant).
 

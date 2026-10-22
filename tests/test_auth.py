@@ -505,7 +505,7 @@ def test_token_and_webhook_routes_work_without_a_session(owner, app, files, monk
     assert agentside.get(f"{WS}/agents/{agent}/prompt", headers={"Authorization": f"Bearer {runtime}"}).status_code == 200
     assert agentside.get(f"{WS}/agents/{agent}/prompt").status_code == 401
     assert owner.get(f"{WS}/agents/{agent}/prompt").status_code == 200  # someone signed in may look
-    hook = agentside.post(f"{WS}/runtime/elevenlabs/conversation-init", params={"agent": agent}, json={}, headers={"X-Sopops-Secret": "el-hook-secret"})
+    hook = agentside.post(f"{WS}/runtime/elevenlabs/conversation-init", params={"agent": agent}, json={}, headers={"X-SopOps-Secret": "el-hook-secret"})
     assert hook.status_code == 200
     assert agentside.post("/v1/github/webhook", content=b"{}", headers={"X-GitHub-Event": "ping"}).status_code in (401, 503)  # its own check
 

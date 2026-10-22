@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MemoryCache, Sopops } from "../src/index.js";
+import { MemoryCache, SopOps } from "../src/index.js";
 import { fromLiveKit, recordSession } from "../src/livekit.js";
 
 const URL = "http://sopops.test/v1/workspaces/prod";
@@ -34,7 +34,7 @@ describe("recordSession", () => {
       bodies.push({ url: req.url, body: await req.json() });
       return new Response(JSON.stringify({ id: "s1", created: true }), { status: 201 });
     }) as unknown as typeof globalThis.fetch;
-    const sopops = new Sopops({ url: URL, token: "tok", fetch, cache: new MemoryCache() });
+    const sopops = new SopOps({ url: URL, token: "tok", fetch, cache: new MemoryCache() });
     const callbacks: Array<() => Promise<void>> = [];
     const ctx = { job: { id: "AJ_1", agentName: "luigis-trattoria" }, room: { name: "room-1" }, addShutdownCallback: (cb: () => Promise<void>) => callbacks.push(cb) };
 
@@ -49,7 +49,7 @@ describe("recordSession", () => {
     const fetch = vi.fn(async () => {
       throw new TypeError("fetch failed");
     }) as unknown as typeof globalThis.fetch;
-    const sopops = new Sopops({ url: URL, fetch, cache: new MemoryCache() });
+    const sopops = new SopOps({ url: URL, fetch, cache: new MemoryCache() });
     const callbacks: Array<() => Promise<void>> = [];
     const ctx = { job: { id: "AJ_2" }, room: {}, addShutdownCallback: (cb: () => Promise<void>) => callbacks.push(cb) };
     recordSession(ctx, { history: { toJSON: () => HISTORY } }, { sopops });

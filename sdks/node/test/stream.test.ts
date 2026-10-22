@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MemoryCache, Sopops, type SessionEvent } from "../src/index.js";
+import { MemoryCache, SopOps, type SessionEvent } from "../src/index.js";
 import { elevenLabsSession } from "../src/elevenlabs.js";
 
 const URL = "http://sopops.test/v1/workspaces/prod";
@@ -24,7 +24,7 @@ function fakeSopops(routes: Record<string, Reply[]>) {
   }) as unknown as typeof globalThis.fetch;
   const to = (path: string) => calls.filter((c) => c.path === path);
   const events = (path: string): SessionEvent[] => to(path).flatMap((c) => c.body.events);
-  return { client: new Sopops({ url: URL, token: "tok", fetch, cache: new MemoryCache() }), calls, to, events };
+  return { client: new SopOps({ url: URL, token: "tok", fetch, cache: new MemoryCache() }), calls, to, events };
 }
 
 const OPENED = json({ id: "s1", created: true }, 201);

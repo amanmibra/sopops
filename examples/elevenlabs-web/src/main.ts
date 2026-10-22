@@ -1,9 +1,9 @@
 // A web call to an ElevenLabs agent whose prompt comes from sopops.
 import { Conversation } from "@elevenlabs/client";
-import { Sopops } from "sopops";
+import { SopOps } from "sopops";
 import { elevenLabsSession } from "sopops/elevenlabs";
 
-const sopops = new Sopops({ url: import.meta.env.VITE_SOPOPS_URL, token: import.meta.env.VITE_SOPOPS_TOKEN });
+const sopops = new SopOps({ url: import.meta.env.VITE_SOPOPS_URL, token: import.meta.env.VITE_SOPOPS_TOKEN });
 const agent = import.meta.env.VITE_SOPOPS_AGENT || "sakura-sushi";
 // Needed when the sopops agent isn't itself an ElevenLabs agent (its platform ref isn't `elevenlabs:<id>`).
 const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID || undefined;

@@ -264,13 +264,13 @@ def test_elevenlabs_conversation_init_serves_the_prompt(client, published):
     assert client.post(url, content=raw, headers={"ElevenLabs-Signature": sign_el("wrong", raw)}).status_code == 401
     stale = sign_el("el-hook-secret", raw, int(time.time()) - 3600)
     assert client.post(url, content=raw, headers={"ElevenLabs-Signature": stale}).status_code == 401
-    assert client.post(url, json=body, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 200
+    assert client.post(url, json=body, headers={"X-SopOps-Secret": "el-hook-secret"}).status_code == 200
     assert client.post(url, json=body, headers={"Authorization": "Bearer el-hook-secret"}).status_code == 200
     token = client.post(f"{WS}/tokens").json()["token"]
     assert client.post(url, json=body, headers={"Authorization": f"Bearer {token}"}).status_code == 200  # the runtime token works too
 
-    assert client.post(url, json={**body, "agent_id": "agent_nope"}, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 404
-    pinned = client.post(url, params={"agent": "luigis-trattoria", "release": published}, json={}, headers={"X-Sopops-Secret": "el-hook-secret"})
+    assert client.post(url, json={**body, "agent_id": "agent_nope"}, headers={"X-SopOps-Secret": "el-hook-secret"}).status_code == 404
+    pinned = client.post(url, params={"agent": "luigis-trattoria", "release": published}, json={}, headers={"X-SopOps-Secret": "el-hook-secret"})
     assert pinned.json()["dynamic_variables"]["sopops_release"] == published
 
 
@@ -283,7 +283,7 @@ def test_hosted_sopops_requires_a_webhook_secret(client, published, monkeypatch)
     assert client.post(f"{WS}/runtime/vapi/assistant-request", json={"message": {"type": "assistant-request"}}).status_code == 401
     client.put(f"{WS}/runtime/platforms/elevenlabs/webhook-secret", json={"value": "el-hook-secret"})
     assert client.post(url, json=body).status_code == 401
-    assert client.post(url, json=body, headers={"X-Sopops-Secret": "el-hook-secret"}).status_code == 200
+    assert client.post(url, json=body, headers={"X-SopOps-Secret": "el-hook-secret"}).status_code == 200
     ingest_only = client.post(f"{WS}/tokens", json={"scopes": ["ingest"]}).json()["token"]
     assert client.post(url, json=body, headers={"Authorization": f"Bearer {ingest_only}"}).status_code == 401  # needs runtime
     monkeypatch.setenv("SOPOPS_REQUIRE_WEBHOOK_SECRET", "false")
@@ -372,3 +372,15 @@ def test_cors_for_browser_clients(monkeypatch, tmp_path):
     pre = c.options(f"{WS}/agents/x", headers={"Origin": "https://app.example.com", "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"})
     assert pre.headers["access-control-allow-origin"] == "https://app.example.com"
     assert "access-control-allow-origin" not in c.get("/v1/workspaces", headers={"Origin": "https://evil.example"}).headers
+
+
+def test_an_agent_answers_to_its_own_id_without_the_platform_prefix(client, files):
+    """Teams identify a location by their own id, so asking for `42` works, not just `livekit:42`."""
+    client.put(f"{WS}/config/agents/copper-wok-harbor", json={
+        "platform": "livekit", "platform_id": "42", "context": "The harbor branch.", "blocks": [], "variables": {}})
+    assert client.post(f"{WS}/releases").status_code == 200
+
+    by_sopc_id = client.get(f"{WS}/agents/copper-wok-harbor").json()
+    assert client.get(f"{WS}/agents/livekit:42").json()["agent"] == by_sopc_id["agent"]
+    assert client.get(f"{WS}/agents/42").json()["agent"] == by_sopc_id["agent"]
+    assert client.get(f"{WS}/agents/43").status_code == 404

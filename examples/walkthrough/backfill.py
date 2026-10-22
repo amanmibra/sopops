@@ -3,7 +3,7 @@
     python examples/walkthrough/backfill.py [--concurrency 8]
 
 Each LiveKit job's history goes through the SDK's own converter (`sopops.livekit.from_livekit`, what `attach`
-uses at shutdown) and is posted with `Sopops.post_session`, stamped release 1: the onboarding import reproduced the
+uses at shutdown) and is posted with `SopOps.post_session`, stamped release 1: the onboarding import reproduced the
 prompts these calls ran on. Re-running is safe: sessions are keyed by platform and job id.
 
 For a backfill straight into the database instead (no server, no token), write canonical sessions and use
@@ -18,7 +18,7 @@ import json
 from datetime import datetime, timedelta
 
 from common import API, OUT, client, ingest_token, wait_for_pipeline, wait_until_up
-from sopops import Sopops
+from sopops import SopOps
 from sopops.livekit import from_livekit
 
 
@@ -36,7 +36,7 @@ def canonical(job: dict) -> dict:
 
 
 async def send_all(jobs: list[dict], token: str, concurrency: int) -> dict[str, int]:
-    sopops = Sopops(API, token)
+    sopops = SopOps(API, token)
     gate = asyncio.Semaphore(concurrency)
     counts = {"created": 0, "updated": 0, "unchanged": 0}
 

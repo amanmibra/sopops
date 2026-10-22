@@ -21,7 +21,7 @@ import logging
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any, Callable, Mapping
 
-from .client import Instructions, Sopops, release_pin
+from .client import Instructions, SopOps, release_pin
 from .stream import SessionStream
 
 if TYPE_CHECKING:  # only for type checkers: the adapter needs no livekit import at runtime
@@ -81,7 +81,7 @@ async def attach(
     session: AgentSession[Any],
     agent: str | None = None,
     *,
-    client: Sopops | None = None,
+    client: SopOps | None = None,
     release: int | None = None,
     fallback: str | None = None,
     stream: bool = False,
@@ -94,7 +94,7 @@ async def attach(
 
     `agent`: the sopc agent id or platform ref; default `livekit:<the job's agent name>`. `release` pins one;
     default: a pin in job or room metadata, else the live release. `fallback`: text to use if sopops is down and
-    nothing is cached (see `Sopops.fetch_instructions`). Call it after `ctx.connect()` for room metadata.
+    nothing is cached (see `SopOps.fetch_instructions`). Call it after `ctx.connect()` for room metadata.
 
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
     `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
@@ -103,7 +103,7 @@ async def attach(
     here, in your process, so they never reach sopops. A placeholder you pass no value for is left as it is and
     listed in `ins.unfilled`, so you can log one that shouldn't be there.
     `on_guidance`: not yet used: reserved for runtime guidance in a later version."""
-    client = client or Sopops()
+    client = client or SopOps()
     agent = agent or f"livekit:{ctx.job.agent_name}"
     pin = release if release is not None else pinned_release(ctx)
     ins = await client.fetch_instructions(agent, pin, fallback=fallback, variables=variables)
@@ -116,7 +116,7 @@ def record_session(
     ctx: JobContext,
     session: AgentSession[Any],
     *,
-    client: Sopops | None = None,
+    client: SopOps | None = None,
     agent: str | None = None,
     stream: bool = False,
     test: str | None = None,
@@ -130,7 +130,7 @@ def record_session(
     background task (see `SessionStream`); it never blocks or raises into the agent. The full post at shutdown
     still happens and replaces what was streamed. `test` and `config`: see `attach`. `on_guidance`: not yet used: reserved for runtime guidance in
     a later version."""
-    client = client or Sopops()
+    client = client or SopOps()
     started = datetime.now(timezone.utc)
     live = _stream(ctx, session, client, agent, started, on_guidance, test, config) if stream else None
 
@@ -162,7 +162,7 @@ def record_session(
 
 
 def _stream(
-    ctx: JobContext, session: AgentSession[Any], client: Sopops, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
+    ctx: JobContext, session: AgentSession[Any], client: SopOps, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
     test: str | None = None, config: Mapping[str, Any] | None = None,
 ) -> SessionStream:
     """Open a SessionStream for the job and feed it from the session's `conversation_item_added` and

@@ -552,10 +552,21 @@ class Store:
     # --- serving ---------------------------------------------------------------
 
     def agent(self, workspace: str, agent: str, release: int | None = None) -> dict:
-        """The agent's build in a release (default: current). `agent` is the sopc id or platform ref."""
+        """The agent's build in a release (default: current).
+
+        `agent` is the sopc id (`copper-wok-harbor`), the platform ref (`livekit:42`), or the platform id on its own
+        (`42`) when one agent has it. Teams identify locations by their own ids, so asking for one shouldn't mean
+        pasting a platform prefix their database has never heard of. Two agents sharing a platform id across
+        platforms is ambiguous, and says so rather than guessing."""
         rel = self.get_release(workspace, release)
         built = rel["build"]["agents"]
         agent_id = agent if agent in built else next((a for a, b in built.items() if b["platform_ref"] == agent), None)
+        if agent_id is None:
+            bare = [a for a, b in built.items() if str(b["platform_ref"]).partition(":")[2] == agent]
+            if len(bare) > 1:
+                raise Invalid(f"agent '{agent}' is ambiguous in release {rel['number']}: "
+                              f"{', '.join(sorted(built[a]['platform_ref'] for a in bare))}. Ask for one of those.")
+            agent_id = bare[0] if bare else None
         if agent_id is None:
             raise NotFound(f"agent '{agent}' not found in release {rel['number']}")
         return {"agent": agent_id, "release": rel["number"], **built[agent_id]}

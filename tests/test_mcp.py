@@ -125,8 +125,8 @@ def test_the_coding_agent_connecting_is_noted_once_with_its_name(client):
 
 def test_an_unknown_or_unnamed_coding_agent(client):
     onboarding = client.app.state.onboarding
-    for headers, said, label in (({"X-Sopops-Client": "codex-mcp-client", "X-Sopops-Client-Version": "0.50.0"}, "Codex 0.50.0 connected", "Codex"),
-                                 ({"X-Sopops-Client": "cursor-vscode", "X-Sopops-Client-Version": "1.0"}, "Your coding agent connected (cursor-vscode 1.0)", None),
+    for headers, said, label in (({"X-SopOps-Client": "codex-mcp-client", "X-SopOps-Client-Version": "0.50.0"}, "Codex 0.50.0 connected", "Codex"),
+                                 ({"X-SopOps-Client": "cursor-vscode", "X-SopOps-Client-Version": "1.0"}, "Your coding agent connected (cursor-vscode 1.0)", None),
                                  ({}, "Your coding agent connected", None)):
         started = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
         auth = {"Authorization": f"Bearer {started['token']}"}
@@ -139,7 +139,7 @@ def test_an_unknown_or_unnamed_coding_agent(client):
     later = client.post(f"{WS}/imports/agent", json={"mode": "hosted", "server_url": "http://sopops.test"}).json()
     auth = {"Authorization": f"Bearer {later['token']}"}
     client.get("/v1/onboarding/session", headers=auth)
-    client.post("/v1/onboarding/progress", headers={**auth, "X-Sopops-Client": "claude-code"}, json={"step": "find", "message": "x"})
+    client.post("/v1/onboarding/progress", headers={**auth, "X-SopOps-Client": "claude-code"}, json={"step": "find", "message": "x"})
     events = onboarding.events("demo", later["import"]["id"])
     assert len([e for e in events if e["step"] == "connected"]) == 1 and events[-1]["client"] == "Claude Code"
 

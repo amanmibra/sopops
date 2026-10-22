@@ -53,7 +53,7 @@ USAGE = """usage: sopops-mcp                  the onboarding MCP server on stdio
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-class SopopsClient:
+class SopOpsClient:
     """The sopops server, with the onboarding token."""
 
     def __init__(self, url: str | None, token: str | None, transport: httpx.BaseTransport | None = None):
@@ -72,7 +72,7 @@ class SopopsClient:
             raise RuntimeError(NOT_CONNECTED)
         headers = {"Authorization": f"Bearer {self.token}"}
         if self.client:
-            headers.update({"X-Sopops-Client": self.client[0], "X-Sopops-Client-Version": self.client[1]})
+            headers.update({"X-SopOps-Client": self.client[0], "X-SopOps-Client-Version": self.client[1]})
         try:
             with httpx.Client(base_url=self.url or "", timeout=120, transport=self.transport, headers=headers) as c:
                 res = c.request(method, path, json=body, params=params)
@@ -90,7 +90,7 @@ class SopopsClient:
 class _Server(MCPServer):
     """Notes the MCP client's clientInfo (Claude Code, Codex, ...) on each tool call, for the requests to sopops."""
 
-    def __init__(self, sopops: SopopsClient):
+    def __init__(self, sopops: SopOpsClient):
         super().__init__("sopops", instructions=INSTRUCTIONS)
         self.sopops = sopops
 
@@ -135,7 +135,7 @@ def _explained(fn: F) -> F:
 
 def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTransport | None = None, platform_transport: httpx.BaseTransport | None = None) -> MCPServer:
     env = dict(os.environ) if env is None else env
-    sopops = SopopsClient(env.get("SOPOPS_URL"), env.get("SOPOPS_TOKEN"), transport)
+    sopops = SopOpsClient(env.get("SOPOPS_URL"), env.get("SOPOPS_TOKEN"), transport)
     server = _Server(sopops)
 
     @server.tool()

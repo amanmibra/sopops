@@ -22,11 +22,11 @@ log = logging.getLogger("sopops")
 Source = Literal["live", "cache", "fallback"]
 
 
-class SopopsError(Exception):
+class SopOpsError(Exception):
     """sopops answered with an error, or couldn't be reached."""
 
 
-class SopopsUnavailable(SopopsError):
+class SopOpsUnavailable(SopOpsError):
     """No instructions: sopops failed, nothing was cached for this agent, and no fallback was given."""
 
 
@@ -118,10 +118,10 @@ def fetch(
     """The agent's instructions, blocking: one call for code that isn't async.
 
     `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; without it you get
-    the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `Sopops` reads them.
+    the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
 
-    Falls back the same way `Sopops.fetch_instructions` does: the last good copy on disk, then `fallback`, else
-    `SopopsUnavailable`. Inside async code, await that method on a `Sopops` you keep, so the client is reused.
+    Falls back the same way `SopOps.fetch_instructions` does: the last good copy on disk, then `fallback`, else
+    `SopOpsUnavailable`. Inside async code, await that method on a `SopOps` you keep, so the client is reused.
 
         ins = sopops.fetch("tonys-pizza")           # the live release
         ins = sopops.fetch("tonys-pizza", 14)       # pinned, e.g. one arm of an A/B test
@@ -133,12 +133,12 @@ def fetch(
     except RuntimeError:
         pass
     else:
-        raise RuntimeError("sopops.fetch blocks: in async code use `await Sopops(...).fetch_instructions(agent, release)`")
-    client = Sopops(url, token, timeout=timeout, cache_dir=cache_dir)
+        raise RuntimeError("sopops.fetch blocks: in async code use `await SopOps(...).fetch_instructions(agent, release)`")
+    client = SopOps(url, token, timeout=timeout, cache_dir=cache_dir)
     return asyncio.run(client.fetch_instructions(agent, release, fallback=fallback, variables=variables))
 
 
-class Sopops:
+class SopOps:
     """A sopops workspace.
 
     `url` is the workspace's API URL (`http://sopops.internal:8484/v1/workspaces/prod`), default `SOPOPS_URL`.
@@ -183,19 +183,19 @@ class Sopops:
         cached copy still fills with this call's values.
 
         Never waits longer than `timeout`. If sopops fails, returns the last good copy from disk (`source="cache"`),
-        else `fallback` (`source="fallback"`), else raises SopopsUnavailable."""
+        else `fallback` (`source="fallback"`), else raises SopOpsUnavailable."""
         params = {"release": str(release)} if release is not None else None
         try:
             async with self._client(self.timeout) as http:
                 res = await asyncio.wait_for(http.get(f"/agents/{agent}", params=params), self.timeout + 0.5)
             if res.status_code >= 400:
-                raise SopopsError(f"sopops answered {res.status_code} for agent '{agent}': {_detail(res)}")
+                raise SopOpsError(f"sopops answered {res.status_code} for agent '{agent}': {_detail(res)}")
             body = res.json()
             got = Instructions(
                 text=body["prompt"], release=body["release"], agent=body["agent"], blocks=body.get("components", []),
                 hash=body.get("hash"), platform_ref=body.get("platform_ref"), tools=body.get("tools", []), tool_sops=body.get("tool_sops", []),
             )
-        except (httpx.HTTPError, asyncio.TimeoutError, SopopsError, ValueError, KeyError) as e:
+        except (httpx.HTTPError, asyncio.TimeoutError, SopOpsError, ValueError, KeyError) as e:
             reason = str(e) or type(e).__name__
             cached = self._read_cache(agent, release)
             if cached is not None:
@@ -204,7 +204,7 @@ class Sopops:
             if fallback is not None:
                 log.error("sopops: using the fallback instructions for %s, nothing cached: %s", agent, reason)
                 return _filled(Instructions(text=fallback, release=None, agent=agent, source="fallback"), variables)
-            raise SopopsUnavailable(f"no instructions for '{agent}': {reason}") from e
+            raise SopOpsUnavailable(f"no instructions for '{agent}': {reason}") from e
         self._write_cache(agent, release, got)   # unfilled, so the next call fills it with its own values
         return _filled(got, variables)
 
@@ -237,7 +237,7 @@ class Sopops:
         async with self._client(timeout) as http:
             res = await http.post("/runtime/served", json={"platform": platform, "call_id": call_id, "agent": agent, "release": release})
         if res.status_code >= 400:
-            raise SopopsError(f"sopops answered {res.status_code}: {_detail(res)}")
+            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
 
     # --- call end ----------------------------------------------------------------------------
 
@@ -252,13 +252,13 @@ class Sopops:
                 try:
                     res = await http.post("/sessions", json=dict(session))
                 except httpx.HTTPError as e:
-                    last = SopopsError(f"couldn't reach sopops: {type(e).__name__}")
+                    last = SopOpsError(f"couldn't reach sopops: {type(e).__name__}")
                     continue
                 if res.status_code == 429 or res.status_code >= 500:
-                    last = SopopsError(f"sopops answered {res.status_code}: {_detail(res)}")
+                    last = SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
                     continue
                 if res.status_code >= 400:
-                    raise SopopsError(f"sopops refused the session ({res.status_code}): {_detail(res)}")
+                    raise SopOpsError(f"sopops refused the session ({res.status_code}): {_detail(res)}")
                 out: dict[str, Any] = res.json()
                 return out
         assert last is not None
@@ -285,9 +285,9 @@ class Sopops:
             async with self._client(timeout) as http:
                 res = await http.post(path, json=body)
         except httpx.HTTPError as e:
-            raise SopopsError(f"couldn't reach sopops: {type(e).__name__}") from e
+            raise SopOpsError(f"couldn't reach sopops: {type(e).__name__}") from e
         if res.status_code >= 400:
-            raise SopopsError(f"sopops answered {res.status_code}: {_detail(res)}")
+            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
         out: dict[str, Any] = res.json()
         return out
 

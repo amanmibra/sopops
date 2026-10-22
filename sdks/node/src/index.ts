@@ -51,24 +51,24 @@ export class MemoryCache implements InstructionCache {
 
 const sharedMemory = new MemoryCache();
 
-export class SopopsError extends Error {
+export class SopOpsError extends Error {
   readonly status: number | null;
   constructor(message: string, status: number | null = null) {
     super(message);
-    this.name = "SopopsError";
+    this.name = "SopOpsError";
     this.status = status;
   }
 }
 
 /** No instructions: sopops failed, nothing was cached, and no fallback was given. */
-export class SopopsUnavailable extends SopopsError {
+export class SopOpsUnavailable extends SopOpsError {
   constructor(message: string) {
     super(message);
-    this.name = "SopopsUnavailable";
+    this.name = "SopOpsUnavailable";
   }
 }
 
-export interface SopopsOptions {
+export interface SopOpsOptions {
   /** The workspace's API URL, e.g. `https://sopops.internal/v1/workspaces/prod`. Default: `SOPOPS_URL` (Node). */
   url?: string;
   /** A workspace token (Settings → Tokens): scope `runtime` to fetch prompts, `ingest` to send sessions. Default: `SOPOPS_TOKEN` (Node). Don't ship it to browsers you don't trust. */
@@ -197,14 +197,14 @@ function env(name: string): string | undefined {
   return p?.env?.[name];
 }
 
-export class Sopops {
+export class SopOps {
   readonly url: string;
   readonly token: string | undefined;
   readonly timeoutMs: number;
   private cache: InstructionCache;
   private fetchImpl: typeof fetch;
 
-  constructor(options: SopopsOptions = {}) {
+  constructor(options: SopOpsOptions = {}) {
     const url = options.url ?? env("SOPOPS_URL");
     if (!url) throw new Error("pass url or set SOPOPS_URL to the workspace's API URL, e.g. http://sopops:8484/v1/workspaces/prod");
     this.url = url.replace(/\/+$/, "");
@@ -236,7 +236,7 @@ export class Sopops {
   /**
    * The agent's instructions in the live release, or a pinned one. `agent` is the sopc agent id or its platform
    * ref (`elevenlabs:<agent id>`). Never waits longer than `timeoutMs`: on any failure it returns the last good
-   * copy (`source: "cache"`), else `fallback`, else throws SopopsUnavailable.
+   * copy (`source: "cache"`), else `fallback`, else throws SopOpsUnavailable.
    */
   async fetchInstructions(agent: string, options: FetchOptions = {}): Promise<Instructions> {
     const release = options.release ?? null;
@@ -244,9 +244,9 @@ export class Sopops {
     try {
       const qs = release != null ? `?release=${encodeURIComponent(String(release))}` : "";
       const res = await this.request(`/agents/${encodeURIComponent(agent)}${qs}`, { headers: this.headers() }, this.timeoutMs);
-      if (!res.ok) throw new SopopsError(`sopops answered ${res.status} for agent '${agent}': ${await detail(res)}`, res.status);
+      if (!res.ok) throw new SopOpsError(`sopops answered ${res.status} for agent '${agent}': ${await detail(res)}`, res.status);
       const b = (await res.json()) as Record<string, unknown>;
-      if (typeof b.prompt !== "string") throw new SopopsError("sopops returned no prompt");
+      if (typeof b.prompt !== "string") throw new SopOpsError("sopops returned no prompt");
       const got: Instructions = {
         text: b.prompt,
         release: (b.release as number) ?? null,
@@ -280,28 +280,28 @@ export class Sopops {
         console.error(`sopops: using the fallback instructions for ${agent}, nothing cached: ${reason}`);
         return filled({ text: options.fallback, release: null, agent, blocks: [], hash: null, platformRef: null, tools: [], toolSops: [], source: "fallback" }, options.variables);
       }
-      throw new SopopsUnavailable(`no instructions for '${agent}': ${reason}`);
+      throw new SopOpsUnavailable(`no instructions for '${agent}': ${reason}`);
     }
   }
 
   /** Send one finished session. Safe to repeat (an upsert on platform + external_id). Retries network errors, 429 and 5xx. */
   async postSession(session: SessionIn, options: { retries?: number; timeoutMs?: number } = {}): Promise<SessionIngested> {
     const retries = options.retries ?? 2;
-    let last: Error = new SopopsError("not sent");
+    let last: Error = new SopOpsError("not sent");
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt) await sleep(500 * 2 ** (attempt - 1));
       let res: Response;
       try {
         res = await this.request("/sessions", { method: "POST", headers: this.headers(true), body: JSON.stringify(session) }, options.timeoutMs ?? 5000);
       } catch (e) {
-        last = new SopopsError(`couldn't reach sopops: ${e instanceof Error ? e.name : String(e)}`);
+        last = new SopOpsError(`couldn't reach sopops: ${e instanceof Error ? e.name : String(e)}`);
         continue;
       }
       if (res.status === 429 || res.status >= 500) {
-        last = new SopopsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
+        last = new SopOpsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
         continue;
       }
-      if (!res.ok) throw new SopopsError(`sopops refused the session (${res.status}): ${await detail(res)}`, res.status);
+      if (!res.ok) throw new SopOpsError(`sopops refused the session (${res.status}): ${await detail(res)}`, res.status);
       return (await res.json()) as SessionIngested;
     }
     throw last;
@@ -332,9 +332,9 @@ export class Sopops {
     try {
       res = await this.request(path, { method: "POST", headers: this.headers(true), body: JSON.stringify(body) }, timeoutMs);
     } catch (e) {
-      throw new SopopsError(`couldn't reach sopops: ${e instanceof Error ? e.name : String(e)}`);
+      throw new SopOpsError(`couldn't reach sopops: ${e instanceof Error ? e.name : String(e)}`);
     }
-    if (!res.ok) throw new SopopsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
+    if (!res.ok) throw new SopOpsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
     return res.json();
   }
 
@@ -345,7 +345,7 @@ export class Sopops {
   async recordServed(served: { platform: "elevenlabs" | "vapi"; callId: string; agent: string; release: number }, options: { timeoutMs?: number } = {}): Promise<void> {
     const body = { platform: served.platform, call_id: served.callId, agent: served.agent, release: served.release };
     const res = await this.request("/runtime/served", { method: "POST", headers: this.headers(true), body: JSON.stringify(body) }, options.timeoutMs ?? 3000);
-    if (!res.ok) throw new SopopsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
+    if (!res.ok) throw new SopOpsError(`sopops answered ${res.status}: ${await detail(res)}`, res.status);
   }
 }
 
@@ -362,20 +362,20 @@ export class Sopops {
 /** The agent's instructions in one call, for code that doesn't keep a client around.
  *
  * `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; leave it out for
- * the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `Sopops` reads them.
- * Falls back the same way the method does: the cache, then `fallback`, else `SopopsUnavailable`.
+ * the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
+ * Falls back the same way the method does: the cache, then `fallback`, else `SopOpsUnavailable`.
  *
  *     const ins = await fetchInstructions("tonys-pizza");       // the live release
  *     const ins = await fetchInstructions("tonys-pizza", 14);   // pinned, e.g. one arm of an A/B test
  *
- * It builds a client per call, so in anything hot keep a `Sopops` and call its `fetchInstructions`. */
+ * It builds a client per call, so in anything hot keep a `SopOps` and call its `fetchInstructions`. */
 export async function fetchInstructions(
   agent: string,
   release?: number | null,
-  options: SopopsOptions & { fallback?: string } = {},
+  options: SopOpsOptions & { fallback?: string } = {},
 ): Promise<Instructions> {
   const { fallback, ...client } = options;
-  return new Sopops(client).fetchInstructions(agent, { release: release ?? null, fallback });
+  return new SopOps(client).fetchInstructions(agent, { release: release ?? null, fallback });
 }
 
 export class SessionStream {
@@ -395,7 +395,7 @@ export class SessionStream {
   private readonly maxQueue: number;
 
   constructor(
-    private readonly sopops: Sopops,
+    private readonly sopops: SopOps,
     session: SessionOpen,
     options: StreamOptions = {},
   ) {

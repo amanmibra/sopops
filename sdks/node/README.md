@@ -8,10 +8,10 @@ It's not on npm yet; build it from a clone (`pnpm -C sdks/node install && pnpm -
 
 ```ts
 import { Conversation } from "@elevenlabs/client";
-import { Sopops } from "sopops";
+import { SopOps } from "sopops";
 import { elevenLabsSession } from "sopops/elevenlabs";
 
-const sopops = new Sopops({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
+const sopops = new SopOps({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
 const s = await elevenLabsSession(sopops, { agent: "front-desk" });   // or { agentId: "<ElevenLabs agent id>" }
 const conversation = await Conversation.startSession({ ...s.sessionOptions, onMessage: console.log });
 ```
@@ -27,7 +27,7 @@ Phone calls don't run this code: for those, sopops answers ElevenLabs' conversat
 ## Any framework
 
 ```ts
-const sopops = new Sopops();                                         // SOPOPS_URL, SOPOPS_TOKEN (Node)
+const sopops = new SopOps();                                         // SOPOPS_URL, SOPOPS_TOKEN (Node)
 const ins = await sopops.fetchInstructions("front-desk", { release: null, fallback: "You are a helpful assistant." });
 ins.text; ins.release; ins.blocks;
 
@@ -44,11 +44,11 @@ const ins = await fetchInstructions("front-desk");        // the live release
 const ins = await fetchInstructions("front-desk", 14);    // pinned, e.g. one arm of an A/B test
 ```
 
-It reads the same environment variables and falls back the same way, and builds a client per call, so keep a `Sopops`
+It reads the same environment variables and falls back the same way, and builds a client per call, so keep a `SopOps`
 in anything hot. (Python's is `sopops.fetch(agent, release)`; this one keeps the longer name so it doesn't shadow the
 global `fetch`.)
 
-**A sopops outage never blocks a call.** The fetch gives up after `timeoutMs` (2000 by default), then returns the last good copy (`ins.source === "cache"`), else your `fallback`, else throws `SopopsUnavailable`. The default cache is in memory; on Node, `new FileCache()` from `sopops/node` keeps it on disk (`SOPOPS_CACHE_DIR`, default `~/.cache/sopops`). `releasePin(metadata)` reads a pinned release (`{"sopops_release": 3}`) for A/B tests. `postSession` retries network errors, 429 and 5xx; resending a session is safe.
+**A sopops outage never blocks a call.** The fetch gives up after `timeoutMs` (2000 by default), then returns the last good copy (`ins.source === "cache"`), else your `fallback`, else throws `SopOpsUnavailable`. The default cache is in memory; on Node, `new FileCache()` from `sopops/node` keeps it on disk (`SOPOPS_CACHE_DIR`, default `~/.cache/sopops`). `releasePin(metadata)` reads a pinned release (`{"sopops_release": 3}`) for A/B tests. `postSession` retries network errors, 429 and 5xx; resending a session is safe.
 
 ## Streaming (optional)
 

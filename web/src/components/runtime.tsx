@@ -31,7 +31,7 @@ const WEBHOOK: Record<Platform, { path: string; steps: ReactNode[] }> = {
     path: "runtime/elevenlabs/conversation-init",
     steps: [
       <>In the agent's settings on ElevenLabs, set <b>Conversation initiation webhook</b> to this address.</>,
-      <>Add the header <code>X-Sopops-Secret</code> with the webhook secret. Save it as a workspace secret on ElevenLabs first.</>,
+      <>Add the header <code>X-SopOps-Secret</code> with the webhook secret. Save it as a workspace secret on ElevenLabs first.</>,
       <>Under <b>Security → Overrides</b>, turn on <b>System prompt</b> (ElevenLabs' name for the agent's instructions) so sopops can set it.</>,
     ],
   },

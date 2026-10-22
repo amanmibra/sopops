@@ -9,8 +9,9 @@ Each agent has two names. Its **sopc id** is the readable one in sopops's URLs (
 
 On LiveKit the identifier is yours to choose: a LiveKit agent name, a row id from your database, whatever you
 already use to tell locations apart. On ElevenLabs and Vapi it has to be that platform's own id, so pushes and
-webhooks match. Either name works when you fetch: `attach(ctx, session, "copper-wok-harbor")` and
-`attach(ctx, session, "livekit:42")` reach the same agent. sopops keeps identifiers unique in a workspace.
+webhooks match. Any of three names works when you fetch: the sopc id, `livekit:42`, or `42` on its own, so code that already
+holds a location id can pass it straight through. sopops keeps identifiers unique in a workspace, and says so
+rather than guessing if two agents on different platforms share one.
 
 ## Choose pull or push
 
@@ -35,7 +36,7 @@ async def entrypoint(ctx: JobContext):
     await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
-`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `Sopops().fetch_instructions(agent)` and `post_session(...)`, or `sopops.fetch(agent, release)` where the code isn't async (`fetchInstructions(agent, release)` in TypeScript). A `{{placeholder}}` sopops has no value for is served as it is, so your code can fill it at call start: `attach(..., variables={"now": ..., "caller": ...})`, or `variables` on `fetch_instructions` (`fetchInstructions(agent, { variables })` in TypeScript). That happens in your process, so those values never reach sopops; what's left over is in `ins.unfilled`, and anything that doesn't line up logs a warning instead of stopping the call. A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
+`attach` fetches the instructions (a release pinned as `{"sopops_release": 3}` in job or room metadata wins) and notes the release in `session.userdata`. It streams turns and tool calls during the call (`stream=True`, optional) and posts `session.history`, with tool calls, at shutdown (`recordSession` in TypeScript). If sopops is down, it uses the last good copy on disk, then `fallback`, so it never blocks a call. It also reports the session's LLM, speech and voice models, so Insights can compare versions ([A/B tests](ab-tests.md)). Outside LiveKit, use `SopOps().fetch_instructions(agent)` and `post_session(...)`, or `sopops.fetch(agent, release)` where the code isn't async (`fetchInstructions(agent, release)` in TypeScript). A `{{placeholder}}` sopops has no value for is served as it is, so your code can fill it at call start: `attach(..., variables={"now": ..., "caller": ...})`, or `variables` on `fetch_instructions` (`fetchInstructions(agent, { variables })` in TypeScript). That happens in your process, so those values never reach sopops; what's left over is in `ins.unfilled`, and anything that doesn't line up logs a warning instead of stopping the call. A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
 
 **Sessions with no code** (no tool calls):
 
@@ -51,7 +52,7 @@ sopops joins each room an agent joins, hidden and subscribe-only. It streams the
 
 - Push to `conversation_config.agent.prompt.prompt`.
 - Client overrides from the TypeScript SDK.
-- For phone calls, the conversation-initiation webhook at `/v1/workspaces/{ws}/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-Sopops-Secret`. Allow the System prompt override under Security → Overrides.
+- For phone calls, the conversation-initiation webhook at `/v1/workspaces/{ws}/runtime/elevenlabs/conversation-init`, with the webhook secret as `X-SopOps-Secret`. Allow the System prompt override under Security → Overrides.
 
 **Sessions with no code** (with tool calls): add a post-call webhook (transcripts) at `/v1/workspaces/{ws}/capture/elevenlabs/post-call` and paste its HMAC secret into Settings. On Enterprise, turn on live monitoring (and Monitoring in the agent's Advanced settings) to stream phone calls live. sopops follows each call the conversation-initiation webhook serves on the monitor socket, using the API key. If that's refused, it falls back to the post-call webhook, and Settings says why.
 
@@ -81,10 +82,10 @@ Coming later. You can mark agents as Retell, but nothing is delivered yet.
 [sdks/node](../sdks/node): ESM, no dependencies, Node 18+, browsers and edge runtimes.
 
 ```ts
-import { Sopops } from "sopops";
+import { SopOps } from "sopops";
 import { elevenLabsSession } from "sopops/elevenlabs";
 
-const sopops = new Sopops({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
+const sopops = new SopOps({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
 const s = await elevenLabsSession(sopops, { agent: "front-desk", stream: true });
 const conversation = await Conversation.startSession({ ...s.sessionOptions });
 

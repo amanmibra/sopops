@@ -164,7 +164,7 @@ About half the calls have nothing planted. The new calls have far fewer "safe" c
 just examples/walkthrough/backfill
 ```
 
-Posts the 200 calls with the SDK (`Sopops.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline. These pages are in **QA** mode (the switch in the top bar):
+Posts the 200 calls with the SDK (`SopOps.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline. These pages are in **QA** mode (the switch in the top bar):
 
 - **Sessions** (`/w/walkthrough/sessions`): 200 calls, each with its transcript, tool calls and the result per procedure. Open one with a finding: the rule, its status and the quote that shows it highlighted in the transcript.
 - **Insights** (`/w/walkthrough/insights`): sessions checked, followed end to end and needing attention; the procedure scoreboard (delivery orders looks worst, because of the broad rule); a procedure's rule ladder (`/w/walkthrough/insights/procedures/allergen-check`).

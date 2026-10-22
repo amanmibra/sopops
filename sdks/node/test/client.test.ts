@@ -2,7 +2,7 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { MemoryCache, Sopops, SopopsError, SopopsUnavailable, fetchInstructions, releasePin } from "../src/index.js";
+import { MemoryCache, SopOps, SopOpsError, SopOpsUnavailable, fetchInstructions, releasePin } from "../src/index.js";
 import { elevenLabsSession } from "../src/elevenlabs.js";
 import { FileCache } from "../src/node.js";
 
@@ -33,7 +33,7 @@ function mockFetch(...responses: Array<Response | Error | ((req: Request) => Pro
   return { fetch: fn as unknown as typeof fetch, calls };
 }
 
-const client = (f: typeof fetch, extra = {}) => new Sopops({ url: URL, token: "tok", fetch: f, cache: new MemoryCache(), ...extra });
+const client = (f: typeof fetch, extra = {}) => new SopOps({ url: URL, token: "tok", fetch: f, cache: new MemoryCache(), ...extra });
 
 describe("fetchInstructions", () => {
   it("returns the prompt with its release and blocks", async () => {
@@ -59,7 +59,7 @@ describe("fetchInstructions", () => {
     expect(cached).toMatchObject({ source: "cache", release: 3, text: "You are the front desk." });
     expect((await client(mockFetch(json({ detail: "nope" }, 503)).fetch, { cache }).fetchInstructions("front-desk")).source).toBe("cache");
 
-    await expect(client(down.fetch).fetchInstructions("front-desk", { release: 1 })).rejects.toBeInstanceOf(SopopsUnavailable);
+    await expect(client(down.fetch).fetchInstructions("front-desk", { release: 1 })).rejects.toBeInstanceOf(SopOpsUnavailable);
     const fb = await client(down.fetch).fetchInstructions("front-desk", { fallback: "Be brief." });
     expect(fb).toMatchObject({ source: "fallback", text: "Be brief.", release: null });
   });
@@ -139,7 +139,7 @@ describe("releasePin", () => {
 
 describe("errors", () => {
   it("are typed", () => {
-    expect(new SopopsUnavailable("x")).toBeInstanceOf(SopopsError);
+    expect(new SopOpsUnavailable("x")).toBeInstanceOf(SopOpsError);
   });
 });
 
@@ -167,20 +167,20 @@ describe("runtime variables", () => {
   it("fills placeholders in this process, and keeps the cache unfilled", async () => {
     const m = mockFetch(json({ ...AGENT, prompt: "You are {{restaurant}}. It's {{now}}. Greet {{caller}}." }));
     const cache = new MemoryCache();
-    const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache });
+    const c = new SopOps({ url: URL, token: "tok", fetch: m.fetch, cache });
     const ins = await c.fetchInstructions("front-desk", { variables: { now: "7:15pm", caller: "Sam" } });
     expect(ins.text).toBe("You are {{restaurant}}. It's 7:15pm. Greet Sam.");
     expect(ins.unfilled).toEqual(["restaurant"]);
     expect(m.calls[0]!.url).not.toContain("Sam");
 
-    const down = new Sopops({ url: URL, token: "tok", fetch: mockFetch(new Error("down")).fetch, cache });
+    const down = new SopOps({ url: URL, token: "tok", fetch: mockFetch(new Error("down")).fetch, cache });
     const later = await down.fetchInstructions("front-desk", { variables: { now: "9:40pm", caller: "Ada" } });
     expect([later.source, later.text]).toEqual(["cache", "You are {{restaurant}}. It's 9:40pm. Greet Ada."]);
   });
 
   it("fills a fallback too", async () => {
     const m = mockFetch(new Error("down"));
-    const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
+    const c = new SopOps({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
     const ins = await c.fetchInstructions("front-desk", { fallback: "You are the host. It's {{now}}.", variables: { now: "7:15pm" } });
     expect([ins.source, ins.text]).toEqual(["fallback", "You are the host. It's 7:15pm."]);
   });
@@ -189,7 +189,7 @@ describe("runtime variables", () => {
 it("warns about a variable that doesn't line up, and never blocks the call", async () => {
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   const m = mockFetch(json({ ...AGENT, prompt: "Greet {{caller}}." }));
-  const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
+  const c = new SopOps({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
   const ins = await c.fetchInstructions("front-desk", { variables: { calller: "Sam" } });   // a typo on our side
   expect([ins.text, ins.unfilled]).toEqual(["Greet {{caller}}.", ["caller"]]);               // the call goes on
   const said = warn.mock.calls.flat().join(" ");

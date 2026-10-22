@@ -6,7 +6,7 @@ import pytest
 import respx
 
 import sopops
-from sopops import Sopops, SopopsError, SopopsUnavailable, release_pin
+from sopops import SopOps, SopOpsError, SopOpsUnavailable, release_pin
 
 URL = "http://sopops.test/v1/workspaces/prod"
 AGENT = {
@@ -21,7 +21,7 @@ def run(coro):
 
 @pytest.fixture
 def client(tmp_path):
-    return Sopops(URL, "sopops_tok", cache_dir=tmp_path)
+    return SopOps(URL, "sopops_tok", cache_dir=tmp_path)
 
 
 @respx.mock
@@ -50,7 +50,7 @@ def test_an_outage_uses_the_last_good_copy(client):
     assert run(client.fetch_instructions("tonys-pizza")).source == "cache"
 
     # a pinned release is cached on its own
-    with pytest.raises(SopopsUnavailable):
+    with pytest.raises(SopOpsUnavailable):
         run(client.fetch_instructions("tonys-pizza", release=1))
     ins = run(client.fetch_instructions("tonys-pizza", release=1, fallback="Be helpful."))
     assert ins.source == "fallback" and ins.text == "Be helpful." and ins.release is None
@@ -63,7 +63,7 @@ def test_a_slow_sopops_never_holds_the_call(tmp_path):
         return httpx.Response(200, json=AGENT)
 
     respx.get(f"{URL}/agents/tonys-pizza").mock(side_effect=slow)
-    client = Sopops(URL, cache_dir=tmp_path, timeout=0.2)
+    client = SopOps(URL, cache_dir=tmp_path, timeout=0.2)
     loop = asyncio.new_event_loop()
     started = loop.time()
     ins = loop.run_until_complete(client.fetch_instructions("tonys-pizza", fallback="Hold on."))
@@ -80,7 +80,7 @@ def test_post_session_retries_server_errors(client, monkeypatch):
     assert json.loads(route.calls.last.request.content)["external_id"] == "j1"
 
     respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(401, json={"detail": "invalid ingest token"}))
-    with pytest.raises(SopopsError, match="invalid ingest token"):
+    with pytest.raises(SopOpsError, match="invalid ingest token"):
         run(client.post_session({"platform": "livekit", "external_id": "j1"}))
 
 
@@ -97,11 +97,11 @@ def test_release_pin():
 def test_env(monkeypatch, tmp_path):
     monkeypatch.setenv("SOPOPS_URL", URL + "/")
     monkeypatch.setenv("SOPOPS_INGEST_TOKEN", "old-name")
-    c = Sopops(cache_dir=tmp_path)
+    c = SopOps(cache_dir=tmp_path)
     assert c.url == URL and c.token == "old-name"
     monkeypatch.delenv("SOPOPS_URL")
     with pytest.raises(ValueError):
-        Sopops()
+        SopOps()
 
 
 @respx.mock
@@ -122,7 +122,7 @@ def test_open_session_and_append_events(client):
     assert opened.calls.last.request.headers["Authorization"] == "Bearer sopops_tok"
 
     respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(404, json={"detail": "no such session"}))
-    with pytest.raises(SopopsError, match="no such session"):
+    with pytest.raises(SopOpsError, match="no such session"):
         run(client.append_events("livekit", "AJ_1", [turn]))
 
 
