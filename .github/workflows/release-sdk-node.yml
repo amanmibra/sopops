@@ -19,6 +19,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          version: 10   # no package.json at the repo root for it to read
       - uses: actions/setup-node@v4
         with:
           node-version: 22
