@@ -10,6 +10,13 @@ verified email gets this identity linked; failing that, a new user is made. Then
 
 Someone with no membership can sign in but sees only "Ask an owner to invite you".
 
+**A provider that owns the teams** (`owns_teams`: PropelAuth) brings them with it instead, and sign-in mirrors them
+(`_mirror_orgs`). Each team it reports is found or made here, matched on its id there (`orgs.external_id`), and the
+person joins it with the role it gave. One it stops reporting they leave, so leaving a team there takes effect here;
+one made in sopops is never renamed, deleted or left on its say-so, because it never knew about it. The fresh-install
+rule above doesn't apply either: those teams are the teams. Nothing changes for GitHub, Google, email or password,
+which report none, and a sopops that uses them keeps its invites and join links exactly as they are.
+
 **Email sign-in links** (`request_link`, `use_link`) are a random token, stored as a sha256 hash, that works once, for
 15 minutes. Using one signs in as the `email` provider, whose identity is the address: the same rules as above, so it
 links to a GitHub or Google user with that verified email. Each address gets at most 5 links per 15 minutes, and each
@@ -78,7 +85,7 @@ from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttem
 from ..runtime import crypto
 from ..tokens import Forbidden
 from . import actor, password, propelauth
-from .providers import Profile
+from .providers import ADMIN, MEMBER, OWNER, ROLES, Profile  # the roles live with the provider contract: one maps onto them
 from . import providers
 
 if TYPE_CHECKING:
@@ -86,8 +93,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("sopops.auth")
 
-OWNER, ADMIN, MEMBER = "owner", "admin", "member"
-ROLES = (OWNER, ADMIN, MEMBER)
 MANAGERS = (OWNER, ADMIN)
 SESSION_DAYS = 30
 SLIDE_EVERY = timedelta(minutes=5)
@@ -181,13 +186,57 @@ class Accounts:
             user.avatar_url = profile.avatar_url or user.avatar_url
             user.last_login_at = now
             db.add(user)
-            self._join(db, user, email, now)
+            p = providers.get(profile.provider)
+            owns_teams = p is not None and p.owns_teams  # PropelAuth: its teams are the teams, mirrored on every sign-in
+            self._join(db, user, email, now, claim_default=not owns_teams)
+            if owns_teams:
+                self._mirror_orgs(db, user, profile, now)
             token = self._new_session(db, user.id, now, profile.refresh_token)
         return user, token
 
-    def _join(self, db: Session, user: User, email: str, now: datetime) -> None:
-        """First user on a fresh install: owner. Then open invites for the email, and orgs allowing its domain."""
-        if db.exec(select(func.count()).select_from(Membership)).one() == 0:
+    def _mirror_orgs(self, db: Session, user: User, profile: Profile, now: datetime) -> None:
+        """Make sopops's teams match the ones the provider owns: find or make each team it reports, put this person
+        in it with the role it gave them, and take away a membership of one it no longer reports, so leaving a team
+        there leaves it here.
+
+        Teams are matched on the provider's own org id, kept as `Org.external_id`, so renaming one there renames
+        this one rather than making a second. Two things are out of bounds. A team made in sopops (no `external_id`,
+        or one from another provider) is never renamed, never deleted and never taken away from anybody: the
+        provider was never asked about it, so its silence says nothing. And a mirrored team outlives its last
+        member: the workspace and its files stay, and the provider can put somebody back in it tomorrow.
+        """
+        mine = {m.org_id: m for m in db.exec(select(Membership).where(Membership.user_id == user.id))}
+        theirs = set()
+        for team in profile.orgs:
+            key = _external_id(profile.provider, team.id)
+            org = db.exec(select(Org).where(Org.external_id == key)).first()
+            if org is None:
+                org, _ = _new_team(db, user.id, team.name, now, role=team.role, external_id=key)
+            else:
+                if team.name and team.name != org.name:
+                    org.name = team.name  # theirs to name; the slug and the workspace keep the names they were made with
+                    db.add(org)
+                m = mine.get(org.id)
+                if m is None:
+                    db.add(Membership(org_id=org.id, user_id=user.id, role=team.role, created_at=now))
+                elif m.role != team.role:
+                    m.role = team.role
+                    db.add(m)
+            theirs.add(org.id)
+        for org_id, m in mine.items():
+            if org_id in theirs:
+                continue
+            org = db.get(Org, org_id)
+            if org is not None and (org.external_id or "").startswith(f"{profile.provider}:"):
+                db.delete(m)
+        db.flush()
+
+    def _join(self, db: Session, user: User, email: str, now: datetime, claim_default: bool = True) -> None:
+        """First user on a fresh install: owner. Then open invites for the email, and orgs allowing its domain.
+
+        `claim_default` is off for a provider that owns the teams (`_mirror_orgs`): its teams are the teams, so the
+        first person to sign in doesn't walk away owning a default org that nobody there has heard of."""
+        if claim_default and db.exec(select(func.count()).select_from(Membership)).one() == 0:
             db.add(Membership(org_id=actor.default_org(db), user_id=user.id, role=OWNER, created_at=now))
             db.flush()
         mine = set(db.exec(select(Membership.org_id).where(Membership.user_id == user.id)))
@@ -971,14 +1020,21 @@ def _team_name(team: str) -> str:
     return team
 
 
-def _new_team(db: Session, user_id: str, team: str, now: datetime) -> tuple[Org, str]:
-    """A new org named `team` (with a slug nobody has), owned by the user, with its one workspace."""
+def _new_team(db: Session, user_id: str, team: str, now: datetime, role: str = OWNER, external_id: str | None = None) -> tuple[Org, str]:
+    """A new org named `team` (with a slug nobody has), with the user in it, and its one workspace. `role` is theirs
+    in it, `owner` for a team somebody makes here. `external_id` marks a team mirrored from a provider that owns the
+    teams (`Accounts._mirror_orgs`); a team made in sopops leaves it None."""
     slug = _free(actor.slug(team), lambda s: db.exec(select(Org.id).where(Org.slug == s)).first() is None)
-    org = Org(id=str(uuid.uuid4()), name=team, slug=slug, allowed_domains=[], created_at=now)
+    org = Org(id=str(uuid.uuid4()), name=team, slug=slug, allowed_domains=[], external_id=external_id, created_at=now)
     db.add(org)
     db.flush()
-    db.add(Membership(org_id=org.id, user_id=user_id, role=OWNER, created_at=now))
+    db.add(Membership(org_id=org.id, user_id=user_id, role=role, created_at=now))
     return org, _new_workspace(db, org.id, team)
+
+
+def _external_id(provider: str, org_id: str) -> str:
+    """How a mirrored team names the provider's own: the provider's id too, so two of them can't collide."""
+    return f"{provider}:{org_id}"
 
 
 def _new_workspace(db: Session, org_id: str, team: str) -> str:

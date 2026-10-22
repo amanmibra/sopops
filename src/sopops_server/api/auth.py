@@ -108,6 +108,12 @@ def callback_url(request: Request, provider: str) -> str:
     return f"{public_url(request)}/v1/auth/callback/{provider}"
 
 
+def login_url(request: Request, provider: str) -> str:
+    """Where to start signing in with this provider. A provider that owns the teams takes it as the address to send
+    somebody back to once they've made one there, so the new team is mirrored on the way back in."""
+    return f"{public_url(request)}/v1/auth/login/{provider}"
+
+
 def set_password_url(public: str, token: str) -> str:
     return f"{public}/set-password#{token}"
 
@@ -153,8 +159,10 @@ def router(accounts: Accounts) -> APIRouter:
         if not passwords():
             raise HTTPException(404, "sign-in with a password isn't on for this sopops")
 
-    def state(cur: Current | None) -> dict:
-        found = [{"id": p.id, "label": p.label, "redirects": p.redirects} for p in providers.configured()]
+    def state(cur: Current | None, request: Request) -> dict:
+        found = [{"id": p.id, "label": p.label, "redirects": p.redirects, "owns_teams": p.owns_teams,
+                  "new_team_url": p.new_team_url(login_url(request, p.id)) if p.owns_teams else None}
+                 for p in providers.configured()]
         pw = passwords()
         by_email = pw and email.EmailLogin().configured()
         extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains()),
@@ -174,7 +182,7 @@ def router(accounts: Accounts) -> APIRouter:
     def signed_in(request: Request, response: Response, user_id: str, token: str, how: str, next: str | None = "/") -> dict:
         log.info("user %s signed in with %s", user_id, how)
         access.set_session_cookies(response, request, token, SESSION_MAX_AGE)
-        return {**state(accounts.current(token)), "next": safe_next(next)}
+        return {**state(accounts.current(token), request), "next": safe_next(next)}
 
     # --- signing in -----------------------------------------------------------------
 
@@ -183,12 +191,12 @@ def router(accounts: Accounts) -> APIRouter:
         """Whether sign-in is on, how to sign in, and who's signed in. Signed in, it also renews the cookies for
         another 30 days (sessions slide)."""
         if not mode.required():
-            return state(None)
+            return state(None, request)
         token = request.cookies.get(access.SESSION_COOKIE)
         cur = accounts.current(token)
         if cur is not None and token:
             access.set_session_cookies(response, request, token, SESSION_MAX_AGE)
-        return state(cur)
+        return state(cur, request)
 
     @r.get("/v1/auth/login/{provider}", response_class=RedirectResponse, status_code=302, responses={404: {"description": "No such provider here."}})
     def sign_in(provider: str, request: Request, next: str | None = None) -> Response:
@@ -394,7 +402,7 @@ def router(accounts: Accounts) -> APIRouter:
         """Work in another org you're in."""
         cur = login(request)
         accounts.switch_org(cur, req.org_id)
-        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
+        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)), request)
 
     @r.post("/v1/auth/invites/lookup", response_model=InviteInfo, responses={404: {"description": "Unknown, used, withdrawn or expired."}})
     def lookup_invite(req: InviteTokenIn, request: Request) -> dict:
@@ -407,7 +415,7 @@ def router(accounts: Accounts) -> APIRouter:
         """Join the invite's org. You must be signed in with the email it's for."""
         cur = login(request)
         accounts.accept(req.token, cur)
-        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
+        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)), request)
 
     @r.post("/v1/auth/join/lookup", response_model=JoinInfo, responses={404: {"description": "Unknown, expired or turned off."}})
     def lookup_join_link(req: JoinTokenIn, request: Request) -> dict:
@@ -446,7 +454,7 @@ def router(accounts: Accounts) -> APIRouter:
         except LinkInvalid as e:
             raise HTTPException(404, f"{e}. Ask for a new one") from None
         log.info("user %s joined an org with a join link", cur.user.id)
-        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)))
+        return state(accounts.current(request.cookies.get(access.SESSION_COOKIE)), request)
 
     # --- the org --------------------------------------------------------------------
 

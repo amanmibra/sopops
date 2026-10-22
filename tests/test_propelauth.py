@@ -9,14 +9,21 @@ Signing out differs too, and is the other half of this file. Their logout isn't 
 to `/api/backend/v1/logout` from the backend, with no API key. So the refresh token is kept, encrypted, on the login
 session, and signing out spends it before revoking. None of that may make signing out fail.
 
+Their organizations are the fourth difference, and the third part of this file: PropelAuth owns the teams, so every
+sign-in mirrors the ones its userinfo reports (`org_id_to_org_info`) into sopops's own, with the role it gave. What
+matters is that it stays a mirror: renaming a team there renames one team here rather than making a second, leaving
+one there leaves it here, and a team made in sopops is left alone by all of it, as is every other provider.
+
 SOPOPS_LOGIN_PROVIDERS is here too: it exists so the hosted sopops can offer PropelAuth and nothing else.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
-from urllib.parse import parse_qs, unquote, urlparse
+from datetime import datetime, timezone
+from urllib.parse import parse_qs, quote, unquote, urlparse
 
 import httpx
 import pytest
@@ -29,7 +36,7 @@ from sqlmodel import Session, select
 from sopops_server import Sopc, Store, create_app
 from sopops_server.auth import access, mode, providers
 from sopops_server.runtime import crypto
-from sopops_server.orm import Identity, LoginSession, User
+from sopops_server.orm import Identity, LoginSession, Membership, Org, User
 
 AUTH_URL = "https://test-1234.propelauthtest.com"
 AUTHORIZE = f"{AUTH_URL}/propelauth/oauth/authorize"
@@ -56,11 +63,11 @@ class PropelAuth:
     """Their token, userinfo and logout endpoints, and a record of how each call was made."""
 
     def __init__(self, router: respx.MockRouter, user_id: str, email: str, verified: bool = True,
-                 first: str = "Ana", last: str = "Diaz", logout: object = None):
+                 first: str = "Ana", last: str = "Diaz", logout: object = None, orgs: list[tuple] | None = None):
         router.post(TOKEN).mock(side_effect=self.token)
         router.get(USERINFO).mock(return_value=httpx.Response(200, json={
             "user_id": user_id, "email": email, "email_confirmed": verified, "first_name": first, "last_name": last,
-            "picture_url": "https://pictures.example/p"}))
+            "picture_url": "https://pictures.example/p", "org_id_to_org_info": org_info(orgs or [])}))
         self.logout = router.post(LOGOUT).mock(side_effect=logout or self.end)
         self.auth_header: str | None = None
         self.form: dict | None = None
@@ -88,10 +95,17 @@ def start(c: TestClient) -> str:
     return q["state"][0]
 
 
+def org_info(orgs: list[tuple]) -> dict:
+    """Their `org_id_to_org_info`, from `(org_id, org_name, user_role)` triples. Keyed on the org id, as theirs is,
+    and carrying the same fields: this is the shape a live test environment answers with."""
+    return {id: {"org_id": id, "org_name": name, "url_safe_org_name": name.lower().replace(" ", "-"),
+                 "user_role": role, "inherited_user_roles_plus_current_role": [role]} for id, name, role in orgs}
+
+
 def sign_in(c: TestClient, router: respx.MockRouter, user_id: str = "pa_user_9", email: str = "ana@example.com",
-            logout: object = None) -> PropelAuth:
+            logout: object = None, orgs: list[tuple] | None = None) -> PropelAuth:
     """Sign in with PropelAuth and leave the client holding the session and CSRF cookies."""
-    pa = PropelAuth(router, user_id, email, logout=logout)
+    pa = PropelAuth(router, user_id, email, logout=logout, orgs=orgs)
     st = start(c)
     res = c.get("/v1/auth/callback/propelauth", params={"code": "the-code", "state": st}, follow_redirects=False)
     assert res.status_code == 303, res.text
@@ -159,6 +173,127 @@ def test_the_address_can_change_without_making_a_second_account(app):
     with Session(app.state.store.engine) as d:
         assert len(d.exec(select(User)).all()) == 1
         assert len(d.exec(select(Identity)).all()) == 1
+
+
+# --- their organizations are the teams --------------------------------------------------
+
+
+def teams(app) -> dict[str, str | None]:
+    """Every team here, by name, with the provider's org id it mirrors (None for one made in sopops). `Default` is
+    the org a fresh install makes for its first workspace; with PropelAuth owning the teams, nobody is put in it."""
+    with Session(app.state.store.engine) as d:
+        return {o.name: o.external_id for o in d.exec(select(Org))}
+
+
+def roles(app) -> dict[str, str]:
+    """Every team the one user is in, by name, and their role in it."""
+    with Session(app.state.store.engine) as d:
+        return {d.get(Org, m.org_id).name: m.role for m in d.exec(select(Membership))}
+
+
+def made_here(app, name: str = "Made here") -> None:
+    """A team made in sopops, that PropelAuth has never heard of, with the user in it."""
+    now = datetime.now(timezone.utc)
+    with Session(app.state.store.engine) as d:
+        user = d.exec(select(User)).one()
+        d.add(Org(id=name.lower().replace(" ", "-"), name=name, slug=name.lower().replace(" ", "-"), allowed_domains=[], created_at=now))
+        d.add(Membership(org_id=name.lower().replace(" ", "-"), user_id=user.id, role="member", created_at=now))
+        d.commit()
+
+
+def test_a_team_at_propelauth_becomes_a_team_here(app):
+    """The whole point: somebody who made a team there signs in and is in it here, with no join link in sight."""
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[("pa_org_1", "Northwind", "Owner")])
+
+    assert teams(app) == {"Default": None, "Northwind": "propelauth:pa_org_1"}  # keyed on their org id, with the provider's name on it
+    assert roles(app) == {"Northwind": "owner"}
+    state = c.get("/v1/auth/session").json()
+    assert state["org"]["name"] == "Northwind" and state["org"]["role"] == "owner"
+    assert state["org"]["workspace"] == "northwind"  # a team to work in, not a row in a table
+
+
+def test_a_renamed_team_is_the_same_team(app):
+    """Matching on their org id, not the name: renaming it there renames it here instead of making a second."""
+    c = TestClient(app)
+    for name, role in (("Northwind", "Member"), ("Northwind Traders", "Admin")):
+        with respx.mock(assert_all_called=False) as router:
+            sign_in(c, router, orgs=[("pa_org_1", name, role)])
+
+    assert teams(app) == {"Default": None, "Northwind Traders": "propelauth:pa_org_1"}
+    assert roles(app) == {"Northwind Traders": "admin"}  # the role follows them too
+    with Session(app.state.store.engine) as d:
+        assert d.exec(select(Org).where(Org.external_id.is_not(None))).one().slug == "northwind"  # the slug is the one it was made with: addresses don't move
+
+
+def test_leaving_a_team_there_leaves_it_here_and_nothing_else(app):
+    """Dropped from an org at PropelAuth, dropped from the mirror. A team made in sopops is none of their business,
+    and a mirrored team itself outlives the membership: its workspace and files are still there."""
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[("pa_org_1", "Northwind", "Owner"), ("pa_org_2", "Contoso", "Member")])
+    made_here(app)
+    assert roles(app) == {"Northwind": "owner", "Contoso": "member", "Made here": "member"}
+
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[("pa_org_1", "Northwind", "Owner")])
+
+    assert roles(app) == {"Northwind": "owner", "Made here": "member"}
+    assert teams(app) == {"Default": None, "Northwind": "propelauth:pa_org_1", "Contoso": "propelauth:pa_org_2", "Made here": None}
+
+
+def test_the_last_team_can_go_too(app):
+    """An empty `org_id_to_org_info` is an answer, not a silence: somebody taken out of their only org loses it."""
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[("pa_org_1", "Northwind", "Owner")])
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[])
+    assert roles(app) == {}
+    assert c.get("/v1/auth/session").json()["org"] is None
+
+
+@pytest.mark.parametrize("theirs, ours", [("Owner", "owner"), ("Admin", "admin"), ("Member", "member"), ("ADMIN", "admin"),
+                                          ("Billing Manager", "member"), ("", "member")])
+def test_their_roles_map_onto_sopops_three(app, theirs, ours):
+    """Their default hierarchy is Owner, Admin, Member, which lines up. A role sopops has never heard of is a
+    `member`: the one that can do the work and change nothing about the team."""
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[("pa_org_1", "Northwind", theirs)])
+    assert roles(app) == {"Northwind": ours}
+
+
+def test_nobody_is_asked_for_a_join_link_when_propelauth_owns_the_teams(app, monkeypatch):
+    """With PropelAuth the only way in, sopops has no join link to offer: the answer is their create-org page."""
+    monkeypatch.setenv("SOPOPS_LOGIN_PROVIDERS", "propelauth")
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        sign_in(c, router, orgs=[])
+    state = c.get("/v1/auth/session").json()
+    assert state["org"] is None and roles(app) == {}  # no team, and no default org claimed on their behalf
+    p = state["providers"][0]
+    back = base64.b64encode(b"http://testserver/v1/auth/login/propelauth").decode()
+    assert p["owns_teams"] and p["new_team_url"] == f"{AUTH_URL}/create_org?rt={quote(back)}"
+
+
+def test_a_github_sign_in_makes_no_teams_and_keeps_the_old_rule(app, github_env):
+    """Everything above is driven by what the provider reports, and GitHub reports no teams: the first person in
+    owns the org that's already there, nothing carries an external id, and the join link still has a job."""
+    c = TestClient(app)
+    with respx.mock(assert_all_called=False) as router:
+        router.post("https://github.com/login/oauth/access_token").mock(
+            return_value=httpx.Response(200, json={"access_token": "gh-token", "token_type": "bearer"}))
+        router.get("https://api.github.com/user").mock(return_value=httpx.Response(200, json={"id": 4242, "login": "ana", "name": "Ana Diaz"}))
+        router.get("https://api.github.com/user/emails").mock(
+            return_value=httpx.Response(200, json=[{"email": "ana@example.com", "primary": True, "verified": True}]))
+        st = parse_qs(urlparse(c.get("/v1/auth/login/github", follow_redirects=False).headers["location"]).query)["state"][0]
+        assert c.get("/v1/auth/callback/github", params={"code": "the-code", "state": st}, follow_redirects=False).status_code == 303
+
+    assert teams(app) == {"Default": None} and roles(app) == {"Default": "owner"}
+    gh = next(p for p in c.get("/v1/auth/session").json()["providers"] if p["id"] == "github")
+    assert gh["owns_teams"] is False and gh["new_team_url"] is None
 
 
 # --- SOPOPS_LOGIN_PROVIDERS: which providers this deployment offers ----------------------

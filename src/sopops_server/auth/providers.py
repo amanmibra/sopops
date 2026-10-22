@@ -34,6 +34,21 @@ log = logging.getLogger("sopops.auth")
 ENTRY_POINTS = "sopops.login_providers"
 ALLOWLIST_ENV = "SOPOPS_LOGIN_PROVIDERS"
 TIMEOUT = httpx.Timeout(15.0, connect=5.0)
+# sopops's roles live here, not only in `service`, because a provider that owns the teams maps its own role names
+# onto them (`ProviderOrg.role`) and so has to know what they are.
+OWNER, ADMIN, MEMBER = "owner", "admin", "member"
+ROLES = (OWNER, ADMIN, MEMBER)
+
+
+@dataclass(frozen=True)
+class ProviderOrg:
+    """One team the provider says this person is in. `id` is the team's id *there*, which is what sopops matches on,
+    so renaming it there renames the sopops team instead of making a second one. `role` is already one of sopops's
+    (`owner`, `admin`, `member`): the provider maps it, because only it knows its own role names."""
+
+    id: str
+    name: str
+    role: str
 
 
 @dataclass(frozen=True)
@@ -42,7 +57,11 @@ class Profile:
 
     `refresh_token` is the provider's own refresh token, for the one provider that needs it back to end its session
     when someone signs out of sopops (PropelAuth; see `sopops_server.auth.propelauth`). It is a credential: stored
-    encrypted on the login session, never logged and never returned. Every other provider leaves it None."""
+    encrypted on the login session, never logged and never returned. Every other provider leaves it None.
+
+    `orgs` is the teams the provider owns for this person, and only a provider with `owns_teams` fills it in. It is
+    empty for GitHub, Google, email and password, so sopops's own teams, invites and join links work as they always
+    have."""
 
     provider: str
     provider_user_id: str
@@ -50,6 +69,7 @@ class Profile:
     name: str = ""
     avatar_url: str | None = None
     refresh_token: str | None = None
+    orgs: tuple[ProviderOrg, ...] = ()
 
 
 class ProviderError(Exception):
@@ -59,16 +79,27 @@ class ProviderError(Exception):
 class LoginProvider:
     """One way to sign in. Subclasses set `id` and `label` and implement the three methods (a provider that doesn't
     redirect, like `email`, sets `redirects = False` and implements only `configured`). One that's offered only once
-    sign-in is on for another reason, like `password`, sets `turns_on_sign_in = False`."""
+    sign-in is on for another reason, like `password`, sets `turns_on_sign_in = False`.
+
+    **A provider that owns the teams** (`owns_teams = True`) sets `Profile.orgs` on every sign-in and sopops mirrors
+    them: its teams are the teams, and nobody joins one from the sopops side. It also says where someone with no team
+    goes to make one (`new_team_url`), so sopops never has to know whose provider it is."""
 
     id: str = ""
     label: str = ""
     redirects: bool = True
     turns_on_sign_in: bool = True
+    owns_teams: bool = False
 
     def configured(self) -> bool:
         """Whether this sopops has what it needs (a client id and secret, say) to offer it."""
         raise NotImplementedError
+
+    def new_team_url(self, back_to: str | None = None) -> str | None:
+        """Where someone with no team goes to make one, for a provider that owns the teams. `back_to` is a sopops URL
+        to come back to afterwards, which a provider passes on if its page takes one. None when it has no such page:
+        then sopops says where teams come from rather than offering a link that goes nowhere."""
+        return None
 
     def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
         """Where to send the browser to sign in. It comes back to `redirect_uri` with `code` and `state`."""

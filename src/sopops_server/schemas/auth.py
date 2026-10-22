@@ -19,6 +19,10 @@ class ProviderOut(BaseModel):
     label: str
     redirects: bool = Field(description="Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) "
                             "and `password` (post to `/v1/auth/password/login`).")
+    owns_teams: bool = Field(False, description="This provider keeps the teams: sopops mirrors the ones it reports on every sign-in, and nobody "
+                             "joins a team from the sopops side. False for every provider that leaves teams to sopops.")
+    new_team_url: str | None = Field(None, description="Where somebody with no team goes to make one, for a provider that owns the teams: its own "
+                                     "page, which signs them back in here afterwards. None when it has no such page.")
 
 
 class UserOut(BaseModel):

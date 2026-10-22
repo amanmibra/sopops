@@ -23112,13 +23112,33 @@
             "type": "boolean",
             "title": "Redirects",
             "description": "Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`)."
+          },
+          "owns_teams": {
+            "type": "boolean",
+            "title": "Owns Teams",
+            "description": "This provider keeps the teams: sopops mirrors the ones it reports on every sign-in, and nobody joins a team from the sopops side. False for every provider that leaves teams to sopops.",
+            "default": false
+          },
+          "new_team_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Team Url",
+            "description": "Where somebody with no team goes to make one, for a provider that owns the teams: its own page, which signs them back in here afterwards. None when it has no such page."
           }
         },
         "type": "object",
         "required": [
           "id",
           "label",
-          "redirects"
+          "redirects",
+          "owns_teams",
+          "new_team_url"
         ],
         "title": "ProviderOut"
       },

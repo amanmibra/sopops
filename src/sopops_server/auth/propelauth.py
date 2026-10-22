@@ -27,17 +27,29 @@ signed in with no prompt.
 `end_session` makes that call. Signing out never fails because of it: PropelAuth being unreachable, slow or unhappy
 is logged and the sopops session is revoked anyway.
 
-Their organizations, roles and API keys are left alone: sopops keeps its own teams, its own roles and its own tokens.
+**Their organizations are sopops's teams** (`owns_teams`), which is the fourth difference. Their userinfo answers
+with `org_id_to_org_info`: a map of org id to `{org_id, org_name, url_safe_org_name, user_role, …}`. It is in their
+OAuth userinfo example rather than in the discovery document's list of claims, and it does arrive. Every sign-in
+hands those orgs to `sopops_server.auth.service`, which mirrors them into sopops's own, so somebody who makes a team
+in PropelAuth, or is invited to one there, lands in the matching sopops team with no join link in sight. Their role
+names map onto sopops's three; their default hierarchy is Owner, Admin, Member.
+
+Someone with no team at all goes to their hosted create-organization page, `{AUTH_URL}/create_org` (`new_team_url`),
+instead of to a sopops page asking for a join link nobody here can give them. Their API keys are still left alone:
+sopops keeps its own tokens.
 """
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
+from urllib.parse import urlencode
 
 import httpx
 
-from .providers import LoginProvider, Profile, ProviderError, authorization_url, fetch_tokens, get_json, register
+from .providers import (MEMBER, ROLES, LoginProvider, Profile, ProviderError, ProviderOrg, authorization_url, fetch_tokens,
+                        get_json, register)
 
 log = logging.getLogger("sopops.auth")
 
@@ -51,6 +63,35 @@ LOGOUT_TIMEOUT = httpx.Timeout(5.0, connect=2.0)
 
 def _base() -> str:
     return os.environ.get(URL_ENV, "").strip().rstrip("/")
+
+
+def _orgs(got: object) -> tuple[ProviderOrg, ...]:
+    """Their `org_id_to_org_info` as sopops teams: `{org_id: {org_id, org_name, url_safe_org_name, user_role, …}}`.
+
+    Anything that isn't that shape, or an entry with no org id, is skipped rather than failing a sign-in: a profile
+    with no orgs costs someone a team page, a refused sign-in costs them the product."""
+    if not isinstance(got, dict):
+        return ()
+    out = []
+    for key, info in got.items():
+        if not isinstance(info, dict):
+            continue
+        id = str(info.get("org_id") or key or "").strip()
+        if not id:
+            continue
+        name = str(info.get("org_name") or info.get("url_safe_org_name") or "").strip() or id
+        out.append(ProviderOrg(id=id, name=name[:128], role=_role(info.get("user_role"))))
+    return tuple(out)
+
+
+def _role(their: object) -> str:
+    """Their role as one of sopops's. Their default hierarchy is Owner, Admin, Member, which lines up one for one.
+
+    A project that renamed its roles, or added one below Member, lands here with a name sopops has never heard of,
+    and that becomes `member`: the role that can do the work and change nothing about the team. Guessing higher
+    would hand someone the members page on the strength of a string nobody here recognises."""
+    name = str(their or "").strip().lower()
+    return name if name in ROLES else MEMBER
 
 
 def end_session(refresh_token: str | None) -> bool:
@@ -75,9 +116,22 @@ def end_session(refresh_token: str | None) -> bool:
 class PropelAuthLogin(LoginProvider):
     id = "propelauth"
     label = "PropelAuth"
+    owns_teams = True  # their organizations are the teams; sopops mirrors them on every sign-in
 
     def configured(self) -> bool:
         return bool(_base() and os.environ.get(CLIENT_ID_ENV, "").strip() and os.environ.get(CLIENT_SECRET_ENV, "").strip())
+
+    def new_team_url(self, back_to: str | None = None) -> str | None:
+        """Their hosted create-organization page. `back_to` rides along as `rt`, base64 of the URL, which is what
+        their own `getCreateOrgPageUrl` does; point it at sopops's sign-in and the new team is mirrored on the way
+        back in."""
+        base = _base()
+        if not base:
+            return None
+        url = f"{base}/create_org"
+        if back_to:
+            url += "?" + urlencode({"rt": base64.b64encode(back_to.encode()).decode()})
+        return url
 
     def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
         return authorization_url(f"{_base()}/propelauth/oauth/authorize", os.environ[CLIENT_ID_ENV].strip(), SCOPE, redirect_uri, state, code_verifier)
@@ -100,7 +154,8 @@ class PropelAuthLogin(LoginProvider):
         refresh = tokens.get("refresh_token")
         return Profile(provider=self.id, provider_user_id=str(who), email=email, name=name,
                        avatar_url=u.get("picture_url") or u.get("picture"),
-                       refresh_token=str(refresh) if refresh else None)
+                       refresh_token=str(refresh) if refresh else None,
+                       orgs=_orgs(u.get("org_id_to_org_info")))
 
 
 register(PropelAuthLogin())

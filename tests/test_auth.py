@@ -75,6 +75,13 @@ class Google:
                                                                           "picture": "https://pictures.example/p"}))
 
 
+def offered(id: str, label: str, redirects: bool = True) -> dict:
+    """A provider as /v1/auth/session lists it. `owns_teams` is false for all of these: GitHub, Google, email and
+    password leave teams to sopops, so there's no provider page to send anyone to (`test_propelauth` has the one
+    that does)."""
+    return {"id": id, "label": label, "redirects": redirects, "owns_teams": False, "new_team_url": None}
+
+
 def start(c: TestClient, provider: str, next: str = "/") -> str:
     """Begin signing in; the state the provider will send back."""
     res = c.get(f"/v1/auth/login/{provider}", params={"next": next}, follow_redirects=False)
@@ -122,9 +129,8 @@ def test_the_mode_follows_the_providers_and_the_override(monkeypatch, providers_
 
 def test_github_sign_in_makes_a_user_and_a_session(app, files):
     c = TestClient(app)
-    assert c.get("/v1/auth/session").json() == {"required": True, "providers": [{"id": "github", "label": "GitHub", "redirects": True},
-                                                                              {"id": "google", "label": "Google", "redirects": True},
-                                                                              {"id": "password", "label": "Password", "redirects": False}],
+    assert c.get("/v1/auth/session").json() == {"required": True, "providers": [offered("github", "GitHub"), offered("google", "Google"),
+                                                                              offered("password", "Password", redirects=False)],
                                                  "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False, "open_signup": False,
                                                  "platforms": None}
     with respx.mock(assert_all_called=False) as router:
@@ -478,7 +484,7 @@ def test_providers_register_and_plugins_can_add_one(app):
     providers.register(Saml())
     try:
         c = TestClient(app)
-        assert {"id": "saml", "label": "Your company", "redirects": True} in c.get("/v1/auth/session").json()["providers"]
+        assert offered("saml", "Your company") in c.get("/v1/auth/session").json()["providers"]
         st = parse_qs(urlparse(c.get("/v1/auth/login/saml", follow_redirects=False).headers["location"]).query)["state"][0]
         assert c.get("/v1/auth/callback/saml", params={"code": "x", "state": st}, follow_redirects=False).status_code == 303
         assert c.get("/v1/auth/session").json()["user"]["email"] == "sam@example.com"
@@ -650,7 +656,7 @@ def test_email_sign_in_turns_sign_in_on(monkeypatch, dev_email):
 def test_an_email_link_signs_in_once(tmp_path, files, dev_email, caplog):
     app = create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
     c = TestClient(app)
-    assert c.get("/v1/auth/session").json()["providers"] == [{"id": "email", "label": "Email", "redirects": False}, {"id": "password", "label": "Password", "redirects": False}]
+    assert c.get("/v1/auth/session").json()["providers"] == [offered("email", "Email", redirects=False), offered("password", "Password", redirects=False)]
     assert c.get("/v1/auth/login/email", follow_redirects=False).status_code == 404  # it doesn't redirect
     token = ask_link(c, "Ana@Example.com", caplog, next="/w/demo/sessions")
     assert token and "ana@example.com" in caplog.text
@@ -901,7 +907,7 @@ def ids(owner: TestClient) -> dict[str, str]:
 def test_passwords_alone_and_the_first_account(pw_app):
     c = TestClient(pw_app)
     state = c.get("/v1/auth/session").json()
-    assert state["required"] and state["providers"] == [{"id": "password", "label": "Password", "redirects": False}]
+    assert state["required"] and state["providers"] == [offered("password", "Password", redirects=False)]
     assert state["first_account"] and not state["password_email"] and not state["sign_up"]
     for bad, why in (("short", "at least 10"), ("x" * 257, "at most 256"), ("Ana@Example.com", "can't be your email")):
         res = c.post("/v1/auth/password/first-account", json={"email": "ana@example.com", "password": bad})

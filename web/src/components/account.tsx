@@ -371,9 +371,31 @@ export function Avatar({ user, size = 28, className }: { user: Pick<UserOut, "na
   );
 }
 
-/** Signed in but in no org: say who to ask. */
+/** Signed in but in no org: say who to ask, or, where the teams aren't sopops' to give out, where they are. */
 function NoOrg({ auth }: { auth: AuthState }) {
   const signOut = useSignOut();
+  const only = auth.providers.length === 1 ? auth.providers[0] : undefined;
+  if (only?.owns_teams)
+    return (
+      <Card title="You're not on a team yet">
+        <p className="mb-3 text-sm leading-relaxed">
+          You're signed in as <b>{auth.user?.email}</b>. Teams live in {only.label}: make one there, or ask someone to invite you to theirs, and it's
+          yours here as soon as you're back.
+        </p>
+        {only.new_team_url ? (
+          <Button asChild className="mb-5 h-10">
+            <a href={only.new_team_url}>
+              <Plus /> Make a team in {only.label}
+            </a>
+          </Button>
+        ) : (
+          <p className="text-muted-foreground mb-5 text-sm leading-relaxed">Make one in {only.label}, then sign in again.</p>
+        )}
+        <Button variant="outline" onClick={() => void signOut()}>
+          <LogOut /> Sign out
+        </Button>
+      </Card>
+    );
   return (
     <Card title="Ask your team for its join link">
       <p className="mb-3 text-sm leading-relaxed">
