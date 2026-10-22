@@ -26,6 +26,7 @@ from .api import (
     lineage,
     onboarding,
     patterns,
+    provider_webhooks,
     releases,
     repo,
     review,
@@ -111,6 +112,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         ai.router(store),
         repo.router(store),
         github.router(store),
+        provider_webhooks.router(store),
     ):
         app.include_router(r)
     app.include_router(onboarding.router(store, app.state.onboarding), dependencies=OPEN)

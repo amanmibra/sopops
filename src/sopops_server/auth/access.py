@@ -65,6 +65,7 @@ ROUTES: dict[str, str] = {
     # webhooks, signed by the platform
     "github_webhook": WEBHOOK, "livekit_webhook": WEBHOOK, "elevenlabs_post_call": WEBHOOK, "elevenlabs_conversation_init": WEBHOOK,
     "vapi_assistant_request": WEBHOOK,
+    "provider_webhook": WEBHOOK,
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
     "create_team": SIGNED_IN,  # a team you own: another one, or your first, where a login provider owns the teams
