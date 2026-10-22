@@ -31,7 +31,7 @@ from starlette.responses import Response
 
 from ..errors import NotFound
 from ..tokens import Forbidden, Unauthorized
-from . import actor, github, google, mode  # noqa: F401  (github and google register their providers)
+from . import actor, github, google, mode, propelauth  # noqa: F401  (these register their providers)
 from . import email, password  # noqa: F401, I001  (register their providers after them, so they're listed last)
 from .service import MANAGERS, Accounts, Current, csrf_token
 

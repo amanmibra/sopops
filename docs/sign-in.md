@@ -1,6 +1,6 @@
 # Sign in
 
-With no login provider set up, there's no sign-in, which suits local use and demos. Set up GitHub, Google or email, or set `SOPOPS_AUTH_REQUIRED=true` for passwords alone, and the UI and API need sign-in. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
+With no login provider set up, there's no sign-in, which suits local use and demos. Set up GitHub, Google, PropelAuth or email, or set `SOPOPS_AUTH_REQUIRED=true` for passwords alone, and the UI and API need sign-in. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
 
 ## Turn on sign-in with passwords
 
@@ -92,6 +92,60 @@ Scopes are `read:user` and `user:email`. sopops uses the primary email only if G
 
 Only addresses Google marks `email_verified` count.
 
+## Sign in with PropelAuth
+
+For a sopops that hands sign-in to a managed service instead of running its own. Self-hosting needs none of it.
+
+1. In PropelAuth, make a project and note its auth URL (`https://xxxx.propelauthtest.com` while testing, your own domain in production).
+2. Add `https://sopops.example.com/v1/auth/callback/propelauth` as a redirect URI.
+3. OAuth Config → copy the client id and secret.
+4. Set `SOPOPS_PROPELAUTH_URL`, `SOPOPS_PROPELAUTH_CLIENT_ID` and `SOPOPS_PROPELAUTH_CLIENT_SECRET`, then restart.
+
+- Only addresses PropelAuth marks `email_verified` count.
+- The identity is keyed on PropelAuth's `user_id`, which survives an address change, so nobody gets a second account.
+- PropelAuth's organizations, roles and API keys go unused. Teams, roles, workspaces and tokens stay sopops'.
+
+## Choose what's offered
+
+`SOPOPS_LOGIN_PROVIDERS`, a comma-separated list of provider ids, is the only ways to sign in this sopops offers.
+
+```sh
+SOPOPS_LOGIN_PROVIDERS=propelauth   # PropelAuth alone, whatever else is set up
+```
+
+| | |
+|---|---|
+| Ids | `github`, `google`, `email`, `password`, `propelauth`, and any a plugin registers |
+| Unset | Every provider that's set up is offered. The default, and what self-hosting does. |
+| An id that isn't set up | Skipped, the same as today. |
+| A list that names nothing set up | Ignored whole, with a warning in the log, so a typo can't lock everyone out. |
+
+A provider the list leaves out is gone everywhere: off the sign-in page, and `/v1/auth/login/<id>` answers 404.
+
+## Move a deployment to PropelAuth
+
+Existing accounts need no import: sopops links a new provider to the account with the same verified email, so people land on the account they already have, with its teams and roles ([`Accounts.sign_in`](../src/sopops_server/auth/service.py)).
+
+1. Make each person a PropelAuth user with the address their sopops account uses.
+2. Set the three variables above and `SOPOPS_LOGIN_PROVIDERS=propelauth`.
+3. Everyone signs in once through PropelAuth, which adds a `propelauth` identity to their existing user.
+
+| | |
+|---|---|
+| The match | PropelAuth's address, lowercased, against the account's. A different address makes a second account. |
+| Verified only | Without `email_verified`, sign-in is refused and nothing is linked. |
+| Passwords | Still stored, no longer offered. Drop `propelauth` from the list to get them back. |
+
+To create the PropelAuth users from sopops' own instead of inviting them, post each to their backend API:
+
+```sh
+curl -X POST https://auth.sopops.dev/api/backend/v1/migrate_user/ \
+  -H "Authorization: Bearer $PROPELAUTH_API_KEY" -H "Content-Type: application/json" \
+  -d '{"email": "ana@example.com", "email_confirmed": true, "existing_user_id": "<the sopops user id>"}'
+```
+
+`existing_password_hash` carries an argon2id hash over, so a password keeps working on their side.
+
 ## Run behind a proxy
 
 - Set `SOPOPS_PUBLIC_URL` (e.g. `https://sopops.example.com`) so callback, sign-in and invite links match what you registered.
@@ -111,7 +165,7 @@ Every link below is a random token, stored hashed.
 
 ## Security
 
-- GitHub and Google use OAuth with `state` and PKCE.
+- GitHub, Google and PropelAuth use OAuth with `state` and PKCE.
 - Sessions are random tokens in an HttpOnly, SameSite=Lax cookie, stored hashed.
 - Cookie requests that change something send `X-CSRF-Token`, the `sopops_csrf` cookie's value. Other sites can't read it. The web UI does this.
 - With sign-in on, fetching instructions needs the workspace's runtime token or a signed-in person, even with no token yet. Make one in Settings → Access.
@@ -119,4 +173,4 @@ Every link below is a random token, stored hashed.
 
 ## Add a login provider
 
-Providers register into `sopops.auth.providers`. A package can add one (SAML, say) through the `sopops.login_providers` entry point group. One that replaces passwords can call `providers.unregister("password")`.
+Providers register into `sopops.auth.providers`. A package can add one (SAML, say) through the `sopops.login_providers` entry point group. One that replaces passwords can call `providers.unregister("password")`, or the deployment can leave `password` out of `SOPOPS_LOGIN_PROVIDERS`.

@@ -59,6 +59,9 @@ export function Card({ title, children }: { title: ReactNode; children: ReactNod
 
 const PROVIDER_ICON: Record<string, ReactNode> = { github: <GitHubIcon size={18} />, google: <GoogleIcon size={18} /> };
 
+/** A provider with no brand mark of its own (PropelAuth, a plugin's SSO) gets a key, so every button looks alike. */
+const providerIcon = (id: string): ReactNode => PROVIDER_ICON[id] ?? <KeyRound className="size-[18px]" />;
+
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** After signing in: start over at `next`, with nothing cached from before. */
@@ -87,7 +90,7 @@ export function RedirectButtons({ auth, next }: { auth: AuthState; next: string 
         .map((p) => (
           <Button key={p.id} asChild variant="outline" className="h-10 justify-center gap-2 text-sm">
             <a href={signInHref(p.id, next)}>
-              {PROVIDER_ICON[p.id]}
+              {providerIcon(p.id)}
               Continue with {p.label}
             </a>
           </Button>

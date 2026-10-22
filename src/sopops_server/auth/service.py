@@ -73,6 +73,7 @@ from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttem
 from ..tokens import Forbidden
 from . import actor, password
 from .providers import Profile
+from . import providers
 
 if TYPE_CHECKING:
     from ..store import Store
@@ -102,6 +103,12 @@ OTHER = "other"
 
 class LinkInvalid(Exception):
     """An email sign-in link that's unknown, used or expired."""
+
+
+def _label(provider: str) -> str:
+    """What to call a provider in a message: its own label, so GitHub and PropelAuth keep their capitals."""
+    known = providers.get(provider)
+    return known.label if known else provider.title()
 
 
 class Refused(Exception):
@@ -142,7 +149,7 @@ class Accounts:
     def sign_in(self, profile: Profile) -> tuple[User, str]:
         """The user for this profile (found, linked or made) and a new login session's token. Raises Refused."""
         if not profile.email:
-            raise Refused(f"your {profile.provider.title()} account has no verified email address. Verify one there, then sign in again")
+            raise Refused(f"your {_label(profile.provider)} account has no verified email address. Verify one there, then sign in again")
         email = profile.email.strip().lower()
         if not server_allows(email):
             raise Refused(f"this sopops doesn't take sign-ins from {domain(email)} addresses")
