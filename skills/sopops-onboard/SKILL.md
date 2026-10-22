@@ -59,6 +59,18 @@ Onboard this project's voice agents into the sopops workspace this session is fo
 5. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
 6. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
 
+## Many agents
+
+Past about ten agents, or with long instructions, work in batches of five to ten.
+
+1. **Extract in parallel if you like.** Reading files and classifying text sends nothing to sopops, so split that work however is fastest.
+2. **Check each batch as you go.** `check_fidelity` stores nothing, so calling it per batch is safe and keeps each request small. Fix a batch before extracting the next: the same mistake usually repeats across agents, so an early fix saves the rest.
+3. **Keep one proposal.** Merge each batch into it. Blocks are shared, so a procedure found in the first batch gets reused by later agents instead of duplicated. Watch for the same text under two ids, which is what duplicates look like.
+4. **Push once, at the end.** `push_to_sopops` replaces everything pushed before, so two pushes at once, or one per batch from different workers, leave only the last. Never push in parallel.
+5. **Report progress after each batch** ("checked 20 of 48 agents"), so the person watching the Import page sees it moving.
+
+A push carries every agent's original text, so a large one takes a while; the client waits two minutes. If it times out, don't split the push. Cut what isn't needed (drop agents you haven't finished, push those in a later run) and try again.
+
 Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score. Then offer to set up an A/B test of the agents' models, voices or instructions; if the user wants one, call `get_ab_test_guide` and follow it.
 
 Never change, deploy or delete anything on a platform or in a database, and never print or copy keys or the token.
