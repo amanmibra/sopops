@@ -117,6 +117,15 @@ body { font: var(--t-body); letter-spacing: -0.02em; font-kerning: normal; font-
 .vp-doc img { border: 1px solid var(--line); }
 .vp-doc .custom-block { border: 0; border-left: 3px solid var(--brand); background: var(--tone); }
 
+/* Code groups: the copy button belongs in the tab bar, whose right side is empty. Left where VitePress puts it,
+   12px below the bar, it covers the first line of code and crowds the Python/TypeScript tabs. The bar is 48px of
+   label plus its 1px rule, and the button is 40px tall, so -45px centres it on the bar. The tabs already name the
+   language, so the block's own language label goes. */
+.vp-doc .vp-code-group div[class*="language-"] { overflow: visible; }   /* the <pre> inside does the scrolling */
+.vp-doc .vp-code-group div[class*="language-"] > button.copy { top: -45px; right: calc(1.5 * var(--bl)); }
+.vp-doc .vp-code-group:hover div[class*="language-"].active > button.copy { opacity: 1; }
+.vp-doc .vp-code-group div[class*="language-"] > span.lang { display: none; }
+
 /* nav and sidebar: small and label styles */
 .VPNavBarTitle .title { font: var(--t-lead); letter-spacing: -0.015em; }
 .VPNavBarMenuLink, .VPNavBarMenuGroup .text { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }

@@ -2,7 +2,12 @@
 
 ## Sessions and checks
 
-A session is one call or chat, in one JSON format ([API reference](api/sessions.md)). Send it with `POST /v1/workspaces/{ws}/sessions` and an `ingest` token, or stream it (`/v1/workspaces/{ws}/sessions/open`, `/v1/workspaces/{ws}/events`, `/v1/workspaces/{ws}/close`). A stream idle for `SOPOPS_SESSION_IDLE_MINUTES` closes as incomplete. Resending is safe: sessions are keyed by platform and session id. To bring in past sessions ([example](../examples/import-sessions)):
+A session is one call or chat, in one JSON format ([API reference](api/sessions.md)).
+
+- **Post it** to `/v1/workspaces/{ws}/sessions` with an `ingest` token, or stream it to `/v1/workspaces/{ws}/sessions/open`, `/v1/workspaces/{ws}/events` and `/v1/workspaces/{ws}/close`.
+- **A stream** idle for `SOPOPS_SESSION_IDLE_MINUTES` closes as incomplete.
+- **Resending is safe.** Sessions are keyed by platform and session id.
+- **Past sessions** come in from a file ([example](../examples/import-sessions)):
 
 ```sh
 sopops import sessions.jsonl --workspace prod
@@ -16,9 +21,16 @@ The **Sessions** page lists sessions as they arrive, each with its transcript, t
 4. **Result** per procedure and session: deviated, partial, followed or not measurable ([how](api/checks-and-review.md#sop-checks)).
 5. **Patterns**: findings join their rule's pattern ([below](#patterns-review-and-suggestions)).
 
-This runs inside sopops by default. With `HATCHET_CLIENT_TOKEN` it runs on [Hatchet](https://hatchet.run) in `sopops worker`: one run per session version, fair share per workspace, per-model rate limits, a daily recluster. `docker compose --profile hatchet up` starts hatchet-lite ([docker-compose.yml](../docker-compose.yml)). Live UI updates work from any process on Postgres, only from the sopops process on SQLite.
+This runs inside sopops by default. With `HATCHET_CLIENT_TOKEN` it runs on [Hatchet](https://hatchet.run) in `sopops worker`: one run per session version, fair share per workspace, per-model rate limits, a daily recluster. `docker compose --profile hatchet up` starts hatchet-lite ([docker-compose.yml](../docker-compose.yml)).
 
-**Insights** compares sessions checked, followed and needing attention against the same length of time just before it. It has a trend with release markers, a scoreboard per procedure with its rule ladder and rule pages, and **Release compare** (two releases rule by rule, 95% intervals). Every number links to its sessions ([definitions](api/insights.md)). The **Report** reads like a hand-written call review.
+Live UI updates work from any process on Postgres, only from the sopops process on SQLite.
+
+**Insights** compares sessions checked, followed and needing attention against the same length of time just before ([definitions](api/insights.md)). Every number links to its sessions.
+
+- A trend with release markers.
+- A scoreboard per procedure, with its rule ladder and rule pages.
+- **Release compare**: two releases rule by rule, with 95% intervals.
+- **Report**, which reads like a hand-written call review.
 
 ## Patterns, review and suggestions
 
@@ -35,28 +47,48 @@ This runs inside sopops by default. With `HATCHET_CLIENT_TOKEN` it runs on [Hatc
 
 You can mark one finding wrong. A judged pattern exports its sessions as regression cases (JSON Lines).
 
-States: **needs review** (no verdict, or a recluster changed it), **open** (real mistake or wrong SOP, unfixed), **fixing** (fix applied or PR open or merged; waits for the release to go live with 10 sessions), **fixed**, **regressed** (back on sessions that ran the fix; requeued), **closed** (acceptable or checker wrong). A merged PR moves the pattern on. A closed one reopens it.
+| State | When |
+|---|---|
+| needs review | No verdict, or a recluster changed it. |
+| open | Real mistake or wrong SOP, unfixed. |
+| fixing | Fix applied, or a pull request open or merged. Waits for the release to go live with 10 sessions. |
+| fixed | No findings in 10 sessions on that release or later. |
+| regressed | A finding came back on sessions that ran the fix. Requeued. |
+| closed | Acceptable, or checker wrong. |
 
-**Reworded rules.** sopc gives changed rule text a new id, and every applied suggestion rewords one. On publish, sopops links each reworded rule to the one it replaced: by the suggestion that made the edit, else by wording at the same position, then anywhere in the procedure. The rule keeps its pattern, verdicts, state and history. Sessions keep the wording they ran. Insights shows "reworded in release 4" with earlier wordings on hover. Link or unlink a wrong match by hand on the rule's Insights page ([API reference](api/checks-and-review.md#rule-lineage)).
+A merged pull request moves the pattern on. A closed one reopens it.
 
-**Suggestions.** The reviewer proposes the smallest edit that settles the verdict. sopops compiles it with sopc (one retry) and shows how each agent's instructions change. Apply saves a draft, or opens a PR if a GitHub repository is connected. If the procedure changed since, edits on different lines merge if the result compiles. Overlaps show the conflict and block applying. **Rewrite against the current text** redoes it on the current file, keeping later edits ([details](api/checks-and-review.md#review-and-suggestions)).
+**Reworded rules.** sopc gives changed rule text a new id, and every applied suggestion rewords one. On publish, sopops links each reworded rule to the one it replaced: by the suggestion that made the edit, else by wording at the same position, then anywhere in the procedure ([API reference](api/checks-and-review.md#rule-lineage)).
+
+- The rule keeps its pattern, verdicts, state and history.
+- Sessions keep the wording they ran.
+- Insights shows "reworded in release 4", with earlier wordings on hover.
+- Link or unlink a wrong match by hand on the rule's Insights page.
+
+**Suggestions.** The reviewer proposes the smallest edit that settles the verdict. sopops compiles it with sopc (one retry) and shows how each agent's instructions change ([details](api/checks-and-review.md#review-and-suggestions)).
+
+- Apply saves a draft, or opens a pull request if a GitHub repository is connected.
+- If the procedure changed since, edits on different lines merge when the result compiles.
+- Overlaps show the conflict and block applying.
+- **Rewrite against the current text** redoes the edit on the current file, keeping later changes.
 
 ## Models
 
 Each model call is a typed [DSPy](https://dspy.ai) signature ([`signatures.py`](../src/sopops_server/ai/signatures.py)). Each result records its model and instructions version. You bring your own keys.
 
-- **`SOPOPS_MODEL_FAST`** decides: routing, rule checks, pattern assignment.
-- **`SOPOPS_MODEL_REASONING`** reviews flagged or uncertain rules, splits rules into checks, names and clusters patterns and themes, and writes suggestions.
+| Role | What it does |
+|---|---|
+| `SOPOPS_MODEL_FAST` | Decides: routing, rule checks, pattern assignment. |
+| `SOPOPS_MODEL_REASONING` | Reviews flagged or uncertain rules, splits rules into checks, names and clusters patterns and themes, writes suggestions. |
 
-Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, with the provider's usual key variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). One model can fill both roles. Any DSPy provider works, or an OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`) for local models. With neither set, sessions are stored unchecked.
+Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, with the provider's usual key variable (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...). One model can fill both roles. Any DSPy provider works, or an OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`) for local models. With neither role set, sessions are stored unchecked.
 
-**Jev.** With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key.
-
-**Your team's own keys.** The environment variables are the deployment's defaults. In setup, and later in Settings under Checks, a team adds its own TypeSafe key, picks Anthropic, OpenAI, Google or any other LiteLLM provider, pastes a key (or uses the deployment's) and picks the two models from those the key can use. Each key and model is tried before it's saved, stored encrypted with `SOPOPS_SECRET_KEY`, and never shown again. Anything a team doesn't set uses the default.
-
-**Check modes.** `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand.
-
-**Spend.** Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See Results → Insights → Model spend and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored.
+| Topic | What to know |
+|---|---|
+| **Jev** | With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key. |
+| **A team's own keys** | The environment variables are the deployment's defaults. In setup, and later in Settings under Checks, a team adds its own TypeSafe key, picks Anthropic, OpenAI, Google or any other LiteLLM provider, pastes a key (or uses the deployment's) and picks the two models from those the key can use. Each key and model is tried before it's saved, stored encrypted with `SOPOPS_SECRET_KEY`, and never shown again. Anything a team doesn't set uses the default. |
+| **Check modes** | `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand. |
+| **Spend** | Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See Results → Insights → Model spend, and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored. |
 
 **Calibration.** sopops fits decision thresholds per workspace from labeled sessions (verdicts and overrides; checker-wrong labels are negative). Defaults apply until then; `SOPOPS_DECISIONS` overrides them.
 

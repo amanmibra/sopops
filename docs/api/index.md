@@ -2,7 +2,17 @@
 
 Every sopops endpoint, grouped by what you're trying to do. Paths start with `/v1`, and `{ws}` is a workspace id (each team has one).
 
-The OpenAPI spec at `/openapi.json` lists every field, and `/docs` lets you try each endpoint. Each operation's `operationId` is its route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients get readable function names. The web UI's typed client (`web/src/client`) is generated this way. Paths outside `/v1` (and `/docs`, `/openapi.json`) serve the web UI.
+```sh
+curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
+  "$SOPOPS_URL/v1/workspaces/harbor-qa/agents/copper-wok-harbor"
+```
+
+| Where | What |
+|---|---|
+| `/openapi.json` | The OpenAPI spec: every field. |
+| `/docs` | Try each endpoint in a browser. |
+| `operationId` | Each operation's route name (`list_workspaces`, `get_agent`, `config_put_procedure`), so generated clients read well. The web UI's typed client (`web/src/client`) is generated this way. |
+| Everything else | Paths outside `/v1`, `/docs` and `/openapi.json` serve the web UI. |
 
 ## Pages
 
@@ -19,18 +29,44 @@ The OpenAPI spec at `/openapi.json` lists every field, and `/docs` lets you try 
 
 ## Authentication
 
-Agents, webhooks and coding agents use workspace tokens, sent as `Authorization: Bearer <token>` ([Tokens](teams-and-access.md#tokens)). Everything else needs a signed-in session once sign-in is on: passwords, GitHub, Google or email ([Sign-in](../sign-in.md)). With sign-in off, only tokens guard anything, so keep sopops on a private network. [Sign-in and access](teams-and-access.md#sign-in-and-access) lists which endpoints need what.
+| Caller | Sends |
+|---|---|
+| Agents, webhooks, coding agents | A workspace token as `Authorization: Bearer <token>` ([Tokens](teams-and-access.md#tokens)) |
+| Everyone else, once sign-in is on | A signed-in session: password, GitHub, Google or email ([Sign-in](../sign-in.md)) |
+
+With sign-in off, only tokens guard anything, so keep sopops on a private network. [Sign-in and access](teams-and-access.md#sign-in-and-access) lists which endpoints need what.
 
 ## Errors
 
-A `404` or `409` has `{"detail": "..."}`.
-
-Errors that come from sopc return `422 {"valid": false, "issues": [...]}`. Each issue has sopc's `code`, `message`, `path` and `severity`, plus where it belongs in the forms:
-
-| Field | |
+| Status | Body |
 |---|---|
-| `kind` | `agent`, `instruction`, `procedure`, `group` or `settings` |
-| `id` | Which one |
-| `field` | As the `/config` endpoints name it, e.g. `blocks`, `steps` |
-| `index` | Which entry of a list field |
-| `text` | The problem in plain words, e.g. "Lists 'nope', which isn't a shared instruction, procedure or group." |
+| `404`, `409` | `{"detail": "..."}` |
+| `422` from sopc | `{"valid": false, "issues": [...]}` |
+
+```json
+{
+  "valid": false,
+  "issues": [
+    {
+      "code": "unknown_block",
+      "message": "blocks lists 'nope', which is not an instruction, SOP or group",
+      "path": "agents/bayleaf-bistro.yaml",
+      "severity": "error",
+      "kind": "agent",
+      "id": "bayleaf-bistro",
+      "field": "blocks",
+      "index": null,
+      "text": "Lists 'nope', which isn't a shared instruction, procedure or group."
+    }
+  ]
+}
+```
+
+| Field | Type | |
+|---|---|---|
+| `code`, `message`, `path`, `severity` | string | sopc's own. `severity` is `error` or `warning`. |
+| `kind` | string | `agent`, `instruction`, `procedure`, `group` or `settings`. |
+| `id` | string | Which one. |
+| `field` | string | As the `/config` endpoints name it, e.g. `blocks`, `steps`. |
+| `index` | int | Which entry of a list field. |
+| `text` | string | The problem in plain words. |

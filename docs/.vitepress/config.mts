@@ -34,6 +34,15 @@ export default defineConfig({
   ],
   markdown: {
     config(md) {
+      // A Python block followed by a TypeScript one becomes tabs on the site. The source stays two plain fences, so
+      // the same file still reads correctly on GitHub.
+      md.core.ruler.before("block", "pair_languages", (state) => {
+        state.src = state.src.replace(
+          /^```(?:python|py)\n([\s\S]*?)^```[ \t]*\n+^```(?:ts|typescript)\n([\s\S]*?)^```[ \t]*$/gm,
+          (_whole: string, py: string, ts: string) =>
+            `::: code-group\n\`\`\`python [Python]\n${py}\`\`\`\n\n\`\`\`ts [TypeScript]\n${ts}\`\`\`\n:::`,
+        );
+      });
       md.core.ruler.push("site_links", (state) => {
         const page = (state.env as { relativePath?: string }).relativePath ?? "";
         for (const block of state.tokens) {

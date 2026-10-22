@@ -22,15 +22,19 @@ cp .env.example .env        # optional: model keys, sign-in, email
 docker compose up --build   # sopops and Postgres on http://127.0.0.1:8484
 ```
 
-Open http://127.0.0.1:8484. Setup asks for your name and team, then your AI models: sopops uses them to check each call. Every setting is in [Configuration](configuration.md).
+Open http://127.0.0.1:8484. Setup asks for your name and team, then the AI models sopops checks each call with. Every setting is in [Configuration](configuration.md).
 
 ## Bring in your agents
 
-If your agents' prompts live in a repo, the **Import agents** page gives you one command for Claude Code or Codex. Run it in that repo, and the agent finds each prompt, splits it into shared instructions and procedures, and sends it back to sopops for you to review. You can also paste a prompt in, or read agents from ElevenLabs or Vapi. See [Import your agents](import.md).
+- **A repo:** the **Import agents** page gives you one command for Claude Code or Codex. Run it where your prompts live. The agent finds each one, splits it into shared instructions and procedures, and sends it back as drafts.
+- **A paste or an upload** of the prompt text.
+- **ElevenLabs or Vapi:** read the agents straight off the platform.
+
+See [Import your agents](import.md).
 
 ## Connect your calls
 
-Install the client (`pip install "sopops[livekit]"`, or `npm install sopops`), then point your agent at your workspace. Each call has to come back to sopops to be checked. On LiveKit that's a few lines of code; ElevenLabs and Vapi send calls by webhook, with no code. See [Connect your agent](connect.md).
+Every call has to come back to sopops to be checked. On LiveKit that is a few lines of code; ElevenLabs and Vapi send calls by webhook, with none. Install the client (`pip install "sopops[livekit]"` or `npm install sopops`), then see [Connect your agent](connect.md).
 
 ## See it work first
 
