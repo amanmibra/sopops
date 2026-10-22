@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryCache, SopOps } from "../src/index.js";
-import { fromLiveKit, recordSession } from "../src/livekit.js";
+import { attach, fromLiveKit, recordSession } from "../src/livekit.js";
 
 const URL = "http://sopops.test/v1/workspaces/prod";
 
@@ -57,3 +57,81 @@ describe("recordSession", () => {
   });
 });
 
+const AGENT = { agent: "tonys-pizza", platform_ref: "livekit:tonys-pizza", release: 3, hash: "abc", prompt: "You are Tony's.", tools: [], tool_sops: [], components: [] };
+
+/** A fetch that answers every GET with `agent` and every POST with an ingested session, recording what it was sent. */
+function mockFetch(agent: Record<string, unknown> = AGENT) {
+  const calls: Array<{ method: string; url: string; body: any }> = [];
+  const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const req = new Request(input, init);
+    const body = req.method === "POST" ? await req.json() : null;
+    calls.push({ method: req.method, url: req.url, body });
+    return req.method === "POST"
+      ? new Response(JSON.stringify({ id: "s1", created: true }), { status: 201 })
+      : new Response(JSON.stringify(agent), { status: 200, headers: { "Content-Type": "application/json" } });
+  }) as unknown as typeof globalThis.fetch;
+  return { calls, client: new SopOps({ url: URL, token: "tok", fetch, cache: new MemoryCache() }) };
+}
+
+function jobContext(metadata: { job?: string; room?: string } = {}) {
+  const callbacks: Array<() => Promise<void>> = [];
+  return {
+    job: { id: "AJ_1", agentName: "tonys-pizza", metadata: metadata.job ?? "" },
+    room: { name: "room-1", metadata: metadata.room ?? "" },
+    addShutdownCallback: (cb: () => Promise<void>) => callbacks.push(cb),
+    callbacks,
+  };
+}
+
+const session = { history: { toJSON: () => HISTORY } };
+
+describe("attach", () => {
+  it("fetches the instructions and posts at shutdown with the agent and release", async () => {
+    const { calls, client } = mockFetch();
+    const ctx = jobContext();
+
+    const ins = await attach(ctx, session, { sopops: client });
+    expect(ins.text).toBe("You are Tony's.");
+    expect(ins.release).toBe(3);
+    expect(calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza`); // the job's agent name, no release pinned
+    expect(ctx.callbacks).toHaveLength(1);
+
+    await ctx.callbacks[0]!();
+    expect(calls[1]!.url).toBe(`${URL}/sessions`);
+    expect(calls[1]!.body).toMatchObject({ platform: "livekit", external_id: "AJ_1", agent: "tonys-pizza", release: 3, metadata: { room: "room-1" } });
+    expect(calls[1]!.body.turns).toHaveLength(4);
+  });
+
+  it("fills variables in this process and never sends them to sopops", async () => {
+    const { calls, client } = mockFetch({ ...AGENT, prompt: "You are Tony's. The caller is {{caller}} on {{plan}}." });
+    const ctx = jobContext();
+
+    const ins = await attach(ctx, session, { sopops: client, variables: { caller: "Ada Lovelace" } });
+    await ctx.callbacks[0]!();
+    expect(ins.text).toBe("You are Tony's. The caller is Ada Lovelace on {{plan}}.");
+    expect(ins.unfilled).toEqual(["plan"]);
+    expect(JSON.stringify(calls)).not.toContain("Ada Lovelace");
+  });
+
+  it("pins the fetch to an explicit release, over one in metadata", async () => {
+    const { calls, client } = mockFetch({ ...AGENT, release: 7 });
+    const ctx = jobContext({ job: '{"sopops_release": 2}' });
+
+    const ins = await attach(ctx, session, { sopops: client, release: 7 });
+    await ctx.callbacks[0]!();
+    expect(calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=7`);
+    expect(ins.release).toBe(7);
+    expect(calls[1]!.body.release).toBe(7);
+  });
+
+  it("honors a release pinned in the job's, then the room's, metadata", async () => {
+    const job = mockFetch({ ...AGENT, release: 2 });
+    await attach(jobContext({ job: '{"sopops_release": 2}', room: '{"sopops": {"release": 1}}' }), session, { sopops: job.client });
+    expect(job.calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=2`); // the job's pin wins
+
+    const room = mockFetch({ ...AGENT, release: 1 });
+    const ins = await attach(jobContext({ room: '{"sopops": {"release": 1}}' }), session, { sopops: room.client });
+    expect(room.calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=1`);
+    expect(ins.release).toBe(1);
+  });
+});

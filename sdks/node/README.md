@@ -78,15 +78,23 @@ await sopops.postSession(fullSession);
 ## LiveKit
 
 ```ts
-import { recordSession } from "sopops/livekit";
+import { attach } from "sopops/livekit";
 
-const ins = await sopops.fetchInstructions(`livekit:${ctx.job.agentName}`, { fallback: FALLBACK });
 const session = new voice.AgentSession({ ... });
-recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release });
+const ins = await attach(ctx, session, { sopops, fallback: FALLBACK });
 await session.start({ agent: voice.Agent.create({ instructions: ins.text }), room: ctx.room });
 ```
 
-`recordSession` posts `session.history` to sopops when the job shuts down, with timestamps and tool calls, keyed by the job id, with the release. Errors are logged, never thrown into shutdown. It has no `stream` option yet; the Python adapter does. `@livekit/agents` isn't a dependency: only the parts of `JobContext` and `AgentSession` it reads are typed here.
+`attach` fetches the agent's instructions and posts the session at shutdown, in one call. The agent is `livekit:<the job's agent name>` unless you pass `agent`; `release` pins one, and without it a release pinned in the job's or room's metadata is honored (`{"sopops_release": 3}`), else the live one. Call it after `ctx.connect()` for room metadata. `test` names an A/B test and `config` reports settings beyond the models read from the session. `variables` fills `{{placeholders}}` only this call knows (the time, the caller) here in your process, so they never reach sopops; what's left over is in `ins.unfilled`. A sopops outage never blocks the call: the fetch falls back to the last good copy, then `fallback`, and nothing throws into shutdown.
+
+```ts
+import { recordSession } from "sopops/livekit";
+
+const ins = await sopops.fetchInstructions(`livekit:${ctx.job.agentName}`, { fallback: FALLBACK });
+recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release });
+```
+
+`recordSession` is the lower-level half, for code that already has its instructions: it posts `session.history` to sopops when the job shuts down, with timestamps and tool calls, keyed by the job id, with the release. Errors are logged, never thrown into shutdown. Neither has a `stream` option yet; the Python adapter does. `@livekit/agents` isn't a dependency: only the parts of `JobContext` and `AgentSession` it reads are typed here.
 
 A complete agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant) (Python), and a web call in [examples/elevenlabs-web](../../examples/elevenlabs-web).
 

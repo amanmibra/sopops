@@ -106,12 +106,16 @@ export interface SessionIn {
   metadata?: Record<string, unknown>;
   /** An A/B test this session is part of. Without one, sopops still compares an agent's versions by their config. */
   test?: string | null;
-  /** What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `version`, any other setting. */
+  /** What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `version`, any other setting.
+   * A value can be a whole JSON object, so a variant's entire config can go in as it is. */
   config?: AgentConfig;
 }
 
+/** A setting's value: a scalar, or a whole JSON object or array (up to 8,192 characters of JSON, 8 levels deep). */
+export type ConfigValue = string | number | boolean | null | ConfigValue[] | { [k: string]: ConfigValue };
+
 /** Settings a session ran with. Sessions with the same agent, release and config are one version in sopops. */
-export type AgentConfig = Record<string, string | number | boolean | null>;
+export type AgentConfig = Record<string, ConfigValue>;
 
 type Turn = NonNullable<SessionIn["turns"]>[number];
 type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];

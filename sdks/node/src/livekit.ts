@@ -1,14 +1,17 @@
 /**
- * LiveKit Agents (Node) adapter: post each finished session to sopops when the job shuts down.
+ * LiveKit Agents (Node) adapter: fetch the agent's instructions at call start, and post each finished session to
+ * sopops when the job shuts down.
  *
- *   const ins = await sopops.fetchInstructions(`livekit:${ctx.job.agentName}`);
  *   const session = new voice.AgentSession({ ... });
- *   recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release });
+ *   const ins = await attach(ctx, session, { sopops });
+ *   await session.start({ agent: voice.Agent.create({ instructions: ins.text }), room: ctx.room });
  *
+ * `attach` does both halves; `recordSession` is the lower-level half for code that already has its instructions.
  * This package doesn't depend on `@livekit/agents`; the shapes below are the parts of `JobContext` and
  * `voice.AgentSession` (v1) it reads.
  */
-import type { AgentConfig, SessionIn, SopOps } from "./index.js";
+import { releasePin, SopOps } from "./index.js";
+import type { AgentConfig, Instructions, SessionIn } from "./index.js";
 
 type Item = Record<string, any>;
 type Turn = NonNullable<SessionIn["turns"]>[number];
@@ -16,10 +19,13 @@ type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
 
 /** The parts of `JobContext` used here. */
 export interface LiveKitJobContext {
-  job: { id: string; agentName?: string };
-  room: { name?: string };
+  job: { id: string; agentName?: string; metadata?: Metadata };
+  room: { name?: string; metadata?: Metadata };
   addShutdownCallback(callback: () => Promise<void>): void;
 }
+
+/** Job or room metadata: LiveKit hands it over as a JSON string, but an object is read too. */
+type Metadata = string | Record<string, unknown> | null;
 
 /** A model as LiveKit plugins describe it. */
 interface LiveKitModel {
@@ -34,6 +40,24 @@ export interface LiveKitSession {
   llm?: LiveKitModel | null;
   stt?: LiveKitModel | null;
   tts?: LiveKitModel | null;
+}
+
+export interface AttachOptions {
+  /** The client to use. Default: a new `SopOps()` (`SOPOPS_URL` / `SOPOPS_TOKEN`). */
+  sopops?: SopOps;
+  /** The sopc agent id or platform ref. Default: `livekit:<the job's agent name>`. */
+  agent?: string;
+  /** Pin a release; default: a pin in the job's or room's metadata, else the live release. */
+  release?: number | null;
+  /** Text to use if sopops is down and nothing is cached (see `SopOps.fetchInstructions`). */
+  fallback?: string;
+  /** Values for `{{placeholders}}` only this call knows, like the time or the caller. They're filled here, in your
+   * process, so they never reach sopops. One you pass no value for is left as it is and listed in `ins.unfilled`. */
+  variables?: Record<string, string | number | boolean>;
+  /** An A/B test this call is part of. */
+  test?: string | null;
+  /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
+  config?: AgentConfig;
 }
 
 export interface RecordSessionOptions {
@@ -133,4 +157,29 @@ export function recordSession(ctx: LiveKitJobContext, session: LiveKitSession, o
       console.error(`sopops: couldn't send session ${ctx.job.id}: ${e instanceof Error ? e.message : String(e)}`);
     }
   });
+}
+
+/** A release pinned for this call in the job's dispatch metadata, else the room's metadata. */
+export function pinnedRelease(ctx: LiveKitJobContext): number | null {
+  return releasePin(ctx.job?.metadata) ?? releasePin(ctx.room?.metadata);
+}
+
+/**
+ * Fetch the agent's instructions and post the session at shutdown: `fetchInstructions` and `recordSession` in one
+ * call, the way the Python adapter's `attach` does it.
+ *
+ *   const ins = await attach(ctx, session, { sopops, fallback: FALLBACK });
+ *
+ * `agent` defaults to `livekit:<the job's agent name>`; `release` pins one, and without it a release pinned in the
+ * job's or room's metadata is honored, else the live one. Call it after `ctx.connect()` for room metadata.
+ * A sopops outage never blocks the call: the fetch falls back to the last good copy, then `fallback` (see
+ * `SopOps.fetchInstructions`), and the post at shutdown logs its errors instead of throwing into shutdown.
+ */
+export async function attach(ctx: LiveKitJobContext, session: LiveKitSession, options: AttachOptions = {}): Promise<Instructions> {
+  const sopops = options.sopops ?? new SopOps();
+  const agent = options.agent ?? `livekit:${ctx.job.agentName}`;
+  const release = options.release ?? pinnedRelease(ctx);
+  const ins = await sopops.fetchInstructions(agent, { release, fallback: options.fallback, variables: options.variables });
+  recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release, test: options.test, config: options.config });
+  return ins;
 }
