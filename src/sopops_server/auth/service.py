@@ -10,7 +10,7 @@ verified email gets this identity linked; failing that, a new user is made. Then
 
 Someone with no membership can sign in but sees only "Ask an owner to invite you".
 
-**A provider that owns the teams** (`owns_teams`: PropelAuth) brings them with it instead, and sign-in mirrors them
+**A provider that owns the teams** (`owns_teams`) brings them with it instead, and sign-in mirrors them
 (`_mirror_orgs`). Each team it reports is found or made here, matched on its id there (`orgs.external_id`), and the
 person joins it with the role it gave. One it stops reporting they leave, so leaving a team there takes effect here;
 one made in sopops is never renamed, deleted or left on its say-so, because it never knew about it. A team made from
@@ -37,8 +37,8 @@ password.
 
 **Login sessions** are a random token in an HttpOnly cookie, stored as a sha256 hash. They last 30 days from the last
 use (sliding; `last_seen_at` and `expires_at` move at most every few minutes) and end early when revoked (sign out).
-A session signed in through a provider that runs its own session (PropelAuth) also keeps that provider's refresh
-token, encrypted with SOPOPS_SECRET_KEY, so `sign_out` can end their session before revoking this one. Only an
+A session signed in through a provider that runs its own session also keeps which provider that was and its
+refresh token, encrypted with SOPOPS_SECRET_KEY, so `sign_out` can end their session before revoking this one. Only an
 explicit sign-out does that: a session that simply expires, or that `_end_sessions` revokes (a password change, say),
 leaves the provider's session alone, and the person may be signed back in without a prompt.
 
@@ -86,7 +86,7 @@ from ..errors import Conflict, NotFound
 from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
 from ..runtime import crypto
 from ..tokens import Forbidden
-from . import actor, password, propelauth
+from . import actor, password
 from .providers import ADMIN, MEMBER, OWNER, ROLES, Profile, ProviderOrg  # the roles live with the provider contract: one maps onto them
 from . import providers
 
@@ -121,7 +121,7 @@ class LinkInvalid(Exception):
 
 
 def _label(provider: str) -> str:
-    """What to call a provider in a message: its own label, so GitHub and PropelAuth keep their capitals."""
+    """What to call a provider in a message: its own label, so GitHub and GitLab keep their capitals."""
     known = providers.get(provider)
     return known.label if known else provider.title()
 
@@ -189,11 +189,11 @@ class Accounts:
             user.last_login_at = now
             db.add(user)
             p = providers.get(profile.provider)
-            owns_teams = p is not None and p.owns_teams  # PropelAuth: its teams are the teams, mirrored on every sign-in
+            owns_teams = p is not None and p.owns_teams  # its teams are the teams, mirrored on every sign-in
             self._join(db, user, email, now, claim_default=not owns_teams)
             if owns_teams:
                 self._mirror_orgs(db, user, profile, now)
-            token = self._new_session(db, user.id, now, profile.refresh_token)
+            token = self._new_session(db, user.id, now, profile.provider, profile.refresh_token)
         return user, token
 
     def _mirror_orgs(self, db: Session, user: User, profile: Profile, now: datetime) -> None:
@@ -264,11 +264,15 @@ class Accounts:
                 db.add(Membership(org_id=org.id, user_id=user.id, role=MEMBER, created_at=now))
                 mine.add(org.id)
 
-    def _new_session(self, db: Session, user_id: str, now: datetime, refresh_token: str | None = None) -> str:
+    def _new_session(self, db: Session, user_id: str, now: datetime, provider: str | None = None,
+                     refresh_token: str | None = None) -> str:
+        """A new login session. `provider` is what signed it in, kept so `sign_out` knows whose session to end as
+        well as this one; `refresh_token` is that provider's, and only a provider that runs its own session has
+        one."""
         token = secrets.token_urlsafe(32)
         db.add(LoginSession(id=str(uuid.uuid4()), token_hash=_hash(token), user_id=user_id, created_at=now,
                             expires_at=now + timedelta(days=SESSION_DAYS), last_seen_at=now,
-                            refresh_ciphertext=_seal(refresh_token)))
+                            provider=(provider or None), refresh_ciphertext=_seal(refresh_token)))
         return token
 
     # --- email sign-in links ------------------------------------------------------
@@ -540,19 +544,27 @@ class Accounts:
         return Current(session_id=s.id, user=user, memberships=roles, org_id=org)
 
     def sign_out(self, token: str | None) -> None:
-        """End the session. A session that kept a provider refresh token (PropelAuth) ends the provider's session
-        first, so the next click on "Sign in" asks who they are instead of letting them straight back in.
+        """End the session. A session signed in through a provider that runs its own ends that one first
+        (`LoginProvider.end_session`), so the next click on "Sign in" asks who they are instead of letting them
+        straight back in.
 
-        That call can't stop a sign-out: PropelAuth being unreachable, slow or unhappy is logged and the session is
-        revoked anyway (`propelauth.end_session` swallows it), as is a refresh token this SOPOPS_SECRET_KEY can no
-        longer read."""
+        That call can't stop a sign-out: a provider that's unreachable, slow or unhappy is logged and the sopops
+        session is revoked anyway, as is a refresh token this SOPOPS_SECRET_KEY can no longer read. The provider
+        is looked up whether or not SOPOPS_LOGIN_PROVIDERS still offers it (`providers.known`): a session started
+        before that list changed is still theirs to end."""
         if not token:
             return
         with self._db() as db:
             s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(token))).first()
-            sealed = s.refresh_ciphertext if s is not None and s.revoked_at is None else None
-        if sealed:
-            propelauth.end_session(_unseal(sealed))
+            live = s is not None and s.revoked_at is None
+            sealed, signed_in_with = (s.refresh_ciphertext, s.provider) if live else (None, None)
+        refresh = _unseal(sealed) if sealed else None
+        p = providers.known(signed_in_with) if refresh and signed_in_with else None
+        if p is not None:
+            try:
+                p.end_session(refresh)  # type: ignore[arg-type]
+            except Exception:  # a provider is somebody else's code: it must not keep anybody signed in here
+                log.exception("the %s provider raised while ending its own session; signing out of sopops anyway", p.id)
         with self._db() as db, db.begin():
             s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(token))).first()
             if s is not None and s.revoked_at is None:
@@ -931,7 +943,7 @@ class Accounts:
             org, ws = _new_team(db, user.id, team, now)
             user.last_login_at = now
             db.add(user)
-            token = self._new_session(db, user.id, now)
+            token = self._new_session(db, user.id, now, password.PasswordLogin.id)
         self._work_in(token, org.id)
         return user, token, org, ws
 

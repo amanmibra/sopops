@@ -13,8 +13,8 @@ from .columns import JSONDoc
 class ProviderEvent(SQLModel, table=True):
     """One webhook delivery from a login provider, stored whether or not anything acted on it.
 
-    sopops subscribes to every event PropelAuth can send and keeps them all: an event turned on after the fact only
-    starts arriving from that moment, so the history is worth more than the rows cost. `event_type` is their string
+    sopops subscribes to every event the provider can send and keeps them all: an event turned on after the fact
+    only starts arriving from that moment, so the history is worth more than the rows cost. `event_type` is their string
     exactly as sent, never mapped, so a row still says what happened when sopops's own vocabulary changes
     (`sopops_server.auth.webhooks`). `message_id` is the provider's id for the delivery (Svix's `svix-id`), unique
     per provider: a retry of the same message lands on that constraint and is handled once. `acted` and `note` say
@@ -32,7 +32,7 @@ class ProviderEvent(SQLModel, table=True):
     )
 
     id: str = Field(primary_key=True, max_length=36)
-    provider: str = Field(max_length=32, description="The login provider that sent it (`propelauth`).")
+    provider: str = Field(max_length=32, description="The login provider that sent it.")
     event_type: str = Field(max_length=128, description="Their name for the event, exactly as sent.")
     message_id: str = Field(max_length=128, description="Their id for the delivery; a retry carries the same one.")
     payload: dict[str, Any] = Field(sa_column=Column(JSONDoc, nullable=False), description="The whole body as it arrived.")

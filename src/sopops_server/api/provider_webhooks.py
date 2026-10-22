@@ -1,12 +1,13 @@
-"""The login provider's webhooks: `POST /v1/auth/webhooks/{provider}`.
+"""A login provider's webhooks: `POST /v1/auth/webhooks/{provider}`.
 
-One route, for PropelAuth today. It checks the Svix signature on the raw body, stores the delivery whatever it is
-(`sopops_server.orm.ProviderEvent`), acts on the few events sopops cares about, and answers. What it does and why:
+One route for every provider that sends them. It checks the Svix signature on the raw body, stores the delivery
+whatever it is (`sopops_server.orm.ProviderEvent`), acts on the few events sopops cares about, and answers. What it
+does and why:
 
-**Everything is stored.** sopops subscribes to all 41 of their events, so most deliveries land in the table and
-nothing else happens. That is the point: the day an event matters, its history is already here instead of starting
-from the dashboard visit that turns it on. The event type is stored as they send it, and an event type this sopops
-has never heard of is stored too, with a log line.
+**Everything is stored.** A provider lists every event it can send (`LoginProvider.webhook_events`) and sopops
+subscribes to all of them, so most deliveries land in the table and nothing else happens. That is the point: the
+day an event matters, its history is already here instead of starting from the dashboard visit that turns it on.
+The event type is stored as the provider sends it, and an event type it never listed is stored too, with a log line.
 
 **It is idempotent on the message id.** Svix retries, for days, with backoff. The first thing the route does after
 the signature is insert the row; the unique `(provider, message_id)` constraint is what makes a retry a duplicate,
@@ -18,10 +19,11 @@ that isn't JSON, a storage failure, a handler that raises: all answered 200. A 5
 of a delivery whose storage failed because the database is down is a retry storm aimed at a database that is
 already unwell. The cost is that a failure is a log line and, for a handler that raised, a `provider_events` row
 with `acted` false and the reason in `note`, to replay by hand. A missing or wrong signature is answered 401 and
-nothing is written: it isn't from PropelAuth, and the one thing worth refusing is an unsigned caller writing rows.
+nothing is written: it isn't from the provider, and the one thing worth refusing is an unsigned caller writing rows.
 
-An unknown provider answers 404, and a provider with no secret set up answers 503, so a webhook pointed at a
-deployment that was never configured says so rather than silently accepting unsigned traffic.
+A provider this sopops doesn't offer, or one that sends no webhooks, answers 404, and one with no secret set up
+answers 503, so a webhook pointed at a deployment that was never configured says so rather than silently accepting
+unsigned traffic.
 """
 
 from __future__ import annotations
@@ -36,6 +38,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlmodel import Session
 
 from ..auth import webhooks
+from ..auth.providers import LoginProvider
 from ..orm import ProviderEvent
 from ..store import Store
 
@@ -58,11 +61,13 @@ def router(store: Store, actions: webhooks.Actions | None = None) -> APIRouter:
         """A login provider's webhook, signed with the endpoint secret from its dashboard (Svix: `svix-id`,
         `svix-timestamp`, `svix-signature`). Every event is stored; a few end sessions or mark a record stale.
         Answers 2xx for an event nothing acts on, and handles each delivery once."""
-        if provider not in webhooks.PROVIDERS:
-            raise HTTPException(404, f"sopops has no login provider called '{provider}'")
-        endpoint_secret = webhooks.secret(provider)
+        sends = webhooks.sender(provider)
+        if sends is None:
+            raise HTTPException(404, f"this sopops takes no webhooks from a login provider called '{provider}'")
+        endpoint_secret = sends.webhook_secret()
         if not endpoint_secret:
-            raise HTTPException(503, f"no webhook secret is set up for {provider} ({webhooks.SECRET_ENV[provider]})")
+            where = f" ({sends.webhook_secret_env})" if sends.webhook_secret_env else ""
+            raise HTTPException(503, f"no webhook secret is set up for {provider}{where}")
         body = await request.body()
         message_id, timestamp, signature = webhooks.headers(request.headers)
         try:
@@ -71,7 +76,7 @@ def router(store: Store, actions: webhooks.Actions | None = None) -> APIRouter:
             log.warning("rejected a %s webhook: %s", provider, e)
             raise HTTPException(401, str(e)) from None
         assert message_id is not None  # verify refuses a delivery without one
-        return await run_in_threadpool(_receive, store, acts, provider, message_id, body)
+        return await run_in_threadpool(_receive, store, acts, sends, message_id, body)
 
     return r
 
@@ -86,9 +91,10 @@ def _payload(body: bytes) -> dict:
     return got if isinstance(got, dict) else {"_unparsed": body.decode("utf-8", "replace")[:20000]}
 
 
-def _receive(store: Store, acts: webhooks.Actions, provider: str, message_id: str, body: bytes) -> dict:
+def _receive(store: Store, acts: webhooks.Actions, sends: LoginProvider, message_id: str, body: bytes) -> dict:
     """Store the delivery and act on it. Never raises: see the module docstring on why this answers 2xx."""
-    event = webhooks.normalise(provider, message_id[:128], _payload(body))
+    provider = sends.id
+    event = webhooks.normalise(sends, message_id[:128], _payload(body))
     row_id = webhooks.new_id()
     try:
         with Session(store.engine) as db, db.begin():

@@ -1,8 +1,8 @@
 """Every webhook a login provider sends, stored (`provider_events`).
 
-sopops subscribes to all 41 of PropelAuth's events and keeps each delivery: the provider's name, their event type as
-sent, their message id (unique per provider, so a retry is handled once), the whole payload, when it arrived and
-what, if anything, sopops did about it. Rows are append-only.
+sopops subscribes to every event a login provider can send and keeps each delivery: the provider's name, its event
+type as sent, its message id (unique per provider, so a retry is handled once), the whole payload, when it arrived
+and what, if anything, sopops did about it. Rows are append-only.
 
 Revision ID: 0034
 Revises: 0033

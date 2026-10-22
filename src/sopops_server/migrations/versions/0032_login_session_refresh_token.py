@@ -1,7 +1,7 @@
 """The sign-in provider's refresh token on the login session, encrypted (`login_sessions.refresh_ciphertext`).
 
-PropelAuth's logout is its own endpoint and wants the refresh token posted back to it, so signing out of sopops can
-end their session too. Only PropelAuth sets it; every other provider leaves it NULL.
+A login provider that runs its own session may want the refresh token posted back to it to end that session, so
+signing out of sopops can end theirs too. Only such a provider sets it; every other one leaves it NULL.
 
 Revision ID: 0032
 Revises: 0031

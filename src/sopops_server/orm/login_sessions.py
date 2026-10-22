@@ -11,9 +11,11 @@ class LoginSession(SQLModel, table=True):
     """A signed-in browser: the session cookie's random token, stored as a sha256 hash. It slides: each use moves
     `expires_at` out again. Signing out sets `revoked_at`. `org_id` is the org the user is working in.
 
-    `refresh_ciphertext` is the sign-in provider's refresh token, encrypted with SOPOPS_SECRET_KEY, set only when the
-    provider needs it back to end its own session on the way out (PropelAuth). It is a credential: it is excluded
-    from the model, so it can't reach an API response or a `model_dump`, and it is never logged."""
+    `provider` is what signed this session in (`github`, `password`, a plugin's id), so signing out knows whose
+    session to end as well as this one. `refresh_ciphertext` is that provider's refresh token, encrypted with
+    SOPOPS_SECRET_KEY, set only when the provider needs it back to end its own session on the way out
+    (`LoginProvider.end_session`). It is a credential: it is excluded from the model, so it can't reach an API
+    response or a `model_dump`, and it is never logged."""
 
     __tablename__ = "login_sessions"
     __table_args__ = (
@@ -29,4 +31,5 @@ class LoginSession(SQLModel, table=True):
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     last_seen_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    provider: str | None = Field(default=None, max_length=32, description="The login provider that signed this session in.")
     refresh_ciphertext: str | None = Field(default=None, sa_column=Column(Text, nullable=True), exclude=True)

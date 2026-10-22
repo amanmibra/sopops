@@ -8,12 +8,15 @@ it mails a link instead (`sopops_server.auth.email`), so the login and callback 
 
 **Plugins.** A package adds providers by registering them, either from code (`register(MyProvider())`) or through the
 `sopops.login_providers` entry point group, whose entries are loaded when the app starts (`load_plugins`). That's the
-extension point for, say, SAML in a private package; the open core ships GitHub and Google.
+extension point for, say, SAML or a managed sign-in service in a package of its own; the open core ships GitHub,
+Google, email links and passwords. A plugin's provider is an ordinary one and can do more than say who signed in: it
+can own the teams (`owns_teams`), end its own session when somebody signs out (`end_session`) and send webhooks
+(`webhook_events`, read by `sopops_server.auth.webhooks`).
 
 **Which ones a deployment offers.** SOPOPS_LOGIN_PROVIDERS, a comma-separated list of ids, is the deployment's
 allowlist: only the ids it names are offered, however many are configured. Unset, every configured provider is
-offered, which is what sopops has always done and what every self-hosted sopops keeps doing. The hosted sopops sets
-it to `propelauth` and offers that alone. `registered()` and `get()` both apply it, so every caller agrees:
+offered, which is what sopops has always done and what every self-hosted sopops keeps doing. A deployment that
+hands sign-in to one provider names that one. `registered()` and `get()` both apply it, so every caller agrees:
 `mode.required()` counts only allowed providers, `/v1/auth/session` lists only them, and the login and callback
 routes for one left out answer 404. A list that names no configured provider is ignored, with a warning, so a typo
 can't lock everyone out.
@@ -70,9 +73,9 @@ class ProviderInvite:
 class Profile:
     """Who signed in, as the provider says. `email`: a verified address, lowercased, or None.
 
-    `refresh_token` is the provider's own refresh token, for the one provider that needs it back to end its session
-    when someone signs out of sopops (PropelAuth; see `sopops_server.auth.propelauth`). It is a credential: stored
-    encrypted on the login session, never logged and never returned. Every other provider leaves it None.
+    `refresh_token` is the provider's own refresh token, kept for a provider that needs it back to end its own
+    session when someone signs out of sopops (`LoginProvider.end_session`). It is a credential: stored encrypted on
+    the login session, never logged and never returned. A provider that runs no session of its own leaves it None.
 
     `orgs` is the teams the provider owns for this person, and only a provider with `owns_teams` fills it in. It is
     empty for GitHub, Google, email and password, so sopops's own teams, invites and join links work as they always
@@ -95,6 +98,10 @@ class LoginProvider:
     """One way to sign in. Subclasses set `id` and `label` and implement the three methods (a provider that doesn't
     redirect, like `email`, sets `redirects = False` and implements only `configured`). One that's offered only once
     sign-in is on for another reason, like `password`, sets `turns_on_sign_in = False`.
+
+    A provider can also run a session of its own and end it when somebody signs out (`end_session`), and send
+    webhooks (`webhook_events`, `webhook_actions`, `webhook_secret_env`). Both default to nothing, so a provider
+    that only says who signed in implements neither.
 
     **A provider that owns the teams** (`owns_teams = True`) sets `Profile.orgs` on every sign-in and sopops mirrors
     them: its teams are the teams, and nobody joins one from the sopops side. If it can also make them and invite
@@ -155,6 +162,36 @@ class LoginProvider:
         provider's roles over sopops's)."""
         raise ProviderError(CANT_MANAGE)
 
+    # --- a session of the provider's own -------------------------------------------------
+
+    def end_session(self, refresh_token: str) -> bool:
+        """End the session this person has at the provider, because they signed out of sopops. True if it ended.
+
+        Only a provider that runs its own session needs this, and only one that set `Profile.refresh_token` at
+        sign-in gets a token to end it with. Signing out of sopops never fails because of it: the caller revokes
+        the sopops session whatever happens here, so an implementation logs its trouble and returns False rather
+        than raising."""
+        return False
+
+    # --- webhooks ------------------------------------------------------------------------
+    #
+    # A provider that sends webhooks says which it can send and which of them mean something here, and the route
+    # (`sopops_server.api.provider_webhooks`) stores every delivery either way. The values of `webhook_actions` are
+    # sopops's own verbs (`sopops_server.auth.webhooks.END_SESSIONS` and the rest), never the provider's strings.
+
+    webhook_events: tuple[str, ...] = ()
+    webhook_actions: dict[str, str] = {}
+    webhook_secret_env: str = ""
+
+    def sends_webhooks(self) -> bool:
+        """Whether `/v1/auth/webhooks/<id>` is open for this provider at all. False answers 404 there."""
+        return bool(self.webhook_events or self.webhook_secret_env)
+
+    def webhook_secret(self) -> str | None:
+        """The endpoint secret its deliveries are signed with, from the environment. None when none is set up, and
+        then the route answers 503 rather than taking unsigned traffic."""
+        return (os.environ.get(self.webhook_secret_env, "").strip() or None) if self.webhook_secret_env else None
+
     def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
         """Where to send the browser to sign in. It comes back to `redirect_uri` with `code` and `state`."""
         raise NotImplementedError
@@ -175,13 +212,13 @@ def fetch_tokens(endpoint: str, client_id: str, client_secret: str, code: str, r
                  client_auth: str = "post") -> dict:
     """Trade the authorization code (with the PKCE code verifier) for the whole token response. Raises ProviderError.
 
-    Most providers want only `access_token`, and `fetch_token` hands them that. PropelAuth also needs the
-    `refresh_token` the same response carries, because ending its session on the way out means posting that token
-    back to it, so it gets the dict and keeps what it needs.
+    Most providers want only `access_token`, and `fetch_token` hands them that. A provider that ends its own
+    session on the way out needs the `refresh_token` the same response carries, so it gets the whole dict and keeps
+    what it needs.
 
     `client_auth` is how the client proves itself: `post` sends the id and secret in the form (GitHub, Google),
     `basic` sends them as HTTP Basic (`client_secret_basic`), and `none` sends only the id, for a provider whose PKCE
-    flow refuses client authentication (PropelAuth documents this: with PKCE, send no Authorization header)."""
+    flow refuses client authentication, as some do."""
     data = {"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri, "code_verifier": code_verifier,
             "client_id": client_id}
     auth = None
@@ -252,6 +289,12 @@ def allowlist() -> set[str] | None:
         log.warning("%s=%s names no login provider that's set up here (registered: %s); offering all of them instead",
                     ALLOWLIST_ENV, raw, ", ".join(sorted(_registry)) or "none")
     return None
+
+
+def known(id: str) -> LoginProvider | None:
+    """The provider with this id whether or not the deployment offers it. Signing out is the caller: a session
+    started before SOPOPS_LOGIN_PROVIDERS changed still has to be ended with the provider that started it."""
+    return _registry.get(id)
 
 
 def get(id: str) -> LoginProvider | None:

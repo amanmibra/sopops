@@ -4,6 +4,7 @@ authors, the route auth table in both modes, and token and webhook routes workin
 
 import base64
 import json
+import logging
 import re
 import smtplib
 import uuid
@@ -77,8 +78,7 @@ class Google:
 
 def offered(id: str, label: str, redirects: bool = True) -> dict:
     """A provider as /v1/auth/session lists it. `owns_teams` is false for all of these: GitHub, Google, email and
-    password leave teams to sopops, so there's no provider page to send anyone to (`test_propelauth` has the one
-    that does)."""
+    password leave teams to sopops, so there's no provider page to send anyone to."""
     return {"id": id, "label": label, "redirects": redirects, "owns_teams": False, "new_team_url": None}
 
 
@@ -491,6 +491,114 @@ def test_providers_register_and_plugins_can_add_one(app):
         assert c.get("/v1/auth/session").json()["user"]["email"] == "sam@example.com"
     finally:
         providers.unregister("saml")
+
+
+class Plugin(providers.LoginProvider):
+    """A provider a package registered, like one a plugin brings. It runs a session of its own and ends it when
+    somebody signs out of sopops, which is the other half of what a plugin can do beyond saying who signed in."""
+
+    id, label = "acme-sso", "Acme SSO"
+
+    def __init__(self) -> None:
+        self.ended: list[str] = []
+
+    def configured(self) -> bool:
+        return True
+
+    def authorize_url(self, redirect_uri, state, code_verifier):
+        return f"https://idp.example/sso?state={state}"
+
+    def profile(self, code, redirect_uri, code_verifier):
+        return providers.Profile(self.id, "u-7", "kim@example.com", "Kim", refresh_token="their-refresh-token")
+
+    def end_session(self, refresh_token: str) -> bool:
+        self.ended.append(refresh_token)
+        return True
+
+
+@pytest.fixture
+def plugin():
+    """Registered for the test and taken away again, as a package's provider would be by uninstalling it."""
+    p = providers.register(Plugin())
+    yield p
+    providers.unregister(Plugin.id)
+
+
+# --- which providers a deployment offers (SOPOPS_LOGIN_PROVIDERS) -------------------------
+
+
+def test_the_allowlist_offers_what_it_names_and_nothing_else(app, plugin, monkeypatch):
+    c = TestClient(app)
+    assert {p["id"] for p in c.get("/v1/auth/session").json()["providers"]} == {"github", "google", "acme-sso", "password"}
+    monkeypatch.setenv(providers.ALLOWLIST_ENV, "acme-sso")
+    assert [p["id"] for p in c.get("/v1/auth/session").json()["providers"]] == ["acme-sso"]
+
+
+def test_a_provider_left_out_is_closed_at_its_routes_too(app, plugin, monkeypatch):
+    """Off the sign-in page is not enough: the login and callback routes for one left out answer 404."""
+    monkeypatch.setenv(providers.ALLOWLIST_ENV, "acme-sso")
+    c = TestClient(app)
+    assert c.get("/v1/auth/login/github", follow_redirects=False).status_code == 404
+    assert c.get("/v1/auth/login/acme-sso", follow_redirects=False).status_code == 302
+
+
+def test_a_list_naming_nothing_configured_is_ignored_with_a_warning(app, monkeypatch, caplog):
+    """A typo in the list would otherwise leave no way in at all, so it falls back to offering everything."""
+    monkeypatch.setenv(providers.ALLOWLIST_ENV, "githb, saml")
+    with caplog.at_level(logging.WARNING, logger="sopops.auth"):
+        assert {p["id"] for p in TestClient(app).get("/v1/auth/session").json()["providers"]} == {"github", "google", "password"}
+    assert "names no login provider that's set up here" in caplog.text
+
+
+def test_an_id_that_is_registered_but_not_configured_is_skipped(app, monkeypatch):
+    """`email` is registered always and configured only with SMTP: naming it alongside a provider that is set up
+    leaves it out of the list rather than offering a button that can't work."""
+    monkeypatch.setenv(providers.ALLOWLIST_ENV, "github, email")
+    assert [p["id"] for p in TestClient(app).get("/v1/auth/session").json()["providers"]] == ["github"]
+
+
+# --- a provider that runs its own session -------------------------------------------------
+
+
+def test_signing_out_ends_the_providers_own_session_first(app, plugin, monkeypatch):
+    """The provider's refresh token is kept on the login session, encrypted, and spent on the way out: without
+    this, sopops' sign-out leaves their session alive and the next click walks straight back in."""
+    monkeypatch.setenv("SOPOPS_SECRET_KEY", Fernet.generate_key().decode())
+    c = TestClient(app)
+    st = parse_qs(urlparse(c.get("/v1/auth/login/acme-sso", follow_redirects=False).headers["location"]).query)["state"][0]
+    assert c.get("/v1/auth/callback/acme-sso", params={"code": "x", "state": st}, follow_redirects=False).status_code == 303
+    with Session(app.state.store.engine) as db:
+        s = db.exec(select(LoginSession)).one()
+        assert s.provider == "acme-sso" and s.refresh_ciphertext and "their-refresh-token" not in s.refresh_ciphertext
+    c.headers[access.CSRF_HEADER] = c.cookies.get(access.CSRF_COOKIE)
+    assert c.post("/v1/auth/logout").status_code == 204
+    assert plugin.ended == ["their-refresh-token"]
+    with Session(app.state.store.engine) as db:
+        s = db.exec(select(LoginSession)).one()
+        assert s.revoked_at is not None and s.refresh_ciphertext is None
+
+
+def test_a_provider_that_raises_on_the_way_out_still_signs_somebody_out(app, plugin, monkeypatch, caplog):
+    """A provider is somebody else's code. It must not be able to keep anybody signed in here."""
+    monkeypatch.setenv("SOPOPS_SECRET_KEY", Fernet.generate_key().decode())
+    monkeypatch.setattr(plugin, "end_session", lambda token: (_ for _ in ()).throw(RuntimeError("their server is down")))
+    c = TestClient(app)
+    st = parse_qs(urlparse(c.get("/v1/auth/login/acme-sso", follow_redirects=False).headers["location"]).query)["state"][0]
+    c.get("/v1/auth/callback/acme-sso", params={"code": "x", "state": st}, follow_redirects=False)
+    c.headers[access.CSRF_HEADER] = c.cookies.get(access.CSRF_COOKIE)
+    with caplog.at_level(logging.ERROR, logger="sopops.auth"):
+        assert c.post("/v1/auth/logout").status_code == 204
+    with Session(app.state.store.engine) as db:
+        assert db.exec(select(LoginSession)).one().revoked_at is not None
+
+
+def test_a_session_from_a_provider_that_runs_none_keeps_nothing(app):
+    """GitHub has no session of sopops' to end, so nothing is stored to end it with."""
+    c = TestClient(app)
+    sign_in(c, "github", "1", "ana@example.com")
+    with Session(app.state.store.engine) as db:
+        s = db.exec(select(LoginSession)).one()
+        assert (s.provider, s.refresh_ciphertext) == ("github", None)
 
 
 # --- token and webhook routes, with sign-in on --------------------------------------------

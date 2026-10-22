@@ -1,26 +1,35 @@
 # Sign in
 
-With no login provider set up, there's no sign-in, which suits local use and demos. Set up GitHub, Google, PropelAuth or email, or set `SOPOPS_AUTH_REQUIRED=true` for passwords alone, and the UI and API need sign-in. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
+sopops ships four ways to sign in, and runs with none of them until one is set up, which suits local use and demos.
+
+| Way | Set | Notes |
+|---|---|---|
+| Password | `SOPOPS_AUTH_REQUIRED=true` | Works with no email set up. |
+| Email sign-in link | `SOPOPS_SMTP_*` | A link that works once, for 15 minutes. |
+| GitHub | `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | OAuth with `state` and PKCE. |
+| Google | `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | OAuth with `state` and PKCE. |
+
+Set up GitHub, Google or email and sign-in is on. Passwords are offered whenever it is on, so `SOPOPS_AUTH_REQUIRED=true` alone is a sopops people sign in to with passwords and nothing else. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
 
 ## Turn on sign-in with passwords
 
-Set `SOPOPS_AUTH_REQUIRED=true` and restart. No email setup needed, and passwords work whenever sign-in is on.
+Set `SOPOPS_AUTH_REQUIRED=true` and restart. The first person then sets up their name, email, password and team name, and owns the team and its workspace.
 
-On a fresh install, the first person sets up their name, sign-in email, password and team name, and owns the team and its workspace. The rest (a join link, the team's platforms, agents, the first release, calls) can wait; the home page keeps a "Get set up" list.
+| | |
+|---|---|
+| Passwords | 10 to 256 characters, not the email, stored as argon2id hashes |
+| A wrong password | The same message as an unknown address |
+| Tries | 10 per address and 30 per client IP per 15 minutes |
 
-Passwords are 10 to 256 characters, not the email, stored as argon2id hashes. A wrong password and an unknown address get the same message.
+The rest (a join link, the team's platforms, agents, the first release, calls) can wait; the home page keeps a "Get set up" list.
 
 ## Add people
 
 | Way | How |
 |---|---|
-| Join link | Settings → Members → Share a join link. |
-| Invite | An owner or admin adds emails in Settings → Members, as Admin or Member. |
+| Join link | Settings, Members, Share a join link. |
+| Invite | An owner or admin adds emails in Settings, Members, as Admin or Member. |
 | Email domain | If the team allows their domain, they just sign in. |
-
-The sign-in page sends people without an account to their team for a join link.
-
-Invites:
 
 - Existing accounts join right away. Others open the link and set a password, or sign in with that email another way.
 - With SMTP, sopops emails the link. You can always copy it.
@@ -30,7 +39,7 @@ Invites:
 
 ## Teams and roles
 
-Each team has one workspace. Make or switch teams from the account menu. Only verified emails count, and one verified email is one person across GitHub, Google and email links.
+Each team has one workspace, and you make or switch teams from the account menu.
 
 | Role | Can |
 |---|---|
@@ -38,23 +47,23 @@ Each team has one workspace. Make or switch teams from the account menu. Only ve
 | Admin | Add and remove people, change roles, set email domains |
 | Member | Everything else |
 
-Nobody can remove or demote the last owner.
+Only verified emails count, and one verified email is one person across every provider. Nobody can remove or demote the last owner.
 
 ## Reset a password
 
-An owner or admin clicks "Reset password" on a row in Settings → Members and sends the link; admins can't reset owners. If the only owner is locked out, run on the server:
+An owner or admin clicks "Reset password" on a row in Settings, Members, and sends the link; admins can't reset owners. If the only owner is locked out, run on the server:
 
 ```sh
 sopops reset-password ana@example.com   # add --url https://sopops.example.com without SOPOPS_PUBLIC_URL
 ```
 
 - With email set up, "Forgot password?" sends the link.
-- Change your own under your avatar → Change password.
+- Change your own under your avatar, Change password.
 - Setting or changing a password signs that person out everywhere else.
 
 ## Open sign-up to anyone
 
-`SOPOPS_OPEN_SIGNUP=true` (with sign-in on) lets anyone sign up at `/sign-up` and own a new team, with the same setup plus how sopops builds instructions.
+`SOPOPS_OPEN_SIGNUP=true`, with sign-in on, lets anyone sign up at `/sign-up` and own a new team.
 
 - Existing addresses are told to sign in.
 - Addresses with an open invite, or at a team's member domain, are turned away.
@@ -64,95 +73,114 @@ sopops reset-password ana@example.com   # add --url https://sopops.example.com w
 
 ## Sign in with email
 
-Set the `SOPOPS_SMTP_*` variables ([Configuration](configuration.md#sign-in-and-email)). The sign-in page then offers "Email me a sign-in link instead" and "Forgot password?". Add `SOPOPS_ALLOWED_EMAIL_DOMAINS` to let people at those domains make accounts through an emailed set-password link.
+Set the `SOPOPS_SMTP_*` variables ([Configuration](configuration.md#sign-in-and-email)). The sign-in page then offers "Email me a sign-in link instead" and "Forgot password?".
 
-- The code sits after `#`, which browsers never send to the server, and the page needs one click, so mail scanners that open links can't use one up.
+- The token sits after `#`, which browsers never send to the server, and the page needs one click, so mail scanners that open links can't use one up.
 - The page always says "If that address can sign in, we sent a link".
+- `SOPOPS_ALLOWED_EMAIL_DOMAINS` lets people at those domains make accounts through an emailed set-password link.
 - `SOPOPS_EMAIL_DEV=1` turns on email sign-in with no SMTP, for demos. Links go to the server log at INFO, marked `[SOPOPS_EMAIL_DEV]`.
 
 > **Warning:** Never use `SOPOPS_EMAIL_DEV` on a reachable server. Anyone who reads the log can sign in as anyone.
 
 ## Sign in with GitHub
 
-Create an OAuth app under GitHub → Settings (yours or an organization's) → Developer settings → OAuth Apps.
+Create an OAuth app under GitHub, Settings (yours or an organization's), Developer settings, OAuth Apps.
 
 - Homepage URL: e.g. `https://sopops.example.com`
 - Callback URL: `https://sopops.example.com/v1/auth/callback/github` (locally `http://127.0.0.1:8484/v1/auth/callback/github`)
 - Make a client secret, then set `SOPOPS_GITHUB_OAUTH_CLIENT_ID` and `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET`.
 - A GitHub App's client id and secret also work. Add the callback URL to its "Callback URL" list.
 
-Scopes are `read:user` and `user:email`. sopops uses the primary email only if GitHub verified it. For GitHub Enterprise Server, also set `SOPOPS_GITHUB_URL` and `SOPOPS_GITHUB_API_URL` ([Configuration](configuration.md)).
+Scopes are `read:user` and `user:email`, and sopops uses the primary email only if GitHub verified it. For GitHub Enterprise Server, also set `SOPOPS_GITHUB_URL` and `SOPOPS_GITHUB_API_URL` ([Configuration](configuration.md)).
 
 ## Sign in with Google
 
-1. Google Cloud → APIs & Services → OAuth consent screen, with `openid`, `email` and `profile` scopes.
-2. Credentials → Create credentials → OAuth client ID → Web application.
+1. Google Cloud, APIs & Services, OAuth consent screen, with `openid`, `email` and `profile` scopes.
+2. Credentials, Create credentials, OAuth client ID, Web application.
 3. Redirect URI: `https://sopops.example.com/v1/auth/callback/google` (locally `http://127.0.0.1:8484/v1/auth/callback/google`).
 4. Set `SOPOPS_GOOGLE_CLIENT_ID` and `SOPOPS_GOOGLE_CLIENT_SECRET`.
 
 Only addresses Google marks `email_verified` count.
 
-## Sign in with PropelAuth
+## Choose which ones appear
 
-For a sopops that hands sign-in to a managed service instead of running its own. Self-hosting needs none of it.
-
-1. In PropelAuth, make a project and note its auth URL (`https://xxxx.propelauthtest.com` while testing, your own domain in production).
-2. Add `https://sopops.example.com/v1/auth/callback/propelauth` as a redirect URI.
-3. OAuth Config → copy the client id and secret.
-4. Set `SOPOPS_PROPELAUTH_URL`, `SOPOPS_PROPELAUTH_CLIENT_ID` and `SOPOPS_PROPELAUTH_CLIENT_SECRET`, then restart.
-
-- Only addresses PropelAuth marks `email_verified` count.
-- The identity is keyed on PropelAuth's `user_id`, which survives an address change, so nobody gets a second account.
-- **PropelAuth's organizations are the teams.** Every sign-in mirrors the ones its userinfo reports: each becomes a sopops team with its own workspace, and the person joins it with the role PropelAuth gave them (Owner, Admin and Member map one for one; a role sopops doesn't know becomes `member`). Teams are matched on PropelAuth's org id, so renaming one there renames it here instead of making a second, and dropping somebody from one there drops them here on their next sign-in. A team made in sopops is left alone: never renamed, never deleted, and never taken away from anyone, because PropelAuth was never asked about it. Their API keys still go unused; workspaces and tokens stay sopops'.
-- **Nobody is asked for a join link.** With PropelAuth the only way in, somebody with no team is sent to their hosted create-organization page, `{AUTH_URL}/create_org`, which brings them back here signed in and in their new team. sopops's own invites and join links stay as they are for every other provider.
-- Signing out ends the PropelAuth session too. Their logout isn't OAuth2's: sopops posts the sign-in's refresh token to `{AUTH_URL}/api/backend/v1/logout`, which needs no backend API key. The refresh token is kept on the login session, encrypted with `SOPOPS_SECRET_KEY`, and spent on the way out. Set that key if you set PropelAuth up: without it the token isn't stored, and sign-out ends only the sopops session, so the next click on "Sign in" walks straight back in with no prompt. PropelAuth being unreachable never blocks a sign-out; it's logged and the sopops session ends anyway.
-- A session that **ends without a sign-out** leaves PropelAuth's alone: the 30-day sliding expiry running out, a password change ending the user's other sessions, or support access being turned off. sopops stops taking the cookie, so they have to sign in again, and PropelAuth may wave them through without asking.
-
-## Choose what's offered
-
-`SOPOPS_LOGIN_PROVIDERS`, a comma-separated list of provider ids, is the only ways to sign in this sopops offers.
+`SOPOPS_LOGIN_PROVIDERS` is a comma-separated list of provider ids, and the only ways in this sopops then offers.
 
 ```sh
-SOPOPS_LOGIN_PROVIDERS=propelauth   # PropelAuth alone, whatever else is set up
+SOPOPS_LOGIN_PROVIDERS=github,password   # these two, whatever else is set up
 ```
 
 | | |
 |---|---|
-| Ids | `github`, `google`, `email`, `password`, `propelauth`, and any a plugin registers |
-| Unset | Every provider that's set up is offered. The default, and what self-hosting does. |
-| An id that isn't set up | Skipped, the same as today. |
+| Ids | `github`, `google`, `email`, `password`, and any a plugin registers |
+| Unset | Every provider that's set up is offered. The default. |
+| An id that isn't set up | Skipped, as it is when the list is unset. |
 | A list that names nothing set up | Ignored whole, with a warning in the log, so a typo can't lock everyone out. |
 
 A provider the list leaves out is gone everywhere: off the sign-in page, and `/v1/auth/login/<id>` answers 404.
 
-## Move a deployment to PropelAuth
+## Add your own provider
 
-Existing accounts need no import: sopops links a new provider to the account with the same verified email, so people land on the account they already have, with its teams and roles ([`Accounts.sign_in`](../src/sopops_server/auth/service.py)).
+A package registers a provider through the `sopops.login_providers` entry point, and sopops loads that group at startup. Nothing in sopops names it, and nothing in sopops changes.
 
-1. Make each person a PropelAuth user with the address their sopops account uses.
-2. Set the three variables above and `SOPOPS_LOGIN_PROVIDERS=propelauth`.
-3. Everyone signs in once through PropelAuth, which adds a `propelauth` identity to their existing user.
+```python
+# acme_sso/__init__.py
+import os
 
-| | |
-|---|---|
-| The match | PropelAuth's address, lowercased, against the account's. A different address makes a second account. |
-| Verified only | Without `email_verified`, sign-in is refused and nothing is linked. |
-| Passwords | Still stored, no longer offered. Drop `propelauth` from the list to get them back. |
+from sopops_server.auth.providers import (LoginProvider, Profile, ProviderError, authorization_url, fetch_token,
+                                          get_json)
 
-To create the PropelAuth users from sopops' own instead of inviting them, post each to their backend API:
+BASE = "https://sso.acme.example"
 
-```sh
-curl -X POST https://auth.sopops.dev/api/backend/v1/migrate_user/ \
-  -H "Authorization: Bearer $PROPELAUTH_API_KEY" -H "Content-Type: application/json" \
-  -d '{"email": "ana@example.com", "email_confirmed": true, "existing_user_id": "<the sopops user id>"}'
+
+class AcmeSSO(LoginProvider):
+    id = "acme-sso"       # the id in /v1/auth/login/acme-sso and /v1/auth/callback/acme-sso
+    label = "Acme SSO"    # what the button says
+
+    def configured(self) -> bool:
+        """Whether this deployment has what the provider needs. False keeps it off the sign-in page."""
+        return bool(os.environ.get("ACME_CLIENT_ID") and os.environ.get("ACME_CLIENT_SECRET"))
+
+    def authorize_url(self, redirect_uri: str, state: str, code_verifier: str) -> str:
+        """Where the browser goes. `authorization_url` adds `state` and a PKCE S256 challenge."""
+        return authorization_url(f"{BASE}/oauth/authorize", os.environ["ACME_CLIENT_ID"], "openid email profile",
+                                 redirect_uri, state, code_verifier)
+
+    def profile(self, code: str, redirect_uri: str, code_verifier: str) -> Profile:
+        """The code, traded for who signed in. Raise ProviderError and the person reads its message."""
+        token = fetch_token(f"{BASE}/oauth/token", os.environ["ACME_CLIENT_ID"], os.environ["ACME_CLIENT_SECRET"],
+                            code, redirect_uri, code_verifier, self.label)
+        u = get_json(f"{BASE}/oauth/userinfo", token, self.label)
+        if not u.get("email_verified"):
+            raise ProviderError(f"{self.label} hasn't verified that address")
+        # provider_user_id is the id that survives somebody changing their address.
+        return Profile(provider=self.id, provider_user_id=str(u["sub"]), email=u["email"].strip().lower(),
+                       name=u.get("name", ""), avatar_url=u.get("picture"))
 ```
 
-`existing_password_hash` carries an argon2id hash over, so a password keeps working on their side.
+```toml
+# pyproject.toml
+[project.entry-points."sopops.login_providers"]
+acme-sso = "acme_sso:AcmeSSO"
+```
+
+Install the package next to sopops and restart. The button appears once `configured()` is true, and `SOPOPS_LOGIN_PROVIDERS=acme-sso` makes it the only way in. A provider that mails a link instead of redirecting sets `redirects = False` and implements `configured` alone, as `email` does.
+
+A provider can bring more than a name and an address:
+
+| Also | Set | What sopops does with it |
+|---|---|---|
+| Its own teams | `owns_teams = True`, and fill `Profile.orgs` | Mirrors them on every sign-in. Its team ids match `orgs.external_id`, its roles map onto owner, admin and member, and a team made in sopops is never renamed, deleted or taken away on its say-so. |
+| Making teams and invites | `manages_teams()`, `create_team`, `invite_to_team`, `team_invites`, `revoke_team_invite`, `set_team_role` | sopops' own screens name a team and invite a colleague, through the provider's API. Without them, `new_team_url` sends people to the provider's own page. |
+| Its own sign-out | `end_session(refresh_token)`, and fill `Profile.refresh_token` | Keeps that token encrypted on the login session (`SOPOPS_SECRET_KEY`) and spends it on sign-out, so the next click asks who they are. Signing out never fails because of it. |
+| Its own webhooks | `webhook_events`, `webhook_actions`, `webhook_secret_env` | Takes Svix-signed deliveries at `POST /v1/auth/webhooks/<id>`, stores every one, and ends that person's sessions here when the provider says they can't sign in there any more. |
+
+PropelAuth is one such provider, in a package of its own outside this repo.
 
 ## Run behind a proxy
 
 - Set `SOPOPS_PUBLIC_URL` (e.g. `https://sopops.example.com`) so callback, sign-in and invite links match what you registered.
-- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client email limit counts each real client, so the proxy's own address doesn't use up the limit.
+- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client email limit counts each real client.
 
 ## How long links last
 
@@ -168,12 +196,8 @@ Every link below is a random token, stored hashed.
 
 ## Security
 
-- GitHub, Google and PropelAuth use OAuth with `state` and PKCE.
+- Every provider that redirects uses OAuth with `state` and PKCE.
 - Sessions are random tokens in an HttpOnly, SameSite=Lax cookie, stored hashed.
 - Cookie requests that change something send `X-CSRF-Token`, the `sopops_csrf` cookie's value. Other sites can't read it. The web UI does this.
-- With sign-in on, fetching instructions needs the workspace's runtime token or a signed-in person, even with no token yet. Make one in Settings → Access.
+- With sign-in on, fetching instructions needs the workspace's runtime token or a signed-in person, even with no token yet. Make one in Settings, Access.
 - Every route's rule is in [`src/sopops_server/auth/access.py`](../src/sopops_server/auth/access.py).
-
-## Add a login provider
-
-Providers register into `sopops.auth.providers`. A package can add one (SAML, say) through the `sopops.login_providers` entry point group. One that replaces passwords can call `providers.unregister("password")`, or the deployment can leave `password` out of `SOPOPS_LOGIN_PROVIDERS`.

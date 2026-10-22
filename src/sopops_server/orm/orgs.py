@@ -13,7 +13,7 @@ class Org(SQLModel, table=True):
     uses (`livekit`, `elevenlabs`, `vapi`, `other`), so the app shows only those; None until someone picks, which shows
     them all.
 
-    `external_id`: the team this one mirrors at a login provider that owns the teams (PropelAuth), as
+    `external_id`: the team this one mirrors at a login provider that owns the teams, as
     `<provider>:<their org id>`, so two providers can't collide. NULL for every team made here, and that is
     what keeps such a team safe: mirroring only ever touches rows that carry one."""
 

@@ -59,7 +59,7 @@ export function Card({ title, children }: { title: ReactNode; children: ReactNod
 
 const PROVIDER_ICON: Record<string, ReactNode> = { github: <GitHubIcon size={18} />, google: <GoogleIcon size={18} /> };
 
-/** A provider with no brand mark of its own (PropelAuth, a plugin's SSO) gets a key, so every button looks alike. */
+/** A provider with no brand mark of its own (a plugin's SSO, say) gets a key, so every button looks alike. */
 const providerIcon = (id: string): ReactNode => PROVIDER_ICON[id] ?? <KeyRound className="size-[18px]" />;
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));

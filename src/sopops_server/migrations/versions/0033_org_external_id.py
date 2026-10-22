@@ -1,6 +1,6 @@
 """The team a login provider owns, mirrored here (`orgs.external_id`).
 
-A provider that owns the teams (PropelAuth) reports them on every sign-in, and sopops matches them on the provider's
+A provider that owns the teams reports them on every sign-in, and sopops matches them on the provider's
 own org id, kept as `<provider>:<their org id>` so two providers can't collide. Every team made in sopops keeps it
 NULL, which is what marks it as sopops's own: mirroring never renames, deletes or un-joins one of those.
 
