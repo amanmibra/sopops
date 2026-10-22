@@ -7,7 +7,8 @@ pip install "sopops[livekit]"     # or plain sopops without the LiveKit adapter
 pip install "sopops[mcp]"         # sopops-mcp, the onboarding MCP server for Claude Code or Codex
 ```
 
-It's not on PyPI yet; install from a clone with `pip install "./sdks/python[livekit]"`. The server is a separate package, `sopops-server`.
+Both come from PyPI. To work on the client itself, install a clone instead: `pip install "./sdks/python[livekit]"`.
+The server is a separate package, `sopops-server`.
 
 ## LiveKit
 

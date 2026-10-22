@@ -84,6 +84,11 @@ Your coding agent finds the instructions wherever they live, splits them into bl
 
 ## Connect your agent
 
+```sh
+pip install "sopops[livekit]"    # Python
+npm install sopops               # TypeScript
+```
+
 | Platform | Instructions | Calls back to sopops |
 |---|---|---|
 | **LiveKit** | `attach()` in the Python SDK | `attach()`, with tool calls. Or no code: a LiveKit Cloud webhook. |

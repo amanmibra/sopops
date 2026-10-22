@@ -30,7 +30,7 @@ If your agents' prompts live in a repo, the **Import agents** page gives you one
 
 ## Connect your calls
 
-Each call has to come back to sopops to be checked. On LiveKit that's a few lines of code; ElevenLabs and Vapi send calls by webhook, with no code. See [Connect your agent](connect.md).
+Install the client (`pip install "sopops[livekit]"`, or `npm install sopops`), then point your agent at your workspace. Each call has to come back to sopops to be checked. On LiveKit that's a few lines of code; ElevenLabs and Vapi send calls by webhook, with no code. See [Connect your agent](connect.md).
 
 ## See it work first
 

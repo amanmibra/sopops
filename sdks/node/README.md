@@ -2,7 +2,11 @@
 
 The TypeScript client for [sopops](../../README.md): fetch an agent's instructions when a call starts, and send each finished session back. ESM with types, no runtime dependencies; Node 18+, browsers and edge runtimes (it only needs `fetch`).
 
-It's not on npm yet; build it from a clone (`pnpm -C sdks/node install && pnpm -C sdks/node build`) and install the folder.
+```sh
+npm install sopops        # pnpm add sopops, yarn add sopops, bun add sopops
+```
+
+To work on the client itself, build a clone instead: `pnpm -C sdks/node install && pnpm -C sdks/node build`.
 
 ## ElevenLabs
 

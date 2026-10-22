@@ -2,6 +2,17 @@
 
 Agents get their instructions from sopops and send their sessions back. Paths below start with `/v1/workspaces/{ws}`, where `{ws}` is the workspace id.
 
+## Install the client
+
+```sh
+pip install "sopops[livekit]"    # Python, or plain sopops without the LiveKit adapter
+npm install sopops               # TypeScript: pnpm add sopops, yarn add sopops, bun add sopops
+```
+
+Both read `SOPOPS_URL` (the workspace's API URL, `https://app.sopops.dev/v1/workspaces/<id>`) and `SOPOPS_TOKEN`
+(Settings → Tokens: `runtime` to fetch instructions, `ingest` to send sessions). Neither is needed to read this
+page's REST calls, which work with `curl`.
+
 ## How sopops knows which agent
 
 Each agent has two names. Its **sopc id** is the readable one in sopops's URLs (`copper-wok-harbor`). Its
