@@ -118,3 +118,33 @@ def test_ab_test_guide():
 def test_help(capsys):
     main(["--help"])
     assert "install-skill" in capsys.readouterr().out
+
+
+@respx.mock
+def test_sops_can_be_read_and_saved_long_after_onboarding():
+    """With a config token and SOPOPS_WORKSPACE, a coding agent keeps the SOPs up to date. Saves are drafts."""
+    env = {"SOPOPS_URL": URL, "SOPOPS_TOKEN": "sopops_cfg", "SOPOPS_WORKSPACE": "prod"}
+    ws = f"{URL}/v1/workspaces/prod/config"
+    respx.get(ws).mock(return_value=httpx.Response(200, json={
+        "agents": [{"id": "tonys-pizza", "version": 2, "platform": "livekit", "blocks": ["take-out"], "context": "…"}],
+        "instructions": [], "groups": [],
+        "procedures": [{"id": "take-out", "name": "Take-out order", "version": 3, "used_by": [{"agent": "tonys-pizza", "via": None}], "steps": []}],
+    }))
+    got = call(make_server(env), "list_sops")
+    assert [p["name"] for p in got["procedures"]] == ["Take-out order"]
+    assert "context" not in got["agents"][0]  # a summary, not every field
+
+    respx.get(f"{ws}/procedures/take-out").mock(return_value=httpx.Response(200, json={"id": "take-out", "name": "Take-out order", "goal": "old"}))
+    saved = respx.put(f"{ws}/procedures/take-out").mock(return_value=httpx.Response(200, json={"id": "take-out", "version": 4}))
+    one = call(make_server(env), "get_sop", kind="procedures", id="take-out")
+    call(make_server(env), "save_sop", kind="procedures", id="take-out", fields={**one, "goal": "Read the order back."}, note="from the repo")
+    body = json.loads(saved.calls.last.request.content)
+    assert (body["goal"], body["id"], body["note"]) == ("Read the order back.", "take-out", "from the repo")
+    assert saved.calls.last.request.headers["authorization"] == "Bearer sopops_cfg"
+
+
+@respx.mock
+def test_editing_sops_needs_a_workspace():
+    respx.get(f"{URL}/v1/onboarding/session").mock(return_value=httpx.Response(401, json={"detail": "invalid token"}))
+    with pytest.raises(ToolError, match="SOPOPS_WORKSPACE"):
+        asyncio.run(make_server({"SOPOPS_URL": URL, "SOPOPS_TOKEN": "t"}).call_tool("list_sops", {})).raise_on_error()

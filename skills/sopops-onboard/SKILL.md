@@ -71,6 +71,19 @@ Past about ten agents, or with long instructions, work in batches of five to ten
 
 A push carries every agent's original text, so a large one takes a while; the client waits two minutes. If it times out, don't split the push. Cut what isn't needed (drop agents you haven't finished, push those in a later run) and try again.
 
+## Changing SOPs later
+
+Onboarding runs once. After it, the same MCP server keeps a workspace's SOPs up to date from the repo, with a
+workspace token that has the `config` scope (sopops Settings → Tokens) and `SOPOPS_WORKSPACE` set to the workspace id:
+
+1. `list_sops` for what exists now: agents, shared instructions, procedures and groups, with who uses each one.
+2. `get_sop(kind, id)` for the item you mean to change, then `save_sop(kind, id, fields)` with the whole item, not a
+   patch. sopc checks every save, so one that wouldn't compile comes back with its issues.
+3. `preview_agent(agent)` to see an agent's full instructions at head against what its calls run today.
+
+Every save is a draft. Nothing reaches a call until someone publishes a release in sopops, so end by telling the
+person what changed and that it's waiting in Changes.
+
 Finish with a short summary: agents found (and where), blocks extracted, drift found, and each agent's fidelity score. Then offer to set up an A/B test of the agents' models, voices or instructions; if the user wants one, call `get_ab_test_guide` and follow it.
 
 Never change, deploy or delete anything on a platform or in a database, and never print or copy keys or the token.

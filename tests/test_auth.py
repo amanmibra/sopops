@@ -407,7 +407,14 @@ EXPECTED = {
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check",
                    "onboarding_kickoff", "onboarding_guide", "onboarding_extraction", "onboarding_project"},
-    access.TOKEN_OR_SESSION: {"get_agent", "get_prompt", "get_sop"},
+    access.TOKEN_OR_SESSION: {"get_agent", "get_prompt", "get_sop", "get_config", "config_list_agents", "config_create_agent", "config_get_agent",
+                              "config_put_agent", "config_delete_agent", "config_agent_history", "config_agent_version", "config_list_instructions",
+                              "config_create_instruction", "config_get_instruction", "config_put_instruction", "config_delete_instruction",
+                              "config_instruction_history", "config_instruction_version", "config_list_procedures", "config_create_procedure",
+                              "config_get_procedure", "config_put_procedure", "config_delete_procedure", "config_procedure_history",
+                              "config_procedure_version", "config_list_groups", "config_create_group", "config_get_group", "config_put_group",
+                              "config_delete_group", "config_group_history", "config_group_version", "add_block", "remove_block", "preview_agent",
+                              "get_settings", "put_settings", "settings_history", "settings_version"},
     access.WEBHOOK: {"github_webhook", "livekit_webhook", "elevenlabs_post_call", "elevenlabs_conversation_init", "vapi_assistant_request"},
     access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
                    "create_password_link", "github_app_manifest", "github_app_manifest_callback", "set_up_org", "get_join_link", "create_join_link",
@@ -1166,3 +1173,25 @@ def test_the_password_migration_goes_down_and_up(tmp_path):
     upgrade(engine)
     with engine.connect() as conn:
         assert "password_hash" in [c[1] for c in conn.execute(text("PRAGMA table_info(identities)"))]
+
+
+def test_a_config_token_edits_the_forms_but_cannot_publish(owner, app, files):
+    """A coding agent keeps a workspace's SOPs up to date with a `config` token: it reads and saves drafts, and
+    publishing stays with people."""
+    config = owner.post(f"{WS}/tokens", json={"scopes": ["config"]}).json()["token"]
+    ingest = owner.post(f"{WS}/tokens", json={"scopes": ["ingest"]}).json()["token"]
+    agentside = TestClient(app)  # no cookie, no CSRF token
+    auth = {"Authorization": f"Bearer {config}"}
+
+    got = agentside.get(f"{WS}/config/procedures", headers=auth)
+    assert got.status_code == 200
+    one = got.json()[0]
+    edited = {**one, "goal": "Confirm the order before closing."}
+    assert agentside.put(f"{WS}/config/procedures/{one['id']}", json=edited, headers=auth).status_code == 200
+    assert agentside.get(f"{WS}/config/procedures/{one['id']}", headers=auth).json()["goal"] == "Confirm the order before closing."
+
+    # the draft reached head, and nothing was published
+    assert agentside.put(f"{WS}/config/procedures/{one['id']}", json=edited).status_code == 401       # no token
+    assert agentside.put(f"{WS}/config/procedures/{one['id']}", json=edited,
+                         headers={"Authorization": f"Bearer {ingest}"}).status_code == 403            # wrong scope
+    assert agentside.post(f"{WS}/releases", headers=auth).status_code == 401                          # can't publish

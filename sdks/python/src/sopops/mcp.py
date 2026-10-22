@@ -24,6 +24,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any, Callable, TypeVar
+from urllib.parse import quote
 
 import httpx
 from mcp.server.mcpserver import Context, MCPServer
@@ -32,8 +33,14 @@ from mcp.types import CallToolResult, InputRequiredResult
 
 from . import platforms
 
-INSTRUCTIONS = """Onboard voice agents into sopops. Start with get_kickoff and follow it. Only read from the user's systems and platforms;
-never change, deploy or delete anything there. Report progress with report_progress as you go."""
+INSTRUCTIONS = """Onboard voice agents into sopops, and keep their SOPs up to date afterwards.
+
+Onboarding: start with get_kickoff and follow it. Only read from the user's systems and platforms; never change,
+deploy or delete anything there. Report progress with report_progress as you go.
+
+Later, to change what agents are told: list_sops, get_sop, save_sop and preview_agent (a `config` token and
+SOPOPS_WORKSPACE, or an onboarding token). Every save is a draft. Nothing reaches a call until someone publishes a
+release in sopops, so say that when you report back."""
 NOT_CONNECTED = "Not connected to sopops: set SOPOPS_URL and SOPOPS_TOKEN (create a token on the Import agents page)."
 ONBOARD_SKILL, AB_SKILL = "sopops-onboard", "sopops-ab-tests"
 SKILLS = (ONBOARD_SKILL, AB_SKILL)
@@ -194,6 +201,64 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
         session = sopops.call("GET", "/v1/onboarding/session")
         out["review"] = f"{sopops.url}/w/{session['workspace']}/import/{session['import_id']}"
         return out
+
+    # --- keeping SOPs up to date, any time after onboarding -------------------------------------------------
+    # These need a workspace token with the `config` scope (sopops Settings → Access) and SOPOPS_WORKSPACE, or an
+    # onboarding token, which knows its own workspace. Saves are drafts: publishing stays with a person in sopops.
+
+    KINDS = ("agents", "instructions", "procedures", "groups")
+
+    def workspace() -> str:
+        ws = (env.get("SOPOPS_WORKSPACE") or "").strip()
+        if ws:
+            return ws
+        try:
+            return str(sopops.call("GET", "/v1/onboarding/session")["workspace"])
+        except RuntimeError:
+            raise RuntimeError("set SOPOPS_WORKSPACE to the workspace id (the /w/<id>/ part of its URL)") from None
+
+    def kind_path(kind: str, item_id: str | None = None) -> str:
+        if kind not in KINDS:
+            raise ValueError(f"kind must be one of {', '.join(KINDS)}")
+        tail = f"/{quote(item_id, safe='')}" if item_id else ""
+        return f"/v1/workspaces/{quote(workspace(), safe='')}/config/{kind}{tail}"
+
+    @server.tool()
+    @_explained
+    def list_sops() -> dict[str, Any]:
+        """Everything this workspace tells its agents right now: agents, shared instructions, procedures and groups,
+        each with its id, name and version, and who uses it. Start here before changing anything."""
+        got: dict[str, Any] = sopops.call("GET", f"/v1/workspaces/{quote(workspace(), safe='')}/config")
+        def brief(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            keep = ("id", "name", "version", "used_by", "platform", "blocks")
+            return [{k: v for k, v in it.items() if k in keep} for it in items]
+        return {k: brief(got.get(k, [])) for k in KINDS}
+
+    @server.tool()
+    @_explained
+    def get_sop(kind: str, id: str) -> dict[str, Any]:
+        """One item in full, as its fields. `kind` is agents, instructions, procedures or groups."""
+        return dict(sopops.call("GET", kind_path(kind, id)))
+
+    @server.tool()
+    @_explained
+    def save_sop(kind: str, id: str, fields: dict[str, Any], note: str | None = None) -> dict[str, Any]:
+        """Save an item as a draft, creating it if it's new. Send the whole item, not a patch: read it with
+        `get_sop` first, change what you mean to, and send that back. sopc checks it, so a save that wouldn't
+        compile is refused with its issues.
+
+        Nothing reaches a call until someone publishes a release in sopops; say so when you report back."""
+        body = {**fields, "id": id}
+        if note:
+            body["note"] = note[:500]
+        return dict(sopops.call("PUT", kind_path(kind, id), body))
+
+    @server.tool()
+    @_explained
+    def preview_agent(agent: str) -> dict[str, Any]:
+        """What one agent's full instructions look like at head, against what its calls run today: the compiled
+        prompt, the blocks it's built from, and the live release's text. Saves nothing."""
+        return dict(sopops.call("POST", f"{kind_path('agents', agent)}/preview", {}))
 
     @server.tool()
     @_explained

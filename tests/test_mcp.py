@@ -17,7 +17,8 @@ from test_onboarding import FIXTURES, sources
 from sopops_server.onboarding.pipeline import extract
 from sopops_server.onboarding.rules import RulesModels
 
-TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project"}
+TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project",
+         "list_sops", "get_sop", "save_sop", "preview_agent"}
 
 
 def call(server, name, **args):

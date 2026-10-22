@@ -9530,7 +9530,7 @@ export type TokenCreated = {
     /**
      * Scopes
      */
-    scopes: Array<'ingest' | 'runtime' | 'onboarding:write'>;
+    scopes: Array<'ingest' | 'runtime' | 'config' | 'onboarding:write'>;
     /**
      * Import Id
      *
@@ -9580,9 +9580,9 @@ export type TokenIn = {
     /**
      * Scopes
      *
-     * `ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks.
+     * `ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks. `config`: read and edit the forms (agents, shared instructions, procedures, groups, settings) as drafts; it can't publish.
      */
-    scopes?: Array<'ingest' | 'runtime'>;
+    scopes?: Array<'ingest' | 'runtime' | 'config'>;
     /**
      * Expires In Days
      *
@@ -9616,7 +9616,7 @@ export type TokenOut = {
     /**
      * Scopes
      */
-    scopes: Array<'ingest' | 'runtime' | 'onboarding:write'>;
+    scopes: Array<'ingest' | 'runtime' | 'config' | 'onboarding:write'>;
     /**
      * Import Id
      *

@@ -8,6 +8,8 @@ These are what the UI edits. Each item is stored as a sopc file, so git publishi
 
 Saves are drafts: nothing reaches agents until a [release](releases.md). Ids can't be renamed yet. Instructions, procedures and groups share one set of names.
 
+A signed-in member can call these, and so can a token with the `config` scope ([Tokens](teams-and-access.md#tokens)), which is how a coding agent keeps a workspace's SOPs up to date from a repo. Neither can publish: that stays with a person.
+
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/workspaces/{ws}/config` | Every item at head: `{settings, agents, instructions, procedures, groups}`, each with its `version`. See below. |

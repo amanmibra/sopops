@@ -78,17 +78,22 @@ ROUTES: dict[str, str] = {
     "backfill_preview": ADMIN, "start_backfill": ADMIN, "get_backfill": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
     "github_app_manifest": ADMIN, "github_app_manifest_callback": ADMIN,
-    # everything else in the app: any member
-    **{name: SESSION for name in (
-        "list_delivery", "set_delivery", "list_platforms", "set_platform_secret", "delete_platform_secret", "test_platform_key", "list_pushes",
-        "retry_pushes", "validate", "render", "migrate_files", "lint", "list_workspaces", "list_files", "edit_files", "replace_files", "get_file",
-        "file_history", "get_config", "config_list_agents", "config_create_agent", "config_get_agent", "config_put_agent", "config_delete_agent",
+    # the forms, as drafts: a signed-in member, or a token with the config scope (sopops_server.api.config).
+    # Publishing stays with people: create_release, activate and publish are SESSION below.
+    **{name: TOKEN_OR_SESSION for name in (
+        "get_config", "config_list_agents", "config_create_agent", "config_get_agent", "config_put_agent", "config_delete_agent",
         "config_agent_history", "config_agent_version", "config_list_instructions", "config_create_instruction", "config_get_instruction",
         "config_put_instruction", "config_delete_instruction", "config_instruction_history", "config_instruction_version", "config_list_procedures",
         "config_create_procedure", "config_get_procedure", "config_put_procedure", "config_delete_procedure", "config_procedure_history",
         "config_procedure_version", "config_list_groups", "config_create_group", "config_get_group", "config_put_group", "config_delete_group",
-        "config_group_history", "config_group_version", "add_block", "remove_block", "preview_agent", "migrate", "get_settings", "put_settings",
-        "settings_history", "settings_version", "draft", "create_release", "list_releases", "get_release", "activate", "publish", "list_agents",
+        "config_group_history", "config_group_version", "add_block", "remove_block", "preview_agent", "get_settings", "put_settings",
+        "settings_history", "settings_version", 
+   )},
+    # everything else in the app: any member
+    **{name: SESSION for name in (
+        "draft", "validate", "lint", "list_delivery", "set_delivery", "list_platforms", "set_platform_secret", "delete_platform_secret", "test_platform_key", "list_pushes",
+        "retry_pushes", "render", "migrate_files", "list_workspaces", "list_files", "edit_files", "replace_files", "get_file",
+        "file_history",                                         "migrate",         "create_release", "list_releases", "get_release", "activate", "publish", "list_agents",
         "list_fetches", "list_sessions", "stream_sessions", "get_session", "get_capture", "set_livekit", "delete_livekit", "test_livekit",
         "set_post_call_secret", "delete_post_call_secret", "set_elevenlabs_live", "list_tokens", "create_token", "revoke_token", "list_patterns",
         "get_pattern", "recluster_patterns", "review_queue", "set_verdict", "override_finding", "export_regression", "calibrate",

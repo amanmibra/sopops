@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, create_model
 
 from ..schemas import (
@@ -34,12 +35,26 @@ from ..schemas import (
     WriteResponse,
     WrittenFile,
 )
+from ..auth import access, mode
+from ..errors import NotFound
 from ..store import Store
+from ..tokens import CONFIG
 from .deps import INVALID, OPEN
 
 
 def router(store: Store) -> APIRouter:
-    r = APIRouter()
+    config_bearer = HTTPBearer(auto_error=False, description="A token with the config scope (Settings → Access), for a coding agent editing the forms.")
+
+    def config_token(workspace: str, request: Request, credentials: HTTPAuthorizationCredentials | None = Depends(config_bearer)) -> None:
+        """A signed-in member, or a token with the `config` scope. Saves are drafts either way: publishing is a
+        separate route that only a person can call."""
+        if access.signed_in(request) is not None or not mode.required():
+            return
+        if request.cookies.get(access.SESSION_COOKIE):  # signed in, but not a member here: don't confirm the workspace
+            raise NotFound(f"no workspace '{workspace}'")
+        store.tokens.check(workspace, f"Bearer {credentials.credentials}" if credentials else None, CONFIG)
+
+    r = APIRouter(dependencies=[Depends(config_token)])
 
     @r.get("/v1/workspaces/{workspace}/config", response_model=ConfigResponse, dependencies=OPEN, tags=["config"])
     def get_config(workspace: str) -> dict:

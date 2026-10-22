@@ -1,4 +1,4 @@
-// Settings → Tokens: workspace API tokens with scopes (ingest, runtime). Onboarding tokens come from Import agents.
+// Settings → Tokens: workspace API tokens with scopes (ingest, runtime, config). Onboarding tokens come from Import agents.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound } from "lucide-react";
 import { useState } from "react";
@@ -13,11 +13,12 @@ import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 
-type Scope = "ingest" | "runtime";
+type Scope = "ingest" | "runtime" | "config";
 
 const SCOPES: { scope: Scope; label: string; help: string }[] = [
   { scope: "ingest", label: "ingest", help: "send sessions" },
   { scope: "runtime", label: "runtime", help: "fetch instructions, report served calls, call-start webhooks" },
+  { scope: "config", label: "config", help: "read and edit agents, shared instructions, procedures and groups as drafts; it can't publish" },
 ];
 
 export function TokensPanel() {

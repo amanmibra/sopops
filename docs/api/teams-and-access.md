@@ -120,12 +120,13 @@ There's one kind of workspace token, with scopes. Tokens are stored as a sha256 
 |---|---|---|
 | `ingest` | `POST /v1/workspaces/{ws}/sessions`. | Settings → Tokens, or `POST /v1/workspaces/{ws}/tokens`. |
 | `runtime` | Fetching instructions (`/v1/workspaces/{ws}/agents/{agent}`, `/v1/workspaces/{ws}/prompt`, `/v1/workspaces/{ws}/sops/{id}`), `POST /v1/workspaces/{ws}/runtime/served`, and the call-start webhooks as a bearer. | Settings → Tokens, or `POST /v1/workspaces/{ws}/tokens`. |
+| `config` | Reading and editing the forms (`/v1/workspaces/{ws}/config/*`): agents, shared instructions, procedures, groups and settings. Saves are drafts; it can't publish a release. For a coding agent that keeps SOPs up to date from a repo. | Settings → Tokens, or `POST /v1/workspaces/{ws}/tokens`. |
 | `onboarding:write` | The coding agent's `/v1/onboarding/*` endpoints, for one import, for 2 hours. | By `POST /v1/workspaces/{ws}/imports/agent` only. |
 
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/workspaces/{ws}/tokens` | `[{id, name, prefix, scopes, import_id, created_at, expires_at, revoked_at, active, ...}]`, newest first, revoked ones included. Onboarding tokens only with `?imports=true`. |
-| `POST /v1/workspaces/{ws}/tokens` | `{name?, scopes?: ["ingest", "runtime"], expires_in_days?}` (default: both scopes, never expires). `201` with the token, shown once. |
+| `POST /v1/workspaces/{ws}/tokens` | `{name?, scopes?: ["ingest", "runtime", "config"], expires_in_days?}` (default: both scopes, never expires). `201` with the token, shown once. |
 | `DELETE /v1/workspaces/{ws}/tokens/{id}` | Revoke it: it stops working at once, and the row is kept with `revoked_at`. |
 
 Fetching instructions stays open while the workspace has no unrevoked `runtime` token, for local use, unless sign-in is on. An expired one still closes them. A database from before tokens had scopes keeps each workspace's ingest token, with scopes `ingest` and `runtime`.

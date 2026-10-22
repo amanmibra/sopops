@@ -27,8 +27,8 @@ from .orm import Token
 if TYPE_CHECKING:
     from .store import Store
 
-INGEST, RUNTIME, ONBOARDING = "ingest", "runtime", "onboarding:write"
-SCOPES = (INGEST, RUNTIME, ONBOARDING)
+INGEST, RUNTIME, CONFIG, ONBOARDING = "ingest", "runtime", "config", "onboarding:write"
+SCOPES = (INGEST, RUNTIME, CONFIG, ONBOARDING)
 PREFIX = "sopops_"
 
 

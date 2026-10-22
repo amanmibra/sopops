@@ -2650,6 +2650,11 @@
         "summary": "Get Config",
         "description": "Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.\n422 with `old_format` or `removed_field` issues if the workspace is in an older sopc format: see `\u2026/migrate`.",
         "operationId": "get_config",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2693,6 +2698,11 @@
         "summary": "Config List Agents",
         "description": "Every agent at head.",
         "operationId": "config_list_agents",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2738,6 +2748,11 @@
         "summary": "Config Create Agent",
         "description": "Create a agent. Rejected if the result doesn't compile; 409 if it exists.",
         "operationId": "config_create_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2794,6 +2809,11 @@
         "summary": "Config Get Agent",
         "description": "One agent at head.",
         "operationId": "config_get_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2844,6 +2864,11 @@
         "summary": "Config Put Agent",
         "description": "Create or replace a agent. Rejected if the result doesn't compile. Nothing goes live until a release.",
         "operationId": "config_put_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2904,6 +2929,11 @@
         "summary": "Config Delete Agent",
         "description": "Delete a agent. Nothing else changes.",
         "operationId": "config_delete_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -2988,6 +3018,11 @@
         "summary": "Config Agent History",
         "description": "Every version of a agent, newest first.",
         "operationId": "config_agent_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3044,6 +3079,11 @@
         "summary": "Config Agent Version",
         "description": "An older version of a agent, as fields.",
         "operationId": "config_agent_version",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3125,6 +3165,11 @@
         "summary": "Config List Instructions",
         "description": "Every shared instruction at head.",
         "operationId": "config_list_instructions",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3170,6 +3215,11 @@
         "summary": "Config Create Instruction",
         "description": "Create a shared instruction. Rejected if the result doesn't compile; 409 if it exists.",
         "operationId": "config_create_instruction",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3226,6 +3276,11 @@
         "summary": "Config Get Instruction",
         "description": "One shared instruction at head.",
         "operationId": "config_get_instruction",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3276,6 +3331,11 @@
         "summary": "Config Put Instruction",
         "description": "Create or replace a shared instruction. Rejected if the result doesn't compile. Nothing goes live until a release.",
         "operationId": "config_put_instruction",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3336,6 +3396,11 @@
         "summary": "Config Delete Instruction",
         "description": "Delete a shared instruction. It's taken out of every agent and group that lists it.",
         "operationId": "config_delete_instruction",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3420,6 +3485,11 @@
         "summary": "Config Instruction History",
         "description": "Every version of a shared instruction, newest first.",
         "operationId": "config_instruction_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3476,6 +3546,11 @@
         "summary": "Config Instruction Version",
         "description": "An older version of a shared instruction, as fields.",
         "operationId": "config_instruction_version",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3557,6 +3632,11 @@
         "summary": "Config List Procedures",
         "description": "Every procedure (SOP) at head.",
         "operationId": "config_list_procedures",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3602,6 +3682,11 @@
         "summary": "Config Create Procedure",
         "description": "Create a procedure (SOP). Rejected if the result doesn't compile; 409 if it exists.",
         "operationId": "config_create_procedure",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3658,6 +3743,11 @@
         "summary": "Config Get Procedure",
         "description": "One procedure (SOP) at head.",
         "operationId": "config_get_procedure",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3708,6 +3798,11 @@
         "summary": "Config Put Procedure",
         "description": "Create or replace a procedure (SOP). Rejected if the result doesn't compile. Nothing goes live until a release.",
         "operationId": "config_put_procedure",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3768,6 +3863,11 @@
         "summary": "Config Delete Procedure",
         "description": "Delete a procedure (SOP). It's taken out of every agent and group that lists it.",
         "operationId": "config_delete_procedure",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3852,6 +3952,11 @@
         "summary": "Config Procedure History",
         "description": "Every version of a procedure (SOP), newest first.",
         "operationId": "config_procedure_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3908,6 +4013,11 @@
         "summary": "Config Procedure Version",
         "description": "An older version of a procedure (SOP), as fields.",
         "operationId": "config_procedure_version",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -3989,6 +4099,11 @@
         "summary": "Config List Groups",
         "description": "Every group (in sopc.yaml) at head.",
         "operationId": "config_list_groups",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4034,6 +4149,11 @@
         "summary": "Config Create Group",
         "description": "Create a group (in sopc.yaml). Rejected if the result doesn't compile; 409 if it exists.",
         "operationId": "config_create_group",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4090,6 +4210,11 @@
         "summary": "Config Get Group",
         "description": "One group (in sopc.yaml) at head.",
         "operationId": "config_get_group",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4140,6 +4265,11 @@
         "summary": "Config Put Group",
         "description": "Create or replace a group (in sopc.yaml). Rejected if the result doesn't compile. Nothing goes live until a release.",
         "operationId": "config_put_group",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4200,6 +4330,11 @@
         "summary": "Config Delete Group",
         "description": "Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.",
         "operationId": "config_delete_group",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4284,6 +4419,11 @@
         "summary": "Config Group History",
         "description": "Every version of a group (in sopc.yaml), newest first.",
         "operationId": "config_group_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4340,6 +4480,11 @@
         "summary": "Config Group Version",
         "description": "An older version of a group (in sopc.yaml), as fields.",
         "operationId": "config_group_version",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4421,6 +4566,11 @@
         "summary": "Add Block",
         "description": "Add a shared instruction, procedure or group at the end of the agent's blocks. 409 if the agent already uses it.",
         "operationId": "add_block",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4486,6 +4636,11 @@
         "summary": "Remove Block",
         "description": "Take a block out of the agent's blocks. 409 if the agent gets it through a group.",
         "operationId": "remove_block",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4582,6 +4737,11 @@
         "summary": "Preview Agent",
         "description": "The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.",
         "operationId": "preview_agent",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4644,6 +4804,11 @@
         "summary": "Migrate",
         "description": "Convert a workspace stored in an older sopc format with `sopc migrate`: the v0.0.8 format, or\n`locked` (v0.0.9), which sopc no longer has. Returns the plan;\nwith `apply`, writes the converted files as a draft (publish to release them).",
         "operationId": "migrate",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4703,6 +4868,11 @@
         ],
         "summary": "Get Settings",
         "operationId": "get_settings",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4743,6 +4913,11 @@
         ],
         "summary": "Put Settings",
         "operationId": "put_settings",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4795,6 +4970,11 @@
         ],
         "summary": "Settings History",
         "operationId": "settings_history",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -4841,6 +5021,11 @@
         ],
         "summary": "Settings Version",
         "operationId": "settings_version",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "parameters": [
           {
             "name": "workspace",
@@ -29627,6 +29812,7 @@
               "enum": [
                 "ingest",
                 "runtime",
+                "config",
                 "onboarding:write"
               ]
             },
@@ -29727,13 +29913,14 @@
               "type": "string",
               "enum": [
                 "ingest",
-                "runtime"
+                "runtime",
+                "config"
               ]
             },
             "type": "array",
             "minItems": 1,
             "title": "Scopes",
-            "description": "`ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks."
+            "description": "`ingest`: send sessions. `runtime`: fetch instructions, report served calls, call-start webhooks. `config`: read and edit the forms (agents, shared instructions, procedures, groups, settings) as drafts; it can't publish."
           },
           "expires_in_days": {
             "anyOf": [
@@ -29778,6 +29965,7 @@
               "enum": [
                 "ingest",
                 "runtime",
+                "config",
                 "onboarding:write"
               ]
             },

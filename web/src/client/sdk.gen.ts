@@ -689,14 +689,22 @@ export const fileHistory = <ThrowOnError extends boolean = false>(options: Optio
  * Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.
  * 422 with `old_format` or `removed_field` issues if the workspace is in an older sopc format: see `…/migrate`.
  */
-export const getConfig = <ThrowOnError extends boolean = false>(options: Options<GetConfigData, ThrowOnError>): RequestResult<GetConfigResponses, GetConfigErrors, ThrowOnError> => (options.client ?? client).get<GetConfigResponses, GetConfigErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config', ...options });
+export const getConfig = <ThrowOnError extends boolean = false>(options: Options<GetConfigData, ThrowOnError>): RequestResult<GetConfigResponses, GetConfigErrors, ThrowOnError> => (options.client ?? client).get<GetConfigResponses, GetConfigErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config',
+    ...options
+});
 
 /**
  * Config List Agents
  *
  * Every agent at head.
  */
-export const configListAgents = <ThrowOnError extends boolean = false>(options: Options<ConfigListAgentsData, ThrowOnError>): RequestResult<ConfigListAgentsResponses, ConfigListAgentsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListAgentsResponses, ConfigListAgentsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents', ...options });
+export const configListAgents = <ThrowOnError extends boolean = false>(options: Options<ConfigListAgentsData, ThrowOnError>): RequestResult<ConfigListAgentsResponses, ConfigListAgentsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListAgentsResponses, ConfigListAgentsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents',
+    ...options
+});
 
 /**
  * Config Create Agent
@@ -704,6 +712,7 @@ export const configListAgents = <ThrowOnError extends boolean = false>(options: 
  * Create a agent. Rejected if the result doesn't compile; 409 if it exists.
  */
 export const configCreateAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigCreateAgentData, ThrowOnError>): RequestResult<ConfigCreateAgentResponses, ConfigCreateAgentErrors, ThrowOnError> => (options.client ?? client).post<ConfigCreateAgentResponses, ConfigCreateAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/agents',
     ...options,
     headers: {
@@ -717,14 +726,22 @@ export const configCreateAgent = <ThrowOnError extends boolean = false>(options:
  *
  * Delete a agent. Nothing else changes.
  */
-export const configDeleteAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteAgentData, ThrowOnError>): RequestResult<ConfigDeleteAgentResponses, ConfigDeleteAgentErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteAgentResponses, ConfigDeleteAgentErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents/{id}', ...options });
+export const configDeleteAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteAgentData, ThrowOnError>): RequestResult<ConfigDeleteAgentResponses, ConfigDeleteAgentErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteAgentResponses, ConfigDeleteAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents/{id}',
+    ...options
+});
 
 /**
  * Config Get Agent
  *
  * One agent at head.
  */
-export const configGetAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigGetAgentData, ThrowOnError>): RequestResult<ConfigGetAgentResponses, ConfigGetAgentErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetAgentResponses, ConfigGetAgentErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents/{id}', ...options });
+export const configGetAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigGetAgentData, ThrowOnError>): RequestResult<ConfigGetAgentResponses, ConfigGetAgentErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetAgentResponses, ConfigGetAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents/{id}',
+    ...options
+});
 
 /**
  * Config Put Agent
@@ -732,6 +749,7 @@ export const configGetAgent = <ThrowOnError extends boolean = false>(options: Op
  * Create or replace a agent. Rejected if the result doesn't compile. Nothing goes live until a release.
  */
 export const configPutAgent = <ThrowOnError extends boolean = false>(options: Options<ConfigPutAgentData, ThrowOnError>): RequestResult<ConfigPutAgentResponses, ConfigPutAgentErrors, ThrowOnError> => (options.client ?? client).put<ConfigPutAgentResponses, ConfigPutAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/agents/{id}',
     ...options,
     headers: {
@@ -745,21 +763,33 @@ export const configPutAgent = <ThrowOnError extends boolean = false>(options: Op
  *
  * Every version of a agent, newest first.
  */
-export const configAgentHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigAgentHistoryData, ThrowOnError>): RequestResult<ConfigAgentHistoryResponses, ConfigAgentHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigAgentHistoryResponses, ConfigAgentHistoryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents/{id}/history', ...options });
+export const configAgentHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigAgentHistoryData, ThrowOnError>): RequestResult<ConfigAgentHistoryResponses, ConfigAgentHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigAgentHistoryResponses, ConfigAgentHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents/{id}/history',
+    ...options
+});
 
 /**
  * Config Agent Version
  *
  * An older version of a agent, as fields.
  */
-export const configAgentVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigAgentVersionData, ThrowOnError>): RequestResult<ConfigAgentVersionResponses, ConfigAgentVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigAgentVersionResponses, ConfigAgentVersionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents/{id}/versions/{version}', ...options });
+export const configAgentVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigAgentVersionData, ThrowOnError>): RequestResult<ConfigAgentVersionResponses, ConfigAgentVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigAgentVersionResponses, ConfigAgentVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents/{id}/versions/{version}',
+    ...options
+});
 
 /**
  * Config List Instructions
  *
  * Every shared instruction at head.
  */
-export const configListInstructions = <ThrowOnError extends boolean = false>(options: Options<ConfigListInstructionsData, ThrowOnError>): RequestResult<ConfigListInstructionsResponses, ConfigListInstructionsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListInstructionsResponses, ConfigListInstructionsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/instructions', ...options });
+export const configListInstructions = <ThrowOnError extends boolean = false>(options: Options<ConfigListInstructionsData, ThrowOnError>): RequestResult<ConfigListInstructionsResponses, ConfigListInstructionsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListInstructionsResponses, ConfigListInstructionsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/instructions',
+    ...options
+});
 
 /**
  * Config Create Instruction
@@ -767,6 +797,7 @@ export const configListInstructions = <ThrowOnError extends boolean = false>(opt
  * Create a shared instruction. Rejected if the result doesn't compile; 409 if it exists.
  */
 export const configCreateInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigCreateInstructionData, ThrowOnError>): RequestResult<ConfigCreateInstructionResponses, ConfigCreateInstructionErrors, ThrowOnError> => (options.client ?? client).post<ConfigCreateInstructionResponses, ConfigCreateInstructionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/instructions',
     ...options,
     headers: {
@@ -780,14 +811,22 @@ export const configCreateInstruction = <ThrowOnError extends boolean = false>(op
  *
  * Delete a shared instruction. It's taken out of every agent and group that lists it.
  */
-export const configDeleteInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteInstructionData, ThrowOnError>): RequestResult<ConfigDeleteInstructionResponses, ConfigDeleteInstructionErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteInstructionResponses, ConfigDeleteInstructionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/instructions/{id}', ...options });
+export const configDeleteInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteInstructionData, ThrowOnError>): RequestResult<ConfigDeleteInstructionResponses, ConfigDeleteInstructionErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteInstructionResponses, ConfigDeleteInstructionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/instructions/{id}',
+    ...options
+});
 
 /**
  * Config Get Instruction
  *
  * One shared instruction at head.
  */
-export const configGetInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigGetInstructionData, ThrowOnError>): RequestResult<ConfigGetInstructionResponses, ConfigGetInstructionErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetInstructionResponses, ConfigGetInstructionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/instructions/{id}', ...options });
+export const configGetInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigGetInstructionData, ThrowOnError>): RequestResult<ConfigGetInstructionResponses, ConfigGetInstructionErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetInstructionResponses, ConfigGetInstructionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/instructions/{id}',
+    ...options
+});
 
 /**
  * Config Put Instruction
@@ -795,6 +834,7 @@ export const configGetInstruction = <ThrowOnError extends boolean = false>(optio
  * Create or replace a shared instruction. Rejected if the result doesn't compile. Nothing goes live until a release.
  */
 export const configPutInstruction = <ThrowOnError extends boolean = false>(options: Options<ConfigPutInstructionData, ThrowOnError>): RequestResult<ConfigPutInstructionResponses, ConfigPutInstructionErrors, ThrowOnError> => (options.client ?? client).put<ConfigPutInstructionResponses, ConfigPutInstructionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/instructions/{id}',
     ...options,
     headers: {
@@ -808,21 +848,33 @@ export const configPutInstruction = <ThrowOnError extends boolean = false>(optio
  *
  * Every version of a shared instruction, newest first.
  */
-export const configInstructionHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigInstructionHistoryData, ThrowOnError>): RequestResult<ConfigInstructionHistoryResponses, ConfigInstructionHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigInstructionHistoryResponses, ConfigInstructionHistoryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/instructions/{id}/history', ...options });
+export const configInstructionHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigInstructionHistoryData, ThrowOnError>): RequestResult<ConfigInstructionHistoryResponses, ConfigInstructionHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigInstructionHistoryResponses, ConfigInstructionHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/instructions/{id}/history',
+    ...options
+});
 
 /**
  * Config Instruction Version
  *
  * An older version of a shared instruction, as fields.
  */
-export const configInstructionVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigInstructionVersionData, ThrowOnError>): RequestResult<ConfigInstructionVersionResponses, ConfigInstructionVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigInstructionVersionResponses, ConfigInstructionVersionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/instructions/{id}/versions/{version}', ...options });
+export const configInstructionVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigInstructionVersionData, ThrowOnError>): RequestResult<ConfigInstructionVersionResponses, ConfigInstructionVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigInstructionVersionResponses, ConfigInstructionVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/instructions/{id}/versions/{version}',
+    ...options
+});
 
 /**
  * Config List Procedures
  *
  * Every procedure (SOP) at head.
  */
-export const configListProcedures = <ThrowOnError extends boolean = false>(options: Options<ConfigListProceduresData, ThrowOnError>): RequestResult<ConfigListProceduresResponses, ConfigListProceduresErrors, ThrowOnError> => (options.client ?? client).get<ConfigListProceduresResponses, ConfigListProceduresErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/procedures', ...options });
+export const configListProcedures = <ThrowOnError extends boolean = false>(options: Options<ConfigListProceduresData, ThrowOnError>): RequestResult<ConfigListProceduresResponses, ConfigListProceduresErrors, ThrowOnError> => (options.client ?? client).get<ConfigListProceduresResponses, ConfigListProceduresErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/procedures',
+    ...options
+});
 
 /**
  * Config Create Procedure
@@ -830,6 +882,7 @@ export const configListProcedures = <ThrowOnError extends boolean = false>(optio
  * Create a procedure (SOP). Rejected if the result doesn't compile; 409 if it exists.
  */
 export const configCreateProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigCreateProcedureData, ThrowOnError>): RequestResult<ConfigCreateProcedureResponses, ConfigCreateProcedureErrors, ThrowOnError> => (options.client ?? client).post<ConfigCreateProcedureResponses, ConfigCreateProcedureErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/procedures',
     ...options,
     headers: {
@@ -843,14 +896,22 @@ export const configCreateProcedure = <ThrowOnError extends boolean = false>(opti
  *
  * Delete a procedure (SOP). It's taken out of every agent and group that lists it.
  */
-export const configDeleteProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteProcedureData, ThrowOnError>): RequestResult<ConfigDeleteProcedureResponses, ConfigDeleteProcedureErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteProcedureResponses, ConfigDeleteProcedureErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/procedures/{id}', ...options });
+export const configDeleteProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteProcedureData, ThrowOnError>): RequestResult<ConfigDeleteProcedureResponses, ConfigDeleteProcedureErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteProcedureResponses, ConfigDeleteProcedureErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/procedures/{id}',
+    ...options
+});
 
 /**
  * Config Get Procedure
  *
  * One procedure (SOP) at head.
  */
-export const configGetProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigGetProcedureData, ThrowOnError>): RequestResult<ConfigGetProcedureResponses, ConfigGetProcedureErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetProcedureResponses, ConfigGetProcedureErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/procedures/{id}', ...options });
+export const configGetProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigGetProcedureData, ThrowOnError>): RequestResult<ConfigGetProcedureResponses, ConfigGetProcedureErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetProcedureResponses, ConfigGetProcedureErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/procedures/{id}',
+    ...options
+});
 
 /**
  * Config Put Procedure
@@ -858,6 +919,7 @@ export const configGetProcedure = <ThrowOnError extends boolean = false>(options
  * Create or replace a procedure (SOP). Rejected if the result doesn't compile. Nothing goes live until a release.
  */
 export const configPutProcedure = <ThrowOnError extends boolean = false>(options: Options<ConfigPutProcedureData, ThrowOnError>): RequestResult<ConfigPutProcedureResponses, ConfigPutProcedureErrors, ThrowOnError> => (options.client ?? client).put<ConfigPutProcedureResponses, ConfigPutProcedureErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/procedures/{id}',
     ...options,
     headers: {
@@ -871,21 +933,33 @@ export const configPutProcedure = <ThrowOnError extends boolean = false>(options
  *
  * Every version of a procedure (SOP), newest first.
  */
-export const configProcedureHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigProcedureHistoryData, ThrowOnError>): RequestResult<ConfigProcedureHistoryResponses, ConfigProcedureHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigProcedureHistoryResponses, ConfigProcedureHistoryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/procedures/{id}/history', ...options });
+export const configProcedureHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigProcedureHistoryData, ThrowOnError>): RequestResult<ConfigProcedureHistoryResponses, ConfigProcedureHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigProcedureHistoryResponses, ConfigProcedureHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/procedures/{id}/history',
+    ...options
+});
 
 /**
  * Config Procedure Version
  *
  * An older version of a procedure (SOP), as fields.
  */
-export const configProcedureVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigProcedureVersionData, ThrowOnError>): RequestResult<ConfigProcedureVersionResponses, ConfigProcedureVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigProcedureVersionResponses, ConfigProcedureVersionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/procedures/{id}/versions/{version}', ...options });
+export const configProcedureVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigProcedureVersionData, ThrowOnError>): RequestResult<ConfigProcedureVersionResponses, ConfigProcedureVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigProcedureVersionResponses, ConfigProcedureVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/procedures/{id}/versions/{version}',
+    ...options
+});
 
 /**
  * Config List Groups
  *
  * Every group (in sopc.yaml) at head.
  */
-export const configListGroups = <ThrowOnError extends boolean = false>(options: Options<ConfigListGroupsData, ThrowOnError>): RequestResult<ConfigListGroupsResponses, ConfigListGroupsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListGroupsResponses, ConfigListGroupsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups', ...options });
+export const configListGroups = <ThrowOnError extends boolean = false>(options: Options<ConfigListGroupsData, ThrowOnError>): RequestResult<ConfigListGroupsResponses, ConfigListGroupsErrors, ThrowOnError> => (options.client ?? client).get<ConfigListGroupsResponses, ConfigListGroupsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/groups',
+    ...options
+});
 
 /**
  * Config Create Group
@@ -893,6 +967,7 @@ export const configListGroups = <ThrowOnError extends boolean = false>(options: 
  * Create a group (in sopc.yaml). Rejected if the result doesn't compile; 409 if it exists.
  */
 export const configCreateGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigCreateGroupData, ThrowOnError>): RequestResult<ConfigCreateGroupResponses, ConfigCreateGroupErrors, ThrowOnError> => (options.client ?? client).post<ConfigCreateGroupResponses, ConfigCreateGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/groups',
     ...options,
     headers: {
@@ -906,14 +981,22 @@ export const configCreateGroup = <ThrowOnError extends boolean = false>(options:
  *
  * Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.
  */
-export const configDeleteGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteGroupData, ThrowOnError>): RequestResult<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups/{id}', ...options });
+export const configDeleteGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigDeleteGroupData, ThrowOnError>): RequestResult<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError> => (options.client ?? client).delete<ConfigDeleteGroupResponses, ConfigDeleteGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/groups/{id}',
+    ...options
+});
 
 /**
  * Config Get Group
  *
  * One group (in sopc.yaml) at head.
  */
-export const configGetGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigGetGroupData, ThrowOnError>): RequestResult<ConfigGetGroupResponses, ConfigGetGroupErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetGroupResponses, ConfigGetGroupErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups/{id}', ...options });
+export const configGetGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigGetGroupData, ThrowOnError>): RequestResult<ConfigGetGroupResponses, ConfigGetGroupErrors, ThrowOnError> => (options.client ?? client).get<ConfigGetGroupResponses, ConfigGetGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/groups/{id}',
+    ...options
+});
 
 /**
  * Config Put Group
@@ -921,6 +1004,7 @@ export const configGetGroup = <ThrowOnError extends boolean = false>(options: Op
  * Create or replace a group (in sopc.yaml). Rejected if the result doesn't compile. Nothing goes live until a release.
  */
 export const configPutGroup = <ThrowOnError extends boolean = false>(options: Options<ConfigPutGroupData, ThrowOnError>): RequestResult<ConfigPutGroupResponses, ConfigPutGroupErrors, ThrowOnError> => (options.client ?? client).put<ConfigPutGroupResponses, ConfigPutGroupErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/groups/{id}',
     ...options,
     headers: {
@@ -934,14 +1018,22 @@ export const configPutGroup = <ThrowOnError extends boolean = false>(options: Op
  *
  * Every version of a group (in sopc.yaml), newest first.
  */
-export const configGroupHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigGroupHistoryData, ThrowOnError>): RequestResult<ConfigGroupHistoryResponses, ConfigGroupHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigGroupHistoryResponses, ConfigGroupHistoryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups/{id}/history', ...options });
+export const configGroupHistory = <ThrowOnError extends boolean = false>(options: Options<ConfigGroupHistoryData, ThrowOnError>): RequestResult<ConfigGroupHistoryResponses, ConfigGroupHistoryErrors, ThrowOnError> => (options.client ?? client).get<ConfigGroupHistoryResponses, ConfigGroupHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/groups/{id}/history',
+    ...options
+});
 
 /**
  * Config Group Version
  *
  * An older version of a group (in sopc.yaml), as fields.
  */
-export const configGroupVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigGroupVersionData, ThrowOnError>): RequestResult<ConfigGroupVersionResponses, ConfigGroupVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigGroupVersionResponses, ConfigGroupVersionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/groups/{id}/versions/{version}', ...options });
+export const configGroupVersion = <ThrowOnError extends boolean = false>(options: Options<ConfigGroupVersionData, ThrowOnError>): RequestResult<ConfigGroupVersionResponses, ConfigGroupVersionErrors, ThrowOnError> => (options.client ?? client).get<ConfigGroupVersionResponses, ConfigGroupVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/groups/{id}/versions/{version}',
+    ...options
+});
 
 /**
  * Add Block
@@ -949,6 +1041,7 @@ export const configGroupVersion = <ThrowOnError extends boolean = false>(options
  * Add a shared instruction, procedure or group at the end of the agent's blocks. 409 if the agent already uses it.
  */
 export const addBlock = <ThrowOnError extends boolean = false>(options: Options<AddBlockData, ThrowOnError>): RequestResult<AddBlockResponses, AddBlockErrors, ThrowOnError> => (options.client ?? client).post<AddBlockResponses, AddBlockErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/agents/{id}/blocks',
     ...options,
     headers: {
@@ -962,7 +1055,11 @@ export const addBlock = <ThrowOnError extends boolean = false>(options: Options<
  *
  * Take a block out of the agent's blocks. 409 if the agent gets it through a group.
  */
-export const removeBlock = <ThrowOnError extends boolean = false>(options: Options<RemoveBlockData, ThrowOnError>): RequestResult<RemoveBlockResponses, RemoveBlockErrors, ThrowOnError> => (options.client ?? client).delete<RemoveBlockResponses, RemoveBlockErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/agents/{id}/blocks/{block}', ...options });
+export const removeBlock = <ThrowOnError extends boolean = false>(options: Options<RemoveBlockData, ThrowOnError>): RequestResult<RemoveBlockResponses, RemoveBlockErrors, ThrowOnError> => (options.client ?? client).delete<RemoveBlockResponses, RemoveBlockErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/agents/{id}/blocks/{block}',
+    ...options
+});
 
 /**
  * Preview Agent
@@ -970,6 +1067,7 @@ export const removeBlock = <ThrowOnError extends boolean = false>(options: Optio
  * The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.
  */
 export const previewAgent = <ThrowOnError extends boolean = false>(options: Options<PreviewAgentData, ThrowOnError>): RequestResult<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError> => (options.client ?? client).post<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/agents/{id}/preview',
     ...options,
     headers: {
@@ -986,6 +1084,7 @@ export const previewAgent = <ThrowOnError extends boolean = false>(options: Opti
  * with `apply`, writes the converted files as a draft (publish to release them).
  */
 export const migrate = <ThrowOnError extends boolean = false>(options: Options<MigrateData, ThrowOnError>): RequestResult<MigrateResponses, MigrateErrors, ThrowOnError> => (options.client ?? client).post<MigrateResponses, MigrateErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/migrate',
     ...options,
     headers: {
@@ -997,12 +1096,17 @@ export const migrate = <ThrowOnError extends boolean = false>(options: Options<M
 /**
  * Get Settings
  */
-export const getSettings = <ThrowOnError extends boolean = false>(options: Options<GetSettingsData, ThrowOnError>): RequestResult<GetSettingsResponses, GetSettingsErrors, ThrowOnError> => (options.client ?? client).get<GetSettingsResponses, GetSettingsErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/settings', ...options });
+export const getSettings = <ThrowOnError extends boolean = false>(options: Options<GetSettingsData, ThrowOnError>): RequestResult<GetSettingsResponses, GetSettingsErrors, ThrowOnError> => (options.client ?? client).get<GetSettingsResponses, GetSettingsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/settings',
+    ...options
+});
 
 /**
  * Put Settings
  */
 export const putSettings = <ThrowOnError extends boolean = false>(options: Options<PutSettingsData, ThrowOnError>): RequestResult<PutSettingsResponses, PutSettingsErrors, ThrowOnError> => (options.client ?? client).put<PutSettingsResponses, PutSettingsErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
     url: '/v1/workspaces/{workspace}/config/settings',
     ...options,
     headers: {
@@ -1014,12 +1118,20 @@ export const putSettings = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Settings History
  */
-export const settingsHistory = <ThrowOnError extends boolean = false>(options: Options<SettingsHistoryData, ThrowOnError>): RequestResult<SettingsHistoryResponses, SettingsHistoryErrors, ThrowOnError> => (options.client ?? client).get<SettingsHistoryResponses, SettingsHistoryErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/settings/history', ...options });
+export const settingsHistory = <ThrowOnError extends boolean = false>(options: Options<SettingsHistoryData, ThrowOnError>): RequestResult<SettingsHistoryResponses, SettingsHistoryErrors, ThrowOnError> => (options.client ?? client).get<SettingsHistoryResponses, SettingsHistoryErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/settings/history',
+    ...options
+});
 
 /**
  * Settings Version
  */
-export const settingsVersion = <ThrowOnError extends boolean = false>(options: Options<SettingsVersionData, ThrowOnError>): RequestResult<SettingsVersionResponses, SettingsVersionErrors, ThrowOnError> => (options.client ?? client).get<SettingsVersionResponses, SettingsVersionErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/config/settings/versions/{version}', ...options });
+export const settingsVersion = <ThrowOnError extends boolean = false>(options: Options<SettingsVersionData, ThrowOnError>): RequestResult<SettingsVersionResponses, SettingsVersionErrors, ThrowOnError> => (options.client ?? client).get<SettingsVersionResponses, SettingsVersionErrors, ThrowOnError>({
+    security: [{ scheme: 'bearer', type: 'http' }],
+    url: '/v1/workspaces/{workspace}/config/settings/versions/{version}',
+    ...options
+});
 
 /**
  * Draft
