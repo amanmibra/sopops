@@ -11,7 +11,7 @@ A version is one agent, one release and one config hash, listed by an id hashed 
 
 ## Split your traffic
 
-Your code decides which version a call gets. Hashing the call's id gives a stable 50/50 split:
+Your code decides which version a call gets. Hashing the call's id gives a stable split, so the same call always lands on the same side:
 
 ```python
 import hashlib
@@ -29,38 +29,84 @@ function pick<T>(callId: string, versions: T[]): T {
 }
 ```
 
-## LiveKit with the SDK: nothing to add
+What goes in a version is yours to decide. Three shapes teams use:
 
-`attach` reads the `AgentSession`'s LLM, speech-to-text and text-to-speech models, and the voice when the plugin keeps one, and sends them with the session.
+### Two configs, 50/50
+
+A whole config per side. Anything you can write as settings can differ: models, turn detection, a feature flag, a nested section of your own.
+
+```python
+VERSIONS = [
+    {"turn_detection": "server_vad", "pipeline": {"interrupt_min_words": 2, "endpoint_ms": 500}},
+    {"turn_detection": "multilingual", "pipeline": {"interrupt_min_words": 0, "endpoint_ms": 320}},
+]
+
+v = pick(ctx.job.id, VERSIONS)
+ins = await attach(ctx, session, agent="front-desk", test="turn-detection", config=v)
+```
+
+```ts
+const VERSIONS = [
+  { turn_detection: "server_vad", pipeline: { interrupt_min_words: 2, endpoint_ms: 500 } },
+  { turn_detection: "multilingual", pipeline: { interrupt_min_words: 0, endpoint_ms: 320 } },
+];
+
+const v = pick(ctx.job.id, VERSIONS);
+const ins = await attach(ctx, session, { agent: "front-desk", test: "turn-detection", config: v });
+```
+
+### One model against another
+
+`attach` reads the session's LLM, speech-to-text and text-to-speech models, and the voice when the plugin keeps one, so a model test needs no `config` at all.
 
 ```python
 VERSIONS = [{"llm": "openai/gpt-4.1-mini"}, {"llm": "anthropic/claude-haiku-4-5"}]
 
-async def entrypoint(ctx: JobContext):
-    await ctx.connect()
-    v = pick(ctx.job.id, VERSIONS)
-    session = AgentSession(llm=v["llm"], stt="deepgram/nova-3", tts="cartesia/sonic-2")
-    ins = await attach(ctx, session, agent="tonys-pizza", test="haiku-vs-gpt")
-    await session.start(room=ctx.room, agent=Agent(instructions=ins.text))
+v = pick(ctx.job.id, VERSIONS)
+session = AgentSession(llm=v["llm"], stt="deepgram/nova-3", tts="cartesia/sonic-2")
+ins = await attach(ctx, session, agent="front-desk", test="haiku-vs-gpt")
 ```
 
 ```ts
 const VERSIONS = [{ llm: "openai/gpt-4.1-mini" }, { llm: "anthropic/claude-haiku-4-5" }];
 
-async function entrypoint(ctx: JobContext) {
-  await ctx.connect();
-  const v = pick(ctx.job.id, VERSIONS);
-  const session = new voice.AgentSession({ llm: v.llm, stt: "deepgram/nova-3", tts: "cartesia/sonic-2" });
-  const ins = await attach(ctx, session, { agent: "tonys-pizza", test: "haiku-vs-gpt" });
-  await session.start({ room: ctx.room, agent: new voice.Agent({ instructions: ins.text }) });
-}
+const v = pick(ctx.job.id, VERSIONS);
+const session = new voice.AgentSession({ llm: v.llm, stt: "deepgram/nova-3", tts: "cartesia/sonic-2" });
+const ins = await attach(ctx, session, { agent: "front-desk", test: "haiku-vs-gpt" });
 ```
+
+### A release and a model at once
+
+Two releases by two models is four versions. sopops keys a version on both, so the table separates them and a change in your instructions doesn't get read as a change in the model.
+
+```python
+VERSIONS = [{"release": r, "llm": m}
+            for r in (7, 8)
+            for m in ("openai/gpt-4.1-mini", "anthropic/claude-haiku-4-5")]
+
+v = pick(ctx.job.id, VERSIONS)
+session = AgentSession(llm=v["llm"], stt="deepgram/nova-3", tts="cartesia/sonic-2")
+ins = await attach(ctx, session, agent="front-desk", release=v["release"], test="rewrite-x-model")
+```
+
+```ts
+const VERSIONS = [7, 8].flatMap(release =>
+  ["openai/gpt-4.1-mini", "anthropic/claude-haiku-4-5"].map(llm => ({ release, llm })));
+
+const v = pick(ctx.job.id, VERSIONS);
+const session = new voice.AgentSession({ llm: v.llm, stt: "deepgram/nova-3", tts: "cartesia/sonic-2" });
+const ins = await attach(ctx, session, { agent: "front-desk", release: v.release, test: "rewrite-x-model" });
+```
+
+Four arms take roughly four times the calls to separate. With low volume, run two at a time.
+
+### What you can pass
 
 | Argument | What it does |
 |---|---|
-| `test` | Names the test. |
-| `config` | Adds settings sopops can't read, like `{"turn_detection": "multilingual"}`, and wins over what it reads. |
-| `release` | Pins a release to compare instructions. `{"sopops_release": 3}` in job metadata does the same. |
+| `test` | Names the test. Without one, the page compares every version in the time range. |
+| `config` | Settings sopops can't read for itself. A value can be a scalar or a whole object or array, and it wins over what sopops reads. |
+| `release` | Pins a release. `{"sopops_release": 3}` in job or room metadata does the same. |
 
 `record_session` (`recordSession` in TypeScript) takes the same `test` and `config`.
 
@@ -126,6 +172,7 @@ Add `test` and `config` to the session you post (`POST /v1/workspaces/{ws}/sessi
 
 ## Limits
 
-- Up to 32 settings per call.
-- Keys up to 64 characters, values up to 1,024, and a prompt up to 65,536.
+- Up to 32 settings per call, keys up to 64 characters.
+- A string value up to 1,024 characters, a prompt up to 65,536.
+- An object or array up to 8,192 characters of JSON, nested up to 8 levels.
 - A setting over a limit is left out with a warning on the ingest response. The session is still stored.
