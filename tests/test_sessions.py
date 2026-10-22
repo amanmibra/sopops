@@ -117,6 +117,56 @@ def test_ingest_is_an_idempotent_upsert(client, token):
     assert other.status_code == 201 and other.json()["id"] != created["id"]
 
 
+
+# A customer's A/B variant is a whole document: voice pipeline settings, feature flags, nested sections.
+NESTED = {
+    "llm": "anthropic/claude-haiku-4-5",
+    "pipeline": {"vad": {"threshold": 0.55, "min_silence_ms": 400}, "endpointing": "semantic", "fallbacks": ["a", "b"]},
+    "flags": {"warm_transfer": True, "barge_in": False, "max_retries": 3},
+    "tools": [{"name": "lookup", "timeout_s": 2.5}, {"name": "pay"}],
+}
+
+
+def test_a_nested_config_round_trips_and_identifies_its_version(client, token):
+    from sopops_server import configs
+
+    first = ingest(client, token, session("nested-1", config=NESTED, metadata={"sopops_voice": "ava"}))
+    assert first.status_code == 201 and first.json()["warnings"] == []
+    s = client.get(f"{WS}/sessions/{first.json()['id']}").json()
+    assert s["config"] == {**NESTED, "voice": "ava"}  # objects and arrays are kept whole, nested keys as sent
+    assert s["config_hash"] == configs.config_hash(s["config"])
+
+    # The same content, sent in another order, is the same version; a changed nested value is another one.
+    same = ingest(client, token, session("nested-2", config={"tools": NESTED["tools"], "flags": dict(reversed(list(NESTED["flags"].items()))),
+                                                             "pipeline": NESTED["pipeline"], "llm": NESTED["llm"], "voice": "ava"}))
+    deeper = {**NESTED["pipeline"], "vad": {"threshold": 0.9, "min_silence_ms": 400}}
+    other = ingest(client, token, session("nested-3", config={**NESTED, "pipeline": deeper, "voice": "ava"}))
+    by_id = {x["external_id"]: x for x in client.get(f"{WS}/sessions").json()["items"]}
+    assert by_id["nested-2"]["config_hash"] == s["config_hash"]
+    assert by_id["nested-3"]["config_hash"] != s["config_hash"]
+    assert same.status_code == 201 and other.status_code == 201
+
+    # A close merges settings learned during the call: a nested setting is replaced whole.
+    client.post(f"{WS}/sessions/open", json={"platform": "livekit", "external_id": "nested-4", "config": NESTED},
+                headers={"Authorization": f"Bearer {token}"})
+    client.post(f"{WS}/sessions/livekit/nested-4/close", json={"config": {"flags": {"warm_transfer": False}}},
+                headers={"Authorization": f"Bearer {token}"})
+    live = next(x for x in client.get(f"{WS}/sessions").json()["items"] if x["external_id"] == "nested-4")
+    assert live["config"] == {**NESTED, "flags": {"warm_transfer": False}}
+
+
+def test_a_nested_config_over_the_size_limit_is_left_out_with_a_warning(client, token):
+    deep: object = "bottom"
+    for _ in range(9):  # 9 levels, one past the limit
+        deep = {"section": deep}
+    big = {"notes": ["x" * 500] * 32}  # well over 8,192 characters of JSON
+    r = ingest(client, token, session("nested-big", config={"pipeline": NESTED["pipeline"], "deep": deep, "big": big}))
+    assert r.status_code == 201
+    assert [w.split("'")[1] for w in r.json()["warnings"]] == ["deep", "big"]
+    s = client.get(f"{WS}/sessions/{r.json()['id']}").json()
+    assert s["config"] == {"pipeline": NESTED["pipeline"]} and s["config_hash"]  # the session is kept, the rest of its config too
+
+
 def test_the_unique_key_holds_in_the_database(client):
     from sqlalchemy.exc import IntegrityError
     from sqlmodel import Session as Db

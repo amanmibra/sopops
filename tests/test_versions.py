@@ -37,6 +37,39 @@ def test_configs_come_from_the_payload_and_sopops_metadata():
         ("openai/gpt-4.1", "openai/gpt-4.1", None)
 
 
+
+def test_a_nested_config_is_kept_whole_and_hashes_by_its_content():
+    """A setting can be a whole object or array: it survives cleaning, and two sessions that ran the same one are
+    one version, however the payload was ordered."""
+    pipeline = {"vad": {"threshold": 0.55, "min_silence_ms": 400}, "endpointing": "semantic", "fallbacks": ["a", "b"]}
+    config = configs.clean({"LLM": " openai/gpt-4.1-mini ", " Pipeline ": pipeline, "flags": {"warm_transfer": True, "barge_in": False},
+                            "tools": [{"name": "lookup", "timeout_s": 2.5}], "empty": {}, "blank": [], "gone": "unknown", "nothing": None})
+    assert config == {"llm": "openai/gpt-4.1-mini", "pipeline": pipeline, "flags": {"warm_transfer": True, "barge_in": False},
+                      "tools": [{"name": "lookup", "timeout_s": 2.5}]}  # nested keys stay as sent; blanks and empties don't
+
+    reordered = configs.clean({"tools": [{"timeout_s": 2.5, "name": "lookup"}], "flags": {"barge_in": False, "warm_transfer": True},
+                               "pipeline": {"fallbacks": ["a", "b"], "endpointing": "semantic", "vad": {"min_silence_ms": 400, "threshold": 0.55}},
+                               "llm": "openai/gpt-4.1-mini"})
+    assert configs.config_hash(reordered) == configs.config_hash(config)
+    deeper = configs.clean({**config, "pipeline": {**pipeline, "vad": {"threshold": 0.6, "min_silence_ms": 400}}})
+    assert configs.config_hash(deeper) != configs.config_hash(config)
+    assert configs.config_hash(configs.clean({**config, "tools": [{"name": "lookup", "timeout_s": 2.5}, {"name": "pay"}]})) != configs.config_hash(config)
+    # later configs replace a nested setting whole, never merge into it
+    assert configs.merge(config, {"pipeline": {"endpointing": "fixed"}})["pipeline"] == {"endpointing": "fixed"}
+
+
+def test_a_nested_config_over_a_limit_is_left_out_with_a_warning():
+    deep: object = "bottom"
+    for _ in range(configs.MAX_DEPTH + 1):
+        deep = {"section": deep}
+    kept, warnings = configs.fit(configs.clean({"ok": {"vad": {"threshold": 0.5}}, "deep": deep,
+                                                "big": {"notes": ["x" * 400] * 32}, "prompt": "p" * (configs.MAX_PROMPT - 1)}))
+    assert list(kept) == ["ok", "prompt"]
+    assert [w.split("'")[1] for w in warnings] == ["deep", "big"]
+    assert f"{configs.MAX_DEPTH} levels" in warnings[0] and "8,192 characters of JSON" in warnings[1]
+    assert configs.fit(configs.clean({"ok": {"a": [1, 2, 3]}}))[1] == []
+
+
 def test_platform_agents_settings():
     el = {"conversation_config": {"agent": {"prompt": {"llm": "gpt-4o-mini", "temperature": 0}}, "tts": {"model_id": "eleven_flash_v2_5", "voice_id": "v1"}}}
     assert agent_config.elevenlabs(el, {"tts": {"voice_id": "v2"}}) == {"llm": "gpt-4o-mini", "temperature": 0, "tts": "elevenlabs/eleven_flash_v2_5", "voice": "v2"}

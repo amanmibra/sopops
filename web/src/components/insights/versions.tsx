@@ -13,6 +13,7 @@ import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { RuleText, Segmented } from "../bits";
+import { ConfigJson, SettingValue, settingText } from "../config-view";
 import { HrefLink } from "../href-link";
 import { Button } from "../ui/button";
 import { Hint, OutcomeBar, OutcomeLegend, RateN, Skel, StatusBar, WidgetCard } from "./kit";
@@ -28,11 +29,11 @@ const td = "border-b px-3 py-2 align-top";
 const SETTING: Record<string, string> = { agent: "Agent", release: "Release", llm: "LLM", stt: "Speech to text", tts: "Text to speech", voice: "Voice", prompt: "Prompt", version: "Your label", temperature: "Temperature" };
 const settingName = (k: string) => SETTING[k] ?? k.replace(/_/g, " ");
 
-function settingValue(v: VersionOut, k: string): string | null {
+/** A setting as shown in the lineup: `agent` and `release` are the version's own, the rest its config (a scalar, or a whole object or array). */
+function settingValue(v: VersionOut, k: string): unknown {
   if (k === "agent") return v.agent;
   if (k === "release") return v.release != null ? `#${v.release}` : null;
-  const x = v.config[k];
-  return x == null ? null : String(x);
+  return v.config[k] ?? null;
 }
 
 const LETTERS = "ABCDE";
@@ -74,15 +75,16 @@ function VersionBadge({ v, d, className }: { v: VersionOut; d: VersionsResponse;
 const ORDER = ["llm", "temperature", "stt", "tts", "voice"];
 const rank = (k: string) => (ORDER.includes(k) ? ORDER.indexOf(k) : ORDER.length);
 
-/** The settings a version reported, on one line: "llm openai/gpt-4.1-mini · voice ava". */
+/** The settings a version reported, on one line: "llm openai/gpt-4.1-mini · voice ava". A setting that is an object
+ * or an array shows its JSON, shortened; View JSON opens the whole config. */
 function SettingsLine({ v }: { v: VersionOut }) {
   const keys = Object.keys(v.config).filter((k) => k !== "prompt").sort((a, b) => rank(a) - rank(b));
   if (!keys.length && !v.config.prompt) return <span className="text-muted-foreground text-xs">No settings reported</span>;
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
+    <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
       {keys.map((k) => (
         <span key={k} className="whitespace-nowrap">
-          <span className="text-muted-foreground">{settingName(k)}</span> <span className="font-mono text-sm">{String(v.config[k])}</span>
+          <span className="text-muted-foreground">{settingName(k)}</span> <SettingValue value={v.config[k]} />
         </span>
       ))}
       {v.prompt && (
@@ -90,6 +92,10 @@ function SettingsLine({ v }: { v: VersionOut }) {
           <span className="text-muted-foreground cursor-help border-b border-dotted">prompt</span>
         </Hint>
       )}
+      {/* the stop keeps a click on View JSON from toggling the row it sits in */}
+      <span onClick={(e) => e.stopPropagation()}>
+        <ConfigJson value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
+      </span>
     </span>
   );
 }
@@ -236,16 +242,24 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
               <td className="text-muted-foreground border-b px-3 py-2 font-medium">{settingName(k)}</td>
               {picked.map((v) => (
                 <td key={v.id} className="border-b px-3 py-2 font-mono text-sm font-semibold">
-                  {settingValue(v, k) ?? <span className="text-muted-foreground font-sans font-normal">not reported</span>}
+                  {settingValue(v, k) == null ? <span className="text-muted-foreground font-sans font-normal">not reported</span> : <SettingValue value={settingValue(v, k)} className="font-semibold" />}
                 </td>
               ))}
             </tr>
           ))}
           <tr>
-            <td className="text-muted-foreground px-3 py-2">Calls</td>
+            <td className="text-muted-foreground border-b px-3 py-2">Calls</td>
             {picked.map((v) => (
-              <td key={v.id} className="px-3 py-2 tabular-nums">
+              <td key={v.id} className="border-b px-3 py-2 tabular-nums">
                 {v.checked} checked <span className="text-muted-foreground text-xs">of {v.sessions}</span>
+              </td>
+            ))}
+          </tr>
+          <tr>
+            <td className="text-muted-foreground px-3 py-2">All settings</td>
+            {picked.map((v) => (
+              <td key={v.id} className="px-3 py-2">
+                <ConfigJson value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
               </td>
             ))}
           </tr>
@@ -253,7 +267,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
       </table>
       {same.length > 0 && (
         <div className="text-muted-foreground border-t px-3 py-2 text-xs">
-          Same on all: {same.map((k) => `${settingName(k)} ${String(picked[0]?.config[k] ?? "")}`).join(" · ")}
+          Same on all: {same.map((k) => `${settingName(k)} ${settingText(picked[0]?.config[k])}`).join(" · ")}
         </div>
       )}
     </section>

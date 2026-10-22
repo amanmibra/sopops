@@ -47,8 +47,14 @@ class ToolCallIn(_BaseModel):
 
 
 CONFIG_HELP = ("What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; "
-               "sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` "
-               "(`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.")
+               "sopops releases are already known), `version` (your own label), and any other setting. A setting is a string, number or "
+               "boolean, or a whole object or array (a voice pipeline's settings, feature flags, a nested section), kept as sent. "
+               "`sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; a string up to "
+               "1,024 characters (a prompt up to 65,536); an object or array up to 8,192 characters of JSON and 8 levels deep. A setting "
+               "over a limit is left out with a warning.")
+
+# A setting: a scalar, or a whole JSON object or array. Nested content is kept as sent; see `sopops_server.configs`.
+ConfigValue = str | int | float | bool | list[Any] | dict[str, Any] | None
 
 
 class SessionIn(_BaseModel):
@@ -67,7 +73,7 @@ class SessionIn(_BaseModel):
     tool_calls: list[ToolCallIn] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
-    config: dict[str, str | int | float | bool | None] = Field(default_factory=dict, description=CONFIG_HELP)
+    config: dict[str, ConfigValue] = Field(default_factory=dict, description=CONFIG_HELP)
 
 
 class SessionOpen(_BaseModel):
@@ -83,7 +89,7 @@ class SessionOpen(_BaseModel):
     started_at: datetime | None = Field(None, description="Default: when sopops received it.")
     metadata: dict[str, Any] = Field(default_factory=dict)
     test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
-    config: dict[str, str | int | float | bool | None] = Field(default_factory=dict, description=CONFIG_HELP)
+    config: dict[str, ConfigValue] = Field(default_factory=dict, description=CONFIG_HELP)
 
 
 class SessionEventIn(_BaseModel):
@@ -109,7 +115,7 @@ class SessionClose(_BaseModel):
     ended_at: datetime | None = None
     partial: bool = Field(False, description="The sender knows the transcript is incomplete: the session's status is then `incomplete`.")
     test: str | None = Field(None, max_length=128, description="Set or replace the session's A/B test.")
-    config: dict[str, str | int | float | bool | None] | None = Field(None, description="Settings learned during the call, merged over the ones sent at open.")
+    config: dict[str, ConfigValue] | None = Field(None, description="Settings learned during the call, merged over the ones sent at open; a nested setting is replaced whole.")
 
 
 class SessionIngested(BaseModel):
@@ -147,7 +153,7 @@ class SessionSummary(BaseModel):
     release_id: int | None
     version_ref: str | None
     test: str | None = Field(None, description="The A/B test the session reported.")
-    config: dict[str, Any] | None = Field(None, description="What the agent ran with; `prompt` is the prompt's hash.")
+    config: dict[str, Any] | None = Field(None, description="What the agent ran with, as stored: scalars, and objects or arrays kept whole; `prompt` is the prompt's hash.")
     config_hash: str | None = Field(None, description="Identifies the config: sessions with the same agent, release and hash are one version.")
     started_at: datetime
     ended_at: datetime | None

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
@@ -391,7 +391,7 @@ class VersionOut(BaseModel):
     agent: str | None
     release: int | None = Field(description="The sopops release, i.e. the prompt, it ran.")
     config_hash: str | None = Field(description="Null: sessions that reported no config.")
-    config: dict[str, str | int | float | bool] = Field(description="`llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting.")
+    config: dict[str, Any] = Field(description="`llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting; a setting can be a whole object or array.")
     prompt: str | None = Field(description="The prompt text, when the config reported one.")
     sessions: int = Field(description="In the window.")
     checked: int = Field(description="Eligible sessions: their checks ran.")

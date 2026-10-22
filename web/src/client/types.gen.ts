@@ -7833,10 +7833,12 @@ export type SessionClose = {
     /**
      * Config
      *
-     * Settings learned during the call, merged over the ones sent at open.
+     * Settings learned during the call, merged over the ones sent at open; a nested setting is replaced whole.
      */
     config?: {
-        [key: string]: string | number | number | boolean | null;
+        [key: string]: string | number | number | boolean | Array<unknown> | {
+            [key: string]: unknown;
+        } | null;
     } | null;
 };
 
@@ -7893,7 +7895,7 @@ export type SessionDetail = {
     /**
      * Config
      *
-     * What the agent ran with; `prompt` is the prompt's hash.
+     * What the agent ran with, as stored: scalars, and objects or arrays kept whole; `prompt` is the prompt's hash.
      */
     config: {
         [key: string]: unknown;
@@ -8116,10 +8118,12 @@ export type SessionIn = {
     /**
      * Config
      *
-     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.
+     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. A setting is a string, number or boolean, or a whole object or array (a voice pipeline's settings, feature flags, a nested section), kept as sent. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; a string up to 1,024 characters (a prompt up to 65,536); an object or array up to 8,192 characters of JSON and 8 levels deep. A setting over a limit is left out with a warning.
      */
     config?: {
-        [key: string]: string | number | number | boolean | null;
+        [key: string]: string | number | number | boolean | Array<unknown> | {
+            [key: string]: unknown;
+        } | null;
     };
 };
 
@@ -8259,10 +8263,12 @@ export type SessionOpen = {
     /**
      * Config
      *
-     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; values up to 1,024 characters, a prompt up to 65,536.
+     * What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. A setting is a string, number or boolean, or a whole object or array (a voice pipeline's settings, feature flags, a nested section), kept as sent. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; a string up to 1,024 characters (a prompt up to 65,536); an object or array up to 8,192 characters of JSON and 8 levels deep. A setting over a limit is left out with a warning.
      */
     config?: {
-        [key: string]: string | number | number | boolean | null;
+        [key: string]: string | number | number | boolean | Array<unknown> | {
+            [key: string]: unknown;
+        } | null;
     };
 };
 
@@ -8359,7 +8365,7 @@ export type SessionSummary = {
     /**
      * Config
      *
-     * What the agent ran with; `prompt` is the prompt's hash.
+     * What the agent ran with, as stored: scalars, and objects or arrays kept whole; `prompt` is the prompt's hash.
      */
     config: {
         [key: string]: unknown;
@@ -10179,10 +10185,10 @@ export type VersionOut = {
     /**
      * Config
      *
-     * `llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting.
+     * `llm`, `stt`, `tts`, `voice`, `prompt` (its hash), `version`, and any other setting; a setting can be a whole object or array.
      */
     config: {
-        [key: string]: string | number | number | boolean;
+        [key: string]: unknown;
     };
     /**
      * Prompt

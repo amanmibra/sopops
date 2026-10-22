@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
+import { ConfigJson, SettingValue } from "./config-view";
 import { usePlatforms } from "@/lib/platforms";
 import { PlatformLabel } from "./brand-icon";
 import { HrefLink, useGo } from "./href-link";
@@ -475,6 +476,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
   if (res.isError) return <Page><ErrorBanner error={res.error} /><HrefLink href={wsHref(ws, "sessions")}>All sessions</HrefLink></Page>;
   const s: SessionDetail = res.data;
   const release = s.release_id != null ? releases.find((r) => r.number === s.release_id) : undefined;
+  const config = Object.entries(s.config ?? {}); // what it ran with: scalars inline, objects and arrays as JSON
   const facts: [string, React.ReactNode][] = [
     ["Agent", s.agent_id ? <HrefLink href={wsHref(ws, "agents", s.agent_id)}>{s.agent_id}</HrefLink> : (s.agent_ref ?? "—")],
     ["Release", s.release_id != null ? <HrefLink href={wsHref(ws, "releases", s.release_id)}>#{s.release_id}{release?.note ? `: ${release.note}` : ""}</HrefLink> : "—"],
@@ -556,6 +558,28 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
               </ul>
             </Panel>
           )}
+          <Panel title="Settings">
+            {config.length ? (
+              <>
+                <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">
+                  {config.map(([k, v]) => (
+                    <div key={k} className="contents">
+                      <dt className="text-muted-foreground break-all">{k}</dt>
+                      <dd className="min-w-0 break-all">
+                        <SettingValue value={v} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <ConfigJson value={s.config} title="What this session ran with" subtitle={s.config_hash ? `Version ${s.config_hash}: sessions with the same agent, release and config are one version.` : undefined} />
+                  {s.config_hash && <span className="text-muted-foreground font-mono text-xs">{s.config_hash}</span>}
+                </div>
+              </>
+            ) : (
+              <Note>Nothing reported.</Note>
+            )}
+          </Panel>
           <Panel title="Metadata">
             {Object.keys(s.metadata).length ? (
               <pre className="overflow-x-auto text-xs">{json(s.metadata)}</pre>

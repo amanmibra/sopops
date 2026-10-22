@@ -1098,10 +1098,11 @@ def _version_id(agent: str | None, release: int | None, chash: str | None) -> st
 
 
 def _differs(versions: list[dict[str, Any]]) -> list[str]:
-    """What isn't the same across these versions: `agent`, `release`, then each config key."""
+    """What isn't the same across these versions: `agent`, `release`, then each config key. A setting that is an
+    object or an array is compared by its content, however each version's payload happened to be ordered."""
     out = [k for k in ("agent", "release") if len({v[k] for v in versions}) > 1]
     keys = sorted({k for v in versions for k in v["config"]})
-    return out + [k for k in keys if len({json.dumps(v["config"].get(k)) for v in versions}) > 1]
+    return out + [k for k in keys if len({json.dumps(v["config"].get(k), sort_keys=True) for v in versions}) > 1]
 
 
 def _procedure_cell(v: dict[str, Any], mine: list[tuple]) -> dict[str, Any]:
