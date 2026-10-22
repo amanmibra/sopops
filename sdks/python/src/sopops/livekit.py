@@ -87,6 +87,7 @@ async def attach(
     stream: bool = False,
     test: str | None = None,
     config: Mapping[str, Any] | None = None,
+    variables: Mapping[str, Any] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> Instructions:
     """Fetch the agent's instructions, note the release in `session.userdata`, and post the session at shutdown.
@@ -98,11 +99,14 @@ async def attach(
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
     `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
     (`{"version": "v2", "turn_detection": "eou"}`); they win over what's read.
+    `variables`: values for `{{placeholders}}` only this call knows, like the time or the caller. They're filled
+    here, in your process, so they never reach sopops. A placeholder you pass no value for is left as it is and
+    listed in `ins.unfilled`, so you can log one that shouldn't be there.
     `on_guidance`: not yet used: reserved for runtime guidance in a later version."""
     client = client or Sopops()
     agent = agent or f"livekit:{ctx.job.agent_name}"
     pin = release if release is not None else pinned_release(ctx)
-    ins = await client.fetch_instructions(agent, pin, fallback=fallback)
+    ins = await client.fetch_instructions(agent, pin, fallback=fallback, variables=variables)
     _remember(session, ins)
     record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, on_guidance=on_guidance)
     return ins

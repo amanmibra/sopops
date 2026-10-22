@@ -162,3 +162,38 @@ describe("the fetchInstructions helper", () => {
     expect([ins.text, ins.source]).toEqual(["You are a helpful host.", "fallback"]);
   });
 });
+
+describe("runtime variables", () => {
+  it("fills placeholders in this process, and keeps the cache unfilled", async () => {
+    const m = mockFetch(json({ ...AGENT, prompt: "You are {{restaurant}}. It's {{now}}. Greet {{caller}}." }));
+    const cache = new MemoryCache();
+    const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache });
+    const ins = await c.fetchInstructions("front-desk", { variables: { now: "7:15pm", caller: "Sam" } });
+    expect(ins.text).toBe("You are {{restaurant}}. It's 7:15pm. Greet Sam.");
+    expect(ins.unfilled).toEqual(["restaurant"]);
+    expect(m.calls[0]!.url).not.toContain("Sam");
+
+    const down = new Sopops({ url: URL, token: "tok", fetch: mockFetch(new Error("down")).fetch, cache });
+    const later = await down.fetchInstructions("front-desk", { variables: { now: "9:40pm", caller: "Ada" } });
+    expect([later.source, later.text]).toEqual(["cache", "You are {{restaurant}}. It's 9:40pm. Greet Ada."]);
+  });
+
+  it("fills a fallback too", async () => {
+    const m = mockFetch(new Error("down"));
+    const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
+    const ins = await c.fetchInstructions("front-desk", { fallback: "You are the host. It's {{now}}.", variables: { now: "7:15pm" } });
+    expect([ins.source, ins.text]).toEqual(["fallback", "You are the host. It's 7:15pm."]);
+  });
+});
+
+it("warns about a variable that doesn't line up, and never blocks the call", async () => {
+  const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  const m = mockFetch(json({ ...AGENT, prompt: "Greet {{caller}}." }));
+  const c = new Sopops({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });
+  const ins = await c.fetchInstructions("front-desk", { variables: { calller: "Sam" } });   // a typo on our side
+  expect([ins.text, ins.unfilled]).toEqual(["Greet {{caller}}.", ["caller"]]);               // the call goes on
+  const said = warn.mock.calls.flat().join(" ");
+  expect(said).toContain("no value for {{caller}}");
+  expect(said).toContain("{{calller}} has no placeholder");
+  warn.mockRestore();
+});

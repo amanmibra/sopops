@@ -43,6 +43,17 @@ await sopops.post_session({"platform": "api", "external_id": call_id, "agent": "
 | `SOPOPS_TOKEN` | A workspace token (sopops Settings → Tokens) with the scopes the agent needs: `runtime` to fetch instructions, `ingest` to send sessions. `SOPOPS_INGEST_TOKEN` is read too. A workspace without a runtime token serves instructions without one. |
 | `SOPOPS_CACHE_DIR` | Where the last good instructions are kept, default `~/.cache/sopops`. |
 
+**Values only the call knows** (`{{placeholders}}` for the time, the caller, anything your code works out) are
+filled in your process, so they never reach sopops:
+
+```python
+ins = await sopops.fetch_instructions("tonys-pizza", variables={"now": "7:15pm", "caller": "Sam"})
+ins.unfilled                                         # placeholders nobody filled, e.g. ("special",)
+```
+
+A placeholder with no value is left as it is, and a value with no placeholder is ignored. Both log a warning and
+neither stops the call. `attach` takes `variables` too.
+
 Outside async code, one call does the same:
 
 ```python

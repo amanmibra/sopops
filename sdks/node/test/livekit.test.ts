@@ -56,3 +56,4 @@ describe("recordSession", () => {
     await expect(callbacks[0]!()).resolves.toBeUndefined();
   });
 });
+

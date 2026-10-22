@@ -281,3 +281,22 @@ def test_a_full_queue_drops_events_and_batches_stay_bounded(tmp_path):
     assert stream.sent == 5 and stream.dropped == 2
     assert [len(json.loads(c.request.content)["events"]) for c in events.calls] == [2, 2, 1]
     assert [e["seq"] for e in sent_events(events)] == [0, 1, 2, 3, 4]
+
+
+@respx.mock
+def test_attach_fills_per_call_values(tmp_path):
+    """The caller's name is filled here and never reaches sopops."""
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={
+        **AGENT, "prompt": "You are Tony's. It's {{now}}. Greet {{caller}}. Ask about {{special}}."}))
+    posted = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
+    c, session = ctx(), Session()
+
+    async def call():
+        ins = await attach(c, session, "tonys-pizza", client=Sopops(URL, "tok", cache_dir=tmp_path),
+                           variables={"now": "7:15pm", "caller": "Sam"})
+        assert ins.text == "You are Tony's. It's 7:15pm. Greet Sam. Ask about {{special}}."
+        assert ins.unfilled == ("special",)
+        await c.callbacks[0]("user_left")
+
+    asyncio.run(call())
+    assert "Sam" not in posted.calls.last.request.content.decode()

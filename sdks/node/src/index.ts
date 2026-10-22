@@ -29,6 +29,8 @@ export interface Instructions {
   toolSops: string[];
   /** `live` from sopops, `cache` the last good copy (sopops failed), `fallback` the text you passed. */
   source: Source;
+  /** Placeholders still in `text`: ones you passed no value for. Empty unless you passed `variables`. */
+  unfilled?: string[];
 }
 
 /** Where the last good instructions are kept. The default keeps them in memory for the process's lifetime. */
@@ -83,6 +85,9 @@ export interface FetchOptions {
   release?: number | null;
   /** Text to use if sopops is down and nothing is cached. */
   fallback?: string;
+  /** Values for `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything you work out per
+   * call. Filled here, in your process, so these never reach sopops. What's left over is in `unfilled`. */
+  variables?: Record<string, string | number | boolean>;
 }
 
 /** A canonical sopops session (see docs/api/sessions.md, "The canonical format"). */
@@ -140,6 +145,34 @@ export interface SessionIngested {
 }
 
 /** A release pinned for this call in metadata: `{"sopops_release": 3}` or `{"sopops": {"release": 3}}`, as JSON or an object. */
+const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
+
+/** `{{placeholders}}` replaced with your values. One with no value is left as it is, the way sopops leaves a
+ * placeholder it has no value for, so a missing value never mangles the instructions. */
+export function fill(text: string, variables: Record<string, string | number | boolean>): string {
+  return text.replace(PLACEHOLDER, (whole, name: string) => (name in variables ? String(variables[name]) : whole));
+}
+
+/** The placeholders still in the text, in order, without repeats. */
+export function unfilled(text: string): string[] {
+  return [...new Set(Array.from(text.matchAll(PLACEHOLDER), (m) => m[1] as string))];
+}
+
+const names = (xs: string[]) => xs.map((n) => `{{${n}}}`).join(", ");
+
+/** Fill what this call knows, and say what didn't line up. A mismatch is never fatal: the call goes on with the
+ * placeholder as it is, which is what sopops serves anyway. */
+function filled(got: Instructions, variables: FetchOptions["variables"]): Instructions {
+  if (!variables || Object.keys(variables).length === 0) return got;
+  const wanted = new Set(unfilled(got.text));
+  const text = fill(got.text, variables);
+  const left = unfilled(text);
+  if (left.length) console.warn(`sopops: no value for ${names(left)} in ${got.agent}'s instructions; it stays as a placeholder`);
+  const spare = Object.keys(variables).filter((k) => !wanted.has(k));
+  if (spare.length) console.warn(`sopops: ${names(spare)} has no placeholder in ${got.agent}'s instructions; check the spelling`);
+  return { ...got, text, unfilled: left };
+}
+
 export function releasePin(metadata: string | Record<string, unknown> | null | undefined): number | null {
   if (!metadata) return null;
   let m: unknown = metadata;
@@ -226,11 +259,11 @@ export class Sopops {
         source: "live",
       };
       try {
-        await this.cache.set(key, got);
+        await this.cache.set(key, got);   // unfilled, so the next call fills it with its own values
       } catch (e) {
         console.warn(`sopops: couldn't cache instructions for ${agent}: ${String(e)}`);
       }
-      return got;
+      return filled(got, options.variables);
     } catch (e) {
       const reason = e instanceof Error ? (e.name === "AbortError" ? `timed out after ${this.timeoutMs}ms` : e.message) : String(e);
       let cached: Instructions | undefined;
@@ -241,11 +274,11 @@ export class Sopops {
       }
       if (cached) {
         console.warn(`sopops: using the cached instructions for ${agent} (release ${cached.release}): ${reason}`);
-        return { ...cached, source: "cache" };
+        return filled({ ...cached, source: "cache" }, options.variables);
       }
       if (options.fallback !== undefined) {
         console.error(`sopops: using the fallback instructions for ${agent}, nothing cached: ${reason}`);
-        return { text: options.fallback, release: null, agent, blocks: [], hash: null, platformRef: null, tools: [], toolSops: [], source: "fallback" };
+        return filled({ text: options.fallback, release: null, agent, blocks: [], hash: null, platformRef: null, tools: [], toolSops: [], source: "fallback" }, options.variables);
       }
       throw new SopopsUnavailable(`no instructions for '${agent}': ${reason}`);
     }

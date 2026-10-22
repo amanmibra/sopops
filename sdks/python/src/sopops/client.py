@@ -8,8 +8,9 @@ import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any, Literal, Mapping, Sequence
 from urllib.parse import quote
@@ -45,6 +46,42 @@ class Instructions:
     tool_sops: list[str] = field(default_factory=list)
     source: Source = "live"
     """`live` from sopops, `cache` the last good copy on disk (sopops failed), `fallback` the text you passed."""
+    unfilled: tuple[str, ...] = ()
+    """Placeholders still in `text`: ones you passed no value for. Empty unless you passed `variables`."""
+
+
+PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
+
+
+def fill(text: str, variables: Mapping[str, Any]) -> str:
+    """`{{placeholders}}` replaced with your values. One with no value is left as it is, the way sopops leaves a
+    placeholder it has no value for, so a missing value never mangles the instructions."""
+    return PLACEHOLDER.sub(lambda m: str(variables[m.group(1)]) if m.group(1) in variables else m.group(0), text)
+
+
+def unfilled(text: str) -> tuple[str, ...]:
+    """The placeholders still in the text, in order, without repeats."""
+    return tuple(dict.fromkeys(PLACEHOLDER.findall(text)))
+
+
+def _filled(got: Instructions, variables: Mapping[str, Any] | None) -> Instructions:
+    """Fill what this call knows, and say what didn't line up. A mismatch is never fatal: the call goes on with the
+    placeholder as it is, which is what sopops serves anyway."""
+    if not variables:
+        return got
+    wanted = set(unfilled(got.text))
+    text = fill(got.text, variables)
+    left = unfilled(text)
+    if left:
+        log.warning("sopops: no value for %s in %s's instructions; it stays as a placeholder", _names(left), got.agent)
+    spare = [k for k in variables if k not in wanted]
+    if spare:
+        log.warning("sopops: %s has no placeholder in %s's instructions; check the spelling", _names(spare), got.agent)
+    return replace(got, text=text, unfilled=left)
+
+
+def _names(names: Sequence[str]) -> str:
+    return ", ".join(f"{{{{{n}}}}}" for n in names)
 
 
 def release_pin(metadata: str | Mapping[str, Any] | None) -> int | None:
@@ -72,6 +109,7 @@ def fetch(
     release: int | None = None,
     *,
     fallback: str | None = None,
+    variables: Mapping[str, Any] | None = None,
     url: str | None = None,
     token: str | None = None,
     timeout: float = 2.0,
@@ -87,6 +125,7 @@ def fetch(
 
         ins = sopops.fetch("tonys-pizza")           # the live release
         ins = sopops.fetch("tonys-pizza", 14)       # pinned, e.g. one arm of an A/B test
+        ins = sopops.fetch("tonys-pizza", variables={"now": "7:15pm", "caller": "Sam"})   # filled here, not in sopops
         prompt = ins.text
     """
     try:
@@ -96,7 +135,7 @@ def fetch(
     else:
         raise RuntimeError("sopops.fetch blocks: in async code use `await Sopops(...).fetch_instructions(agent, release)`")
     client = Sopops(url, token, timeout=timeout, cache_dir=cache_dir)
-    return asyncio.run(client.fetch_instructions(agent, release, fallback=fallback))
+    return asyncio.run(client.fetch_instructions(agent, release, fallback=fallback, variables=variables))
 
 
 class Sopops:
@@ -133,9 +172,15 @@ class Sopops:
 
     # --- call start ------------------------------------------------------------------------
 
-    async def fetch_instructions(self, agent: str, release: int | None = None, *, fallback: str | None = None) -> Instructions:
+    async def fetch_instructions(self, agent: str, release: int | None = None, *, fallback: str | None = None,
+                                 variables: Mapping[str, Any] | None = None) -> Instructions:
         """The agent's instructions in the live release, or in `release` if pinned. `agent` is the sopc agent id
         or its platform ref (`livekit:tonys-pizza`).
+
+        `variables` fills `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything your
+        code works out per call. It happens here, in your process, so those values never reach sopops. A placeholder
+        you pass no value for is left as it is and listed in `ins.unfilled`. The cache keeps the unfilled text, so a
+        cached copy still fills with this call's values.
 
         Never waits longer than `timeout`. If sopops fails, returns the last good copy from disk (`source="cache"`),
         else `fallback` (`source="fallback"`), else raises SopopsUnavailable."""
@@ -155,13 +200,13 @@ class Sopops:
             cached = self._read_cache(agent, release)
             if cached is not None:
                 log.warning("sopops: using the cached instructions for %s (release %s): %s", agent, cached.release, reason)
-                return cached
+                return _filled(cached, variables)
             if fallback is not None:
                 log.error("sopops: using the fallback instructions for %s, nothing cached: %s", agent, reason)
-                return Instructions(text=fallback, release=None, agent=agent, source="fallback")
+                return _filled(Instructions(text=fallback, release=None, agent=agent, source="fallback"), variables)
             raise SopopsUnavailable(f"no instructions for '{agent}': {reason}") from e
-        self._write_cache(agent, release, got)
-        return got
+        self._write_cache(agent, release, got)   # unfilled, so the next call fills it with its own values
+        return _filled(got, variables)
 
     def _cache_file(self, agent: str, release: int | None) -> Path:
         key = hashlib.sha256(f"{self.url}\n{agent}\n{release if release is not None else 'live'}".encode()).hexdigest()[:24]

@@ -149,3 +149,36 @@ def test_fetch_refuses_to_block_inside_async_code(monkeypatch):
             sopops.fetch("tonys-pizza")
 
     run(main())
+
+
+@respx.mock
+def test_variables_are_filled_in_your_process_not_in_sopops(client):
+    body = {**AGENT, "prompt": "You are {{restaurant}}. It's {{now}}. Greet {{caller}}."}
+    route = respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=body))
+    ins = run(client.fetch_instructions("tonys-pizza", variables={"now": "7:15pm", "caller": "Sam"}))
+
+    assert ins.text == "You are {{restaurant}}. It's 7:15pm. Greet Sam."
+    assert ins.unfilled == ("restaurant",)          # sopops fills that one; a typo would show up here
+    assert "now" not in route.calls.last.request.url.params   # nothing about the caller leaves this process
+
+    # the cache keeps the unfilled text, so the next call fills it with its own values
+    respx.get(f"{URL}/agents/tonys-pizza").mock(side_effect=httpx.ConnectError("down"))
+    later = run(client.fetch_instructions("tonys-pizza", variables={"now": "9:40pm", "caller": "Ada"}))
+    assert (later.source, later.text) == ("cache", "You are {{restaurant}}. It's 9:40pm. Greet Ada.")
+
+
+@respx.mock
+def test_a_fallback_is_filled_too(client):
+    respx.get(f"{URL}/agents/new-agent").mock(side_effect=httpx.ConnectError("down"))
+    ins = run(client.fetch_instructions("new-agent", fallback="You are the host. It's {{now}}.", variables={"now": "7:15pm"}))
+    assert (ins.source, ins.text) == ("fallback", "You are the host. It's 7:15pm.")
+
+
+@respx.mock
+def test_a_variable_that_does_not_line_up_warns_and_never_blocks(client, caplog):
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={**AGENT, "prompt": "Greet {{caller}}."}))
+    with caplog.at_level("WARNING"):
+        ins = run(client.fetch_instructions("tonys-pizza", variables={"calller": "Sam"}))   # a typo on our side
+    assert ins.text == "Greet {{caller}}." and ins.unfilled == ("caller",)                  # the call goes on
+    warnings = " ".join(r.getMessage() for r in caplog.records)
+    assert "no value for {{caller}}" in warnings and "{{calller}} has no placeholder" in warnings
