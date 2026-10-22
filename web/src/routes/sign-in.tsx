@@ -23,10 +23,14 @@ function SignIn() {
   const auth = useAuth().data;
   const go = useGo();
   const done = Boolean(auth && (!auth.required || auth.user)); // sign-in is off, or you're in already
+  // One provider, and it redirects: there is nothing to choose, so don't show a page with a single button.
+  // The provider's own pages are the sign-in. (A sopops with passwords or several providers still shows them.)
+  const only = auth && !auth.password_email && auth.providers.length === 1 && auth.providers[0]?.redirects ? auth.providers[0].id : null;
   useEffect(() => {
     if (done) void go(safeNext(next), { replace: true });
-  }, [done, next, go]);
-  if (!auth || done) return null;
+    else if (only && !error) window.location.replace(`/v1/auth/login/${only}?next=${encodeURIComponent(safeNext(next))}`);
+  }, [done, only, error, next, go]);
+  if (!auth || done || (only && !error)) return null;
   if (auth.first_account) return <Navigate to="/welcome" replace />;
   return (
     <Card title="Sign in to sopops">
