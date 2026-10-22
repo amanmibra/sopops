@@ -104,6 +104,8 @@ For a sopops that hands sign-in to a managed service instead of running its own.
 - Only addresses PropelAuth marks `email_verified` count.
 - The identity is keyed on PropelAuth's `user_id`, which survives an address change, so nobody gets a second account.
 - PropelAuth's organizations, roles and API keys go unused. Teams, roles, workspaces and tokens stay sopops'.
+- Signing out ends the PropelAuth session too. Their logout isn't OAuth2's: sopops posts the sign-in's refresh token to `{AUTH_URL}/api/backend/v1/logout`, which needs no backend API key. The refresh token is kept on the login session, encrypted with `SOPOPS_SECRET_KEY`, and spent on the way out. Set that key if you set PropelAuth up: without it the token isn't stored, and sign-out ends only the sopops session, so the next click on "Sign in" walks straight back in with no prompt. PropelAuth being unreachable never blocks a sign-out; it's logged and the sopops session ends anyway.
+- A session that **ends without a sign-out** leaves PropelAuth's alone: the 30-day sliding expiry running out, a password change ending the user's other sessions, or support access being turned off. sopops stops taking the cookie, so they have to sign in again, and PropelAuth may wave them through without asking.
 
 ## Choose what's offered
 

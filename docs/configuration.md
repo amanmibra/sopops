@@ -40,7 +40,7 @@ See [Sign in](sign-in.md).
 |---|---|---|
 | `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | unset | Sign in with GitHub. |
 | `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | unset | Sign in with Google. |
-| `SOPOPS_PROPELAUTH_URL`, `SOPOPS_PROPELAUTH_CLIENT_ID`, `SOPOPS_PROPELAUTH_CLIENT_SECRET` | unset | Sign in with PropelAuth (OpenID Connect). For a sopops that hands sign-in to a managed service; self-hosting leaves them unset. |
+| `SOPOPS_PROPELAUTH_URL`, `SOPOPS_PROPELAUTH_CLIENT_ID`, `SOPOPS_PROPELAUTH_CLIENT_SECRET` | unset | Sign in with PropelAuth (OpenID Connect). For a sopops that hands sign-in to a managed service; self-hosting leaves them unset. Set `SOPOPS_SECRET_KEY` too, so signing out can end the PropelAuth session as well as this one. |
 | `SOPOPS_SMTP_HOST`, `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER`, `SOPOPS_SMTP_PASSWORD`, `SOPOPS_SMTP_FROM` | unset, `587` | Email for sign-in links and invites. Port 465 is TLS from the start; others use STARTTLS when offered. `SOPOPS_SMTP_FROM` is the sender, defaulting to the user if that's an address. |
 | `SOPOPS_EMAIL_DEV` | unset | `1`: email sign-in without SMTP. Links go to the server log. Local use and demos only. |
 | `SOPOPS_AUTH_REQUIRED` | on when GitHub, Google, PropelAuth or email is set up | `true` or `false` forces sign-in. `true` with nothing set up: email and password sign-in. |

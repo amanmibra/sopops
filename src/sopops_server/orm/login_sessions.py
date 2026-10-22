@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlmodel import Column, DateTime, Field, ForeignKeyConstraint, Index, SQLModel
+from sqlmodel import Column, DateTime, Field, ForeignKeyConstraint, Index, SQLModel, Text
 
 
 class LoginSession(SQLModel, table=True):
     """A signed-in browser: the session cookie's random token, stored as a sha256 hash. It slides: each use moves
-    `expires_at` out again. Signing out sets `revoked_at`. `org_id` is the org the user is working in."""
+    `expires_at` out again. Signing out sets `revoked_at`. `org_id` is the org the user is working in.
+
+    `refresh_ciphertext` is the sign-in provider's refresh token, encrypted with SOPOPS_SECRET_KEY, set only when the
+    provider needs it back to end its own session on the way out (PropelAuth). It is a credential: it is excluded
+    from the model, so it can't reach an API response or a `model_dump`, and it is never logged."""
 
     __tablename__ = "login_sessions"
     __table_args__ = (
@@ -25,3 +29,4 @@ class LoginSession(SQLModel, table=True):
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     last_seen_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    refresh_ciphertext: str | None = Field(default=None, sa_column=Column(Text, nullable=True), exclude=True)

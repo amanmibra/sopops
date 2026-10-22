@@ -38,13 +38,18 @@ TIMEOUT = httpx.Timeout(15.0, connect=5.0)
 
 @dataclass(frozen=True)
 class Profile:
-    """Who signed in, as the provider says. `email`: a verified address, lowercased, or None."""
+    """Who signed in, as the provider says. `email`: a verified address, lowercased, or None.
+
+    `refresh_token` is the provider's own refresh token, for the one provider that needs it back to end its session
+    when someone signs out of sopops (PropelAuth; see `sopops_server.auth.propelauth`). It is a credential: stored
+    encrypted on the login session, never logged and never returned. Every other provider leaves it None."""
 
     provider: str
     provider_user_id: str
     email: str | None
     name: str = ""
     avatar_url: str | None = None
+    refresh_token: str | None = None
 
 
 class ProviderError(Exception):
@@ -81,18 +86,24 @@ def authorization_url(endpoint: str, client_id: str, scope: str, redirect_uri: s
     return url
 
 
-def fetch_token(endpoint: str, client_id: str, client_secret: str, code: str, redirect_uri: str, code_verifier: str, who: str,
-                basic: bool = False) -> str:
-    """Trade the authorization code (with the PKCE code verifier) for an access token. Raises ProviderError.
+def fetch_tokens(endpoint: str, client_id: str, client_secret: str, code: str, redirect_uri: str, code_verifier: str, who: str,
+                 client_auth: str = "post") -> dict:
+    """Trade the authorization code (with the PKCE code verifier) for the whole token response. Raises ProviderError.
 
-    `basic` sends the client id and secret as HTTP Basic auth (`client_secret_basic`) instead of in the form, which is
-    what some providers require."""
-    data = {"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri, "code_verifier": code_verifier}
+    Most providers want only `access_token`, and `fetch_token` hands them that. PropelAuth also needs the
+    `refresh_token` the same response carries, because ending its session on the way out means posting that token
+    back to it, so it gets the dict and keeps what it needs.
+
+    `client_auth` is how the client proves itself: `post` sends the id and secret in the form (GitHub, Google),
+    `basic` sends them as HTTP Basic (`client_secret_basic`), and `none` sends only the id, for a provider whose PKCE
+    flow refuses client authentication (PropelAuth documents this: with PKCE, send no Authorization header)."""
+    data = {"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri, "code_verifier": code_verifier,
+            "client_id": client_id}
     auth = None
-    if basic:
+    if client_auth == "basic":
         auth = (client_id, client_secret)
-    else:
-        data |= {"client_id": client_id, "client_secret": client_secret}
+    elif client_auth == "post":
+        data["client_secret"] = client_secret
     try:
         res = httpx.post(endpoint, data=data, auth=auth, headers={"Accept": "application/json"}, timeout=TIMEOUT)
         got = res.json()
@@ -101,7 +112,13 @@ def fetch_token(endpoint: str, client_id: str, client_secret: str, code: str, re
     if not isinstance(got, dict) or not got.get("access_token"):  # GitHub answers 200 with {"error": ...} for a bad code
         error = got.get("error") if isinstance(got, dict) else None
         raise ProviderError(f"{who} didn't accept the sign-in ({error or f'HTTP {res.status_code}'})")
-    return got["access_token"]
+    return got
+
+
+def fetch_token(endpoint: str, client_id: str, client_secret: str, code: str, redirect_uri: str, code_verifier: str, who: str,
+                client_auth: str = "post") -> str:
+    """`fetch_tokens`, for the providers that want the access token and nothing else."""
+    return fetch_tokens(endpoint, client_id, client_secret, code, redirect_uri, code_verifier, who, client_auth)["access_token"]
 
 
 def get_json(url: str, access_token: str, who: str, accept: str = "application/json") -> object:

@@ -28,6 +28,10 @@ password.
 
 **Login sessions** are a random token in an HttpOnly cookie, stored as a sha256 hash. They last 30 days from the last
 use (sliding; `last_seen_at` and `expires_at` move at most every few minutes) and end early when revoked (sign out).
+A session signed in through a provider that runs its own session (PropelAuth) also keeps that provider's refresh
+token, encrypted with SOPOPS_SECRET_KEY, so `sign_out` can end their session before revoking this one. Only an
+explicit sign-out does that: a session that simply expires, or that `_end_sessions` revokes (a password change, say),
+leaves the provider's session alone, and the person may be signed back in without a prompt.
 
 **Roles.** `owner` and `admin` manage members, invites and the org's settings; `member` does everything else. Only an
 owner makes, changes or removes an owner, and an org always keeps one owner.
@@ -58,6 +62,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 import secrets
 import uuid
@@ -70,13 +75,16 @@ from sqlmodel import Session, select
 
 from ..errors import Conflict, NotFound
 from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
+from ..runtime import crypto
 from ..tokens import Forbidden
-from . import actor, password
+from . import actor, password, propelauth
 from .providers import Profile
 from . import providers
 
 if TYPE_CHECKING:
     from ..store import Store
+
+log = logging.getLogger("sopops.auth")
 
 OWNER, ADMIN, MEMBER = "owner", "admin", "member"
 ROLES = (OWNER, ADMIN, MEMBER)
@@ -174,7 +182,7 @@ class Accounts:
             user.last_login_at = now
             db.add(user)
             self._join(db, user, email, now)
-            token = self._new_session(db, user.id, now)
+            token = self._new_session(db, user.id, now, profile.refresh_token)
         return user, token
 
     def _join(self, db: Session, user: User, email: str, now: datetime) -> None:
@@ -197,10 +205,11 @@ class Accounts:
                 db.add(Membership(org_id=org.id, user_id=user.id, role=MEMBER, created_at=now))
                 mine.add(org.id)
 
-    def _new_session(self, db: Session, user_id: str, now: datetime) -> str:
+    def _new_session(self, db: Session, user_id: str, now: datetime, refresh_token: str | None = None) -> str:
         token = secrets.token_urlsafe(32)
         db.add(LoginSession(id=str(uuid.uuid4()), token_hash=_hash(token), user_id=user_id, created_at=now,
-                            expires_at=now + timedelta(days=SESSION_DAYS), last_seen_at=now))
+                            expires_at=now + timedelta(days=SESSION_DAYS), last_seen_at=now,
+                            refresh_ciphertext=_seal(refresh_token)))
         return token
 
     # --- email sign-in links ------------------------------------------------------
@@ -472,12 +481,24 @@ class Accounts:
         return Current(session_id=s.id, user=user, memberships=roles, org_id=org)
 
     def sign_out(self, token: str | None) -> None:
+        """End the session. A session that kept a provider refresh token (PropelAuth) ends the provider's session
+        first, so the next click on "Sign in" asks who they are instead of letting them straight back in.
+
+        That call can't stop a sign-out: PropelAuth being unreachable, slow or unhappy is logged and the session is
+        revoked anyway (`propelauth.end_session` swallows it), as is a refresh token this SOPOPS_SECRET_KEY can no
+        longer read."""
         if not token:
             return
+        with self._db() as db:
+            s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(token))).first()
+            sealed = s.refresh_ciphertext if s is not None and s.revoked_at is None else None
+        if sealed:
+            propelauth.end_session(_unseal(sealed))
         with self._db() as db, db.begin():
             s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(token))).first()
             if s is not None and s.revoked_at is None:
                 s.revoked_at = _now()
+                s.refresh_ciphertext = None  # spent: it's no good to anyone now, so it isn't kept
                 db.add(s)
 
     def switch_org(self, cur: Current, org_id: str) -> None:
@@ -996,6 +1017,28 @@ def sign_up_open(email: str) -> bool:
 
 def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _seal(refresh_token: str | None) -> str | None:
+    """A provider's refresh token, encrypted with SOPOPS_SECRET_KEY, the way every other stored credential is.
+
+    Without that key there's nowhere safe to put it, so it isn't kept: signing out then ends the sopops session and
+    says so, rather than refusing the sign-in that's happening right now."""
+    if not refresh_token:
+        return None
+    try:
+        return crypto.encrypt(refresh_token)
+    except crypto.SecretKeyMissing as e:
+        log.warning("not keeping the sign-in provider's refresh token (%s), so signing out won't end their session too", e)
+        return None
+
+
+def _unseal(ciphertext: str) -> str | None:
+    try:
+        return crypto.decrypt(ciphertext)
+    except crypto.SecretKeyMissing as e:
+        log.warning("can't read the stored refresh token (%s), so only the sopops session ends", e)
+        return None
 
 
 def _now() -> datetime:
