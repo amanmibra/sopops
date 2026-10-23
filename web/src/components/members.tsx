@@ -1,6 +1,7 @@
 // Settings → Members: the team's people and roles, its join link, adding people by email (they join now, or when they first sign in),
 // reset links for passwords, who's invited and not signed in yet, and the email domains whose people join by signing in.
-// Owners and admins change things; members see who's here.
+// Members do the work; owners and admins also change the team. Owner differs from admin in one thing only:
+// making and removing owners.
 //
 // Where the teams aren't sopops's to hand out (every way of signing in here owns them), the page is the same page
 // with fewer parts: one invite form, the list of who's waiting, and nothing that depends on a sopops link. The
@@ -24,9 +25,9 @@ import { Textarea } from "./ui/textarea";
 type Role = MemberOut["role"];
 
 const ROLES: { role: Role; label: string; help: string }[] = [
-  { role: "member", label: "Member", help: "Uses everything in sopops." },
-  { role: "admin", label: "Admin", help: "Also adds and removes people, changes roles and sets the org's email domains." },
-  { role: "owner", label: "Owner", help: "Also makes and removes owners." },
+  { role: "member", label: "Member", help: "Writes SOPs, publishes releases, reviews calls and makes tokens." },
+  { role: "admin", label: "Admin", help: "All of that, plus people, invites, model keys, backfills and the team's settings." },
+  { role: "owner", label: "Owner", help: "The same as an admin, and the only role that can make or remove an owner." },
 ];
 
 const mq = {
@@ -48,7 +49,7 @@ export function MembersPanel({ auth }: { auth: AuthState }) {
   const org = useQuery(mq.org());
   return (
     <>
-      {org.isError && <ErrorBanner error={org.error} lead="The org didn't load:" />}
+      {org.isError && <ErrorBanner error={org.error} lead="The team didn't load:" />}
       {manager && !elsewhere && <ShareJoinLink orgName={auth.org?.name ?? ""} />}
       {manager &&
         (elsewhere ? (

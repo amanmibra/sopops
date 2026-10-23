@@ -91,7 +91,7 @@ export function StepShell({
   };
   return (
     <main className="flex min-h-screen items-start justify-center px-4 pt-[8vh] pb-10">
-      <div className={cn("bg-card w-full rounded-xl border px-5 py-6 shadow-sm sm:px-7 sm:py-7", wide ? "max-w-[800px]" : "max-w-[520px]")}>
+      <div className={cn("bg-card w-full rounded-xl border px-5 py-6 shadow-sm sm:px-7 sm:py-7", wide ? "max-w-[800px] lg:max-w-[1040px] xl:max-w-[1240px]" : "max-w-[520px]")}>
         <div className="mb-6 flex items-center gap-2 text-lg font-semibold">
           <Logo /> sopops
           <span className="flex-1" />
