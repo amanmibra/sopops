@@ -43,7 +43,7 @@ See [Sign in](sign-in.md).
 | `SOPOPS_SMTP_HOST`, `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER`, `SOPOPS_SMTP_PASSWORD`, `SOPOPS_SMTP_FROM` | unset, `587` | Email for sign-in links and invites. Port 465 is TLS from the start; others use STARTTLS when offered. `SOPOPS_SMTP_FROM` is the sender, defaulting to the user if that's an address. |
 | `SOPOPS_EMAIL_DEV` | unset | `1`: email sign-in without SMTP. Links go to the server log. Local use and demos only. |
 | `SOPOPS_AUTH_REQUIRED` | on when GitHub, Google or email is set up | `true` or `false` forces sign-in. `true` with nothing set up: email and password sign-in. |
-| `SOPOPS_OPEN_SIGNUP` | `false` | `true` with sign-in on: anyone can sign up (name, email, password, team name) and owns the new team. Their teams run on this server's model keys, so leave it off unless sopops is open to the public. |
+| `SOPOPS_OPEN_SIGNUP` | `true` | Anyone can sign up (name, email, password, team name) and owns the new team, with no invite link. On wherever passwords are the way in. Set it to `0` for invites only, which a sopops on a public address and this server's model keys may want. |
 | `SOPOPS_LOGIN_PROVIDERS` | unset | Comma-separated provider ids (`github`, `google`, `email`, `password`, and any a plugin registers): the only ones offered. Unset, every provider that's set up is offered. A list naming none that are set up is ignored, with a warning. |
 | `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated. Only verified emails at these domains can sign in. With email set up, they can also make a password account. |
 | `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach sopops. Base of sign-in callbacks and invite links. |

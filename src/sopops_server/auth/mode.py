@@ -29,5 +29,10 @@ def required() -> bool:
 
 
 def open_signup() -> bool:
-    """Whether anyone can sign up with a password and make a team (SOPOPS_OPEN_SIGNUP, with sign-in on)."""
-    return required() and os.environ.get(OPEN_SIGNUP_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+    """Whether anyone can sign up with a password and make a team.
+
+    On wherever passwords are the way in, so a sopops someone self-hosts takes sign-ups without being configured
+    to: nobody needs an invite link to make an account. SOPOPS_OPEN_SIGNUP=0 turns it off, for a deployment that
+    wants invites only. A provider that owns its own sign-up (and so turns passwords off) is unaffected: sign-up
+    with a password 404s there whatever this says."""
+    return required() and os.environ.get(OPEN_SIGNUP_ENV, "").strip().lower() not in ("0", "false", "no", "off")

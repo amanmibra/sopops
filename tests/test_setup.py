@@ -344,13 +344,18 @@ def sign_up(app, email: str = "bo@example.com", team: str = "Night Shift", name:
     return TestClient(app).post("/v1/auth/sign-up", json={"name": name, "email": email, "password": pw, "team": team})
 
 
-def test_sign_up_is_off_unless_turned_on(fresh):
+def test_sign_up_is_on_until_it_is_turned_off(fresh, monkeypatch):
+    """Anyone can sign up where passwords are the way in; SOPOPS_OPEN_SIGNUP=0 is how a team closes it."""
     c = first_run(fresh)
+    assert TestClient(fresh).get("/v1/auth/session").json()["open_signup"]
+    assert sign_up(fresh).status_code == 200
+
+    monkeypatch.setenv("SOPOPS_OPEN_SIGNUP", "0")
     assert not TestClient(fresh).get("/v1/auth/session").json()["open_signup"]
-    res = sign_up(fresh)
+    res = TestClient(fresh).post("/v1/auth/sign-up", json={"name": "Cam", "email": "cam@example.com", "password": PW, "team": "Late Shift"})
     assert res.status_code == 404 and "join link" in res.json()["detail"]
     with db(c) as d:
-        assert d.exec(select(User).where(User.email == "bo@example.com")).first() is None
+        assert d.exec(select(User).where(User.email == "cam@example.com")).first() is None
 
 
 def test_open_sign_up_makes_an_owner_of_a_new_team(fresh, monkeypatch):

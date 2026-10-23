@@ -3,9 +3,14 @@
     python examples/walkthrough/serve.py                 # fake mode, out/walkthrough.db, port 8585
     python examples/walkthrough/serve.py --models real   # your models, from the usual variables (see WALKTHROUGH.md)
     python examples/walkthrough/serve.py --fresh         # start from an empty database
+    python examples/walkthrough/serve.py --sign-in       # with sign-in on, and an account to sign in with
 
 Fake mode answers every model call with `fake_models.WalkthroughModels` (no network, no keys, no cost). Real mode is
 plain `sopops`: SOPOPS_MODEL_FAST / SOPOPS_MODEL_REASONING (and TYPESAFE_API_KEY for Jev) from the environment.
+`--sign-in` turns sign-in on with passwords, opens sign-up to anyone, and makes the account in DEMO_ACCOUNT below
+if it isn't there yet, so the UI can be looked at the way a signed-in team sees it. Without it the walkthrough runs
+with sign-in off, which is what the steps expect.
+
 `WALKTHROUGH_DATABASE_URL` overrides the database (e.g. a throwaway Postgres); `DATABASE_URL` is ignored, so a
 sopops you already run keeps its database.
 """
@@ -25,6 +30,7 @@ from common import OUT, PORT
 from fake_models import WalkthroughModels
 from sopops_server import Sopc, Store, create_app
 from sopops_server.ai.lm import configured, set_ai
+from sopops_server.auth.service import Accounts
 from sopops_server.jobs import Jobs
 
 
@@ -37,11 +43,30 @@ def sopc_version(binary: str) -> tuple[int, ...]:
     return tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
 
 
+DEMO_ACCOUNT = {"email": "test@example.com", "name": "Test User", "password": "password123"}
+
+
+def sign_in_on(store: Store) -> None:
+    """Sign-in with passwords, sign-up open to anyone, and the demo account, for looking around the UI.
+
+    The password is eleven characters because sopops asks for ten or more; `password` on its own is refused."""
+    os.environ["SOPOPS_AUTH_REQUIRED"] = "1"
+    os.environ["SOPOPS_LOGIN_PROVIDERS"] = "password"
+    os.environ["SOPOPS_OPEN_SIGNUP"] = "1"
+    accounts = Accounts(store)
+    if accounts.has_users():
+        print(f"sign-in on; an account already exists (the demo one is {DEMO_ACCOUNT['email']})", flush=True)
+        return
+    accounts.first_account(DEMO_ACCOUNT["email"], DEMO_ACCOUNT["name"], DEMO_ACCOUNT["password"])
+    print(f"sign-in on; sign in as {DEMO_ACCOUNT['email']} / {DEMO_ACCOUNT['password']}, or sign up as anyone", flush=True)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--models", choices=["fake", "real"], default=os.environ.get("WALKTHROUGH_MODELS", "fake"))
     parser.add_argument("--port", type=int, default=PORT)
     parser.add_argument("--database-url", default=os.environ.get("WALKTHROUGH_DATABASE_URL") or f"sqlite:///{OUT / 'walkthrough.db'}")
+    parser.add_argument("--sign-in", action="store_true", help=f"Turn sign-in on, open sign-up to anyone, and make {DEMO_ACCOUNT['email']} (password {DEMO_ACCOUNT['password']}) on an empty database.")
     parser.add_argument("--fresh", action="store_true", help="Delete out/ first: the SQLite database, generated calls and tokens (a Postgres database isn't touched).")
     args = parser.parse_args()
 
@@ -72,6 +97,8 @@ def main() -> None:
         if not configured():
             sys.exit("real mode needs SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING (and the provider's key); see WALKTHROUGH.md")
         app = create_app(store)
+    if args.sign_in:
+        sign_in_on(store)
     print(f"sopops ({args.models} models) on http://127.0.0.1:{args.port}, database {args.database_url}", flush=True)
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
 

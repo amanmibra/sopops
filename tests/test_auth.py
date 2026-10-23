@@ -131,7 +131,7 @@ def test_github_sign_in_makes_a_user_and_a_session(app, files):
     c = TestClient(app)
     assert c.get("/v1/auth/session").json() == {"required": True, "providers": [offered("github", "GitHub"), offered("google", "Google"),
                                                                               offered("password", "Password", redirects=False)],
-                                                 "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False, "open_signup": False,
+                                                 "user": None, "org": None, "orgs": [], "first_account": True, "password_email": False, "sign_up": False, "open_signup": True,
                                                  "platforms": None}
     with respx.mock(assert_all_called=False) as router:
         gh = GitHub(router, "42", "Ana@Example.com", name="Ana")

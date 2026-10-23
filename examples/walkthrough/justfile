@@ -20,6 +20,10 @@ serve:
 fresh:
     {{py}} serve.py --models {{models}} --fresh
 
+# 1. the same, with sign-in on and test@example.com / password123 to sign in as
+sign-in:
+    {{py}} serve.py --models {{models}} --sign-in
+
 # 2. no coding agent: push the prepared proposal, resolve, apply, publish release 1
 onboard:
     {{py}} onboard.py
