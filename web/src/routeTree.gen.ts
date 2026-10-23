@@ -15,6 +15,7 @@ import { Route as JoinRouteImport } from './routes/join'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SupportRouteImport } from './routes/support'
 import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as SignInEmailRouteImport } from './routes/sign-in_.email'
 import { Route as WWsRouteImport } from './routes/w.$ws'
@@ -48,6 +49,7 @@ import { Route as WWsSettingsGithubRouteImport } from './routes/w.$ws.settings.g
 import { Route as WWsSettingsHistoryRouteImport } from './routes/w.$ws.settings.history'
 import { Route as WWsSettingsMembersRouteImport } from './routes/w.$ws.settings.members'
 import { Route as WWsSettingsPlatformsRouteImport } from './routes/w.$ws.settings.platforms'
+import { Route as WWsSettingsSupportRouteImport } from './routes/w.$ws.settings.support'
 import { Route as WWsSuggestionsIndexRouteImport } from './routes/w.$ws.suggestions.index'
 import { Route as WWsSuggestionsIdRouteImport } from './routes/w.$ws.suggestions.$id'
 import { Route as WWsAgentsIdIndexRouteImport } from './routes/w.$ws.agents.$id.index'
@@ -90,6 +92,11 @@ const SignInRoute = SignInRouteImport.update({
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupportRoute = SupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WelcomeRoute = WelcomeRouteImport.update({
@@ -257,6 +264,11 @@ const WWsSettingsPlatformsRoute = WWsSettingsPlatformsRouteImport.update({
   path: '/platforms',
   getParentRoute: () => WWsSettingsRoute,
 } as any)
+const WWsSettingsSupportRoute = WWsSettingsSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
 const WWsSuggestionsIndexRoute = WWsSuggestionsIndexRouteImport.update({
   id: '/suggestions/',
   path: '/suggestions/',
@@ -333,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
@@ -356,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
+  '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -387,6 +401,7 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in/email': typeof SignInEmailRoute
   '/w/$ws/changes': typeof WWsChangesRoute
@@ -408,6 +423,7 @@ export interface FileRoutesByTo {
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
+  '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
   '/w/$ws/groups': typeof WWsGroupsIndexRoute
@@ -440,6 +456,7 @@ export interface FileRoutesById {
   '/set-password': typeof SetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/support': typeof SupportRoute
   '/welcome': typeof WelcomeRoute
   '/sign-in_/email': typeof SignInEmailRoute
   '/w/$ws': typeof WWsRouteWithChildren
@@ -463,6 +480,7 @@ export interface FileRoutesById {
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
+  '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -496,6 +514,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/sign-in'
     | '/sign-up'
+    | '/support'
     | '/welcome'
     | '/sign-in/email'
     | '/w/$ws'
@@ -519,6 +538,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/history'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
+    | '/w/$ws/settings/support'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -550,6 +570,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/sign-in'
     | '/sign-up'
+    | '/support'
     | '/welcome'
     | '/sign-in/email'
     | '/w/$ws/changes'
@@ -571,6 +592,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/history'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
+    | '/w/$ws/settings/support'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents'
     | '/w/$ws/groups'
@@ -602,6 +624,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/sign-in'
     | '/sign-up'
+    | '/support'
     | '/welcome'
     | '/sign-in_/email'
     | '/w/$ws'
@@ -625,6 +648,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/history'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
+    | '/w/$ws/settings/support'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -657,6 +681,7 @@ export interface RootRouteChildren {
   SetPasswordRoute: typeof SetPasswordRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  SupportRoute: typeof SupportRoute
   WelcomeRoute: typeof WelcomeRoute
   SignInEmailRoute: typeof SignInEmailRoute
   WWsRoute: typeof WWsRouteWithChildren
@@ -704,6 +729,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support': {
+      id: '/support'
+      path: '/support'
+      fullPath: '/support'
+      preLoaderRoute: typeof SupportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/welcome': {
@@ -937,6 +969,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WWsSettingsPlatformsRouteImport
       parentRoute: typeof WWsSettingsRoute
     }
+    '/w/$ws/settings/support': {
+      id: '/w/$ws/settings/support'
+      path: '/support'
+      fullPath: '/w/$ws/settings/support'
+      preLoaderRoute: typeof WWsSettingsSupportRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
     '/w/$ws/suggestions/': {
       id: '/w/$ws/suggestions/'
       path: '/suggestions'
@@ -1039,6 +1078,7 @@ interface WWsSettingsRouteChildren {
   WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
   WWsSettingsMembersRoute: typeof WWsSettingsMembersRoute
   WWsSettingsPlatformsRoute: typeof WWsSettingsPlatformsRoute
+  WWsSettingsSupportRoute: typeof WWsSettingsSupportRoute
   WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
 }
 
@@ -1050,6 +1090,7 @@ const WWsSettingsRouteChildren: WWsSettingsRouteChildren = {
   WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
   WWsSettingsMembersRoute: WWsSettingsMembersRoute,
   WWsSettingsPlatformsRoute: WWsSettingsPlatformsRoute,
+  WWsSettingsSupportRoute: WWsSettingsSupportRoute,
   WWsSettingsIndexRoute: WWsSettingsIndexRoute,
 }
 
@@ -1143,6 +1184,7 @@ const rootRouteChildren: RootRouteChildren = {
   SetPasswordRoute: SetPasswordRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  SupportRoute: SupportRoute,
   WelcomeRoute: WelcomeRoute,
   SignInEmailRoute: SignInEmailRoute,
   WWsRoute: WWsRouteWithChildren,

@@ -11,12 +11,28 @@ npm install sopops               # TypeScript: pnpm add sopops, yarn add sopops,
 
 The Python package is [sdks/python](../sdks/python). The TypeScript one ([sdks/node](../sdks/node)) is ESM, has no dependencies, and runs on Node 18+, in browsers and on edge runtimes.
 
-Both SDKs read two variables. This page's REST calls need neither and work with `curl`.
+Both SDKs read these variables. This page's REST calls need none of them and work with `curl`.
 
 | Variable | Value |
 |---|---|
 | `SOPOPS_URL` | The workspace's API URL, `https://app.sopops.dev/v1/workspaces/<id>`. |
 | `SOPOPS_TOKEN` | Settings → Tokens: `runtime` to fetch instructions, `ingest` to send sessions. |
+| `SOPOPS_CACHE_DIR` | Where the last good instructions are kept on disk. Default `~/.cache/sopops`. |
+
+Python caches on disk already. TypeScript caches in memory, so pass `FileCache` from `sopops/node` to keep the copy on disk, and a restarted process still has one when sopops is unreachable.
+
+```python
+from sopops import SopOps
+
+sopops = SopOps()                                       # disk, or cache_dir="/var/cache/sopops"
+```
+
+```ts
+import { SopOps } from "sopops";
+import { FileCache } from "sopops/node";                // Node only
+
+const sopops = new SopOps({ cache: new FileCache() });  // or new FileCache("/var/cache/sopops")
+```
 
 ## How sopops knows which agent
 
@@ -109,6 +125,14 @@ const sopops = new SopOps({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
 const s = await elevenLabsSession(sopops, { agent: "front-desk", stream: true });
 const conversation = await Conversation.startSession({ ...s.sessionOptions });
 ```
+
+- `@elevenlabs/react` takes the same options: `useConversation().startSession({ ...s.sessionOptions })`.
+- The `onConnect` in `s.sessionOptions` reports the conversation id, so the post-call session links to the release it ran on. Pass your own and call `s.link(conversationId)` from it.
+
+**In a browser:** a `runtime` token reads every instruction in the workspace, and with `ingest` it sends sessions.
+
+- Give a page a runtime-only token, build the options on your server and pass them to the page, or put sopops behind your own auth.
+- A browser calls sopops directly only if the server sets [`SOPOPS_CORS_ORIGINS`](configuration.md#core) to the page's origin.
 
 ## Connect Vapi
 

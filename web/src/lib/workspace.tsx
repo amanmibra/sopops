@@ -50,5 +50,5 @@ export const wsHref = (ws: string, ...parts: (string | number)[]) =>
   [`/w/${encodeURIComponent(ws)}`, ...parts.map((p) => encodeURIComponent(String(p)))].join("/");
 
 /** Settings' sections, each on its own page. A bare /settings link lands on the first. */
-export type SettingsSection = "platforms" | "github" | "access" | "members" | "defaults" | "history" | "checks";
+export type SettingsSection = "platforms" | "github" | "access" | "members" | "support" | "defaults" | "history" | "checks";
 export const settingsHref = (ws: string, section: SettingsSection = "platforms") => wsHref(ws, "settings", section);

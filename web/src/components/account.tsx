@@ -11,6 +11,7 @@ import { signInHref, useAuth, useSignOut } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 import { Banner, ErrorBanner } from "./bits";
 import { GitHubIcon, GoogleIcon } from "./brand-icon";
+import { SupportMenuLink } from "./support";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -20,6 +21,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
 
 /** Pages anyone can open: signing in, signing up, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
 const OPEN_PAGES = ["/sign-in", "/sign-up", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
+
+/** Pages that need a login but no team. Support staff belong to no customer team by design, so the page where they
+ *  start a support session has to open before the "ask your team" gate. The server still checks they are staff. */
+const NO_TEAM_PAGES = ["/support"];
 
 /**
  * With sign-in on: send people who aren't signed in to the sign-in page, and people in no org to "ask an owner".
@@ -38,7 +43,7 @@ export function AuthGate({ children }: { children: (auth: AuthState) => ReactNod
   const a = auth.data;
   const open = OPEN_PAGES.includes(pathname);
   if (a.required && !a.user && !open) return <Navigate to="/sign-in" search={{ next: pathname + searchStr }} replace />;
-  if (a.required && a.user && !a.org && !open) return <NoOrg auth={a} />;
+  if (a.required && a.user && !a.org && !open && !NO_TEAM_PAGES.includes(pathname)) return <NoOrg auth={a} />;
   return children(a);
 }
 
@@ -504,6 +509,7 @@ export function UserMenu({ auth }: { auth: AuthState }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
+          <SupportMenuLink />
           {user.has_password && (
             <DropdownMenuItem onSelect={() => setChanging(true)}>
               <KeyRound className="size-4" /> Change password

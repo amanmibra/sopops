@@ -4254,6 +4254,34 @@ export type OrgSummary = {
 };
 
 /**
+ * OrgSupportIn
+ */
+export type OrgSupportIn = {
+    /**
+     * Support Access
+     */
+    support_access: boolean;
+};
+
+/**
+ * OrgSupportOut
+ */
+export type OrgSupportOut = {
+    /**
+     * Support Access
+     *
+     * Whether support staff may open a session on this team's workspace. On by default.
+     */
+    support_access: boolean;
+    /**
+     * Sessions
+     *
+     * Every support session against this team, newest first.
+     */
+    sessions: Array<SupportSessionOut>;
+};
+
+/**
  * OriginalsIn
  */
 export type OriginalsIn = {
@@ -9193,6 +9221,160 @@ export type SuggestionsResponse = {
      * Items
      */
     items: Array<SuggestionSummary>;
+};
+
+/**
+ * SupportSessionOut
+ */
+export type SupportSessionOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Staff Email
+     *
+     * Who looked. Copied when the session started, so a rename doesn't lose it.
+     */
+    staff_email: string;
+    /**
+     * Reason
+     *
+     * Why, if the staff member said. Empty otherwise.
+     */
+    reason: string;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Ended At
+     *
+     * When it was ended. None while it's running, and for one left to expire.
+     */
+    ended_at: string | null;
+    /**
+     * Until
+     */
+    until: string;
+    /**
+     * Requests
+     *
+     * Requests served to the session (approximate).
+     */
+    requests: number;
+    /**
+     * Last Path
+     */
+    last_path: string | null;
+    /**
+     * Running
+     */
+    running: boolean;
+};
+
+/**
+ * SupportStartIn
+ */
+export type SupportStartIn = {
+    /**
+     * Org
+     *
+     * The customer: their org id, or a workspace of theirs.
+     */
+    org: string;
+    /**
+     * Reason
+     *
+     * Optional. Kept in the audit trail the customer reads, as it comes.
+     */
+    reason?: string;
+    /**
+     * Minutes
+     *
+     * How long the session lasts. It dies then, whatever happens.
+     */
+    minutes?: number;
+};
+
+/**
+ * SupportStarted
+ */
+export type SupportStarted = {
+    /**
+     * Org Id
+     */
+    org_id: string;
+    /**
+     * Org Name
+     */
+    org_name: string;
+    /**
+     * Until
+     *
+     * When the session dies. It doesn't slide, and using it doesn't push this out.
+     */
+    until: string;
+};
+
+/**
+ * SupportState
+ */
+export type SupportState = {
+    /**
+     * Running
+     *
+     * A support session is on: everything you see and change belongs to `org_name`.
+     */
+    running: boolean;
+    /**
+     * Staff
+     *
+     * You're allowed to start support sessions (your address is in SOPOPS_SUPPORT_EMAILS).
+     */
+    staff: boolean;
+    /**
+     * Org Id
+     *
+     * The customer org being worked in, while a session is running.
+     */
+    org_id: string | null;
+    /**
+     * Org Name
+     */
+    org_name: string | null;
+    /**
+     * Until
+     */
+    until: string | null;
+};
+
+/**
+ * SupportTeamOut
+ *
+ * One team a support session can be started against, for the list staff pick from.
+ */
+export type SupportTeamOut = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Workspaces
+     *
+     * The team's workspaces, so two teams of the same name tell apart.
+     */
+    workspaces: Array<string>;
+    /**
+     * Support Access
+     *
+     * False means this team has turned support access off and can't be picked.
+     */
+    support_access: boolean;
 };
 
 /**
@@ -17057,6 +17239,166 @@ export type GithubWebhookResponses = {
 };
 
 export type GithubWebhookResponse = GithubWebhookResponses[keyof GithubWebhookResponses];
+
+export type StartSupportSessionData = {
+    body: SupportStartIn;
+    path?: never;
+    query?: never;
+    url: '/v1/support/sessions';
+};
+
+export type StartSupportSessionErrors = {
+    /**
+     * The team has turned support access off.
+     */
+    403: unknown;
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+    /**
+     * You're in a support session already.
+     */
+    409: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type StartSupportSessionError = StartSupportSessionErrors[keyof StartSupportSessionErrors];
+
+export type StartSupportSessionResponses = {
+    /**
+     * Successful Response
+     */
+    201: SupportStarted;
+};
+
+export type StartSupportSessionResponse = StartSupportSessionResponses[keyof StartSupportSessionResponses];
+
+export type EndSupportSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/support/session';
+};
+
+export type EndSupportSessionErrors = {
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+};
+
+export type EndSupportSessionResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type EndSupportSessionResponse = EndSupportSessionResponses[keyof EndSupportSessionResponses];
+
+export type GetSupportStateData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/support/session';
+};
+
+export type GetSupportStateErrors = {
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+};
+
+export type GetSupportStateResponses = {
+    /**
+     * Successful Response
+     */
+    200: SupportState;
+};
+
+export type GetSupportStateResponse = GetSupportStateResponses[keyof GetSupportStateResponses];
+
+export type ListSupportTeamsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/support/teams';
+};
+
+export type ListSupportTeamsErrors = {
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+};
+
+export type ListSupportTeamsResponses = {
+    /**
+     * Response List Support Teams
+     *
+     * Successful Response
+     */
+    200: Array<SupportTeamOut>;
+};
+
+export type ListSupportTeamsResponse = ListSupportTeamsResponses[keyof ListSupportTeamsResponses];
+
+export type GetOrgSupportData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/org/support';
+};
+
+export type GetOrgSupportErrors = {
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+};
+
+export type GetOrgSupportResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrgSupportOut;
+};
+
+export type GetOrgSupportResponse = GetOrgSupportResponses[keyof GetOrgSupportResponses];
+
+export type SetOrgSupportData = {
+    body: OrgSupportIn;
+    path?: never;
+    query?: never;
+    url: '/v1/org/support';
+};
+
+export type SetOrgSupportErrors = {
+    /**
+     * Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS).
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetOrgSupportError = SetOrgSupportErrors[keyof SetOrgSupportErrors];
+
+export type SetOrgSupportResponses = {
+    /**
+     * Successful Response
+     */
+    200: OrgSupportOut;
+};
+
+export type SetOrgSupportResponse = SetOrgSupportResponses[keyof SetOrgSupportResponses];
 
 export type OnboardingCapabilitiesData = {
     body?: never;

@@ -11,6 +11,10 @@ class LoginSession(SQLModel, table=True):
     """A signed-in browser: the session cookie's random token, stored as a sha256 hash. It slides: each use moves
     `expires_at` out again. Signing out sets `revoked_at`. `org_id` is the org the user is working in.
 
+    A row with `mimic_until` set is a **support session** (`sopops_server.auth.support`): a staff member working in one
+    customer org, held in the `sopops_mimic` cookie beside their own session. It doesn't slide, and it is
+    dead the moment `mimic_until` has passed, whatever `expires_at` says.
+
     `provider` is what signed this session in (`github`, `password`, a plugin's id), so signing out knows whose
     session to end as well as this one. `refresh_ciphertext` is that provider's refresh token, encrypted with
     SOPOPS_SECRET_KEY, set only when the provider needs it back to end its own session on the way out
@@ -31,5 +35,9 @@ class LoginSession(SQLModel, table=True):
     expires_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     last_seen_at: datetime = Field(sa_column=Column(DateTime(timezone=True), nullable=False))
     revoked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True))
+    mimic_org_id: str | None = Field(default=None, max_length=36, description="A support session: the customer org it acts in. None for a normal login.")
+    mimic_reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    mimic_until: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True),
+                                         description="When the support session dies. It never moves: support sessions don't slide.")
     provider: str | None = Field(default=None, max_length=32, description="The login provider that signed this session in.")
     refresh_ciphertext: str | None = Field(default=None, sa_column=Column(Text, nullable=True), exclude=True)

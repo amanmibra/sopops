@@ -53,6 +53,16 @@ await sopops.postSession({ platform: "api", external_id: callId, agent: ins.agen
 
 A complete agent is in [examples/livekit-restaurant](../../examples/livekit-restaurant) (Python), and a web call in [examples/elevenlabs-web](../../examples/elevenlabs-web).
 
+## Reference
+
+| | |
+|---|---|
+| [`FileCache`, `SOPOPS_CACHE_DIR`](https://docs.sopops.dev/connect#install-the-client) | The last good instructions on disk |
+| [`releasePin(metadata)`](https://docs.sopops.dev/ab-tests#what-you-can-pass) | A release pinned in job or room metadata |
+| [`s.link`, `@elevenlabs/react`](https://docs.sopops.dev/connect#connect-elevenlabs) | Your own `onConnect`, and React |
+| [Browsers](https://docs.sopops.dev/connect#connect-elevenlabs) | Runtime-only tokens, `SOPOPS_CORS_ORIGINS` |
+| [`onGuidance`](https://docs.sopops.dev/api/sessions#streaming-optional) | Accepted, not called yet |
+
 ## Development
 
 ```sh

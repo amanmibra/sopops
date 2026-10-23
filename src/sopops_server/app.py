@@ -35,6 +35,7 @@ from .api import (
     sessions,
     stateless,
     suggestions,
+    support,
     tokens,
     ui,
     usage,
@@ -113,6 +114,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         repo.router(store),
         github.router(store),
         provider_webhooks.router(store),
+        support.router(store),
     ):
         app.include_router(r)
     app.include_router(onboarding.router(store, app.state.onboarding), dependencies=OPEN)

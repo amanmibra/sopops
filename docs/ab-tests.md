@@ -106,9 +106,23 @@ Four arms take roughly four times the calls to separate. With low volume, run tw
 |---|---|
 | `test` | Names the test. Without one, the page compares every version in the time range. |
 | `config` | Settings sopops can't read for itself. A value can be a scalar or a whole object or array, and it wins over what sopops reads. |
-| `release` | Pins a release. `{"sopops_release": 3}` in job or room metadata does the same. |
+| `release` | Pins a release. `{"sopops_release": 3}` or `{"sopops": {"release": 3}}` in job or room metadata does the same. |
 
 `record_session` (`recordSession` in TypeScript) takes the same `test` and `config`.
+
+`attach` reads the metadata pin for you. Code that fetches on its own reads it with `release_pin`, `releasePin` in TypeScript, which takes metadata as JSON or an object.
+
+```python
+from sopops import SopOps, release_pin
+
+ins = await SopOps().fetch_instructions("front-desk", release_pin(ctx.job.metadata))
+```
+
+```ts
+import { releasePin, SopOps } from "sopops";
+
+const ins = await new SopOps().fetchInstructions("front-desk", { release: releasePin(ctx.job.metadata) });
+```
 
 ## LiveKit without the SDK: one call
 

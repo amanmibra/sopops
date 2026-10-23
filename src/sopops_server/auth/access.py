@@ -19,6 +19,20 @@ make the browser send the session cookie, but can't read the CSRF cookie to copy
 is also SameSite=Lax. Token and webhook routes take no cookie, so they need no CSRF token. The open routes that sign in
 (a password, an email link, an invite) have no session to check against; they take only JSON, which another site can't
 make a browser send without passing CORS.
+
+**Support sessions** (`sopops_server.auth.support`). Support staff can work in one customer org to help them, which
+means reading and changing that customer's workspace, its SOPs and its call transcripts. The session is a second
+login session in its own cookie pair, `sopops_mimic` (HttpOnly) and `sopops_mimic_csrf` (the same HMAC, of the mimic
+token), set beside the staff member's own `sopops_session`, which is never touched: ending the support session puts
+them back in their own account with no re-login. While `sopops_mimic` is there and alive, the guard authenticates
+with it and checks CSRF against it, and:
+
+| | |
+|---|---|
+| The org | The session's memberships are the customer's org alone, as `member`, whatever the staff member really belongs to. Every other org answers 404, as another org's workspaces always do. |
+| What it can do | Everything a member can, writes included. Admin routes need `owner` or `admin` and so refuse by themselves. |
+| Ending | At `mimic_until` at the latest: a support session doesn't slide, and using it doesn't push that out. Past it the cookie is ignored and the staff member's own session takes over again. |
+| The record | Every request is counted against the session's `support_sessions` row, which the customer can read. |
 """
 
 from __future__ import annotations
@@ -40,6 +54,8 @@ KINDS = (OPEN, TOKEN, WEBHOOK, TOKEN_OR_SESSION, SIGNED_IN, SESSION, ADMIN)
 
 SESSION_COOKIE = "sopops_session"
 CSRF_COOKIE = "sopops_csrf"
+MIMIC_COOKIE = "sopops_mimic"
+MIMIC_CSRF_COOKIE = "sopops_mimic_csrf"
 CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 NO_MEMBERSHIP = "you're not a member of an org on this sopops yet. Ask an owner to invite you"
@@ -48,7 +64,8 @@ NO_MEMBERSHIP = "you're not a member of an org on this sopops yet. Ask an owner 
 ROUTES: dict[str, str] = {
     # open: the sign-in flow, the UI's files, health and the API docs
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
-    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN, "confirm_email_link": OPEN,
+    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN,
+    "confirm_email_link": OPEN,
     "password_login": OPEN, "first_account": OPEN, "sign_up": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
     "set_password": OPEN, "lookup_join_link": OPEN, "join_with_link": OPEN,
     "onboarding_skill": OPEN,  # SKILL.md, the same text the repo publishes
@@ -66,6 +83,11 @@ ROUTES: dict[str, str] = {
     "github_webhook": WEBHOOK, "livekit_webhook": WEBHOOK, "elevenlabs_post_call": WEBHOOK, "elevenlabs_conversation_init": WEBHOOK,
     "vapi_assistant_request": WEBHOOK,
     "provider_webhook": WEBHOOK,
+    # support sessions (sopops_server.auth.support): starting and ending one needs the staff member's own login, not
+    # a membership; the customer sees the sessions against their org, and owners and admins set whether they're
+    # allowed. The teams list is SIGNED_IN for the same reason: support staff are in no team, so SESSION would refuse
+    "start_support_session": SIGNED_IN, "end_support_session": SIGNED_IN, "get_support_state": SIGNED_IN, "list_support_teams": SIGNED_IN,
+    "get_org_support": SESSION, "set_org_support": ADMIN,
     # the org: owners and admins manage it
     "get_org": SESSION, "list_members": SESSION,
     "create_team": SIGNED_IN,  # a team you own: another one, or your first, where a login provider owns the teams
@@ -119,18 +141,28 @@ async def guard(request: Request) -> None:
     actor.current.set(None)
     request.state.login = None
     route = request.scope.get("route")
-    kind = kind_of(getattr(route, "name", ""))
+    name = getattr(route, "name", "")
+    kind = kind_of(name)
     if kind in (OPEN, TOKEN, WEBHOOK) or not mode.required():
         return
     accounts: Accounts = request.app.state.accounts
-    token = request.cookies.get(SESSION_COOKIE)
-    cur = await run_in_threadpool(accounts.current, token)
+    token, cookie = request.cookies.get(SESSION_COOKIE), CSRF_COOKIE
+    cur = None
+    mimic = request.cookies.get(MIMIC_COOKIE)
+    if mimic:  # a support session, while it's alive; past that, the staff member is back in their own account
+        cur = await run_in_threadpool(accounts.current, mimic, request.url.path)
+        if cur is not None and cur.mimicking:
+            token, cookie = mimic, MIMIC_CSRF_COOKIE
+        else:
+            cur = None
+    if cur is None:
+        cur = await run_in_threadpool(accounts.current, token)
     if cur is None:
         if kind == TOKEN_OR_SESSION:
             return  # the route checks its runtime token
         raise Unauthorized("sign in first")
     if request.method not in SAFE_METHODS:
-        _check_csrf(request, token or "")
+        _check_csrf(request, token or "", cookie)
     request.state.login = cur
     org = cur.org_id
     ws = request.path_params.get("workspace")
@@ -156,10 +188,10 @@ def signed_in(request: Request) -> Current | None:
     return getattr(request.state, "login", None)
 
 
-def _check_csrf(request: Request, session_token: str) -> None:
+def _check_csrf(request: Request, session_token: str, cookie: str = CSRF_COOKIE) -> None:
     sent = request.headers.get(CSRF_HEADER, "")
     if not sent or not hmac.compare_digest(sent, csrf_token(session_token)):
-        raise Forbidden(f"missing or wrong CSRF token: send the {CSRF_COOKIE} cookie's value in the {CSRF_HEADER} header")
+        raise Forbidden(f"missing or wrong CSRF token: send the {cookie} cookie's value in the {CSRF_HEADER} header")
 
 
 # --- cookies ---------------------------------------------------------------------------
@@ -179,3 +211,17 @@ def clear_session_cookies(response: Response, request: Request) -> None:
     s = secure(request)
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax", secure=s)
     response.delete_cookie(CSRF_COOKIE, path="/", httponly=False, samesite="lax", secure=s)
+
+
+def set_mimic_cookies(response: Response, request: Request, token: str, max_age: int) -> None:
+    """The support session's cookies, set beside the staff member's own, which stay as they are."""
+    s = secure(request)
+    response.set_cookie(MIMIC_COOKIE, token, max_age=max_age, path="/", httponly=True, samesite="lax", secure=s)
+    response.set_cookie(MIMIC_CSRF_COOKIE, csrf_token(token), max_age=max_age, path="/", httponly=False, samesite="lax", secure=s)
+
+
+def clear_mimic_cookies(response: Response, request: Request) -> None:
+    """Drop the support session's cookies; the staff member's own login is still there, so they stay signed in."""
+    s = secure(request)
+    response.delete_cookie(MIMIC_COOKIE, path="/", httponly=True, samesite="lax", secure=s)
+    response.delete_cookie(MIMIC_CSRF_COOKIE, path="/", httponly=False, samesite="lax", secure=s)

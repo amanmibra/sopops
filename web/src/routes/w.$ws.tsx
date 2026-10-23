@@ -53,7 +53,7 @@ function WorkspaceLayout() {
     );
   return (
     <WsContext.Provider value={value}>
-      <div className={cn("grid min-h-[calc(100vh-57px)] grid-cols-1", railCols(collapsed))}>
+      <div className={cn("grid min-h-[calc(100vh-57px-var(--band-h))] grid-cols-1", railCols(collapsed))}>
         <Rail />
         <main className="min-w-0 px-4 pt-5 pb-10 md:px-8 md:pt-6">
           <SetupBar ws={ws} />

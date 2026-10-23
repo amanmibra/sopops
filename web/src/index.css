@@ -32,6 +32,9 @@
   --grotesk: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --bl: 8px;
+  /* the support-session band's height, set by the band itself while one is running: the top bar and the rails
+     stick below it, and the page is that much shorter */
+  --band-h: 0px;
   /* the body face, behind one token: Raster's monospace */
   --body-face: var(--mono);
 

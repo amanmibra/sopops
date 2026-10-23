@@ -11250,6 +11250,195 @@
         }
       }
     },
+    "/v1/support/sessions": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Start Support Session",
+        "description": "Start a support session against a customer, to help them: you work in their workspace, their sessions\nand their call transcripts as one of their members would. It ends at the time returned, at the latest. Your\nown sign-in stays as it is underneath.",
+        "operationId": "start_support_session",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportStartIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportStarted"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          },
+          "403": {
+            "description": "The team has turned support access off."
+          },
+          "409": {
+            "description": "You're in a support session already."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/support/session": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Get Support State",
+        "description": "Whether you're in a customer's workspace right now, whose and until when, and whether you're support\nstaff at all. The band the customer's data is shown under comes from this.",
+        "operationId": "get_support_state",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportState"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "support"
+        ],
+        "summary": "End Support Session",
+        "description": "End the support session: its cookies go and it stops working at once. You're back in your own account,\nsigned in as before.",
+        "operationId": "end_support_session",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          }
+        }
+      }
+    },
+    "/v1/support/teams": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "List Support Teams",
+        "description": "The teams you can start a support session against: each one's id, name, workspaces, and whether it allows\nsupport sessions at all. Staff only \u2014 anyone else gets the same 404 as the feature being off.",
+        "operationId": "list_support_teams",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupportTeamOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Support Teams"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          }
+        }
+      }
+    },
+    "/v1/org/support": {
+      "get": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Get Org Support",
+        "description": "Who from support has opened a session on your team's workspace, when, how long for and how much they\ndid; and whether support access is allowed at all.",
+        "operationId": "get_org_support",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgSupportOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Set Org Support",
+        "description": "Allow or refuse support sessions against your team. Off, nobody from support can start one; a session\nalready running still ends at its own time. Owners and admins.",
+        "operationId": "set_org_support",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OrgSupportIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgSupportOut"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Support sessions aren't set up on this sopops (SOPOPS_SUPPORT_EMAILS)."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/onboarding/capabilities": {
       "get": {
         "tags": [
@@ -20482,6 +20671,42 @@
         ],
         "title": "OrgSummary"
       },
+      "OrgSupportIn": {
+        "properties": {
+          "support_access": {
+            "type": "boolean",
+            "title": "Support Access"
+          }
+        },
+        "type": "object",
+        "required": [
+          "support_access"
+        ],
+        "title": "OrgSupportIn"
+      },
+      "OrgSupportOut": {
+        "properties": {
+          "support_access": {
+            "type": "boolean",
+            "title": "Support Access",
+            "description": "Whether support staff may open a session on this team's workspace. On by default."
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/SupportSessionOut"
+            },
+            "type": "array",
+            "title": "Sessions",
+            "description": "Every support session against this team, newest first."
+          }
+        },
+        "type": "object",
+        "required": [
+          "support_access",
+          "sessions"
+        ],
+        "title": "OrgSupportOut"
+      },
       "OriginalsIn": {
         "properties": {
           "originals": {
@@ -29346,6 +29571,229 @@
           "items"
         ],
         "title": "SuggestionsResponse"
+      },
+      "SupportSessionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "staff_email": {
+            "type": "string",
+            "title": "Staff Email",
+            "description": "Who looked. Copied when the session started, so a rename doesn't lose it."
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason",
+            "description": "Why, if the staff member said. Empty otherwise.",
+            "default": ""
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At",
+            "description": "When it was ended. None while it's running, and for one left to expire."
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Until"
+          },
+          "requests": {
+            "type": "integer",
+            "title": "Requests",
+            "description": "Requests served to the session (approximate)."
+          },
+          "last_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Path"
+          },
+          "running": {
+            "type": "boolean",
+            "title": "Running"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "staff_email",
+          "reason",
+          "started_at",
+          "ended_at",
+          "until",
+          "requests",
+          "last_path",
+          "running"
+        ],
+        "title": "SupportSessionOut"
+      },
+      "SupportStartIn": {
+        "properties": {
+          "org": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Org",
+            "description": "The customer: their org id, or a workspace of theirs."
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Reason",
+            "description": "Optional. Kept in the audit trail the customer reads, as it comes.",
+            "default": ""
+          },
+          "minutes": {
+            "type": "integer",
+            "maximum": 480.0,
+            "minimum": 1.0,
+            "title": "Minutes",
+            "description": "How long the session lasts. It dies then, whatever happens.",
+            "default": 60
+          }
+        },
+        "type": "object",
+        "required": [
+          "org"
+        ],
+        "title": "SupportStartIn"
+      },
+      "SupportStarted": {
+        "properties": {
+          "org_id": {
+            "type": "string",
+            "title": "Org Id"
+          },
+          "org_name": {
+            "type": "string",
+            "title": "Org Name"
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Until",
+            "description": "When the session dies. It doesn't slide, and using it doesn't push this out."
+          }
+        },
+        "type": "object",
+        "required": [
+          "org_id",
+          "org_name",
+          "until"
+        ],
+        "title": "SupportStarted"
+      },
+      "SupportState": {
+        "properties": {
+          "running": {
+            "type": "boolean",
+            "title": "Running",
+            "description": "A support session is on: everything you see and change belongs to `org_name`."
+          },
+          "staff": {
+            "type": "boolean",
+            "title": "Staff",
+            "description": "You're allowed to start support sessions (your address is in SOPOPS_SUPPORT_EMAILS)."
+          },
+          "org_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Id",
+            "description": "The customer org being worked in, while a session is running."
+          },
+          "org_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Org Name"
+          },
+          "until": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Until"
+          }
+        },
+        "type": "object",
+        "required": [
+          "running",
+          "staff",
+          "org_id",
+          "org_name",
+          "until"
+        ],
+        "title": "SupportState"
+      },
+      "SupportTeamOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "workspaces": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Workspaces",
+            "description": "The team's workspaces, so two teams of the same name tell apart."
+          },
+          "support_access": {
+            "type": "boolean",
+            "title": "Support Access",
+            "description": "False means this team has turned support access off and can't be picked."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "workspaces",
+          "support_access"
+        ],
+        "title": "SupportTeamOut",
+        "description": "One team a support session can be started against, for the list staff pick from."
       },
       "SwitchOrgIn": {
         "properties": {

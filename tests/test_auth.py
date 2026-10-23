@@ -409,7 +409,8 @@ EXPECTED = {
     access.OPEN: {"spa", "healthz", "openapi", "swagger_ui_html", "swagger_ui_redirect", "redoc_html", "auth_session", "sign_in", "auth_callback",
                   "lookup_invite", "request_email_link", "confirm_email_link", "password_login", "first_account", "join_with_password",
                   "request_password_link", "lookup_password_link", "set_password", "lookup_join_link", "join_with_link", "onboarding_skill", "sign_up"},
-    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password", "accept_join_link", "create_team"},
+    access.SIGNED_IN: {"sign_out", "accept_invite", "switch_org", "change_password", "accept_join_link", "create_team", "start_support_session",
+                       "end_support_session", "get_support_state", "list_support_teams"},
     access.TOKEN: {"ingest_session", "open_session", "append_session_events", "close_session", "record_served", "onboarding_session",
                    "onboarding_progress", "onboarding_push", "onboarding_pull_request", "onboarding_open_pull_request", "onboarding_check",
                    "onboarding_kickoff", "onboarding_guide", "onboarding_extraction", "onboarding_project"},
@@ -426,7 +427,7 @@ EXPECTED = {
     access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
                    "create_password_link", "github_app_manifest", "github_app_manifest_callback", "set_up_org", "get_join_link", "create_join_link",
                    "delete_join_link", "set_typesafe_key", "set_ai_provider", "set_ai_models", "reset_ai_setting",
-                   "backfill_preview", "start_backfill", "get_backfill"},
+                   "backfill_preview", "start_backfill", "get_backfill", "set_org_support"},
 }
 
 

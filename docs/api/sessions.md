@@ -135,6 +135,7 @@ curl -s -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $S
 | Going idle | An open session with no events for `SOPOPS_SESSION_IDLE_MINUTES` (default 30) is closed as `incomplete` and checked, the next time the workspace opens a session or in the daily job. |
 | Auth | All three endpoints take the `ingest` token. |
 | Runtime guidance | This is the transport for it in a later version: the pipeline has a hook for each batch of events (`pipeline.session_event`), which does nothing yet. |
+| The callback | The SDKs accept it and never call it yet: `on_guidance` on Python's `attach`, `record_session` and `SessionStream`, `onGuidance` on TypeScript's `sopops.stream` options and `elevenLabsSession`. TypeScript's `attach` has none. |
 
 From the SDKs, LiveKit's `attach` posts the session at shutdown in both languages. Python can stream it instead with `stream=True`; in TypeScript, stream it with `sopops.stream(session)`, which returns a `SessionStream`.
 

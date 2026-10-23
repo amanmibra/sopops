@@ -153,7 +153,7 @@ function Bar({ ws, auth, menu, end }: { ws?: string; auth: AuthState; menu?: Rea
   const names = (workspaces.data ?? []).map((w) => w.workspace);
   if (ws && names.length && !names.includes(ws)) names.push(ws);
   return (
-    <header className="bg-card sticky top-0 z-20 flex flex-wrap items-center gap-x-1 gap-y-2 border-b px-4 py-3 sm:gap-2 md:px-6">
+    <header className="bg-card sticky top-[var(--band-h)] z-20 flex flex-wrap items-center gap-x-1 gap-y-2 border-b px-4 py-3 sm:gap-2 md:px-6">
       {menu}
       <HrefLink href="/" className="text-foreground flex items-center gap-2 text-lg sm:mr-2 font-semibold hover:no-underline">
         <Logo />
@@ -311,7 +311,7 @@ export function RailFrame({ label, collapsed, children }: { label: string; colla
     </Button>
   );
   return (
-    <nav aria-label={label} className="bg-card sticky top-[57px] hidden h-[calc(100vh-57px)] flex-col border-r md:flex">
+    <nav aria-label={label} className="bg-card sticky top-[calc(57px+var(--band-h))] hidden h-[calc(100vh-57px-var(--band-h))] flex-col border-r md:flex">
       <div className={cn("min-h-0 flex-1 overflow-auto pt-4 pb-4", collapsed ? "px-2" : "px-2")}>{children}</div>
       <div className="flex px-2 py-2">
         {collapsed ? (

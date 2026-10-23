@@ -41,6 +41,9 @@ A session signed in through a provider that runs its own session also keeps whic
 refresh token, encrypted with SOPOPS_SECRET_KEY, so `sign_out` can end their session before revoking this one. Only an
 explicit sign-out does that: a session that simply expires, or that `_end_sessions` revokes (a password change, say),
 leaves the provider's session alone, and the person may be signed back in without a prompt.
+A **support session** (`sopops_server.auth.support`) is a login session with `mimic_until` set: support staff working
+in one customer org, including its call transcripts, for a bounded time. It doesn't slide, it dies at `mimic_until`, and
+its memberships are that one org as `member` whatever the staff user really belongs to.
 
 **Roles.** `owner` and `admin` manage members, invites and the org's settings; `member` does everything else. Only an
 owner makes, changes or removes an owner, and an org always keeps one owner.
@@ -83,7 +86,8 @@ from sqlalchemy import delete, func, update
 from sqlmodel import Session, select
 
 from ..errors import Conflict, NotFound
-from ..orm import EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttempt, LoginSession, Membership, Org, PasswordLink, User, Workspace
+from ..orm import (EmailLink, FileVersion, Identity, Invite, JoinLink, LoginAttempt, LoginSession, Membership, Org, PasswordLink,
+                   SupportSession, User, Workspace)
 from ..runtime import crypto
 from ..tokens import Forbidden
 from . import actor, password
@@ -140,16 +144,26 @@ class TooManyTries(Exception):
 
 @dataclass(frozen=True)
 class Current:
-    """A live login session: the user, their memberships, and the org they're working in (None with no membership)."""
+    """A live login session: the user, their memberships, and the org they're working in (None with no membership).
+
+    A **support session** (`sopops_server.auth.support`) is the same thing with `mimic_org_id` set: a staff member
+    reading one customer org. Then `memberships` is that org alone, as `member`, and `org_id` is it, whatever the
+    staff user is really a member of. `access.guard` lets such a request read and nothing else."""
 
     session_id: str
     user: User
     memberships: dict[str, str]  # org id -> role
     org_id: str | None
+    mimic_org_id: str | None = None  # a support session: the customer org it reads
+    mimic_until: datetime | None = None  # when it dies, whatever happens
 
     @property
     def role(self) -> str | None:
         return self.memberships.get(self.org_id) if self.org_id else None
+
+    @property
+    def mimicking(self) -> bool:
+        return self.mimic_org_id is not None
 
 
 class Accounts:
@@ -523,8 +537,15 @@ class Accounts:
 
     # --- login sessions ------------------------------------------------------------
 
-    def current(self, token: str | None) -> Current | None:
-        """The live session for this cookie token, slid forward; None if there's none, or it expired or was revoked."""
+    def current(self, token: str | None, path: str | None = None) -> Current | None:
+        """The live session for this cookie token, slid forward; None if there's none, or it expired or was revoked.
+
+        A **support session** (`mimic_until` set) is different: it never slides, it is dead once `mimic_until` has
+        passed, and its memberships are the one customer org as `member`, whatever the staff user really belongs to.
+        Each call with a `path` also counts the request against its `support_sessions` row (one UPDATE, no read
+        first). The count is approximate: a request that doesn't reach here isn't counted, and one that looks the
+        session up twice counts twice. It's an audit hint, not a meter.
+        """
         if not token:
             return None
         now = _now()
@@ -532,6 +553,19 @@ class Accounts:
             s = db.exec(select(LoginSession).where(LoginSession.token_hash == _hash(token))).first()
             if s is None or s.revoked_at is not None or _utc(s.expires_at) <= now:
                 return None
+            if s.mimic_until is not None:
+                if s.mimic_org_id is None or _utc(s.mimic_until) <= now:
+                    return None
+                user = db.get(User, s.user_id)
+                if user is None:
+                    return None
+                if path is not None:
+                    db.execute(update(SupportSession).where(SupportSession.login_session_id == s.id,  # type: ignore[arg-type]
+                                                            SupportSession.ended_at.is_(None))  # type: ignore[union-attr]
+                               .values(requests=SupportSession.requests + 1, last_path=path[:512]))
+                    db.commit()
+                return Current(session_id=s.id, user=user, memberships={s.mimic_org_id: MEMBER}, org_id=s.mimic_org_id,
+                               mimic_org_id=s.mimic_org_id, mimic_until=_utc(s.mimic_until))
             user = db.get(User, s.user_id)
             if user is None:
                 return None
@@ -908,7 +942,9 @@ class Accounts:
         now = _now()
         with self._db() as db, db.begin():
             link = self._open_join_link(db, token)
-            if db.exec(select(User).where(User.email == email)).first() is not None:
+            # A staff address gets the answer an address with an account gets: a join link must not be a way to
+            # claim one (sopops_server.auth.support).
+            if _is_support_address(email) or db.exec(select(User).where(User.email == email)).first() is not None:
                 raise Conflict(f"{email} already has an account. Sign in, then open the link again to join")
             user = self._new_password_user(db, email, name, secret)
             db.add(Membership(org_id=link.org_id, user_id=user.id, role=link.role, created_at=now))
@@ -923,8 +959,8 @@ class Accounts:
         """Open sign-up (SOPOPS_OPEN_SIGNUP): make an account with a password, and a new team it owns with its one
         workspace, which the new login session works in. Returns the user, the session's token, the org and its
         workspace. Raises ValueError, Refused, TooManyTries, or Conflict (nobody has an account yet, so this is the
-        first run; the address has an account; or an invite or a team's email domains are waiting for it, which only
-        someone who shows they own the address should get)."""
+        first run; the address has an account; or the address is spoken for — an invite, a team's email domains, or
+        the support staff list — which only someone who shows they own it should get)."""
         email = clean_email(email)
         team = _team_name(team)
         password.check(secret, email)
@@ -948,7 +984,10 @@ class Accounts:
         return user, token, org, ws
 
     def _waiting_for(self, db: Session, email: str, now: datetime) -> bool:
-        """An open invite for the address, or a team that takes everyone at its domain."""
+        """The address is spoken for: it's on the support staff list, an invite is open for it, or a team takes
+        everyone at its domain. Sign-up says the same thing for all three, so none of them tells the asker which."""
+        if _is_support_address(email):
+            return True
         invites = db.exec(select(Invite).where(Invite.email == email, Invite.accepted_at.is_(None), Invite.revoked_at.is_(None))).all()  # type: ignore[union-attr]
         if any(_utc(i.expires_at) > now for i in invites):
             return True
@@ -1104,6 +1143,16 @@ def _free(base: str, free) -> str:
         n += 1
         name = f"{base[:60]}-{n}"
     return name
+
+
+def _is_support_address(email: str) -> bool:
+    """Whether SOPOPS_SUPPORT_EMAILS lists the address. The two paths where someone picks their own address and sets
+    a password for it (open sign-up and a join link) refuse it, so a support address can't be claimed by anyone who
+    hasn't proved it with GitHub, Google or an email link. Imported here and not at the top: `auth.support` builds on
+    this module."""
+    from .support import on_staff_list
+
+    return on_staff_list(email)
 
 
 def server_allows(email: str) -> bool:

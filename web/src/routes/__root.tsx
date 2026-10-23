@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 import { AuthGate } from "@/components/account";
 import { TopBar } from "@/components/layout";
+import { SupportBanner } from "@/components/support";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -26,6 +27,7 @@ function Root() {
       <AuthGate>
         {(auth) => (
           <>
+            <SupportBanner auth={auth} />
             {!bare && <TopBar auth={auth} />}
             <Outlet />
           </>
