@@ -1,4 +1,5 @@
 // Small shared pieces: kind badges, status tags, +/− counts, banners, issue and lint lists, two-click buttons.
+import { Check, Copy } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import type { IssueOut, LintFinding } from "@/lib/api";
 import { ApiError } from "@/lib/api";
@@ -252,4 +253,27 @@ export function Sub({ children, className }: { children: ReactNode; className?: 
 
 export function Note({ children, className }: { children: ReactNode; className?: string }) {
   return <span className={cn("text-muted-foreground text-sm", className)}>{children}</span>;
+}
+
+/** A block of text to copy, with its own copy button: a command, a config file, a token. */
+export function CopyBlock({ label, text, rows }: { label: string; text: string; rows?: number }) {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setDone(true);
+    setTimeout(() => setDone(false), 1500);
+  };
+  return (
+    <div className="mb-3">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="font-semibold">{label}</span>
+        <Button size="xs" variant="outline" onClick={copy} aria-label={`Copy ${label}`}>
+          {done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 font-mono text-sm whitespace-pre-wrap break-all" style={rows ? { maxHeight: `${rows * 1.5}em` } : undefined}>
+        {text}
+      </pre>
+    </div>
+  );
 }

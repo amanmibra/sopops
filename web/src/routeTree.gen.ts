@@ -47,6 +47,8 @@ import { Route as WWsSettingsChecksRouteImport } from './routes/w.$ws.settings.c
 import { Route as WWsSettingsDefaultsRouteImport } from './routes/w.$ws.settings.defaults'
 import { Route as WWsSettingsGithubRouteImport } from './routes/w.$ws.settings.github'
 import { Route as WWsSettingsHistoryRouteImport } from './routes/w.$ws.settings.history'
+import { Route as WWsSettingsImportRouteImport } from './routes/w.$ws.settings.import'
+import { Route as WWsSettingsMcpRouteImport } from './routes/w.$ws.settings.mcp'
 import { Route as WWsSettingsMembersRouteImport } from './routes/w.$ws.settings.members'
 import { Route as WWsSettingsPlatformsRouteImport } from './routes/w.$ws.settings.platforms'
 import { Route as WWsSettingsSupportRouteImport } from './routes/w.$ws.settings.support'
@@ -254,6 +256,16 @@ const WWsSettingsHistoryRoute = WWsSettingsHistoryRouteImport.update({
   path: '/history',
   getParentRoute: () => WWsSettingsRoute,
 } as any)
+const WWsSettingsImportRoute = WWsSettingsImportRouteImport.update({
+  id: '/import',
+  path: '/import',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
+const WWsSettingsMcpRoute = WWsSettingsMcpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
 const WWsSettingsMembersRoute = WWsSettingsMembersRouteImport.update({
   id: '/members',
   path: '/members',
@@ -367,6 +379,8 @@ export interface FileRoutesByFullPath {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/import': typeof WWsSettingsImportRoute
+  '/w/$ws/settings/mcp': typeof WWsSettingsMcpRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
@@ -421,6 +435,8 @@ export interface FileRoutesByTo {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/import': typeof WWsSettingsImportRoute
+  '/w/$ws/settings/mcp': typeof WWsSettingsMcpRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
@@ -478,6 +494,8 @@ export interface FileRoutesById {
   '/w/$ws/settings/defaults': typeof WWsSettingsDefaultsRoute
   '/w/$ws/settings/github': typeof WWsSettingsGithubRoute
   '/w/$ws/settings/history': typeof WWsSettingsHistoryRoute
+  '/w/$ws/settings/import': typeof WWsSettingsImportRoute
+  '/w/$ws/settings/mcp': typeof WWsSettingsMcpRoute
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
@@ -536,6 +554,8 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/import'
+    | '/w/$ws/settings/mcp'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
@@ -590,6 +610,8 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/import'
+    | '/w/$ws/settings/mcp'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
@@ -646,6 +668,8 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/defaults'
     | '/w/$ws/settings/github'
     | '/w/$ws/settings/history'
+    | '/w/$ws/settings/import'
+    | '/w/$ws/settings/mcp'
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
@@ -955,6 +979,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WWsSettingsHistoryRouteImport
       parentRoute: typeof WWsSettingsRoute
     }
+    '/w/$ws/settings/import': {
+      id: '/w/$ws/settings/import'
+      path: '/import'
+      fullPath: '/w/$ws/settings/import'
+      preLoaderRoute: typeof WWsSettingsImportRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
+    '/w/$ws/settings/mcp': {
+      id: '/w/$ws/settings/mcp'
+      path: '/mcp'
+      fullPath: '/w/$ws/settings/mcp'
+      preLoaderRoute: typeof WWsSettingsMcpRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
     '/w/$ws/settings/members': {
       id: '/w/$ws/settings/members'
       path: '/members'
@@ -1076,6 +1114,8 @@ interface WWsSettingsRouteChildren {
   WWsSettingsDefaultsRoute: typeof WWsSettingsDefaultsRoute
   WWsSettingsGithubRoute: typeof WWsSettingsGithubRoute
   WWsSettingsHistoryRoute: typeof WWsSettingsHistoryRoute
+  WWsSettingsImportRoute: typeof WWsSettingsImportRoute
+  WWsSettingsMcpRoute: typeof WWsSettingsMcpRoute
   WWsSettingsMembersRoute: typeof WWsSettingsMembersRoute
   WWsSettingsPlatformsRoute: typeof WWsSettingsPlatformsRoute
   WWsSettingsSupportRoute: typeof WWsSettingsSupportRoute
@@ -1088,6 +1128,8 @@ const WWsSettingsRouteChildren: WWsSettingsRouteChildren = {
   WWsSettingsDefaultsRoute: WWsSettingsDefaultsRoute,
   WWsSettingsGithubRoute: WWsSettingsGithubRoute,
   WWsSettingsHistoryRoute: WWsSettingsHistoryRoute,
+  WWsSettingsImportRoute: WWsSettingsImportRoute,
+  WWsSettingsMcpRoute: WWsSettingsMcpRoute,
   WWsSettingsMembersRoute: WWsSettingsMembersRoute,
   WWsSettingsPlatformsRoute: WWsSettingsPlatformsRoute,
   WWsSettingsSupportRoute: WWsSettingsSupportRoute,

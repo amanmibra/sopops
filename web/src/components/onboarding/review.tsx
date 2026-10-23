@@ -12,7 +12,7 @@ import { useRepoStream } from "@/lib/live";
 import { TERMINAL, iq, kickoffFor } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
-import { Banner, ConfirmButton, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
+import { Banner, ConfirmButton, CopyBlock, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
 import { GitHubIcon } from "../brand-icon";
 import { ConnectGuide } from "../connect-guide";
 import { type ReviewPlace, Review, capital, madeBy } from "./proposal";
@@ -187,28 +187,6 @@ function ProgressLog({ id, live }: { id: string; live: boolean }) {
         <Note>Nothing yet.</Note>
       )}
     </Panel>
-  );
-}
-
-function CopyBlock({ label, text, rows }: { label: string; text: string; rows?: number }) {
-  const [done, setDone] = useState(false);
-  const copy = async () => {
-    await navigator.clipboard.writeText(text);
-    setDone(true);
-    setTimeout(() => setDone(false), 1500);
-  };
-  return (
-    <div className="mb-3">
-      <div className="mb-1 flex items-center gap-2">
-        <span className="font-semibold">{label}</span>
-        <Button size="xs" variant="outline" onClick={copy} aria-label={`Copy ${label}`}>
-          {done ? <Check /> : <Copy />} {done ? "Copied" : "Copy"}
-        </Button>
-      </div>
-      <pre className="bg-muted overflow-x-auto rounded-md px-3 py-2 font-mono text-sm whitespace-pre-wrap break-all" style={rows ? { maxHeight: `${rows * 1.5}em` } : undefined}>
-        {text}
-      </pre>
-    </div>
   );
 }
 

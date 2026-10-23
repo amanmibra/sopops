@@ -1,12 +1,12 @@
 // Settings: its own side menu of sections, each on its own route (/w/<ws>/settings/<section>), and the heading every
 // section opens with. Its Back link returns to the last workspace page you had open.
 import { useLocation } from "@tanstack/react-router";
-import { ArrowLeft, GitBranch, History, KeyRound, LifeBuoy, ListChecks, type LucideIcon, Menu, Plug, SlidersHorizontal, Users, X } from "lucide-react";
+import { ArrowLeft, Download, GitBranch, History, KeyRound, LifeBuoy, ListChecks, type LucideIcon, Menu, Plug, SlidersHorizontal, Terminal, Users, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { lastPageHref } from "@/lib/last-page";
 import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
-import { type SettingsSection, settingsHref, useWs } from "@/lib/workspace";
+import { settingsHref, type SettingsSection, useWs } from "@/lib/workspace";
 import { PageTitle, Sub } from "./bits";
 import { RailFrame, RailItem } from "./layout";
 import { Button } from "./ui/button";
@@ -25,6 +25,8 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string;
   {
     heading: "Instructions",
     items: [
+      { section: "import", label: "Import", icon: Download },
+      { section: "mcp", label: "MCP", icon: Terminal },
       { section: "defaults", label: "Instruction defaults", icon: SlidersHorizontal },
       { section: "history", label: "History", icon: History },
     ],
