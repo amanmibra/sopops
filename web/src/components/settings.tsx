@@ -17,6 +17,7 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string;
     items: [
       { section: "platforms", label: "Agents and platforms", icon: Plug },
       { section: "github", label: "GitHub", icon: GitBranch },
+      { section: "mcp", label: "MCP", icon: Terminal },
       { section: "access", label: "Access", icon: KeyRound },
       { section: "members", label: "Members", icon: Users },
       { section: "support", label: "Support access", icon: LifeBuoy },
@@ -26,7 +27,6 @@ const MENU: { heading: string; items: { section: SettingsSection; label: string;
     heading: "Instructions",
     items: [
       { section: "import", label: "Import", icon: Download },
-      { section: "mcp", label: "MCP", icon: Terminal },
       { section: "defaults", label: "Instruction defaults", icon: SlidersHorizontal },
       { section: "history", label: "History", icon: History },
     ],
