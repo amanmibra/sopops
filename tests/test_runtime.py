@@ -11,6 +11,7 @@ import pytest
 import respx
 from conftest import WS
 from cryptography.fernet import Fernet
+from sopops_server.errors import platform_id_key, same_ref
 
 EL = "https://api.elevenlabs.io"
 VAPI = "https://api.vapi.ai"
@@ -384,3 +385,19 @@ def test_an_agent_answers_to_its_own_id_without_the_platform_prefix(client, file
     assert client.get(f"{WS}/agents/livekit:42").json()["agent"] == by_sopc_id["agent"]
     assert client.get(f"{WS}/agents/42").json()["agent"] == by_sopc_id["agent"]
     assert client.get(f"{WS}/agents/43").status_code == 404
+
+
+def test_phone_number_identifiers_match_however_they_are_written():
+    """Teams that name agents by phone number paste whatever form they have; all of them find the agent."""
+    assert same_ref("livekit:+14155550123", "livekit:+1 (415) 555-0123")
+    assert same_ref("livekit:+14155550123", "livekit:1-415-555-0123")
+    assert same_ref("livekit:+447462577330", "livekit:+44 7462 577330")
+    assert platform_id_key("+1 (415) 555-0123") == platform_id_key("+14155550123")
+
+
+def test_different_numbers_and_ordinary_ids_still_differ():
+    """Normalising numbers mustn't collapse two agents into one, or touch sopc ids and UUIDs."""
+    assert not same_ref("livekit:+14155550123", "livekit:+14155550124")
+    assert not same_ref("livekit:+14155550123", "vapi:+14155550123")
+    assert platform_id_key("copper-wok-harbor") != platform_id_key("copperwokharbor")
+    assert platform_id_key("8b1f4c2e-0f4a-4d9b-9a3e-7c2f1b5d6e70") == "8b1f4c2e-0f4a-4d9b-9a3e-7c2f1b5d6e70"

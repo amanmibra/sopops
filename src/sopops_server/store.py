@@ -23,7 +23,7 @@ from .calibrate import Calibrate
 from .capture.agent_config import AgentSettings
 from .checks import Checks
 from .db import engine_from_url, upgrade
-from .errors import Conflict, NotFound, workspace_id
+from .errors import Conflict, NotFound, platform_id_key, same_ref, workspace_id
 from .insights import Insights
 from .lineage import Lineage, record
 from .orm import Fetch, FileVersion, Release, Workspace
@@ -560,9 +560,10 @@ class Store:
         platforms is ambiguous, and says so rather than guessing."""
         rel = self.get_release(workspace, release)
         built = rel["build"]["agents"]
-        agent_id = agent if agent in built else next((a for a, b in built.items() if b["platform_ref"] == agent), None)
+        agent_id = agent if agent in built else next((a for a, b in built.items() if same_ref(b["platform_ref"], agent)), None)
         if agent_id is None:
-            bare = [a for a, b in built.items() if str(b["platform_ref"]).partition(":")[2] == agent]
+            key = platform_id_key(agent)
+            bare = [a for a, b in built.items() if platform_id_key(str(b["platform_ref"]).partition(":")[2]) == key]
             if len(bare) > 1:
                 raise Invalid(f"agent '{agent}' is ambiguous in release {rel['number']}: "
                               f"{', '.join(sorted(built[a]['platform_ref'] for a in bare))}. Ask for one of those.")

@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING, Iterable, Mapping
 from sqlmodel import Session, delete, select
 
 from ..auth import mode
-from ..errors import NotFound, workspace_id
+from ..errors import NotFound, same_ref, workspace_id
 from ..orm import AgentDelivery, PlatformSecret, PushResult, RuntimeServe
 from ..tokens import RUNTIME, Forbidden, Unauthorized
 from . import crypto, platforms
@@ -268,7 +268,8 @@ class Runtime:
         built = rel["build"]["agents"]
         on_platform = [a for a, b in built.items() if split_ref(b["platform_ref"])[0] == platform]
         if ref:
-            match = ref if ref in built else next((a for a in on_platform if built[a]["platform_ref"] in (ref, f"{platform}:{ref}")), None)
+            match = ref if ref in built else next(
+                (a for a in on_platform if same_ref(built[a]["platform_ref"], ref) or same_ref(built[a]["platform_ref"], f"{platform}:{ref}")), None)
         else:
             match = on_platform[0] if len(on_platform) == 1 else None
             if len(on_platform) > 1:
