@@ -1,4 +1,5 @@
-// Import agents, step 1: choose where the instructions come from, then start the import.
+// Import agents, one question at a time: where the instructions should live, where they are now, then the one action
+// for that route. Each answer narrows what comes next, so a route the earlier answers rule out is never offered.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Upload, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
@@ -8,8 +9,8 @@ import { iq, readPromptFiles, rememberKickoff } from "@/lib/onboarding";
 import { type Platforms, usePlatforms } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
-import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "../bits";
-import { PlatformIcon, PlatformLabel } from "../brand-icon";
+import { Banner, ErrorBanner, Note, PageTitle, Panel, Sub, Tag } from "../bits";
+import { GitHubIcon, PlatformIcon, PlatformLabel } from "../brand-icon";
 import { author } from "../form";
 import { HrefLink, useGo } from "../href-link";
 import { Page } from "../item-shell";
@@ -22,48 +23,86 @@ import { repoProjectQuery, repoQuery } from "../repo";
 import { ProjectFinding, RepoConnect } from "./github";
 import { SopcSource } from "./sopc";
 
+type Where = "sopops" | "repo";
 type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
 type Platform = "livekit" | "elevenlabs" | "vapi";
 type Row = { name: string; platform: Platform; platform_id: string; tools: string; prompt: string };
+type Choice<T extends string> = { value: T; title: string; text: string; note?: string; icon?: ReactNode };
 
 const IMPORT_PLATFORMS = PLATFORMS.filter((p) => p.value !== "retell");
 const blank = (platform: Platform = "livekit"): Row => ({ name: "", platform, platform_id: "", tools: "", prompt: "" });
 
-/** Where instructions can come from: ElevenLabs and Vapi only for a team that uses them. */
-function sources(plats: Platforms): { value: Source; title: string; text: string }[] {
+const WHERE: Choice<Where>[] = [
+  { value: "sopops", title: "In sopops", text: "You edit and publish them here, and your repository doesn't change." },
+  {
+    value: "repo",
+    title: "In sopops and your repository",
+    text: "They live as a sopc project in your GitHub repository, and fixes arrive as pull requests.",
+    note: "GitHub support is in alpha.",
+    icon: <GitHubIcon size={14} />,
+  },
+];
+
+/** The routes left once a team says where the instructions should live: a sopc project only for a repository, and a
+ * platform only for a team that runs it. */
+function sources(plats: Platforms, where: Where): Choice<Source>[] {
   return [
-    { value: "agent", title: "Claude Code or Codex", text: "Recommended. Your coding agent finds the instructions wherever they live (code, config, a database) and sends them here." },
+    { value: "agent", title: "Claude Code or Codex", text: "Recommended. Your coding agent finds them wherever they live in your code and sends them here." },
     {
       value: "paste",
       title: "Paste or upload",
-      text: plats.has("livekit") ? "LiveKit instructions from your code, or any instructions as text. One agent per text or file." : "Any instructions as text. One agent per text or file.",
+      text: plats.has("livekit")
+        ? "LiveKit instructions from your code, or any instructions as text. One agent per text or file."
+        : "Any instructions as text. One agent per text or file.",
     },
+    ...(where === "repo" ? [{ value: "sopc" as const, title: "A sopc project you keep already", text: "Bring it in as it is, from your repository or a folder." }] : []),
     ...(plats.has("elevenlabs") ? [{ value: "elevenlabs" as const, title: "ElevenLabs", text: "Read your agents' instructions and tools with an API key." }] : []),
     ...(plats.has("vapi") ? [{ value: "vapi" as const, title: "Vapi", text: "Read your assistants' instructions and tools with an API key." }] : []),
-    { value: "sopc", title: "A sopc project", text: "Already have one, in your repo or exported? Bring it in as it is, and check it against each agent's instructions." },
   ];
 }
+
+const ACTION: Record<Source, string> = {
+  agent: "Start Claude Code or Codex in your repository",
+  paste: "Paste or upload each agent's instructions",
+  sopc: "Bring in your sopc project",
+  elevenlabs: "Read your agents from ElevenLabs",
+  vapi: "Read your assistants from Vapi",
+};
 
 export function ImportStart() {
   const { ws } = useWs();
   const plats = usePlatforms();
-  const SOURCES = sources(plats);
-  const [source, setSource] = useState<Source>("agent");
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [where, setWhere] = useState<Where | null>(null);
+  const [source, setSource] = useState<Source | null>(null);
   const imports = useQuery(iq.list(ws));
   const open = (imports.data ?? []).filter((i) => !["applied", "discarded"].includes(i.status));
+  const routes = where ? sources(plats, where) : [];
+  const chosen = routes.find((r) => r.value === source) ?? null;
+  const pickWhere = (v: Where) => {
+    if (v !== where) setSource(null);
+    setWhere(v);
+    setStep(2);
+  };
+  const pickSource = (v: Source) => {
+    setSource(v);
+    setStep(3);
+  };
   return (
     <Page>
       <PageTitle>Import agents</PageTitle>
       <Sub>
-        Bring in the instructions each agent runs today (what your platform may call its prompt or system prompt). sopops splits them into the agent's own text, shared
-        instructions and procedures, merges what agents share, and shows where they differ. You review everything before it's saved, as drafts.
+        Bring in the instructions each agent runs today, what your platform may call its prompt. sopops splits them into shared instructions and procedures, merges
+        what agents share, and saves nothing until you review it.
       </Sub>
       {open.length > 0 && (
-        <Panel title="In progress">
+        <Panel title="Pick up an import you started">
           <ul className="grid gap-1">
             {open.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2">
-                <HrefLink href={wsHref(ws, "import", i.id)}>{i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sopc" ? "sopc project" : "Import"}</HrefLink>
+                <HrefLink href={wsHref(ws, "import", i.id)}>
+                  {i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sopc" ? "sopc project" : "Import"}
+                </HrefLink>
                 <Tag>{i.status}</Tag>
                 <Note>{when(i.created_at)}</Note>
               </li>
@@ -71,26 +110,105 @@ export function ImportStart() {
           </ul>
         </Panel>
       )}
-      <div role="radiogroup" aria-label="Where the instructions are" className="mb-6 grid gap-2 sm:grid-cols-2">
-        {SOURCES.map((s) => (
-          <button
-            key={s.value}
-            type="button"
-            role="radio"
-            aria-checked={source === s.value}
-            onClick={() => setSource(s.value)}
-            className={cn("bg-card cursor-pointer rounded-xl border px-4 py-3 text-left hover:bg-muted", source === s.value && "border-primary bg-brand-soft hover:bg-brand-soft")}
-          >
-            <div className="flex items-center gap-2 font-semibold">
-              <PlatformIcon platform={s.value} size={14} />
-              {s.title}
-            </div>
-            <div className="text-muted-foreground text-sm">{s.text}</div>
-          </button>
-        ))}
-      </div>
-      {source === "agent" ? <AgentSource /> : source === "paste" ? <PasteSource /> : source === "sopc" ? <SopcSource /> : <PlatformSource key={source} platform={source} />}
+      <Step
+        n={1}
+        title="Where should the instructions live?"
+        state={step === 1 ? "open" : "done"}
+        answer={WHERE.find((w) => w.value === where)?.title}
+        onChange={() => setStep(1)}
+      >
+        <Choices label="Where the instructions live" options={WHERE} value={where} onPick={pickWhere} />
+      </Step>
+      <Step n={2} title="Where are they now?" state={step === 2 ? "open" : step === 1 ? "waiting" : "done"} answer={chosen?.title} onChange={() => setStep(2)}>
+        <Choices label="Where the instructions are now" options={routes} value={source} onPick={pickSource} />
+      </Step>
+      <Step n={3} title={chosen ? ACTION[chosen.value] : "Bring them in"} state={step === 3 && chosen ? "open" : "waiting"}>
+        {chosen?.value === "agent" ? (
+          <AgentSource mode={where === "repo" ? "repo" : "hosted"} />
+        ) : (
+          <>
+            {where === "repo" && <RepoPanel />}
+            {chosen?.value === "paste" ? <PasteSource /> : chosen?.value === "sopc" ? <SopcSource /> : chosen ? <PlatformSource key={chosen.value} platform={chosen.value} /> : null}
+          </>
+        )}
+      </Step>
     </Page>
+  );
+}
+
+/** One step: its question on the header band, then the answers, or the answer given with a way back to it. */
+function Step({
+  n,
+  title,
+  state,
+  answer,
+  onChange,
+  children,
+}: {
+  n: number;
+  title: string;
+  state: "open" | "done" | "waiting";
+  answer?: string;
+  onChange?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <section className={cn("bg-card mb-4 border", state === "waiting" && "opacity-60")}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-[var(--band)] px-4 py-2">
+        <h2 className="t-lead">
+          <span className="text-muted-foreground mr-2">{n}</span>
+          {title}
+        </h2>
+        {state === "done" && answer && (
+          <>
+            <span className="flex-1" />
+            <Note>{answer}</Note>
+            <Button variant="link" size="xs" className="h-auto px-0" onClick={onChange}>
+              Change
+            </Button>
+          </>
+        )}
+      </div>
+      {state === "open" && <div className="px-4 py-4">{children}</div>}
+    </section>
+  );
+}
+
+/** The answers to one question, as cards. Picking one opens the next step. */
+function Choices<T extends string>({ label, options, value, onPick }: { label: string; options: Choice<T>[]; value: T | null; onPick: (v: T) => void }) {
+  return (
+    <div role="radiogroup" aria-label={label} className="grid gap-2 sm:grid-cols-2">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          onClick={() => onPick(o.value)}
+          className={cn("bg-card cursor-pointer border px-4 py-3 text-left hover:bg-muted", value === o.value && "border-primary bg-brand-soft hover:bg-brand-soft")}
+        >
+          <div className="flex items-center gap-2 font-semibold">
+            {o.icon ?? <PlatformIcon platform={o.value} size={14} />}
+            {o.title}
+          </div>
+          <div className="text-muted-foreground text-sm">{o.text}</div>
+          {o.note && <div className="text-muted-foreground mt-1 text-xs">{o.note}</div>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** The repository the instructions are to live in. Only ever shown after that answer. */
+function RepoPanel({ children }: { children?: ReactNode }) {
+  return (
+    <Panel title="Your GitHub repository">
+      <div className="grid gap-3">
+        <Note>Fixes arrive as pull requests on this repository. GitHub support is in alpha.</Note>
+        <RepoConnect />
+        {children}
+      </div>
+    </Panel>
   );
 }
 
@@ -155,6 +273,7 @@ function PasteSource() {
           addFiles(e.dataTransfer.files);
         }}
       >
+        <Note>One agent per box, with its full instructions exactly as its model gets them.</Note>
         {rows.map((r, i) => (
           <Panel key={i} className="mb-0">
             <div className="mb-3 grid gap-2 md:grid-cols-[1fr_150px_1fr_auto]">
@@ -263,10 +382,18 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
             {label} API key
           </label>
           <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">
-            Used for this import only: sopops reads your agents' instructions and tool names with it, then forgets it. It isn't stored or logged. A read-only key is enough.
+            sopops reads your agents' instructions and tool names with this key, then forgets it. It isn't stored or logged, and a read-only key is enough.
           </p>
           <div className="flex flex-wrap gap-2">
-            <Input id="f-key" type="password" autoComplete="off" className="max-w-md" value={key} onChange={(e) => setKey(e.target.value)} placeholder={platform === "vapi" ? "Private key" : "xi-api-key"} />
+            <Input
+              id="f-key"
+              type="password"
+              autoComplete="off"
+              className="max-w-md"
+              value={key}
+              onChange={(e) => setKey(e.target.value)}
+              placeholder={platform === "vapi" ? "Private key" : "xi-api-key"}
+            />
             <Button variant="outline" disabled={!key.trim() || listing} onClick={list}>
               {listing ? "Reading…" : "List agents"}
             </Button>
@@ -314,13 +441,12 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
 
 // --- Claude Code or Codex -------------------------------------------------------------------------
 
-function AgentSource() {
+function AgentSource({ mode }: { mode: "hosted" | "repo" }) {
   const { ws } = useWs();
   const qc = useQueryClient();
   const go = useGo();
   const repo = useQuery(repoQuery(ws));
   const project = useQuery({ ...repoProjectQuery(ws), enabled: !!repo.data });
-  const [mode, setMode] = useState<"hosted" | "repo">("hosted");
   const [useAgent, setUseAgent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -341,53 +467,13 @@ function AgentSource() {
       setBusy(false);
     }
   };
-  const finding = repo.data && <ProjectFinding repo={repo.data} mode={mode} useAgent={useAgent} onAgent={() => setUseAgent(true)} />;
   return (
     <div className="grid gap-4">
       <p className="max-w-[75ch]">
-        You start Claude Code or Codex in your agents' repo with one command. It finds every agent's instructions, extracts them with the sopops tools, checks
-        nothing was lost, and sends them here, where you watch it work and review the result.
+        You run one command in your agents' repository. Claude Code or Codex finds every agent's instructions, extracts them with the sopops tools, checks nothing was
+        lost, and sends them here, where you watch it work and review the result.
       </p>
-      <div>
-        <div className="mb-2 font-semibold">Where should the instructions live?</div>
-        <Segmented
-          label="Where the instructions live"
-          value={mode}
-          onChange={setMode}
-          options={[
-            ["hosted", "In sopops"],
-            ["repo", "In my repo too"],
-          ]}
-        />
-        <p className="text-muted-foreground mt-2 max-w-[72ch] text-sm">
-          {mode === "hosted"
-            ? "Instructions are edited and published in sopops. Your repo doesn't change."
-            : "Instructions live as a sopc project in your GitHub repository. sopops pulls it into drafts, and fixes arrive as pull requests."}
-        </p>
-      </div>
-      {mode === "repo" ? (
-        <Panel title="GitHub repository" className="mb-0">
-          <div className="grid gap-3">
-            <RepoConnect />
-            {finding}
-          </div>
-        </Panel>
-      ) : (
-        <details className="bg-card group rounded-xl border px-4 py-3">
-          <summary className="cursor-pointer font-semibold">
-            Connect GitHub so fixes arrive as pull requests <span className="text-muted-foreground font-normal">(optional)</span>
-            {repo.data && (
-              <Note className="ml-2">
-                {repo.data.owner}/{repo.data.repo} is connected
-              </Note>
-            )}
-          </summary>
-          <div className="mt-3 grid gap-3">
-            <RepoConnect />
-            {finding}
-          </div>
-        </details>
-      )}
+      {mode === "repo" && <RepoPanel>{repo.data && <ProjectFinding repo={repo.data} useAgent={useAgent} onAgent={() => setUseAgent(true)} />}</RepoPanel>}
       {error ? <ErrorBanner error={error} lead="Couldn't create the token:" /> : null}
       {agentReady && (
         <div>

@@ -34,9 +34,9 @@ export function RepoConnect() {
   );
 }
 
-/** What the connected folder holds, and the way forward for each case. `onAgent`: the coding agent should rewrite a
- * project sopc can't build. */
-export function ProjectFinding({ repo, mode, useAgent, onAgent }: { repo: RepoOut; mode: "hosted" | "repo"; useAgent: boolean; onAgent: () => void }) {
+/** What the connected folder holds, and the way forward for each case. Shown only once a team says its instructions
+ * live in the repository. `onAgent`: the coding agent should rewrite a project sopc can't build. */
+export function ProjectFinding({ repo, useAgent, onAgent }: { repo: RepoOut; useAgent: boolean; onAgent: () => void }) {
   const { ws } = useWs();
   const qc = useQueryClient();
   const project = useQuery(repoProjectQuery(ws));
@@ -75,20 +75,16 @@ export function ProjectFinding({ repo, mode, useAgent, onAgent }: { repo: RepoOu
         </div>
       </Banner>
     );
-  if (p.state === "invalid") return <Invalid project={p} where={where} folder={folder} mode={mode} useAgent={useAgent} onAgent={onAgent} recheck={recheck} />;
+  if (p.state === "invalid") return <Invalid project={p} where={where} folder={folder} useAgent={useAgent} onAgent={onAgent} recheck={recheck} />;
   return (
     <Banner className="mb-0">
       <div className="grid gap-2">
         <div>
           <b>No sopc project at {where} yet.</b>
         </div>
-        {mode === "repo" ? (
-          <div>
-            Your coding agent will propose a pull request adding <code>{folder}</code> to {p.repo}. Nothing merges without you. When you merge it, sopops pulls it into drafts.
-          </div>
-        ) : (
-          <div>Fixes arrive as pull requests once it's there. Choose In my repo too to have your agent propose it.</div>
-        )}
+        <div>
+          Your coding agent will propose a pull request adding <code>{folder}</code> to {p.repo}. Nothing merges without you. When you merge it, sopops pulls it into drafts.
+        </div>
         <div>{recheck}</div>
       </div>
     </Banner>
@@ -99,7 +95,6 @@ function Invalid({
   project,
   where,
   folder,
-  mode,
   useAgent,
   onAgent,
   recheck,
@@ -107,7 +102,6 @@ function Invalid({
   project: RepoProjectOut;
   where: ReactNode;
   folder: string;
-  mode: "hosted" | "repo";
   useAgent: boolean;
   onAgent: () => void;
   recheck: ReactNode;
@@ -127,7 +121,7 @@ function Invalid({
           ))}
           {errors.length > 8 && <li>and {errors.length - 8} more</li>}
         </ul>
-        {mode === "repo" && useAgent ? (
+        {useAgent ? (
           <div>
             Your coding agent will propose a pull request replacing <code>{folder}</code>. Nothing merges without you.
           </div>
@@ -136,7 +130,7 @@ function Invalid({
         )}
         <div className="flex flex-wrap items-center gap-2">
           <ImportFromRepo label="Import anyway to fix" variant="outline" />
-          {mode === "repo" && !useAgent && <Button onClick={onAgent}>Use Claude Code or Codex</Button>}
+          {!useAgent && <Button onClick={onAgent}>Use Claude Code or Codex</Button>}
           {recheck}
         </div>
       </div>

@@ -63,8 +63,8 @@ export function SopcSource() {
     <div className="grid gap-4">
       <Panel title="Your sopc project" className="mb-0">
         <p className="text-muted-foreground mb-3 text-sm">
-          Already keep your instructions as a sopc project, or exported one from wherever your agents' instructions live? Bring it in as it is: sopops checks it with sopc, and next you can add each
-          agent's original instructions to check nothing was lost. Applying saves exactly these files as drafts. Nothing is published.
+          sopops checks the project with sopc, as it is. Next you add each agent's original instructions, so you can see nothing was lost. Applying saves exactly these
+          files as drafts, and nothing is published.
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => pick.current?.click()}>
