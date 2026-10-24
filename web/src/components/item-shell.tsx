@@ -1,5 +1,5 @@
 // An item page's header (crumb, badge, title, unpublished tag, tabs) and who uses it.
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { KIND, type Kind, plural } from "@/lib/kinds";
 import type { Use } from "@/lib/api";
 import { useRailCollapsed } from "@/lib/rail";
@@ -75,13 +75,15 @@ export function NewHeader({ kind }: { kind: Kind }) {
 export function UsedBy({ kind, uses }: { kind: Kind; uses: Use[] }) {
   const { href } = useWs();
   const agents = [...new Set(uses.map((u) => u.agent))];
+  const [expanded, setExpanded] = useState(false);
+  const visibleAgents = expanded ? agents : agents.slice(0, 10);
   return (
     <div className="-mt-2 mb-[18px]">
       <b>Used by: </b>
       {agents.length ? (
         <>
           {plural(agents.length, "agent", "agents")} —{" "}
-          {agents.map((a, i) => {
+          {visibleAgents.map((a, i) => {
             const via = uses.filter((u) => u.agent === a && u.via).map((u) => u.via);
             return (
               <span key={a}>
@@ -91,6 +93,16 @@ export function UsedBy({ kind, uses }: { kind: Kind; uses: Use[] }) {
               </span>
             );
           })}
+          {agents.length > 10 && (
+            <button
+              type="button"
+              className="ml-2 text-sm underline underline-offset-2 hover:text-primary"
+              aria-expanded={expanded}
+              onClick={() => setExpanded((value) => !value)}
+            >
+              {expanded ? "Show fewer" : `See ${agents.length - 10} more`}
+            </button>
+          )}
         </>
       ) : (
         <span className="text-muted-foreground">{kind === "group" ? "no agent yet. Add it to an agent's blocks." : "no agent yet. Add it to an agent's blocks or to a group."}</span>
