@@ -294,6 +294,14 @@ export class SopOps {
     }
   }
 
+  /**
+   * Fetch instructions for a raw identifier on one platform. Platform adapters call this instead of adding a
+   * platform prefix to `agent`. Its cache, fallback, and variable behavior match `fetchInstructions`.
+   */
+  async fetchPlatformInstructions(platform: string, agent: string, options: Omit<FetchOptions, "platform"> = {}): Promise<Instructions> {
+    return this.fetchInstructions(agent, { ...options, platform });
+  }
+
   /** Send one finished session. Safe to repeat (an upsert on platform + external_id). Retries network errors, 429 and 5xx. */
   async postSession(session: SessionIn, options: { retries?: number; timeoutMs?: number } = {}): Promise<SessionIngested> {
     const retries = options.retries ?? 2;

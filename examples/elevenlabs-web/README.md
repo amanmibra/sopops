@@ -14,7 +14,7 @@ elevenlabs-web/
 
 ```ts
 // src/main.ts
-const s = await elevenLabsSession(sopops, { agent: "sakura-sushi", agentId, stream });
+const s = await elevenLabsSession(sopops, { agent: "agent_123", stream });
 const ours = s.sessionOptions;
 conversation = await Conversation.startSession({
   ...ours,
@@ -23,11 +23,11 @@ conversation = await Conversation.startSession({
 });
 ```
 
-`elevenLabsSession`, from the [TypeScript client](../../sdks/node), fetches the live release's prompt for `sakura-sushi` and returns `startSession` options:
+`elevenLabsSession`, from the [TypeScript client](../../sdks/node), fetches the live release's prompt for the ElevenLabs agent and returns `startSession` options:
 
 | Option | What it carries |
 |---|---|
-| `agentId` | The ElevenLabs agent to call: `VITE_ELEVENLABS_AGENT_ID`, or the id in the sopops agent's platform ref (`elevenlabs:<agent id>`) |
+| `agentId` | The ElevenLabs agent to call. sopops reads it from the matching agent's platform ref. |
 | `overrides.agent.prompt.prompt` | The compiled prompt, replacing the one in the ElevenLabs dashboard for this call |
 | `dynamicVariables` | `sopops_agent` and `sopops_release` |
 | `onConnect` | Reports the conversation id to sopops (`POST …/runtime/served`), so the session ElevenLabs sends later links to the release it ran on |
@@ -48,11 +48,11 @@ Streaming sends sessions, so the token needs the `ingest` scope as well as `runt
 
 Start sopops (the [Quickstart](../../README.md#quickstart)) with `SOPOPS_CORS_ORIGINS=http://localhost:5173`, so the page can call it. Publish the restaurant instructions into a workspace named `prod` (as in the [LiveKit example](../livekit-restaurant#run-it)), and make a token with the `runtime` scope (plus `ingest` to stream) in Settings → Tokens.
 
-In ElevenLabs, create an agent for Sakura Sushi and turn on the system prompt override. Its dashboard prompt doesn't matter: sopops replaces it on every call. Sakura's sopops agent is a LiveKit agent in the restaurant instructions (`livekit: sakura-sushi`), so set `VITE_ELEVENLABS_AGENT_ID` to the ElevenLabs agent's id. For an agent whose sopops file says `elevenlabs: <agent id>`, leave it empty.
+In ElevenLabs, create an agent for Sakura Sushi and turn on the system prompt override. Its dashboard prompt doesn't matter: sopops replaces it on every call. Import that agent into sopops with an `elevenlabs: <agent id>` platform ref, then set `VITE_ELEVENLABS_AGENT` to the same id.
 
 ```sh
 pnpm -C ../../sdks/node install && pnpm -C ../../sdks/node build    # the client isn't on npm yet
-cp .env.example .env.local     # VITE_SOPOPS_URL, VITE_SOPOPS_TOKEN, VITE_ELEVENLABS_AGENT_ID
+cp .env.example .env.local     # VITE_SOPOPS_URL, VITE_SOPOPS_TOKEN, VITE_ELEVENLABS_AGENT
 pnpm install
 pnpm dev                       # http://localhost:5173
 ```

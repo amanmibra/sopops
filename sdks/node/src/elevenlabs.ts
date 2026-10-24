@@ -50,11 +50,9 @@ export interface ElevenLabsSession {
   end(reason?: string): Promise<void>;
 }
 
-export interface ElevenLabsSessionInput extends FetchOptions {
-  /** The sopc agent id or platform ref. Default: `elevenlabs:<agentId>`. */
-  agent?: string;
-  /** The ElevenLabs agent id. Default: from the sopops agent's platform ref. */
-  agentId?: string;
+export interface ElevenLabsSessionInput extends Omit<FetchOptions, "platform"> {
+  /** The ElevenLabs agent identifier, such as its agent id. */
+  agent: string;
   /** Send messages and tool results to sopops as they happen, and the full conversation when it ends. Default false. */
   stream?: boolean;
   /** An A/B test this conversation is part of (sent as the dynamic variable `sopops_test`). */
@@ -68,12 +66,9 @@ export interface ElevenLabsSessionInput extends FetchOptions {
 
 /** Fetch the agent's instructions and build the `startSession` options that carry them. */
 export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSessionInput): Promise<ElevenLabsSession> {
-  const agent = input.agent ?? (input.agentId ? `elevenlabs:${input.agentId}` : undefined);
-  if (!agent) throw new Error("pass agent (the sopops agent) or agentId (the ElevenLabs agent id)");
-  const instructions = await sopops.fetchInstructions(agent, input);
+  const instructions = await sopops.fetchPlatformInstructions("elevenlabs", input.agent, input);
   const [platform, fromRef] = splitRef(instructions.platformRef);
-  const agentId = input.agentId ?? (platform === "elevenlabs" ? fromRef : undefined);
-  if (!agentId) throw new Error(`sopops agent '${instructions.agent}' isn't an ElevenLabs agent; pass agentId`);
+  if (platform !== "elevenlabs" || !fromRef) throw new Error(`sopops agent '${instructions.agent}' isn't an ElevenLabs agent`);
 
   const dynamicVariables: Record<string, string | number | boolean> = { sopops_agent: instructions.agent };
   if (instructions.release != null) dynamicVariables.sopops_release = instructions.release;
@@ -90,7 +85,7 @@ export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSession
   };
 
   const sessionOptions: ElevenLabsSessionOptions = {
-    agentId,
+    agentId: fromRef,
     overrides: { agent: { prompt: { prompt: instructions.text } } },
     dynamicVariables,
     onConnect: ({ conversationId }) => void link(conversationId),

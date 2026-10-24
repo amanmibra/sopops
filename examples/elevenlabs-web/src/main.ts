@@ -4,9 +4,7 @@ import { SopOps } from "sopops";
 import { elevenLabsSession } from "sopops/elevenlabs";
 
 const sopops = new SopOps({ url: import.meta.env.VITE_SOPOPS_URL, token: import.meta.env.VITE_SOPOPS_TOKEN });
-const agent = import.meta.env.VITE_SOPOPS_AGENT || "sakura-sushi";
-// Needed when the sopops agent isn't itself an ElevenLabs agent (its platform ref isn't `elevenlabs:<id>`).
-const agentId = import.meta.env.VITE_ELEVENLABS_AGENT_ID || undefined;
+const agent = import.meta.env.VITE_ELEVENLABS_AGENT;
 const stream = import.meta.env.VITE_SOPOPS_STREAM === "1";
 
 const button = document.querySelector<HTMLButtonElement>("#call")!;
@@ -32,7 +30,7 @@ button.addEventListener("click", async () => {
     await navigator.mediaDevices.getUserMedia({ audio: true });
 
     // The live release's prompt for this agent, as startSession options (or the last good copy if sopops is down).
-    const s = await elevenLabsSession(sopops, { agent, agentId, stream });
+    const s = await elevenLabsSession(sopops, { agent, stream });
     status.textContent = `${s.instructions.agent}, release ${s.instructions.release ?? "none"} (${s.instructions.source})`;
 
     // Spread ours in; where we add our own handler, call ours from it.

@@ -132,6 +132,7 @@ body { font: var(--t-body); letter-spacing: -0.02em; font-kerning: normal; font-
 .VPSidebarItem.level-0 > .item > .text, .VPSidebarItem.level-0 > .item > .link > .text { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
 .VPSidebarItem .text, .VPDocAsideOutline .outline-link, .VPDocAsideOutline .outline-title, .VPDocFooter, .VPFooter { font: var(--t-small) !important; letter-spacing: -0.01em; }
 .VPDocAsideOutline .outline-title { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
+.VPDocAsideOutline .outline-link { display: block; line-height: calc(3 * var(--bl)); padding: calc(0.5 * var(--bl)) 0; }
 .VPButton { font: var(--t-label) !important; letter-spacing: 0.04em; text-transform: uppercase; }
 
 /* home */

@@ -211,6 +211,14 @@ class SopOps:
         self._write_cache(agent, release, platform, got)   # unfilled, so the next call fills it with its own values
         return _filled(got, variables)
 
+    async def fetch_platform_instructions(self, platform: str, agent: str, release: int | None = None, *,
+                                          fallback: str | None = None, variables: Mapping[str, Any] | None = None) -> Instructions:
+        """The instructions for a raw identifier on one platform.
+
+        Platform adapters call this instead of adding a platform prefix to `agent`. It has the same fallback,
+        cache, and variable behavior as `fetch_instructions`. The cache is scoped to `platform`."""
+        return await self.fetch_instructions(agent, release, platform=platform, fallback=fallback, variables=variables)
+
     def _cache_file(self, agent: str, release: int | None, platform: str | None = None) -> Path:
         key = hashlib.sha256(f"{self.url}\n{agent}\n{release if release is not None else 'live'}\n{platform or ''}".encode()).hexdigest()[:24]
         return self.cache_dir / f"{key}.json"

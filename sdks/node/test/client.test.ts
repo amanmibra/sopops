@@ -111,6 +111,7 @@ describe("elevenLabsSession", () => {
   it("builds startSession options with the prompt override", async () => {
     const m = mockFetch(json(AGENT), json({}));
     const s = await elevenLabsSession(client(m.fetch), { agent: "front-desk" });
+    expect(m.calls[0]!.url).toBe(`${URL}/agents/front-desk?platform=elevenlabs`);
     expect(s.sessionOptions.agentId).toBe("agent_123");
     expect(s.sessionOptions.overrides).toEqual({ agent: { prompt: { prompt: "You are the front desk." } } });
     expect(s.sessionOptions.dynamicVariables).toEqual({ sopops_agent: "front-desk", sopops_release: 3 });
@@ -123,8 +124,8 @@ describe("elevenLabsSession", () => {
 
   it("finds the agent by its ElevenLabs id, and never throws when linking fails", async () => {
     const m = mockFetch(json(AGENT), new TypeError("down"));
-    const s = await elevenLabsSession(client(m.fetch), { agentId: "agent_123" });
-    expect(m.calls[0]!.url).toBe(`${URL}/agents/${encodeURIComponent("elevenlabs:agent_123")}`);
+    const s = await elevenLabsSession(client(m.fetch), { agent: "agent_123" });
+    expect(m.calls[0]!.url).toBe(`${URL}/agents/agent_123?platform=elevenlabs`);
     await expect(s.link("conv_1")).resolves.toBeUndefined();
   });
 

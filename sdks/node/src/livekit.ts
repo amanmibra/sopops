@@ -181,7 +181,7 @@ export async function attach(ctx: LiveKitJobContext, session: LiveKitSession, op
   const agent = options.agent ?? ctx.job.agentName;
   if (!agent) throw new Error("pass agent when the LiveKit job has no agent name");
   const release = options.release ?? pinnedRelease(ctx);
-  const ins = await sopops.fetchInstructions(agent, { release, platform: "livekit", fallback: options.fallback, variables: options.variables });
+  const ins = await sopops.fetchPlatformInstructions("livekit", agent, { release, fallback: options.fallback, variables: options.variables });
   recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release, test: options.test, config: options.config });
   return ins;
 }

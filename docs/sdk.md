@@ -65,6 +65,10 @@ variables=None)` and `fetchInstructions(agent, options?)` both return an
 `Instructions`. TypeScript takes everything after `agent` as a `FetchOptions`
 object.
 
+Platform adapters use `fetch_platform_instructions(platform, agent, ...)` and
+`fetchPlatformInstructions(platform, agent, options?)`. Pass a raw identifier
+to `agent`; the helper scopes it to the platform.
+
 | Argument | What it does |
 |---|---|
 | `agent` | The sopc agent id (`tonys-pizza`), its platform ref (`livekit:tonys-pizza`), or a raw platform identifier. |
@@ -275,8 +279,7 @@ const conversation = await Conversation.startSession({ ...s.sessionOptions });
 
 | Input | What it does |
 |---|---|
-| `agent` | The sopc agent id or platform ref. Default: `elevenlabs:` plus `agentId`. |
-| `agentId` | The ElevenLabs agent id. Default: the one in the sopops agent's platform ref. One of the two has to be there. |
+| `agent` | Required. The ElevenLabs identifier, such as its agent id. |
 | `stream` | Send messages and tool results as they happen, and post the whole conversation when it ends. Needs `ingest`. Default false. |
 | `test`, `config` | Sent as the dynamic variables `sopops_test` and `sopops_<key>`. sopops reads the agent's LLM, voice and TTS model itself. |
 | `release`, `fallback`, `variables` | As on `fetchInstructions`. |

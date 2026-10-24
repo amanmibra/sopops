@@ -109,7 +109,7 @@ async def attach(
     if not agent:
         raise ValueError("pass agent= when the LiveKit job has no agent name")
     pin = release if release is not None else pinned_release(ctx)
-    ins = await client.fetch_instructions(agent, pin, platform="livekit", fallback=fallback, variables=variables)
+    ins = await client.fetch_platform_instructions("livekit", agent, pin, fallback=fallback, variables=variables)
     _remember(session, ins)
     record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, on_guidance=on_guidance)
     return ins

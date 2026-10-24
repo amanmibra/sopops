@@ -80,7 +80,7 @@ describe("SessionStream", () => {
 
 describe("elevenLabsSession with stream", () => {
   it("adds no handlers without stream", async () => {
-    const f = fakeSopops({ "/agents/sakura-sushi": [json(AGENT)] });
+    const f = fakeSopops({ "/agents/sakura-sushi?platform=elevenlabs": [json(AGENT)] });
     const s = await elevenLabsSession(f.client, { agent: "sakura-sushi" });
     expect(Object.keys(s.sessionOptions).sort()).toEqual(["agentId", "dynamicVariables", "onConnect", "overrides"]);
     await s.end();
@@ -89,7 +89,7 @@ describe("elevenLabsSession with stream", () => {
 
   it("streams messages and tool results, then posts the full conversation", async () => {
     const f = fakeSopops({
-      "/agents/sakura-sushi": [json(AGENT)],
+      "/agents/sakura-sushi?platform=elevenlabs": [json(AGENT)],
       "/runtime/served": [json({})],
       "/sessions/open": [OPENED],
       "/sessions/elevenlabs/conv_1/events": [ACCEPTED],
@@ -120,7 +120,7 @@ describe("elevenLabsSession with stream", () => {
   });
 
   it("never throws when the final post fails", async () => {
-    const f = fakeSopops({ "/agents/sakura-sushi": [json(AGENT)], "/runtime/served": [json({})], "/sessions/open": [OPENED], "/sessions/elevenlabs/conv_2/events": [ACCEPTED], "/sessions": [json({ detail: "invalid ingest token" }, 401)] });
+    const f = fakeSopops({ "/agents/sakura-sushi?platform=elevenlabs": [json(AGENT)], "/runtime/served": [json({})], "/sessions/open": [OPENED], "/sessions/elevenlabs/conv_2/events": [ACCEPTED], "/sessions": [json({ detail: "invalid ingest token" }, 401)] });
     const s = await elevenLabsSession(f.client, { agent: "sakura-sushi", stream: true });
     s.sessionOptions.onConnect({ conversationId: "conv_2" });
     s.sessionOptions.onMessage!({ message: "Hi", role: "user" });

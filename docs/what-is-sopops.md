@@ -23,6 +23,9 @@ status, and quotes that support it.
 Findings from similar calls become patterns. A pattern can show a real mistake,
 a valid exception, an outdated procedure, or a checker mistake.
 
+![A report groups checked calls by procedure and shows the sessions that
+followed, partly followed, or deviated from each one.](images/walkthrough-report.png)
+
 ## A reviewed pattern can change the next release
 
 Review a pattern before you change instructions. Mark it with a verdict, then
