@@ -100,7 +100,7 @@ export function ProblemsChart({ problems, problemHref }: { problems: Problem[]; 
   const go = useGo();
   const color = (p: Problem) => (p.type === "skipped" || p.type === "never" ? "var(--o-deviated)" : "var(--o-partial)");
   return (
-    <div className="h-52">
+    <div className="h-52 pl-2" data-ui>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={problems.map((p) => ({ ...p, lbl: `${p.checks} · ${fmtPct(p.pct)}` }))} layout="vertical" margin={{ top: 0, right: 64, bottom: 0, left: 0 }}>
           <XAxis type="number" hide domain={[0, "dataMax"]} />

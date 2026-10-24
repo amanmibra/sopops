@@ -202,7 +202,7 @@ export function Kpi({
 }: {
   label: string;
   value: ReactNode;
-  /** A small mark in the tile's top-right corner, in the figure's color. */
+  /** A small mark beside the label, in the figure's color. */
   icon?: LucideIcon;
   accent?: keyof typeof ACCENT;
   help: ReactNode;
@@ -222,8 +222,8 @@ export function Kpi({
         </div>
         {Icon && (
           <span
-            className="grid size-8 shrink-0 place-items-center"
-            style={{ background: `color-mix(in oklch, ${ACCENT[accent]} 14%, transparent)`, color: ACCENT[accent] }}
+            className="mt-0.5 shrink-0"
+            style={{ color: ACCENT[accent] }}
             aria-hidden
           >
             <Icon className="size-4" strokeWidth={2.25} />

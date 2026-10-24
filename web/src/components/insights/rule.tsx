@@ -44,7 +44,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
       <div className="grid gap-4">
         <section className="bg-card rounded-lg border px-4 py-4">
           <div className="text-muted-foreground text-xs">
-            <HrefLink href={insightsHref(ws, ["insights"], filters)}>Insights</HrefLink> / <HrefLink href={insightsHref(ws, ["insights", "procedures", procedureId], filters)}>{procName}</HrefLink>
+            <HrefLink href={insightsHref(ws, ["insights"], filters)}>Results</HrefLink> / <HrefLink href={insightsHref(ws, ["insights", "procedures", procedureId], filters)}>{procName}</HrefLink>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-lg font-semibold">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>

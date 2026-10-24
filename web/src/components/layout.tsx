@@ -8,10 +8,11 @@ import {
   Bot,
   Boxes,
   ChartLine,
+  FileText,
   FilePenLine,
+  GitCompare,
   ChevronDown,
   Plus,
-  FileText,
   House,
   ListOrdered,
   type LucideIcon,
@@ -25,6 +26,7 @@ import {
   Settings,
   Sun,
   Tag as TagIcon,
+  TestTube2,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type AuthState, q } from "@/lib/api";
@@ -486,8 +488,10 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
         </RailGroup>
         <RailGroup label="Results" collapsed={c}>
-          <RailItem collapsed={c} href={wsHref(ws, "insights")} icon={ChartLine} label="Insights" />
-          <RailItem collapsed={c} href={wsHref(ws, "report")} icon={FileText} label="Report" />
+          <RailItem collapsed={c} href={wsHref(ws, "insights")} icon={ChartLine} label="Overview" />
+          <RailItem collapsed={c} href={wsHref(ws, "insights", "releases")} icon={GitCompare} label="Release compare" />
+          <RailItem collapsed={c} href={wsHref(ws, "insights", "versions")} icon={TestTube2} label="A/B tests" />
+          <RailItem collapsed={c} href={wsHref(ws, "report")} icon={FileText} label="Review report" />
         </RailGroup>
         <RailGroup label="Instructions" collapsed={c}>
           {list("agent", "Agents", cfg.agents.map((a) => ({ id: a.id, label: a.id })), agentsActive)}

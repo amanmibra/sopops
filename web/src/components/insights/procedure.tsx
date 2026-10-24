@@ -294,7 +294,7 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
   const noChecks = !!d && d.tiles.current.checks === 0;
   return (
     <div className="max-w-[1320px] min-w-0">
-      <BackBar href={insightsHref(ws, ["insights"], filters)} label="Insights" filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
+      <BackBar href={insightsHref(ws, ["insights"], filters)} label="Results" filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
         <section className="bg-card flex flex-wrap items-start justify-between gap-4 rounded-lg border px-4 py-4">
           {!d && res.isPending ? (

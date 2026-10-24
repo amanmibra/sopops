@@ -2,11 +2,11 @@
 // with its own color, used on every mark on the page), the top cards show A and B side by side with the change,
 // then pass rate on every release in the window, per procedure and per rule with n, 95% ranges and flags gated on min n.
 import { useQuery } from "@tanstack/react-query";
-import { GitCompare, ListChecks, TrendingUp } from "lucide-react";
+import { GitCompare } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { CompareRate, CompareResponse, CompareRule, InsightFilters, RateOut } from "@/lib/api";
 import { q } from "@/lib/api";
-import { CHECK_DEF, SIDES, compareFlag, diffInterval, fmtDelta, fmtPct, insightsHref, ruleName, sessionsHref, signed, windowPhrase } from "@/lib/insights";
+import { SIDES, compareFlag, diffInterval, fmtDelta, fmtPct, insightsHref, ruleName, sessionsHref, signed, windowPhrase } from "@/lib/insights";
 import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
@@ -67,31 +67,6 @@ function Change({ delta, range, flag, minN, points, an, bn, compact }: { delta: 
         )}
       </span>
     </Hint>
-  );
-}
-
-/** A top card: one measure for A and for B side by side, with the change under them when there is one. */
-function SideBySide({ label, help, a, b, aSub, bSub, change, icon: Icon, release }: { label: string; help: ReactNode; a: ReactNode; b: ReactNode; aSub?: ReactNode; bSub?: ReactNode; change?: ReactNode; icon: typeof ListChecks; release: { a: number; b: number } }) {
-  return (
-    <div className="bg-card min-w-0 rounded-lg border px-4 py-4">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium">
-          {label}
-          <Help text={help} />
-        </span>
-        <Icon className="text-muted-foreground size-3.5" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        {(["a", "b"] as const).map((s) => (
-          <div key={s} className="min-w-0 border-l-[3px] pl-2" style={{ borderColor: SIDES[s].color }}>
-            <SideName side={s} release={release[s]} className="text-xs" />
-            <div className="text-2xl font-semibold tabular-nums">{s === "a" ? a : b}</div>
-            {(s === "a" ? aSub : bSub) && <div className="text-muted-foreground text-xs">{s === "a" ? aSub : bSub}</div>}
-          </div>
-        ))}
-      </div>
-      {change && <div className="mt-2 border-t pt-2 text-xs">{change}</div>}
-    </div>
   );
 }
 
@@ -338,60 +313,27 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
               B starts as the latest release with sessions in this time range, and A as the one before it. Pick either to change it.
             </p>
             {d && ready ? (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <SideBySide
-                  label="Sessions"
-                  icon={ListChecks}
-                  release={{ a: d.a as number, b: d.b as number }}
-                  a={d.sessions_a}
-                  b={d.sessions_b}
-                  aSub={`${ta.n} checks`}
-                  bSub={`${tb.n} checks`}
-                  help={`Checked sessions in this time range that ran each release. ${CHECK_DEF}`}
-                />
-                <SideBySide
-                  label="Pass rate"
-                  icon={TrendingUp}
-                  release={{ a: d.a as number, b: d.b as number }}
-                  a={fmtPct(ta.rate)}
-                  b={fmtPct(tb.rate)}
-                  aSub={`of ${ta.n} checks`}
-                  bSub={`of ${tb.n} checks`}
-                  change={<Change delta={overallDelta} range={overallDelta != null ? diffInterval(ta.passes, ta.n, tb.passes, tb.n) : null} flag={overallFlag} minN={minN} points={points} an={ta.n} bn={tb.n} />}
-                  help="Followed checks out of measurable checks on each release, every procedure pooled. Under it: B minus A in percentage points, with the 95% range of that change."
-                />
-                <div className="bg-card min-w-0 rounded-lg border px-4 py-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium">
-                      Rules better on <SideName side="a" release={d.a} />
-                      <Help text={`Steps and never rules at least ${points} points better on A than on B, with ${minN} or more results on each and 95% ranges that don't overlap.`} />
-                    </span>
+              <div className="bg-card grid gap-px overflow-hidden rounded-lg border md:grid-cols-[1fr_1.4fr_1fr]">
+                <div className="p-4">
+                  <div className="text-muted-foreground text-xs">Sessions checked</div>
+                  <div className="mt-1 text-xl font-semibold tabular-nums">{d.sessions_a} <span className="text-muted-foreground text-sm font-normal">on A</span> · {d.sessions_b} <span className="text-muted-foreground text-sm font-normal">on B</span></div>
+                </div>
+                <div className="bg-muted/30 p-4">
+                  <div className="text-muted-foreground text-xs">Pass rate</div>
+                  <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1 tabular-nums">
+                    <span className="text-xl font-semibold">{fmtPct(ta.rate)}</span>
+                    <span className="text-muted-foreground">to</span>
+                    <span className="text-2xl font-semibold">{fmtPct(tb.rate)}</span>
+                    <Change delta={overallDelta} range={overallDelta != null ? diffInterval(ta.passes, ta.n, tb.passes, tb.n) : null} flag={overallFlag} minN={minN} points={points} an={ta.n} bn={tb.n} compact />
                   </div>
-                  <div className="text-2xl font-semibold tabular-nums" style={{ color: SIDES.a.color }}>{flagged.filter((r) => r.flag === "regressed").length}</div>
+                </div>
+                <div className="p-4">
+                  <div className="text-muted-foreground text-xs">Rules that changed</div>
+                  <div className="mt-1 text-xl font-semibold tabular-nums"><span style={{ color: SIDES.a.color }}>{flagged.filter((r) => r.flag === "regressed").length} worse</span><span className="text-muted-foreground"> · </span><span style={{ color: SIDES.b.color }}>{flagged.filter((r) => r.flag === "improved").length} better</span></div>
                   <div className="text-muted-foreground text-xs">of {d.rules.length} rules compared</div>
                 </div>
-                <div className="bg-card min-w-0 rounded-lg border px-4 py-4">
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium">
-                      Rules better on <SideName side="b" release={d.b} />
-                      <Help text={`Steps and never rules at least ${points} points better on B than on A, with ${minN} or more results on each and 95% ranges that don't overlap.`} />
-                    </span>
-                  </div>
-                  <div className="text-2xl font-semibold tabular-nums" style={{ color: SIDES.b.color }}>{flagged.filter((r) => r.flag === "improved").length}</div>
-                  <div className="text-muted-foreground text-xs">
-                    <Hint focusable={false} tip={`Rules with fewer than ${minN} results on a release can't be called better or worse yet.`}>
-                      <span className="cursor-help border-b border-dotted border-current">{d.rules.filter((r) => r.flag === "thin").length} with too few results</span>
-                    </Hint>
-                  </div>
-                </div>
               </div>
-            ) : (
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                {[0, 1, 2, 3].map((i) => (
-                  <Skel key={i} className="h-32 rounded-lg" />
-                ))}
-              </div>
-            )}
+            ) : <Skel className="h-28 rounded-lg" />}
             <WidgetCard
               title="Pass rate by release"
               subtitle="Every release with sessions in this time range. Select a bar to make it B."

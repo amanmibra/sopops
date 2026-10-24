@@ -92,13 +92,20 @@ confirms that it sent and checked 200 earlier calls against release 1:
 checked: 200 checked
 ```
 
-Open `http://127.0.0.1:8585/w/walkthrough/report`. The report shows each call,
-the rule it missed, and the quote that led to the result. In **Patterns**, one
-allergen rule separates into failures such as a promise that a dish is safe and
-a claim that a kitchen is allergen-free.
+Open `http://127.0.0.1:8585/w/walkthrough/insights`. **Overview** shows the
+measured result first. Use it to find a change that needs attention or a
+release worth comparing.
 
-![The walkthrough report groups checked calls by procedure and shows the count
-of sessions that followed, partially followed, or deviated from each one.](images/walkthrough-report.png)
+![The Results overview shows the checked sessions, pass rate, notable changes,
+and the procedures behind them.](images/walkthrough-results-overview.png)
+
+Open **Review report** in the Results sidebar for the evidence. It groups the
+findings by procedure and shows the sessions, rule, and quote that produced
+each one. In **Patterns**, one allergen rule separates into failures such as a
+promise that a dish is safe and a claim that a kitchen is allergen-free.
+
+![The Review report groups checked calls by procedure and shows the count of
+sessions that followed, partially followed, or deviated from each one.](images/walkthrough-review-report.png)
 
 ## A review turns two findings into release 2
 
@@ -142,6 +149,13 @@ its acceptable findings stay out of the pass rate.
 
 ![The walkthrough release comparison shows release 1 and release 2 beside a
 pass-rate chart and a procedure-by-procedure comparison.](images/walkthrough-release-compare.png)
+
+**A/B tests** in the Results sidebar is for intentional split traffic. The demo
+does not split calls, but this view lets you choose versions of the same agent
+before you compare them.
+
+![The A/B tests view lists versions you can select for a controlled
+comparison.](images/walkthrough-ab-tests.png)
 
 Stop the server with Ctrl-C when you finish. The tutorial stores data in
 `examples/walkthrough/out/`; run `just examples/walkthrough/clean` to remove it.

@@ -383,7 +383,7 @@ export function OverviewView({ filters, onFilters }: { filters: InsightFilters; 
   return (
     <InsightsShell
       view="overview"
-      title="Insights"
+      title="Results"
       subtitle={<>How sessions went against your procedures over {windowPhrase(filters)}, compared with the same length of time just before. Select a number to open the sessions behind it.</>}
       filters={filters}
       onFilters={onFilters}
@@ -391,7 +391,7 @@ export function OverviewView({ filters, onFilters }: { filters: InsightFilters; 
     >
       <div className="grid gap-4">
         {res.error && !d ? (
-          <WidgetCard title="Insights" {...shared} />
+          <WidgetCard title="Results" {...shared} />
         ) : (
           <>
             <TilesRow tiles={d?.tiles} scope={scope} loading={res.isPending} />

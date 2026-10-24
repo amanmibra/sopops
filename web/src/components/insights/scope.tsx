@@ -3,11 +3,10 @@
 import { CalendarRange, RefreshCw } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { type InsightFilters, WINDOWS } from "@/lib/api";
-import { WINDOW_LABEL, WINDOW_SHORT, insightsHref } from "@/lib/insights";
+import { WINDOW_LABEL, WINDOW_SHORT } from "@/lib/insights";
 import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
-import { HrefLink } from "../href-link";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
@@ -116,13 +115,6 @@ export function ScopeBar({ filters, onChange, procedure = true, release = true }
 
 export type View = "overview" | "releases" | "versions" | "report";
 
-const TABS: [View, string, string[]][] = [
-  ["overview", "Overview", ["insights"]],
-  ["releases", "Release compare", ["insights", "releases"]],
-  ["versions", "A/B tests", ["insights", "versions"]],
-  ["report", "Review report", ["report"]],
-];
-
 /** "As of 14:02 · refresh": presets end at now, and the page refetches every minute and on focus. */
 export function AsOf({ at, fetching, onRefresh }: { at: number; fetching: boolean; onRefresh: () => void }) {
   if (!at) return null;
@@ -138,7 +130,7 @@ export function AsOf({ at, fetching, onRefresh }: { at: number; fetching: boolea
 
 /** The top of every Insights view: title and subtitle, then the view tabs with the scope bar on the same row. */
 export function InsightsShell({
-  view,
+  view: _view,
   title,
   subtitle,
   filters,
@@ -156,9 +148,7 @@ export function InsightsShell({
   status?: ReactNode;
   children: ReactNode;
 }) {
-  const { ws } = useWs();
   const collapsed = useRailCollapsed();
-  const keep: InsightFilters = { ...filters };
   return (
     <div className={cn("max-w-[1320px] min-w-0", collapsed && "mx-auto")}>
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
@@ -168,25 +158,8 @@ export function InsightsShell({
         </div>
         {status}
       </div>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b">
-        <nav className="-mb-px flex gap-1" aria-label="Insights views">
-          {TABS.map(([k, label, path]) => (
-            <HrefLink
-              key={k}
-              href={insightsHref(ws, path, keep)}
-              aria-current={k === view ? "page" : undefined}
-              className={cn(
-                "border-b-2 px-2 pt-1 pb-2 text-sm hover:no-underline",
-                k === view ? "border-primary text-foreground font-semibold" : "text-muted-foreground hover:text-foreground border-transparent",
-              )}
-            >
-              {label}
-            </HrefLink>
-          ))}
-        </nav>
-        <div className="pb-2">
-          <ScopeBar filters={filters} onChange={onFilters} {...scope} />
-        </div>
+      <div className="mb-4 flex flex-wrap justify-end gap-2">
+        <ScopeBar filters={filters} onChange={onFilters} {...scope} />
       </div>
       {children}
     </div>
