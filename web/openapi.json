@@ -1661,7 +1661,7 @@
           "auth"
         ],
         "summary": "Create Team",
-        "description": "Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are.",
+        "description": "Make a new team, which you own, with its workspace, and work in it now. Your other teams stay as they are.\n\nWhere a login provider owns the teams, the team is made there and mirrored back here, so it's the same team\nat the next sign-in. Either way this answers with the team and the workspace it works in.",
         "operationId": "create_team",
         "requestBody": {
           "content": {
@@ -1683,6 +1683,9 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "The provider that owns the teams wouldn't make it."
           },
           "422": {
             "description": "Validation Error",
@@ -1900,7 +1903,7 @@
           "auth"
         ],
         "summary": "Set Member Role",
-        "description": "Change someone's role. Only an owner makes or changes an owner, and the org keeps at least one.",
+        "description": "Change someone's role. Only an owner makes or changes an owner, and the org keeps at least one.\n\nWhere a provider owns the team, its roles are mirrored over sopops's at every sign-in, so the change is made\nthere too; sopops's rules are checked first, and a provider that refuses leaves a change that the next\nsign-in undoes, which is the right way round.",
         "operationId": "set_member_role",
         "parameters": [
           {
@@ -2030,7 +2033,7 @@
           "auth"
         ],
         "summary": "List Invites",
-        "description": "Invites not yet used, withdrawn or expired.",
+        "description": "Invites not yet used, withdrawn or expired. Where a provider owns the team, its invites, whose `id` is\nthe address they were sent to.",
         "operationId": "list_invites",
         "responses": {
           "200": {
@@ -2046,6 +2049,9 @@
                 }
               }
             }
+          },
+          "502": {
+            "description": "The provider that owns the team wouldn't say."
           }
         }
       },
@@ -2139,7 +2145,7 @@
           "auth"
         ],
         "summary": "Revoke Invite",
-        "description": "Withdraw an invite: its link stops working.",
+        "description": "Withdraw an invite: its link stops working. Where a provider owns the team, `id` is the address it was\nsent to, which is what names it there.",
         "operationId": "revoke_invite",
         "parameters": [
           {
@@ -2155,6 +2161,9 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "502": {
+            "description": "The provider wouldn't withdraw it."
           },
           "422": {
             "description": "Validation Error",
@@ -5440,7 +5449,7 @@
           "serving"
         ],
         "summary": "Get Agent",
-        "description": "What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch.",
+        "description": "What to load at call start. `agent` is the sopc id, platform ref, or a platform id when `platform` scopes it. Logs a fetch.",
         "operationId": "get_agent",
         "security": [
           {
@@ -5483,6 +5492,24 @@
               "title": "Release"
             },
             "description": "Pin a release (e.g. for A/B); default: current."
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Scope a raw platform id to this platform, e.g. `livekit`.",
+              "title": "Platform"
+            },
+            "description": "Scope a raw platform id to this platform, e.g. `livekit`."
           }
         ],
         "responses": {
@@ -5555,6 +5582,22 @@
                 }
               ],
               "title": "Release"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
             }
           }
         ],
@@ -5637,6 +5680,22 @@
                 }
               ],
               "title": "Release"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Platform"
             }
           }
         ],
@@ -11236,6 +11295,60 @@
           },
           "503": {
             "description": "No webhook secret set up."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/webhooks/{provider}": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Provider Webhook",
+        "description": "A login provider's webhook, signed with the endpoint secret from its dashboard (Svix: `svix-id`,\n`svix-timestamp`, `svix-signature`). Every event is stored; a few end sessions or mark a record stale.\nAnswers 2xx for an event nothing acts on, and handles each delivery once.",
+        "operationId": "provider_webhook",
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Provider Webhook"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unsigned, or the signature doesn't match the endpoint secret."
+          },
+          "404": {
+            "description": "No such login provider."
+          },
+          "503": {
+            "description": "No webhook secret is set up for that provider."
           },
           "422": {
             "description": "Validation Error",

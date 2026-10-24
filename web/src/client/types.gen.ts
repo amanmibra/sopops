@@ -11910,6 +11910,10 @@ export type CreateTeamErrors = {
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * The provider that owns the teams wouldn't make it.
+     */
+    502: unknown;
 };
 
 export type CreateTeamError = CreateTeamErrors[keyof CreateTeamErrors];
@@ -12153,6 +12157,13 @@ export type ListInvitesData = {
     url: '/v1/org/invites';
 };
 
+export type ListInvitesErrors = {
+    /**
+     * The provider that owns the team wouldn't say.
+     */
+    502: unknown;
+};
+
 export type ListInvitesResponses = {
     /**
      * Response List Invites
@@ -12236,6 +12247,10 @@ export type RevokeInviteErrors = {
      * Validation Error
      */
     422: HttpValidationError;
+    /**
+     * The provider wouldn't withdraw it.
+     */
+    502: unknown;
 };
 
 export type RevokeInviteError = RevokeInviteErrors[keyof RevokeInviteErrors];
@@ -14150,6 +14165,12 @@ export type GetAgentData = {
          * Pin a release (e.g. for A/B); default: current.
          */
         release?: number | null;
+        /**
+         * Platform
+         *
+         * Scope a raw platform id to this platform, e.g. `livekit`.
+         */
+        platform?: string | null;
     };
     url: '/v1/workspaces/{workspace}/agents/{agent}';
 };
@@ -14189,6 +14210,10 @@ export type GetPromptData = {
          * Release
          */
         release?: number | null;
+        /**
+         * Platform
+         */
+        platform?: string | null;
     };
     url: '/v1/workspaces/{workspace}/agents/{agent}/prompt';
 };
@@ -14232,6 +14257,10 @@ export type GetSopData = {
          * Release
          */
         release?: number | null;
+        /**
+         * Platform
+         */
+        platform?: string | null;
     };
     url: '/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}';
 };
@@ -17239,6 +17268,52 @@ export type GithubWebhookResponses = {
 };
 
 export type GithubWebhookResponse = GithubWebhookResponses[keyof GithubWebhookResponses];
+
+export type ProviderWebhookData = {
+    body?: never;
+    path: {
+        /**
+         * Provider
+         */
+        provider: string;
+    };
+    query?: never;
+    url: '/v1/auth/webhooks/{provider}';
+};
+
+export type ProviderWebhookErrors = {
+    /**
+     * Unsigned, or the signature doesn't match the endpoint secret.
+     */
+    401: unknown;
+    /**
+     * No such login provider.
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * No webhook secret is set up for that provider.
+     */
+    503: unknown;
+};
+
+export type ProviderWebhookError = ProviderWebhookErrors[keyof ProviderWebhookErrors];
+
+export type ProviderWebhookResponses = {
+    /**
+     * Response Provider Webhook
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ProviderWebhookResponse = ProviderWebhookResponses[keyof ProviderWebhookResponses];
 
 export type StartSupportSessionData = {
     body: SupportStartIn;
