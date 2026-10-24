@@ -123,7 +123,7 @@ export function ReportView({ filters, onFilters }: { filters: InsightFilters; on
       onFilters={onFilters}
       status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />}
     >
-      <div className="grid max-w-[1040px] gap-4">
+      <div className="grid w-full gap-4">
         {h && scope ? (
           <KpiGrid narrow>
             <Kpi label="Sessions checked" icon={ListChecks} value={h.sessions_checked} sub={`${h.not_measurable} not measurable`} href={link({ eligible: true })} help="Sessions judged against at least one procedure in this time range." />

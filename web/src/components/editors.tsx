@@ -222,7 +222,7 @@ function InstructionForm({ id, item }: { id: string; item?: InstructionConfig })
   const { m, set, dirty, notice } = useFields("instruction", id, { id: item?.id ?? "", text: item?.text ?? "" });
   const { errors, banner, onSave, remove } = useOnSave("instruction", id, isNew, dirty);
   return (
-    <Page>
+    <Page wide>
       {notice}
       {isNew ? (
         <NewHeader kind="instruction" />
@@ -264,7 +264,7 @@ function ProcedureForm({ id, item }: { id: string; item?: ProcedureConfig }) {
   const [idEdited, setIdEdited] = useState(!isNew);
   const d = DELIVERY.find((x) => x.value === m.delivery) ?? DELIVERY[0];
   return (
-    <Page>
+    <Page wide>
       {notice}
       {isNew ? (
         <NewHeader kind="procedure" />
@@ -353,7 +353,7 @@ function GroupForm({ id, item }: { id: string; item?: GroupConfig }) {
   const { m, set, dirty, notice } = useFields("group", id, { id: item?.id ?? "", blocks: item?.blocks ?? [] });
   const { errors, banner, onSave, remove } = useOnSave("group", id, isNew, dirty);
   return (
-    <Page>
+    <Page wide>
       {notice}
       {isNew ? (
         <NewHeader kind="group" />
@@ -395,7 +395,7 @@ function SettingsForm() {
   const { errors, banner, onSave } = useOnSave("settings", "settings", false, dirty);
   const c = changeOf("settings", "settings");
   return (
-    <Page>
+    <Page wide>
       {notice}
       <SectionHead title="Set the defaults every agent's instructions use" aside={c && <Tag tone={c.change}>{c.change}, not published</Tag>}>
         Changes here are saved as drafts and go live when you publish, like any other edit.

@@ -39,7 +39,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
   const shared = { loading: res.isPending, error: d ? undefined : res.error, onRetry: () => void res.refetch() };
   const warn = d?.kind === "warning";
   return (
-    <div className="max-w-[1320px] min-w-0">
+    <div className="w-full min-w-0">
       <BackBar href={insightsHref(ws, ["insights", "procedures", procedureId], filters)} label={procName} filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
         <section className="bg-card rounded-lg border px-4 py-4">

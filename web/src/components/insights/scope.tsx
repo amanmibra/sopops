@@ -4,7 +4,6 @@ import { CalendarRange, RefreshCw } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { type InsightFilters, WINDOWS } from "@/lib/api";
 import { WINDOW_LABEL, WINDOW_SHORT } from "@/lib/insights";
-import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { Button } from "../ui/button";
@@ -148,9 +147,10 @@ export function InsightsShell({
   status?: ReactNode;
   children: ReactNode;
 }) {
-  const collapsed = useRailCollapsed();
   return (
-    <div className={cn("max-w-[1320px] min-w-0", collapsed && "mx-auto")}>
+    // Insights is a working canvas: tables, comparisons and charts should use the
+    // width that remains after the rail instead of stopping at a reading-column cap.
+    <div className="w-full min-w-0">
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">{title}</h1>

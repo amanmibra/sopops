@@ -14,7 +14,7 @@ function SettingsLayout() {
     <div className={cn("grid min-h-[calc(100vh-57px-var(--band-h))] grid-cols-1", railCols(collapsed))}>
       <SettingsNav />
       <main className="min-w-0 px-4 pt-5 pb-10 md:px-8 md:pt-6">
-        <div className={cn("max-w-[860px]", collapsed && "mx-auto")}>
+        <div className="w-full min-w-0">
           <SetupBar ws={ws} />
           <Outlet />
         </div>
