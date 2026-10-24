@@ -8,6 +8,8 @@ Instructions are what your platform may call the prompt or system prompt.
 
 [Quickstart](#quickstart) · [Walkthrough](examples/walkthrough/WALKTHROUGH.md) · [Connect your agent](#connect-your-agent) · [Docs](https://docs.sopops.dev) · [API](docs/api/index.md)
 
+<img src="docs/images/sopops-promo-waveform.gif" alt="A SOPoPS walkthrough showing how teams manage and check agent instructions" width="900">
+
 </div>
 
 ---
