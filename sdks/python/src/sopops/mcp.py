@@ -38,9 +38,9 @@ INSTRUCTIONS = """Onboard voice agents into sopops, and keep their SOPs up to da
 Onboarding: start with get_kickoff and follow it. Only read from the user's systems and platforms; never change,
 deploy or delete anything there. Report progress with report_progress as you go.
 
-Later, to change what agents are told: list_sops, get_sop, save_sop and preview_agent (a `config` token and
-SOPOPS_WORKSPACE, or an onboarding token). Every save is a draft. Nothing reaches a call until someone publishes a
-release in sopops, so say that when you report back."""
+Later, to change what agents are told: list_sops, get_sop, get_sop_settings, save_sop, save_sop_settings and
+preview_agent (a `config` token and SOPOPS_WORKSPACE, or an onboarding token). Every save or deletion is a draft.
+Nothing reaches a call until someone publishes a release in sopops, so say that when you report back."""
 NOT_CONNECTED = "Not connected to sopops: set SOPOPS_URL and SOPOPS_TOKEN (create a token on the Import agents page)."
 ONBOARD_SKILL, AB_SKILL = "sopops-onboard", "sopops-ab-tests"
 SKILLS = (ONBOARD_SKILL, AB_SKILL)
@@ -242,6 +242,13 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
 
     @server.tool()
     @_explained
+    def get_sop_settings() -> dict[str, Any]:
+        """The workspace defaults that affect every compiled agent: placeholder values and the procedures heading.
+        Read these before changing a shared block or an agent whose prompt uses default variables."""
+        return dict(sopops.call("GET", f"/v1/workspaces/{quote(workspace(), safe='')}/config/settings"))
+
+    @server.tool()
+    @_explained
     def save_sop(kind: str, id: str, fields: dict[str, Any], note: str | None = None) -> dict[str, Any]:
         """Save an item as a draft, creating it if it's new. Send the whole item, not a patch: read it with
         `get_sop` first, change what you mean to, and send that back. sopc checks it, so a save that wouldn't
@@ -252,6 +259,40 @@ def make_server(env: dict[str, str] | None = None, transport: httpx.BaseTranspor
         if note:
             body["note"] = note[:500]
         return dict(sopops.call("PUT", kind_path(kind, id), body))
+
+    @server.tool()
+    @_explained
+    def save_sop_settings(fields: dict[str, Any], note: str | None = None) -> dict[str, Any]:
+        """Save workspace-wide default variables or the procedures heading as a draft. Read the current settings
+        first with `get_sop_settings`, then send the complete settings object with only the intended changes."""
+        body = dict(fields)
+        if note:
+            body["note"] = note[:500]
+        return dict(sopops.call("PUT", f"/v1/workspaces/{quote(workspace(), safe='')}/config/settings", body))
+
+    @server.tool()
+    @_explained
+    def delete_sop(kind: str, id: str, note: str | None = None) -> dict[str, Any]:
+        """Delete one agent, instruction, procedure or group as a draft. Before calling this, read the item and its
+        `used_by` list, explain the effect to the user, and get an explicit request to delete it. Nothing goes live
+        until a person publishes a release in sopops."""
+        params = {"note": note[:500]} if note else None
+        return dict(sopops.call("DELETE", kind_path(kind, id), params=params))
+
+    @server.tool()
+    @_explained
+    def get_sop_history(kind: str, id: str) -> list[dict[str, Any]]:
+        """Every saved version of one SOP, newest first. Use this to understand why it changed before editing or
+        restoring an older version."""
+        return list(sopops.call("GET", f"{kind_path(kind, id)}/history"))
+
+    @server.tool()
+    @_explained
+    def get_sop_version(kind: str, id: str, version: int, file: str | None = None) -> dict[str, Any]:
+        """One historical SOP version in full. For a procedure with more than one historical file, pass the `file`
+        value returned by `get_sop_history`. To restore it, read it here and save its fields with `save_sop`."""
+        params = {"file": file} if file else None
+        return dict(sopops.call("GET", f"{kind_path(kind, id)}/versions/{version}", params=params))
 
     @server.tool()
     @_explained

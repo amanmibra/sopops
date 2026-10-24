@@ -16,7 +16,7 @@ export const Route = createFileRoute("/welcome")({
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /**
- * The first run, steps 1 to 3: your name, your email and password (the email is what you sign in with), and what the
+ * The first run, steps 1 to 3: your email and confirmed password (the email is what you sign in with), your name, and what the
  * team is called, which makes your account (the owner), names the team and makes its workspace. Signed in already
  * (GitHub or Google on a fresh install, or Back from step 4), only the team step is left.
  */
@@ -30,7 +30,7 @@ function Welcome() {
     return <TeamStep auth={auth} />;
   }
   if (!auth.first_account) return <Navigate to="/sign-in" replace />;
-  return <NewAccount auth={auth} start={step ?? "name"} />;
+  return <NewAccount auth={auth} start={step ?? "account"} />;
 }
 
 /** Signed in: name the team (and make its workspace), then on to step 4. */

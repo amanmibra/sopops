@@ -72,7 +72,8 @@ def instructions(session: dict | None) -> str:
     """What `get_kickoff` returns: the skill, then this session's details (when the MCP server is connected)."""
     if not session or "workspace" not in session:
         return skill_body() + "\n## This session\n\nNot connected to sopops (no SOPOPS_URL / SOPOPS_TOKEN).\n"
-    lines = ["", "## This session", "", f"- Workspace: `{session['workspace']}`.", f"- Mode: {session.get('mode', 'hosted')}."]
+    lines = ["", "## This session", "", f"- Workspace: `{session['workspace']}`.", f"- Mode: {session.get('mode', 'hosted')}.",
+             "- Build shared components from repeated rules and flows. Keep different rules as explicit findings for the user; do not silently select a version."]
     if session.get("server_url"):
         lines.append(f"- sopops: {session['server_url']}")
     if session.get("mode") == "repo":

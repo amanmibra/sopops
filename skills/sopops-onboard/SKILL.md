@@ -47,6 +47,14 @@ Cursor (`.cursor/mcp.json`):
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
 | `get_ab_test_guide()` | How to set up an A/B test of an agent's models, voice or instructions (the sopops-ab-tests skill). |
 | `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |
+| `list_sops()` | A map of every agent, instruction, procedure and group at the current draft head. Start here for later SOP work. |
+| `get_sop(kind, id)` | One agent, instruction, procedure or group in full. Read it before editing or deleting it. |
+| `get_sop_settings()` | Workspace-wide placeholder defaults and the procedures heading, which can affect every compiled agent. |
+| `save_sop(kind, id, fields, note?)` | Create or replace an agent, instruction, procedure or group as a draft. The full configuration is validated before saving. |
+| `save_sop_settings(fields, note?)` | Update workspace-wide defaults as a draft. |
+| `delete_sop(kind, id, note?)` | Delete a draft item only after explaining its `used_by` impact and receiving an explicit user request. |
+| `get_sop_history(kind, id)` / `get_sop_version(kind, id, version, file?)` | Inspect an item's earlier versions; restore one by reading it and saving its fields again. |
+| `preview_agent(agent)` | Compile one agent at draft head and compare it with the live release. |
 
 ## Flow
 
@@ -83,10 +91,15 @@ A push carries every agent's original text, so a large one takes a while; the cl
 Onboarding runs once. After it, the same MCP server keeps a workspace's SOPs up to date from the repo, with a
 workspace token that has the `config` scope (sopops Settings → Tokens) and `SOPOPS_WORKSPACE` set to the workspace id:
 
-1. `list_sops` for what exists now: agents, shared instructions, procedures and groups, with who uses each one.
+1. `list_sops` for what exists now, then `get_sop_settings` when defaults or placeholders might matter.
 2. `get_sop(kind, id)` for the item you mean to change, then `save_sop(kind, id, fields)` with the whole item, not a
    patch. sopc checks every save, so one that wouldn't compile comes back with its issues.
-3. `preview_agent(agent)` to see an agent's full instructions at head against what its calls run today.
+3. For a shared instruction, procedure or group, inspect `used_by` and preview each affected agent with
+   `preview_agent(agent)` before handing it off.
+4. Before deleting, inspect `used_by`, explain the effect, and get an explicit request. Use `delete_sop`; it creates
+   a draft, not a live change.
+5. When you need prior context, use `get_sop_history` and `get_sop_version`. Restore an older version by saving its
+   fields as a new draft.
 
 Every save is a draft. Nothing reaches a call until someone publishes a release in sopops, so end by telling the
 person what changed and that it's waiting in Changes.

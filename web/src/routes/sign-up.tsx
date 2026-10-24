@@ -25,7 +25,7 @@ function SignUp() {
   if (!auth) return null;
   if (!auth.required || auth.user) return <Navigate to="/" replace />;
   if (auth.first_account) return <Navigate to="/welcome" replace />;
-  if (auth.open_signup) return <NewAccount auth={auth} start="name" signUp />;
+  if (auth.open_signup) return <NewAccount auth={auth} start="account" signUp />;
   if (only) return null;
   return (
     <Card title="Join your team with its join link">

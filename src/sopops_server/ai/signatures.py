@@ -486,6 +486,7 @@ class SegmentPrompt(dspy.Signature):
     - Unsure between procedure and instruction: choose instruction.
     - Text said only at the end of the call ("Before hanging up, repeat the total") is an instruction with its own segment.
     - Don't drop units. Every unit number appears in exactly one segment.
+    - This import creates reusable blocks. Use consistent topic boundaries and titles for equivalent passages across agents so sopops can store repeated text once. Keep each source's wording, ordering, placeholders and behavior intact. Never merge passages that differ in a rule, condition, tool, limit, timing or exception: label them as the same topic so sopops reports the difference for review instead of silently choosing one.
     """
 
     agent: str = dspy.InputField(desc="The agent's name")

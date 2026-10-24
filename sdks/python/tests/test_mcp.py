@@ -144,6 +144,26 @@ def test_sops_can_be_read_and_saved_long_after_onboarding():
 
 
 @respx.mock
+def test_sop_management_has_settings_history_and_delete():
+    env = {"SOPOPS_URL": URL, "SOPOPS_TOKEN": "sopops_cfg", "SOPOPS_WORKSPACE": "prod"}
+    ws = f"{URL}/v1/workspaces/prod/config"
+    settings = respx.get(f"{ws}/settings").mock(return_value=httpx.Response(200, json={"variables": {"brand": "Tony's"}, "procedures_heading": "## Procedures"}))
+    saved_settings = respx.put(f"{ws}/settings").mock(return_value=httpx.Response(200, json={"item": {}, "changed": []}))
+    history = respx.get(f"{ws}/instructions/closing/history").mock(return_value=httpx.Response(200, json=[{"version": 2}]))
+    old = respx.get(f"{ws}/instructions/closing/versions/2").mock(return_value=httpx.Response(200, json={"id": "closing", "text": "Thanks."}))
+    deleted = respx.delete(f"{ws}/instructions/closing").mock(return_value=httpx.Response(200, json={"workspace": "prod", "changed": []}))
+
+    assert call(make_server(env), "get_sop_settings")["variables"] == {"brand": "Tony's"}
+    call(make_server(env), "save_sop_settings", fields={"variables": {"brand": "Tony's Pizza"}, "procedures_heading": "## Procedures"}, note="rename")
+    assert json.loads(saved_settings.calls.last.request.content)["note"] == "rename"
+    assert call(make_server(env), "get_sop_history", kind="instructions", id="closing") == [{"version": 2}]
+    assert call(make_server(env), "get_sop_version", kind="instructions", id="closing", version=2)["text"] == "Thanks."
+    call(make_server(env), "delete_sop", kind="instructions", id="closing", note="unused")
+    assert deleted.calls.last.request.url.params["note"] == "unused"
+    assert settings.called and history.called and old.called
+
+
+@respx.mock
 def test_editing_sops_needs_a_workspace():
     respx.get(f"{URL}/v1/onboarding/session").mock(return_value=httpx.Response(401, json={"detail": "invalid token"}))
     with pytest.raises(ToolError, match="SOPOPS_WORKSPACE"):

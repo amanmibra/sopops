@@ -27,7 +27,7 @@ type Where = "sopops" | "repo";
 type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
 type Platform = "livekit" | "elevenlabs" | "vapi";
 type Row = { name: string; platform: Platform; platform_id: string; tools: string; prompt: string };
-type Choice<T extends string> = { value: T; title: string; text: string; note?: string; icon?: ReactNode };
+type Choice<T extends string> = { value: T; title: string; text: string; note?: string; icon?: ReactNode; disabled?: boolean };
 
 const IMPORT_PLATFORMS = PLATFORMS.filter((p) => p.value !== "retell");
 const blank = (platform: Platform = "livekit"): Row => ({ name: "", platform, platform_id: "", tools: "", prompt: "" });
@@ -36,13 +36,12 @@ const WHERE: Choice<Where>[] = [
   { value: "sopops", title: "In sopops", text: "You edit and publish them here, and your repository doesn't change." },
   {
     value: "repo",
-    title: "In sopops and your repository",
+    title: "In sopops and your repository — Coming soon",
     text: "They live as a sopc project in your GitHub repository, and fixes arrive as pull requests.",
-    note: "GitHub support is in alpha.",
     icon: <GitHubIcon size={14} />,
+    disabled: true,
   },
 ];
-
 /** The routes left once a team says where the instructions should live: a sopc project only for a repository, and a
  * platform only for a team that runs it. */
 function sources(plats: Platforms, where: Where): Choice<Source>[] {
@@ -92,8 +91,7 @@ export function ImportStart() {
     <Page>
       <PageTitle>Import agents</PageTitle>
       <Sub>
-        Bring in the instructions each agent runs today, what your platform may call its prompt. sopops splits them into shared instructions and procedures, merges
-        what agents share, and saves nothing until you review it.
+        Bring in the prompts your agents use today. sopops finds reusable instructions and workflows, while preserving what each prompt says. Nothing changes until you review it.
       </Sub>
       {open.length > 0 && (
         <Panel title="Pick up an import you started">
@@ -184,8 +182,10 @@ function Choices<T extends string>({ label, options, value, onPick }: { label: s
           type="button"
           role="radio"
           aria-checked={value === o.value}
+          aria-disabled={o.disabled || undefined}
+          disabled={o.disabled}
           onClick={() => onPick(o.value)}
-          className={cn("bg-card cursor-pointer border px-4 py-3 text-left hover:bg-muted", value === o.value && "border-primary bg-brand-soft hover:bg-brand-soft")}
+          className={cn("bg-card cursor-pointer border px-4 py-3 text-left hover:bg-muted", value === o.value && "border-primary bg-brand-soft hover:bg-brand-soft", o.disabled && "cursor-not-allowed opacity-60 hover:bg-card")}
         >
           <div className="flex items-center gap-2 font-semibold">
             {o.icon ?? <PlatformIcon platform={o.value} size={14} />}
@@ -476,11 +476,11 @@ function AgentSource({ mode }: { mode: "hosted" | "repo" }) {
       {mode === "repo" && <RepoPanel>{repo.data && <ProjectFinding repo={repo.data} useAgent={useAgent} onAgent={() => setUseAgent(true)} />}</RepoPanel>}
       {error ? <ErrorBanner error={error} lead="Couldn't create the token:" /> : null}
       {agentReady && (
-        <div>
+        <div className="grid justify-items-start gap-2">
           <Button disabled={busy} onClick={start}>
             {busy ? "Creating…" : "Create token and commands"}
           </Button>
-          <Note className="ml-3">The token works for 2 hours, only for importing into your team. It can't publish anything.</Note>
+          <Note>The token works for 2 hours, only for importing into your team. It can't publish anything.</Note>
         </div>
       )}
     </div>

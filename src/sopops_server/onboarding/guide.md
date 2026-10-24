@@ -1,6 +1,6 @@
 # Extracting agent prompts into sopops
 
-You are turning a team's hand-written voice agent prompts into a sopops proposal: shared text written once as **instructions**, step-by-step situations as **procedures**, and per agent its own **context** plus the ordered list of blocks it uses. The compiled prompts must say everything the originals said. You do the judgment; the sopops tools do the compiling and checking; the user decides.
+You are turning a team's hand-written voice agent prompts into a sopops proposal: shared text written once as **instructions**, step-by-step situations as **procedures**, and per agent its own **context** plus the ordered list of blocks it uses. Aim for reusable blocks without changing what any prompt says or does. The compiled prompts must say everything the originals said. You do the judgment; the sopops tools do the compiling and checking; the user decides.
 
 ## 1. Collect the originals (read-only)
 
@@ -29,6 +29,7 @@ Each procedure has: `name` (short title, from its heading), `when` (the trigger,
 
 ## 4. Rules while writing
 
+- **Make reusable blocks, safely.** Give equivalent passages across agents the same topic and block. Replace only true per-agent values with `{{variables}}`. If a rule, condition, tool, limit, timing or exception differs, keep both versions and report it as a finding; never silently choose one.
 - **Preserve wording.** Don't improve, shorten, merge or reorder instructions. Allowed edits: replacing a value with a `{{variable}}`, removing a sentence a shared block now provides, and the procedure field split above.
 - **Don't drop anything.** A sentence you can't place goes into that agent's `context`.
 - Each agent lists its blocks in the order the text appeared in its original. `context` always goes first in the compiled prompt; mention passages that moved.

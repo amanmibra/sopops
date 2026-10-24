@@ -7,7 +7,7 @@ export type StepKey = "name" | "account" | "team" | "people" | "models" | "platf
 export type Flow = "first" | "solo" | "join";
 
 export const FLOWS: Record<Flow, StepKey[]> = {
-  first: ["name", "account", "team", "people", "models", "platforms", "blocks", "agents", "publish", "connect"],
+  first: ["account", "name", "team", "people", "models", "platforms", "blocks", "agents", "publish", "connect"],
   solo: ["models", "platforms", "blocks", "agents", "publish", "connect"],
   join: ["name", "account", "platforms"],
 };

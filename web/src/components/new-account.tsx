@@ -1,5 +1,5 @@
-// Making an account and a team, steps 1 to 3 of the first run: your name, your email and password (the email is what
-// you sign in with), and what the team is called. The first person on a fresh install does it on /welcome; with
+// Making an account and a team, steps 1 to 3 of the first run: your email and confirmed password (the email is what
+// you sign in with), your name, and what the team is called. The first person on a fresh install does it on /welcome; with
 // SOPOPS_OPEN_SIGNUP on, anyone does it on /sign-up. Either way, the team's setup goes on from step 4.
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -26,10 +26,11 @@ function intoSetup(ws: string) {
  * install, which then names the install's team; GitHub and Google can stand in for the password there.
  */
 export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; start: AccountStep; signUp?: boolean }) {
-  const [step, setStep] = useState<AccountStep>(start === "team" ? "name" : start);
+  const [step, setStep] = useState<AccountStep>(start === "team" ? "account" : start);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [team, setTeam] = useState("");
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -42,6 +43,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) return "That doesn't look like an email address.";
     if (password.length < MIN_PASSWORD) return `Your password needs at least ${MIN_PASSWORD} characters.`;
     if (password.trim().toLowerCase() === e) return "Your password can't be your email address.";
+    if (password !== passwordConfirmation) return "Your passwords don't match.";
     return null;
   };
   const signIn = signUp && (
@@ -53,29 +55,12 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
     </p>
   );
 
-  if (step === "name")
-    return (
-      <StepShell
-        flow="first"
-        step="name"
-        sub="It's how your team sees you in sopops."
-        primary={{ label: "Continue", disabled: !name.trim(), run: () => to("account") }}
-      >
-        <Label htmlFor="setup-name" className="sr-only">
-          Your name
-        </Label>
-        <Input id="setup-name" autoFocus autoComplete="name" className="h-12 text-base" placeholder="Ana Ruiz" value={name} onChange={(e) => setName(e.target.value)} />
-        {signIn}
-      </StepShell>
-    );
-
   if (step === "account")
     return (
       <StepShell
         flow="first"
         step="account"
         sub="You sign in with your email."
-        back={() => to("name")}
         error={error}
         primary={{
           label: "Continue",
@@ -83,7 +68,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
           run: () => {
             const problem = accountProblem();
             if (problem) setError(problem);
-            else to("team");
+            else to("name");
           },
         }}
       >
@@ -117,6 +102,19 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
             />
             <span className="text-muted-foreground text-sm">At least {MIN_PASSWORD} characters.</span>
           </div>
+          <div className="grid gap-1">
+            <Label htmlFor="setup-password-confirmation" className="text-sm">
+              Confirm password
+            </Label>
+            <Input
+              id="setup-password-confirmation"
+              type="password"
+              autoComplete="new-password"
+              className="h-10"
+              value={passwordConfirmation}
+              onChange={(e) => setPasswordConfirmation(e.target.value)}
+            />
+          </div>
         </div>
         {!signUp && auth.providers.some((p) => p.redirects) && (
           <div className="mt-5 grid gap-2">
@@ -124,6 +122,23 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
             <RedirectButtons auth={auth} next="/welcome?step=team" />
           </div>
         )}
+        {signIn}
+      </StepShell>
+    );
+
+  if (step === "name")
+    return (
+      <StepShell
+        flow="first"
+        step="name"
+        sub="It's how your team sees you in sopops."
+        back={() => to("account")}
+        primary={{ label: "Continue", disabled: !name.trim(), run: () => to("team") }}
+      >
+        <Label htmlFor="setup-name" className="sr-only">
+          Your name
+        </Label>
+        <Input id="setup-name" autoFocus autoComplete="name" className="h-12 text-base" placeholder="Ana Ruiz" value={name} onChange={(e) => setName(e.target.value)} />
         {signIn}
       </StepShell>
     );
@@ -162,7 +177,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
       window.location.assign("/welcome?step=team"); // signed in now: the team step tries again
     }
   };
-  return <TeamForm team={team} setTeam={setTeam} back={() => to("account")} error={error} run={create} label="Create team" />;
+  return <TeamForm team={team} setTeam={setTeam} back={() => to("name")} error={error} run={create} label="Create team" />;
 }
 
 /** Step 3: what the team is called. */
