@@ -3,7 +3,7 @@
 // then pass rate on every release in the window, per procedure and per rule with n, 95% ranges and flags gated on min n.
 import { useQuery } from "@tanstack/react-query";
 import { GitCompare } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import type { CompareRate, CompareResponse, CompareRule, InsightFilters, RateOut } from "@/lib/api";
 import { q } from "@/lib/api";
 import { SIDES, compareFlag, diffInterval, fmtDelta, fmtPct, insightsHref, ruleName, sessionsHref, signed, windowPhrase } from "@/lib/insights";
@@ -13,7 +13,7 @@ import { useWs } from "@/lib/workspace";
 import { RuleText, Segmented } from "../bits";
 import { HrefLink } from "../href-link";
 import { ReleaseTimeline } from "./charts";
-import { HeaderHint, Help, Hint, Legend, OutcomeBar, OutcomeLegend, RateN, RewordedTag, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
+import { HeaderHint, Hint, Legend, OutcomeBar, OutcomeLegend, RateN, RewordedTag, Skel, StatusBar, TipBody, WidgetCard } from "./kit";
 import { LIVE, scopeOf } from "./overview";
 import { FlagTag } from "./procedure";
 import { AsOf, InsightsShell, Pick } from "./scope";
