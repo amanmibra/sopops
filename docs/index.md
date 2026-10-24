@@ -31,6 +31,8 @@ hero:
 
   <li><a href="/sign-in">Sign-in</a><span>Passwords, GitHub, Google or email links, and who can join.</span></li>
 
+  <li><a href="/sdk">SDK reference</a><span>Every function and type in the Python and TypeScript clients.</span></li>
+
   <li><a href="/api/">API reference</a><span>Every endpoint, for agents, webhooks and your own tools.</span></li>
 
 </ul>

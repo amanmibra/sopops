@@ -3,10 +3,15 @@
     python examples/walkthrough/run_all.py                  # fake models; sopops stays up for the UI afterwards
     python examples/walkthrough/run_all.py --models real    # your models (see WALKTHROUGH.md for the variables)
     python examples/walkthrough/run_all.py --stop           # stop sopops when done (what the test does)
+    python examples/walkthrough/run_all.py --sign-in        # afterwards, serve it all behind a sign-in
     WALKTHROUGH_ONBOARD=sopc python examples/walkthrough/run_all.py   # onboard from the existing sopc project instead
 
 Starts `serve.py --fresh` on WALKTHROUGH_PORT (default 8585), then runs onboard.py, generate.py, backfill.py,
 review.py, replay.py, verify.py and conflicts.py. Exits with the checks' status (verify.py's and conflicts.py's).
+
+The steps run with sign-in off, because publishing a release asks for a person and they have only a token. With
+`--sign-in` the same database is served again at the end with sign-in on and an account to open it with, so the
+calls, insights and suggestions can be looked at the way a signed-in team sees them.
 """
 
 from __future__ import annotations
@@ -51,6 +56,7 @@ def main() -> None:
     parser.add_argument("--models", choices=["fake", "real"], default=os.environ.get("WALKTHROUGH_MODELS", "fake"))
     parser.add_argument("--stop", action="store_true", help="Stop sopops when done.")
     parser.add_argument("--fast", action="store_true", help="Replay as fast as possible (for tests).")
+    parser.add_argument("--sign-in", action="store_true", help="When the steps are done, serve the same database with sign-in on (see serve.py --sign-in).")
     args = parser.parse_args()
 
     os.environ["WALKTHROUGH_MODELS"] = args.models
@@ -76,6 +82,15 @@ def main() -> None:
         if args.stop or status:
             server.terminate()
             server.wait(10)
+        elif args.sign_in:
+            server.terminate()
+            server.wait(10)
+            print("\n== Serving it again, behind a sign-in", flush=True)
+            server = subprocess.Popen([sys.executable, str(HERE / "serve.py"), "--sign-in", "--models", args.models], cwd=HERE)
+            try:
+                server.wait()
+            except KeyboardInterrupt:
+                server.terminate()
         else:
             print(f"\nsopops is still running at {URL} (pid {server.pid}); open it to look around, Ctrl-C to stop.", flush=True)
             try:

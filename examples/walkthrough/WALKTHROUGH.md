@@ -31,6 +31,14 @@ just examples/walkthrough/all          # fake mode: no keys, no cost, about a mi
 
 It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 9, prints the checklists, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
 
+That sopops has no sign-in, so whoever opens it is in. For the same demo behind a login:
+
+```sh
+just examples/walkthrough/all-sign-in  # uv run python examples/walkthrough/run_all.py --sign-in
+```
+
+The steps run exactly as above, with sign-in off, because publishing a release asks for a person and the scripts hold only tokens. When they finish, the same database is served again with sign-in on and an account already in it, `test@example.com` / `password123`. Sign-up is open too, so you can make an account of your own at `/sign-up`, which comes with a team of its own and so starts empty: sign in as the seeded account to see the walkthrough's calls. On a database that already holds the data, `just examples/walkthrough/sign-in` puts it behind a login without running the steps again.
+
 To go step by step instead, run `just examples/walkthrough/fresh` in one terminal and each step's `just` recipe in another.
 
 ## Fake mode and real mode
@@ -68,7 +76,7 @@ Each step: the command (from the repo root), where to look in the UI, and what y
 just examples/walkthrough/fresh        # or: uv run python examples/walkthrough/serve.py --fresh
 ```
 
-Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`, made by the first write.
+Look at `/`: an empty instance. The walkthrough uses the workspace `walkthrough`, made by the first write. `just examples/walkthrough/sign-in` serves the same database with sign-in on instead, making `test@example.com` / `password123` when nobody has an account yet. The steps below expect sign-in off, so save that for when you want to look around.
 
 ### 2. Onboard the agent repo
 
@@ -224,4 +232,4 @@ Expected in fake mode, all PASS: both pairs current before either is applied, `m
 
 ## Running it in CI
 
-`tests/test_walkthrough.py` runs `run_all.py --stop --fast` (steps 2 to 9) in fake mode on a free port with its own database: SQLite, or Postgres when `SOPOPS_TEST_DATABASE_URL` is set, like the rest of the suite.
+`tests/test_walkthrough.py` runs `run_all.py --stop --fast` (steps 2 to 9) in fake mode on a free port with its own database: SQLite, or Postgres when `SOPOPS_TEST_DATABASE_URL` is set, like the rest of the suite. Then it serves that same database again with `serve.py --sign-in`, the way `run_all.py --sign-in` ends, and checks that the calls and both releases are still there, that the seeded account signs in, and that a stranger can sign up with no invite.

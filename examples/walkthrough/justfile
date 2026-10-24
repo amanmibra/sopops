@@ -12,6 +12,10 @@ default:
 all:
     {{py}} run_all.py --models {{models}}
 
+# the same, then served behind a sign-in as test@example.com / password123
+all-sign-in:
+    {{py}} run_all.py --models {{models}} --sign-in
+
 # 1. sopops on 127.0.0.1:8585 with the walkthrough's database
 serve:
     {{py}} serve.py --models {{models}}

@@ -9,7 +9,7 @@ pip install "sopops[livekit]"    # Python, or plain sopops without the LiveKit a
 npm install sopops               # TypeScript: pnpm add sopops, yarn add sopops, bun add sopops
 ```
 
-The Python package is [sdks/python](../sdks/python). The TypeScript one ([sdks/node](../sdks/node)) is ESM, has no dependencies, and runs on Node 18+, in browsers and on edge runtimes.
+The Python package is [sdks/python](../sdks/python). The TypeScript one ([sdks/node](../sdks/node)) is ESM, has no dependencies, and runs on Node 18+, in browsers and on edge runtimes. Every function and type in both is in the [SDK reference](sdk.md).
 
 Both SDKs read these variables. This page's REST calls need none of them and work with `curl`.
 
@@ -86,10 +86,10 @@ async function entrypoint(ctx: JobContext) {
 | Never blocks a call | If sopops is down, the last good copy, then `fallback`. |
 | Posts the session | `session.history`, with tool calls, at shutdown. Python can also send each turn and tool call as the call runs (`stream=True`). |
 | Reports the version | LLM, speech and voice models, so Insights can compare them ([A/B tests](ab-tests.md)). |
-| Leaves unknown variables | A `{{placeholder}}` sopops has no value for is served as it is. Pass `variables={"now": ..., "caller": ...}` to fill it in your own process, so those values never reach sopops. What is left is in `ins.unfilled`, and a mismatch logs a warning instead of stopping the call. |
+| Leaves unknown variables | A <code v-pre>{{placeholder}}</code> sopops has no value for is served as it is. Pass `variables={"now": ..., "caller": ...}` to fill it in your own process, so those values never reach sopops. What is left is in `ins.unfilled`, and a mismatch logs a warning instead of stopping the call. |
 
 - Record a session you start some other way with `record_session`, or `recordSession` in TypeScript.
-- Outside LiveKit, use `fetch_instructions(agent)` and `post_session(...)` on a `SopOps`, `fetchInstructions` and `postSession` in TypeScript, or `sopops.fetch(agent, release)` for Python that isn't async.
+- Outside LiveKit, use `fetch_instructions(agent)` and `post_session(...)` on a `SopOps`, `fetchInstructions` and `postSession` in TypeScript, or `sopops.fetch(agent, release)` for Python that isn't async ([SDK reference](sdk.md)).
 - A complete agent is in [examples/livekit-restaurant](../examples/livekit-restaurant).
 
 **Sessions with no code** (no tool calls):

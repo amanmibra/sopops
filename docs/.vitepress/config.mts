@@ -80,6 +80,7 @@ export default defineConfig({
       ] },
       { text: "API reference", items: [
         { text: "Overview", link: "/api/" },
+        { text: "SDKs", link: "/sdk" },
         { text: "Agents and config", link: "/api/agents-and-config" },
         { text: "Releases", link: "/api/releases" },
         { text: "Sessions", link: "/api/sessions" },

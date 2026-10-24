@@ -2,7 +2,7 @@
 
 Import brings running agents' instructions into sopops as drafts, which you publish as usual.
 
-- Each agent's text is split into shared instructions, procedures, and `{{variables}}` where agents differ only by a value.
+- Each agent's text is split into shared instructions, procedures, and <code v-pre>{{variables}}</code> where agents differ only by a value.
 - Where agents disagree on a rule, you pick one or keep both.
 - Each agent is compiled and compared with its original, sentence by sentence, so nothing drops silently.
 
