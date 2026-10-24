@@ -29,7 +29,7 @@ def canonical(job: dict) -> dict:
     items = [{**i, "created_at": t0 + i["created_at"]} for i in job["items"]]
     turns, tool_calls = from_livekit({"items": items})
     return {
-        "platform": "livekit", "external_id": job["job_id"], "channel": "voice", "agent": f"livekit:{job['agent_name']}",
+        "platform": "livekit", "external_id": job["job_id"], "channel": "voice", "agent": job["agent_name"],
         "release": job["release"], "started_at": start.isoformat(), "ended_at": (start + timedelta(seconds=job["items"][-1]["created_at"] + 2)).isoformat(),
         "turns": turns, "tool_calls": tool_calls, "metadata": {"room": job["room"], "source": "backfill"},
     }

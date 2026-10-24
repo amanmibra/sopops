@@ -34,9 +34,10 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         return {"workspace": workspace, "release": rel["number"], "agents": agents}
 
     @r.get("/v1/workspaces/{workspace}/agents/{agent}", response_model=AgentOut, dependencies=fetch_auth, tags=["serving"])
-    def get_agent(workspace: str, agent: str, release: int | None = Query(None, description="Pin a release (e.g. for A/B); default: current.")) -> dict:
-        """What to load at call start. `agent` is the sopc id or platform ref (`livekit:tonys-pizza`). Logs a fetch."""
-        served = store.agent(workspace, agent, release)
+    def get_agent(workspace: str, agent: str, release: int | None = Query(None, description="Pin a release (e.g. for A/B); default: current."),
+                  platform: str | None = Query(None, description="Scope a raw platform id to this platform, e.g. `livekit`.")) -> dict:
+        """What to load at call start. `agent` is the sopc id, platform ref, or a platform id when `platform` scopes it. Logs a fetch."""
+        served = store.agent(workspace, agent, release, platform)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
         return {"agent": served["agent"], "release": served["release"], **released(served)}
 
@@ -47,18 +48,18 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         tags=["serving"],
         responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers."}},
     )
-    def get_prompt(workspace: str, agent: str, response: Response, release: int | None = None) -> str:
+    def get_prompt(workspace: str, agent: str, response: Response, release: int | None = None, platform: str | None = None) -> str:
         """Just the instructions text. Logs a fetch."""
-        served = store.agent(workspace, agent, release)
+        served = store.agent(workspace, agent, release, platform)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
         response.headers["X-Sopc-Release"] = str(served["release"])
         response.headers["X-Sopc-Hash"] = served["hash"]
         return served["prompt"]
 
     @r.get("/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}", response_model=dict[str, Any], dependencies=fetch_auth, tags=["serving"])
-    def get_sop(workspace: str, agent: str, sop_id: str, release: int | None = None) -> dict:
+    def get_sop(workspace: str, agent: str, sop_id: str, release: int | None = None, platform: str | None = None) -> dict:
         """What the `get_sop` tool returns for SOPs with `delivery: auto | tool`."""
-        served = store.agent(workspace, agent, release)
+        served = store.agent(workspace, agent, release, platform)
         if sop_id not in served["sops"]:
             raise NotFound(f"SOP '{sop_id}' is not tool-delivered to '{served['agent']}'")
         return served["sops"][sop_id]

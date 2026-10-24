@@ -15,6 +15,10 @@ class Conflict(Exception):
     """409."""
 
 
+class Ambiguous(Exception):
+    """422: the request needs a platform or another disambiguator."""
+
+
 def workspace_id(workspace: str) -> str:
     """The workspace id, if it's a safe one (letters, digits, `.`, `_`, `-`; up to 128); else NotFound."""
     if not SAFE_ID.match(workspace):

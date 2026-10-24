@@ -387,6 +387,19 @@ def test_an_agent_answers_to_its_own_id_without_the_platform_prefix(client, file
     assert client.get(f"{WS}/agents/43").status_code == 404
 
 
+def test_a_platform_query_scopes_a_raw_agent_identifier(client, files):
+    """Adapters can send their own raw identifiers even when another platform uses the same one."""
+    client.put(f"{WS}/config/agents/copper-wok-harbor", json={
+        "platform": "livekit", "platform_id": "42", "context": "The harbor branch.", "blocks": [], "variables": {}})
+    client.put(f"{WS}/config/agents/copper-wok-eastside", json={
+        "platform": "vapi", "platform_id": "42", "context": "The eastside branch.", "blocks": [], "variables": {}})
+    assert client.post(f"{WS}/releases").status_code == 200
+
+    assert client.get(f"{WS}/agents/42").status_code == 422
+    assert client.get(f"{WS}/agents/42", params={"platform": "livekit"}).json()["agent"] == "copper-wok-harbor"
+    assert client.get(f"{WS}/agents/42", params={"platform": "vapi"}).json()["agent"] == "copper-wok-eastside"
+
+
 def test_phone_number_identifiers_match_however_they_are_written():
     """Teams that name agents by phone number paste whatever form they have; all of them find the agent."""
     assert same_ref("livekit:+14155550123", "livekit:+1 (415) 555-0123")

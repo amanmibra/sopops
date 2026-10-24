@@ -93,7 +93,7 @@ describe("attach", () => {
     const ins = await attach(ctx, session, { sopops: client });
     expect(ins.text).toBe("You are Tony's.");
     expect(ins.release).toBe(3);
-    expect(calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza`); // the job's agent name, no release pinned
+    expect(calls[0]!.url).toBe(`${URL}/agents/tonys-pizza?platform=livekit`); // the job's agent name, no release pinned
     expect(ctx.callbacks).toHaveLength(1);
 
     await ctx.callbacks[0]!();
@@ -119,7 +119,7 @@ describe("attach", () => {
 
     const ins = await attach(ctx, session, { sopops: client, release: 7 });
     await ctx.callbacks[0]!();
-    expect(calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=7`);
+    expect(calls[0]!.url).toBe(`${URL}/agents/tonys-pizza?release=7&platform=livekit`);
     expect(ins.release).toBe(7);
     expect(calls[1]!.body.release).toBe(7);
   });
@@ -127,11 +127,11 @@ describe("attach", () => {
   it("honors a release pinned in the job's, then the room's, metadata", async () => {
     const job = mockFetch({ ...AGENT, release: 2 });
     await attach(jobContext({ job: '{"sopops_release": 2}', room: '{"sopops": {"release": 1}}' }), session, { sopops: job.client });
-    expect(job.calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=2`); // the job's pin wins
+    expect(job.calls[0]!.url).toBe(`${URL}/agents/tonys-pizza?release=2&platform=livekit`); // the job's pin wins
 
     const room = mockFetch({ ...AGENT, release: 1 });
     const ins = await attach(jobContext({ room: '{"sopops": {"release": 1}}' }), session, { sopops: room.client });
-    expect(room.calls[0]!.url).toBe(`${URL}/agents/livekit%3Atonys-pizza?release=1`);
+    expect(room.calls[0]!.url).toBe(`${URL}/agents/tonys-pizza?release=1&platform=livekit`);
     expect(ins.release).toBe(1);
   });
 });

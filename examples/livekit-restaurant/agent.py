@@ -1,7 +1,7 @@
 """A LiveKit phone agent for a restaurant, with its instructions served by sopops.
 
 One codebase, deployed once per restaurant: each deployment sets AGENT_NAME (tonys-pizza, luigis-trattoria,
-sakura-sushi), which is both its LiveKit agent_name and its agent in sopops (`livekit:<AGENT_NAME>`).
+sakura-sushi), which is both its LiveKit agent_name and its agent in sopops.
 """
 
 import logging
@@ -42,7 +42,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # The live release's prompt for this restaurant (or the last good copy on disk if sopops is down).
     # When the job ends, the call is posted to sopops with the release it ran on.
-    ins = await attach(ctx, session, agent=f"livekit:{AGENT_NAME}", fallback=FALLBACK, stream=os.environ.get("SOPOPS_STREAM") == "1")
+    ins = await attach(ctx, session, agent=AGENT_NAME, fallback=FALLBACK, stream=os.environ.get("SOPOPS_STREAM") == "1")
     log.info("sopops: %s release %s (%s)", ins.agent, ins.release, ins.source)
 
     # The SOPs tell the agent to use these tools by name, so the agent must register them.

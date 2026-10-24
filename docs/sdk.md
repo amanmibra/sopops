@@ -60,12 +60,16 @@ ins = await sopops.fetch_instructions("tonys-pizza", fallback=FALLBACK)
 const ins = await sopops.fetchInstructions("tonys-pizza", { fallback: FALLBACK });
 ```
 
-`fetch_instructions(agent, release=None, *, fallback=None, variables=None)` and `fetchInstructions(agent, options?)` both answer with an `Instructions`. TypeScript takes everything after `agent` as a `FetchOptions` object.
+`fetch_instructions(agent, release=None, *, platform=None, fallback=None,
+variables=None)` and `fetchInstructions(agent, options?)` both return an
+`Instructions`. TypeScript takes everything after `agent` as a `FetchOptions`
+object.
 
 | Argument | What it does |
 |---|---|
-| `agent` | The sopc agent id (`tonys-pizza`), its platform ref (`livekit:tonys-pizza`), or the platform's own id on its own. |
+| `agent` | The sopc agent id (`tonys-pizza`), its platform ref (`livekit:tonys-pizza`), or a raw platform identifier. |
 | `release` | Pins one release, for an arm of an [A/B test](ab-tests.md). Without it you get the live release. |
+| `platform` | Scopes a raw platform identifier, such as `tonys-pizza` with `platform="livekit"`. |
 | `fallback` | Text to serve when sopops is down and nothing is cached. |
 | `variables` | Values for the <code v-pre>{{placeholders}}</code> only this call knows. See below. |
 
@@ -78,7 +82,11 @@ The fetch never waits longer than the client's timeout, and never raises because
 | The `fallback` text | `fallback` | Nothing cached. `release` comes back `None`. |
 | `SopOpsUnavailable` | | Nothing cached and no `fallback`. |
 
-Every live fetch writes the cache, keyed by the workspace URL, the agent and the release, before any variables are filled, so a cached copy still fills with the next call's own values. Python writes it atomically under `cache_dir`, and a cache it can't write only logs. Falling back to the cache logs a warning, falling back to `fallback` logs an error.
+Every live fetch writes the cache, keyed by the workspace URL, agent, platform,
+and release, before any variables are filled. A cached copy can therefore fill
+the next call's own values. Python writes it atomically under `cache_dir`, and a
+cache it can't write only logs. Falling back to the cache logs a warning;
+falling back to `fallback` logs an error.
 
 ## `Instructions` is what you got and where it came from
 
@@ -222,13 +230,13 @@ interface InstructionCache {
 ```python
 from sopops.livekit import attach
 
-ins = await attach(ctx, session, agent="livekit:tonys-pizza", fallback=FALLBACK, stream=True)
+ins = await attach(ctx, session, agent="tonys-pizza", fallback=FALLBACK, stream=True)
 ```
 
 ```ts
 import { attach } from "sopops/livekit";
 
-const ins = await attach(ctx, session, { agent: "livekit:tonys-pizza", fallback: FALLBACK });
+const ins = await attach(ctx, session, { agent: "tonys-pizza", fallback: FALLBACK });
 ```
 
 `attach` fetches the instructions, notes the release in `session.userdata`, and registers the shutdown callback that posts the session. Call it after `ctx.connect()`, or the room's metadata isn't there to read a pin from.
@@ -236,7 +244,7 @@ const ins = await attach(ctx, session, { agent: "livekit:tonys-pizza", fallback:
 | Python | TypeScript | What it does |
 |---|---|---|
 | `client` | `sopops` | The client to use. Default: a new `SopOps()`. |
-| `agent` | `agent` | The sopc agent id or platform ref. Default: `livekit:` plus the job's agent name. |
+| `agent` | `agent` | The LiveKit identifier, such as its name or phone number. Default: the job's agent name. |
 | `release` | `release` | Pins a release. Default: a pin in the job's or the room's metadata, else the live release. |
 | `fallback` | `fallback` | Text to use when sopops is down and nothing is cached. |
 | `variables` | `variables` | Values for the placeholders only this call knows. |

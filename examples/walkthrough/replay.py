@@ -5,7 +5,7 @@
 For each job in out/new.jsonl this does what agent/after/agent.py does in a real LiveKit worker, with stand-ins for
 LiveKit's `JobContext` and `AgentSession`:
 
-1. `attach(ctx, session, agent="livekit:<agent>", stream=True)` fetches the live release's prompt, notes the release
+1. `attach(ctx, session, agent="<agent>", stream=True)` fetches the live release's prompt, notes the release
    in `session.userdata`, and opens the session in sopops (`…/sessions/open`).
 2. Each message and tool call is emitted as LiveKit emits it (`conversation_item_added`, `function_tools_executed`),
    and the adapter streams it (`…/sessions/livekit/<job id>/events`), so the call shows on the Sessions page while
@@ -86,7 +86,7 @@ class JobContext:
 async def play(job: dict[str, Any], sopops: SopOps, speed: float) -> int | None:
     """One call, start to shutdown. Returns the release it ran on."""
     ctx, session = JobContext(job["job_id"], job["agent_name"], job["room"]), AgentSession()
-    ins = await attach(ctx, session, agent=f"livekit:{job['agent_name']}", client=sopops, stream=True)
+    ins = await attach(ctx, session, agent=job["agent_name"], client=sopops, stream=True)
     t0, last = time.time(), 0.0
     items = job["items"]
     i = 0

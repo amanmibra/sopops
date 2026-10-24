@@ -142,13 +142,13 @@ From the SDKs, LiveKit's `attach` posts the session at shutdown in both language
 ```python
 from sopops.livekit import attach
 
-ins = await attach(ctx, session, agent="livekit:tonys-pizza", stream=True)
+ins = await attach(ctx, session, agent="tonys-pizza", stream=True)
 ```
 
 ```ts
 import { attach } from "sopops/livekit";
 
-const ins = await attach(ctx, session, { agent: "livekit:tonys-pizza" });
+const ins = await attach(ctx, session, { agent: "tonys-pizza" });
 ```
 
 ### Backfill from ElevenLabs or Vapi

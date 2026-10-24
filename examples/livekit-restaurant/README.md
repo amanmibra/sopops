@@ -29,13 +29,13 @@ The same code runs for every restaurant. Each deployment sets `AGENT_NAME`, whic
 ```python
 # agent.py
 session = AgentSession(stt=..., llm=..., tts=...)
-ins = await attach(ctx, session, agent=f"livekit:{AGENT_NAME}", fallback=FALLBACK)
+ins = await attach(ctx, session, agent=AGENT_NAME, fallback=FALLBACK)
 await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))
 ```
 
 `attach`, from the [Python client](../../sdks/python), does three things:
 
-1. **Fetches the prompt** of the live release for `livekit:sakura-sushi` (`GET …/agents/livekit:sakura-sushi`). The agent logs which one it got: `sopops: sakura-sushi release 4 (live)`.
+1. **Fetches the prompt** of the live release for `sakura-sushi`. The adapter scopes that identifier to LiveKit (`GET …/agents/sakura-sushi?platform=livekit`). The agent logs which one it got: `sopops: sakura-sushi release 4 (live)`.
 2. **Notes the release** in `session.userdata` (`sopops_release`), so your own code can read it too.
 3. **Posts the call to sopops when the job ends**: `session.history` with timestamps and tool calls, keyed by the job id, with the release. sopops checks it against each procedure that applied, and it shows on the Sessions page.
 

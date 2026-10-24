@@ -108,6 +108,7 @@ def fetch(
     agent: str,
     release: int | None = None,
     *,
+    platform: str | None = None,
     fallback: str | None = None,
     variables: Mapping[str, Any] | None = None,
     url: str | None = None,
@@ -117,8 +118,9 @@ def fetch(
 ) -> Instructions:
     """The agent's instructions, blocking: one call for code that isn't async.
 
-    `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; without it you get
-    the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
+    `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `platform` scopes a raw platform id,
+    such as `tonys-pizza` with `platform="livekit"`. `release` pins one; without it you get the live release. `url`
+    and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
 
     Falls back the same way `SopOps.fetch_instructions` does: the last good copy on disk, then `fallback`, else
     `SopOpsUnavailable`. Inside async code, await that method on a `SopOps` you keep, so the client is reused.
@@ -135,7 +137,7 @@ def fetch(
     else:
         raise RuntimeError("sopops.fetch blocks: in async code use `await SopOps(...).fetch_instructions(agent, release)`")
     client = SopOps(url, token, timeout=timeout, cache_dir=cache_dir)
-    return asyncio.run(client.fetch_instructions(agent, release, fallback=fallback, variables=variables))
+    return asyncio.run(client.fetch_instructions(agent, release, platform=platform, fallback=fallback, variables=variables))
 
 
 class SopOps:
@@ -172,10 +174,11 @@ class SopOps:
 
     # --- call start ------------------------------------------------------------------------
 
-    async def fetch_instructions(self, agent: str, release: int | None = None, *, fallback: str | None = None,
+    async def fetch_instructions(self, agent: str, release: int | None = None, *, platform: str | None = None, fallback: str | None = None,
                                  variables: Mapping[str, Any] | None = None) -> Instructions:
         """The agent's instructions in the live release, or in `release` if pinned. `agent` is the sopc agent id
-        or its platform ref (`livekit:tonys-pizza`).
+        or its platform ref (`livekit:tonys-pizza`). `platform` scopes a raw platform id, such as `tonys-pizza`
+        with `platform="livekit"`.
 
         `variables` fills `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything your
         code works out per call. It happens here, in your process, so those values never reach sopops. A placeholder
@@ -184,7 +187,7 @@ class SopOps:
 
         Never waits longer than `timeout`. If sopops fails, returns the last good copy from disk (`source="cache"`),
         else `fallback` (`source="fallback"`), else raises SopOpsUnavailable."""
-        params = {"release": str(release)} if release is not None else None
+        params = {k: v for k, v in {"release": str(release) if release is not None else None, "platform": platform}.items() if v is not None}
         try:
             async with self._client(self.timeout) as http:
                 res = await asyncio.wait_for(http.get(f"/agents/{agent}", params=params), self.timeout + 0.5)
@@ -197,7 +200,7 @@ class SopOps:
             )
         except (httpx.HTTPError, asyncio.TimeoutError, SopOpsError, ValueError, KeyError) as e:
             reason = str(e) or type(e).__name__
-            cached = self._read_cache(agent, release)
+            cached = self._read_cache(agent, release, platform)
             if cached is not None:
                 log.warning("sopops: using the cached instructions for %s (release %s): %s", agent, cached.release, reason)
                 return _filled(cached, variables)
@@ -205,23 +208,23 @@ class SopOps:
                 log.error("sopops: using the fallback instructions for %s, nothing cached: %s", agent, reason)
                 return _filled(Instructions(text=fallback, release=None, agent=agent, source="fallback"), variables)
             raise SopOpsUnavailable(f"no instructions for '{agent}': {reason}") from e
-        self._write_cache(agent, release, got)   # unfilled, so the next call fills it with its own values
+        self._write_cache(agent, release, platform, got)   # unfilled, so the next call fills it with its own values
         return _filled(got, variables)
 
-    def _cache_file(self, agent: str, release: int | None) -> Path:
-        key = hashlib.sha256(f"{self.url}\n{agent}\n{release if release is not None else 'live'}".encode()).hexdigest()[:24]
+    def _cache_file(self, agent: str, release: int | None, platform: str | None = None) -> Path:
+        key = hashlib.sha256(f"{self.url}\n{agent}\n{release if release is not None else 'live'}\n{platform or ''}".encode()).hexdigest()[:24]
         return self.cache_dir / f"{key}.json"
 
-    def _read_cache(self, agent: str, release: int | None) -> Instructions | None:
+    def _read_cache(self, agent: str, release: int | None, platform: str | None = None) -> Instructions | None:
         try:
-            data = json.loads(self._cache_file(agent, release).read_text())
+            data = json.loads(self._cache_file(agent, release, platform).read_text())
             return Instructions(**{**data, "source": "cache"})
         except (OSError, ValueError, TypeError):
             return None
 
-    def _write_cache(self, agent: str, release: int | None, got: Instructions) -> None:
+    def _write_cache(self, agent: str, release: int | None, platform: str | None, got: Instructions) -> None:
         """Atomically, so a crash mid-write never leaves a broken copy. Failures only log: the call goes on."""
-        path = self._cache_file(agent, release)
+        path = self._cache_file(agent, release, platform)
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")

@@ -1,41 +1,102 @@
-# Quickstart
+# Set up sopops with Docker
 
-sopops runs on your own machine with Docker, or hosted at app.sopops.dev. This page sets it up locally.
+Run sopops and PostgreSQL on your machine. This guide is for self-hosting. It
+does not configure app.sopops.dev.
 
-## Set it up with Claude Code or Codex
+## Start a local server
 
-Paste this in a terminal. Your coding agent clones sopops and walks you through setup one step at a time, with the [local setup skill](../skills/sopops-local-setup/SKILL.md).
-
-```sh
-claude "Set up github.com/amanmibra/sopops on my machine with me, using its sopops-local-setup skill"
-```
-
-With Codex, start the same prompt with `codex` instead of `claude`. You type every key and password into sopops in your browser; none of them go through the agent.
-
-## Set it up by hand
-
-You need git and Docker.
+Before you begin, install Git and Docker with Docker Compose. Make sure that
+port `8484` is free.
 
 ```sh
-git clone https://github.com/amanmibra/sopops && cd sopops
-cp .env.example .env        # optional: model keys, sign-in, email
-docker compose up --build   # sopops and Postgres on http://127.0.0.1:8484
+git clone https://github.com/amanmibra/sopops
+cd sopops
+cp .env.example .env
+docker compose up --build -d
 ```
 
-Open http://127.0.0.1:8484. Setup asks for your name and team, then the AI models sopops checks each call with. Every setting is in [Configuration](configuration.md).
+Docker starts sopops and PostgreSQL. Check that the server is ready:
 
-## Bring in your agents
+```sh
+curl -fsS http://127.0.0.1:8484/healthz
+```
 
-- **A repo:** the **Import agents** page gives you one command for Claude Code or Codex. Run it where your prompts live. The agent finds each one, splits it into shared instructions and procedures, and sends it back as drafts.
-- **A paste or an upload** of the prompt text.
-- **ElevenLabs or Vapi:** read the agents straight off the platform.
+The command returns:
 
-See [Import your agents](import.md).
+```json
+{"ok":true}
+```
 
-## Connect your calls
+Open `http://127.0.0.1:8484`. On a fresh server, **Get set up** asks you for a
+name, team, and the models to use for checks. Without model settings, sopops
+stores calls but does not check them.
 
-Every call has to come back to sopops to be checked. On LiveKit that is a few lines of code; ElevenLabs and Vapi send calls by webhook, with none. Install the client (`pip install "sopops[livekit]"` or `npm install sopops`), then see [Connect your agent](connect.md).
+## Keep data when you restart containers
 
-## See it work first
+Docker stores PostgreSQL data in the `pgdata` volume. `docker compose down`
+stops the containers and keeps that volume. Do not run `docker compose down -v`
+unless you want to delete every workspace, release, and session.
 
-The walkthrough sends 300 synthetic calls with planted mistakes through sopops, with fake models and no keys, in about a minute. See [the walkthrough](../examples/walkthrough/WALKTHROUGH.md).
+Back up the database before you upgrade or change the host:
+
+```sh
+docker compose exec -T db pg_dump -U sopops sopops > sopops-backup.sql
+```
+
+To update a checkout, pull the new source and rebuild the application. sopops
+runs database migrations when it starts.
+
+```sh
+git pull
+docker compose up --build -d
+```
+
+## Set secrets before you expose the server
+
+The Compose file binds sopops to `127.0.0.1`, so only your machine can reach it.
+Before you make it reachable from another machine, set a secret key, public
+URL, and sign-in policy in `.env`.
+
+Set `SOPOPS_SECRET_KEY` before you save a platform key, GitHub token, webhook
+secret, or a team's model key.
+
+Generate the Fernet key after the containers start:
+
+```sh
+docker compose exec app python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Copy the result into `.env`, then set values like these:
+
+```dotenv
+SOPOPS_SECRET_KEY=<GENERATED_FERNET_KEY>
+SOPOPS_PUBLIC_URL=https://sopops.example.com
+SOPOPS_AUTH_REQUIRED=true
+SOPOPS_OPEN_SIGNUP=false
+```
+
+Use a TLS proxy in front of the application. Change the `app` port binding in
+`docker-compose.yml` only after you set `SOPOPS_PUBLIC_URL`, turn on sign-in,
+and configure that proxy. See [configuration](configuration.md) and
+[sign-in](sign-in.md) for every setting and provider.
+
+## Check logs when startup fails
+
+Use Compose logs to inspect the application and database:
+
+```sh
+docker compose logs -f app db
+```
+
+If the health check does not return `{"ok":true}`, confirm that port `8484` is
+free and that the database container is healthy:
+
+```sh
+docker compose ps
+```
+
+## Continue with the agent workflow
+
+After the server is ready, [import your agents](import.md), then [connect an
+agent](connect.md). To see the whole loop before you use your own calls, run
+the [local demo](first-agent.md).

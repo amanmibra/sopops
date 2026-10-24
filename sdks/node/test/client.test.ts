@@ -51,6 +51,12 @@ describe("fetchInstructions", () => {
     expect(m.calls[0]!.url).toBe(`${URL}/agents/front-desk?release=2`);
   });
 
+  it("scopes a raw platform identifier", async () => {
+    const m = mockFetch(json(AGENT));
+    await client(m.fetch).fetchInstructions("front-desk", { platform: "livekit" });
+    expect(m.calls[0]!.url).toBe(`${URL}/agents/front-desk?platform=livekit`);
+  });
+
   it("uses the last good copy when sopops fails, then the fallback, then throws", async () => {
     const cache = new MemoryCache();
     await client(mockFetch(json(AGENT)).fetch, { cache }).fetchInstructions("front-desk");

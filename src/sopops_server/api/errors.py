@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
 from .. import forms
-from ..errors import Conflict, NotFound
+from ..errors import Ambiguous, Conflict, NotFound
 from ..github import GitHubError
 from ..insights import BadFilter
 from ..sessions import BadCursor
@@ -26,6 +26,10 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(Conflict)
     def _conflict(_, exc: Conflict) -> JSONResponse:
         return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+    @app.exception_handler(Ambiguous)
+    def _ambiguous(_, exc: Ambiguous) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     @app.exception_handler(SopcUnavailable)
     def _sopc_unavailable(_, exc: SopcUnavailable) -> JSONResponse:

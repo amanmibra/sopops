@@ -53,9 +53,9 @@ A release in an older format is compared the way `sopc migrate` converts it.
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/workspaces/{ws}/agents` | Agents in the current release (`?release=N` for another): `{workspace, release, agents: [{agent, platform_ref, hash}]}`. |
-| `GET /v1/workspaces/{ws}/agents/{agent}` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `?release=N` pins a release (A/B). Logs a fetch. |
-| `GET /v1/workspaces/{ws}/agents/{agent}/prompt` | Just the instructions as text, with `X-Sopc-Release` and `X-Sopc-Hash` headers. Logs a fetch. |
-| `GET /v1/workspaces/{ws}/agents/{agent}/sops/{id}` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. `404` for a SOP that isn't tool-delivered to that agent. |
+| `GET /v1/workspaces/{ws}/agents/{agent}` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `?release=N` pins a release (A/B); `?platform=livekit` scopes a raw platform identifier. Logs a fetch. |
+| `GET /v1/workspaces/{ws}/agents/{agent}/prompt` | Just the instructions as text, with `X-Sopc-Release` and `X-Sopc-Hash` headers. It accepts the same `release` and `platform` query parameters. Logs a fetch. |
+| `GET /v1/workspaces/{ws}/agents/{agent}/sops/{id}` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. It accepts the same `release` and `platform` query parameters. `404` for a SOP that isn't tool-delivered to that agent. |
 | `GET /v1/workspaces/{ws}/fetches?agent=&limit=` | Which release and instructions hash each agent was served, newest first: `[{id, agent, release, hash, at}]`. Default limit 100, at most 1000. |
 
 ```sh
@@ -82,7 +82,7 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
 
 | Rule | |
 |---|---|
-| Naming an agent | The sopc id (`copper-wok-harbor`), its platform ref (`livekit:copper-wok-harbor`), or the platform id alone (`42`) when one agent has it. Two agents sharing one across platforms answer `422` with both refs. |
+| Naming an agent | The sopc id (`copper-wok-harbor`), its platform ref (`livekit:copper-wok-harbor`), or the platform id alone (`42`) when one agent has it. Pass `platform=livekit` to resolve a raw id within LiveKit. Two agents sharing one across platforms without `platform` answer `422` with both refs. |
 | `components` | Each file the instructions were built from, in order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9). |
 | Auth | `/agents/{agent}`, `/agents/{agent}/prompt` and `/agents/{agent}/sops/{id}` take a token with the `runtime` scope ([Tokens](teams-and-access.md#tokens)) once the workspace has one. Without it they answer `401`, and `403` for a token without the scope. A workspace with no unrevoked runtime token serves them openly (local mode). |
 

@@ -45,7 +45,7 @@ export interface LiveKitSession {
 export interface AttachOptions {
   /** The client to use. Default: a new `SopOps()` (`SOPOPS_URL` / `SOPOPS_TOKEN`). */
   sopops?: SopOps;
-  /** The sopc agent id or platform ref. Default: `livekit:<the job's agent name>`. */
+  /** The LiveKit agent identifier, such as its name or phone number. Default: the job's agent name. */
   agent?: string;
   /** Pin a release; default: a pin in the job's or room's metadata, else the live release. */
   release?: number | null;
@@ -170,16 +170,18 @@ export function pinnedRelease(ctx: LiveKitJobContext): number | null {
  *
  *   const ins = await attach(ctx, session, { sopops, fallback: FALLBACK });
  *
- * `agent` defaults to `livekit:<the job's agent name>`; `release` pins one, and without it a release pinned in the
- * job's or room's metadata is honored, else the live one. Call it after `ctx.connect()` for room metadata.
+ * `agent` is a LiveKit agent identifier and defaults to the job's agent name. `release` pins one, and without it a
+ * release pinned in the job's or room's metadata is honored, else the live one. Call it after `ctx.connect()` for
+ * room metadata.
  * A sopops outage never blocks the call: the fetch falls back to the last good copy, then `fallback` (see
  * `SopOps.fetchInstructions`), and the post at shutdown logs its errors instead of throwing into shutdown.
  */
 export async function attach(ctx: LiveKitJobContext, session: LiveKitSession, options: AttachOptions = {}): Promise<Instructions> {
   const sopops = options.sopops ?? new SopOps();
-  const agent = options.agent ?? `livekit:${ctx.job.agentName}`;
+  const agent = options.agent ?? ctx.job.agentName;
+  if (!agent) throw new Error("pass agent when the LiveKit job has no agent name");
   const release = options.release ?? pinnedRelease(ctx);
-  const ins = await sopops.fetchInstructions(agent, { release, fallback: options.fallback, variables: options.variables });
+  const ins = await sopops.fetchInstructions(agent, { release, platform: "livekit", fallback: options.fallback, variables: options.variables });
   recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release, test: options.test, config: options.config });
   return ins;
 }

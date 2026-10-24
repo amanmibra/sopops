@@ -1,6 +1,6 @@
 """Harbor Lane's LiveKit phone host: one codebase, deployed once per restaurant (AGENT_NAME).
 
-The instructions come from sopops when each call starts (agent `livekit:<AGENT_NAME>`), and every call goes back to
+The instructions come from sopops when each call starts (agent `AGENT_NAME`), and every call goes back to
 sopops with the release it ran on.
 """
 
@@ -41,7 +41,7 @@ async def entrypoint(ctx: JobContext) -> None:
 
     # The live release's prompt (or the last good copy on disk), the release noted in session.userdata, and the
     # call streamed to sopops as it happens, then posted in full when the job ends.
-    ins = await attach(ctx, session, agent=f"livekit:{AGENT_NAME}", fallback=FALLBACK, stream=True)
+    ins = await attach(ctx, session, agent=AGENT_NAME, fallback=FALLBACK, stream=True)
     log.info("sopops: %s release %s (%s)", ins.agent, ins.release, ins.source)
 
     await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))

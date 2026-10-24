@@ -83,6 +83,8 @@ export interface SopOpsOptions {
 export interface FetchOptions {
   /** Pin a release (A/B tests); default: the live one. */
   release?: number | null;
+  /** Scope a raw platform id to one platform, such as `livekit`. */
+  platform?: string;
   /** Text to use if sopops is down and nothing is cached. */
   fallback?: string;
   /** Values for `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything you work out per
@@ -239,14 +241,18 @@ export class SopOps {
 
   /**
    * The agent's instructions in the live release, or a pinned one. `agent` is the sopc agent id or its platform
-   * ref (`elevenlabs:<agent id>`). Never waits longer than `timeoutMs`: on any failure it returns the last good
-   * copy (`source: "cache"`), else `fallback`, else throws SopOpsUnavailable.
+   * ref (`elevenlabs:<agent id>`). `options.platform` scopes a raw platform id. Never waits longer than
+   * `timeoutMs`: on any failure it returns the last good copy (`source: "cache"`), else `fallback`, else throws
+   * SopOpsUnavailable.
    */
   async fetchInstructions(agent: string, options: FetchOptions = {}): Promise<Instructions> {
     const release = options.release ?? null;
-    const key = `${this.url}\n${agent}\n${release ?? "live"}`;
+    const key = `${this.url}\n${agent}\n${release ?? "live"}\n${options.platform ?? ""}`;
     try {
-      const qs = release != null ? `?release=${encodeURIComponent(String(release))}` : "";
+      const query = new URLSearchParams();
+      if (release != null) query.set("release", String(release));
+      if (options.platform) query.set("platform", options.platform);
+      const qs = query.size ? `?${query}` : "";
       const res = await this.request(`/agents/${encodeURIComponent(agent)}${qs}`, { headers: this.headers() }, this.timeoutMs);
       if (!res.ok) throw new SopOpsError(`sopops answered ${res.status} for agent '${agent}': ${await detail(res)}`, res.status);
       const b = (await res.json()) as Record<string, unknown>;
@@ -365,8 +371,9 @@ export class SopOps {
  */
 /** The agent's instructions in one call, for code that doesn't keep a client around.
  *
- * `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `release` pins one; leave it out for
- * the live release. `url` and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
+ * `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). Set `platform` to scope a raw platform
+ * id. `release` pins one; leave it out for the live release. `url` and `token` default to `SOPOPS_URL` and
+ * `SOPOPS_TOKEN`, as `SopOps` reads them.
  * Falls back the same way the method does: the cache, then `fallback`, else `SopOpsUnavailable`.
  *
  *     const ins = await fetchInstructions("tonys-pizza");       // the live release
@@ -376,10 +383,10 @@ export class SopOps {
 export async function fetchInstructions(
   agent: string,
   release?: number | null,
-  options: SopOpsOptions & { fallback?: string } = {},
+  options: SopOpsOptions & Pick<FetchOptions, "fallback" | "platform" | "variables"> = {},
 ): Promise<Instructions> {
-  const { fallback, ...client } = options;
-  return new SopOps(client).fetchInstructions(agent, { release: release ?? null, fallback });
+  const { fallback, platform, variables, ...client } = options;
+  return new SopOps(client).fetchInstructions(agent, { release: release ?? null, fallback, platform, variables });
 }
 
 export class SessionStream {

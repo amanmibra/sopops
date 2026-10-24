@@ -23,7 +23,7 @@ from .calibrate import Calibrate
 from .capture.agent_config import AgentSettings
 from .checks import Checks
 from .db import engine_from_url, upgrade
-from .errors import Conflict, NotFound, platform_id_key, same_ref, workspace_id
+from .errors import Ambiguous, Conflict, NotFound, platform_id_key, same_ref, workspace_id
 from .insights import Insights
 from .lineage import Lineage, record
 from .orm import Fetch, FileVersion, Release, Workspace
@@ -551,22 +551,38 @@ class Store:
 
     # --- serving ---------------------------------------------------------------
 
-    def agent(self, workspace: str, agent: str, release: int | None = None) -> dict:
+    def agent(self, workspace: str, agent: str, release: int | None = None, platform: str | None = None) -> dict:
         """The agent's build in a release (default: current).
 
         `agent` is the sopc id (`copper-wok-harbor`), the platform ref (`livekit:42`), or the platform id on its own
         (`42`) when one agent has it. Teams identify locations by their own ids, so asking for one shouldn't mean
         pasting a platform prefix their database has never heard of. Two agents sharing a platform id across
-        platforms is ambiguous, and says so rather than guessing."""
+        platforms is ambiguous, and says so rather than guessing. `platform` scopes a raw platform id to one
+        platform, so a LiveKit adapter can ask for `42` without adding `livekit:` itself."""
         rel = self.get_release(workspace, release)
         built = rel["build"]["agents"]
+        if platform:
+            wanted = platform.casefold()
+            scoped = [
+                a for a, b in built.items()
+                if str(b["platform_ref"]).partition(":")[0].casefold() == wanted
+                and (a == agent or same_ref(str(b["platform_ref"]), agent)
+                     or same_ref(str(b["platform_ref"]), f"{platform}:{agent}"))
+            ]
+            if len(scoped) > 1:
+                raise Ambiguous(f"agent '{agent}' is ambiguous on {platform} in release {rel['number']}: "
+                                f"{', '.join(sorted(built[a]['platform_ref'] for a in scoped))}.")
+            agent_id = scoped[0] if scoped else None
+            if agent_id is None:
+                raise NotFound(f"agent '{agent}' not found on {platform} in release {rel['number']}")
+            return {"agent": agent_id, "release": rel["number"], **built[agent_id]}
         agent_id = agent if agent in built else next((a for a, b in built.items() if same_ref(b["platform_ref"], agent)), None)
         if agent_id is None:
             key = platform_id_key(agent)
             bare = [a for a, b in built.items() if platform_id_key(str(b["platform_ref"]).partition(":")[2]) == key]
             if len(bare) > 1:
-                raise Invalid(f"agent '{agent}' is ambiguous in release {rel['number']}: "
-                              f"{', '.join(sorted(built[a]['platform_ref'] for a in bare))}. Ask for one of those.")
+                raise Ambiguous(f"agent '{agent}' is ambiguous in release {rel['number']}: "
+                                f"{', '.join(sorted(built[a]['platform_ref'] for a in bare))}. Ask for one of those.")
             agent_id = bare[0] if bare else None
         if agent_id is None:
             raise NotFound(f"agent '{agent}' not found in release {rel['number']}")

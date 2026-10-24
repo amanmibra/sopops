@@ -119,7 +119,7 @@ just examples/walkthrough/onboard-sopc     # instead of onboard: import onboardi
 
 ### 3. Switch the agent to fetch its instructions
 
-`agent/after/agent.py` is the same agent with its instructions coming from sopops. `prompts.py` is gone; the agent asks for `livekit:<AGENT_NAME>` when each call starts, notes the release on the session, streams the call to sopops and posts it at shutdown:
+`agent/after/agent.py` is the same agent with its instructions coming from sopops. `prompts.py` is gone; the agent passes `AGENT_NAME` when each call starts, notes the release on the session, streams the call to sopops and posts it at shutdown:
 
 ```diff
  from livekit.agents import Agent, AgentServer, AgentSession, JobContext, cli
@@ -138,7 +138,7 @@ just examples/walkthrough/onboard-sopc     # instead of onboard: import onboardi
 -    await session.start(room=ctx.room, agent=Agent(instructions=INSTRUCTIONS, tools=TOOLS))
 +    # The live release's prompt (or the last good copy on disk), the release noted in session.userdata, and the
 +    # call streamed to sopops as it happens, then posted in full when the job ends.
-+    ins = await attach(ctx, session, agent=f"livekit:{AGENT_NAME}", fallback=FALLBACK, stream=True)
++    ins = await attach(ctx, session, agent=AGENT_NAME, fallback=FALLBACK, stream=True)
 +    log.info("sopops: %s release %s (%s)", ins.agent, ins.release, ins.source)
 +
 +    await session.start(room=ctx.room, agent=Agent(instructions=ins.text, tools=TOOLS))

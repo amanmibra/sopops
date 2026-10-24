@@ -70,7 +70,7 @@ def test_from_livekit_maps_turns_and_tools():
 
 @respx.mock
 def test_attach_fetches_remembers_the_release_and_posts_at_shutdown(tmp_path):
-    get = respx.get(f"{URL}/agents/livekit:tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    get = respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(return_value=httpx.Response(200, json=AGENT))
     post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
     c, session = ctx(), Session()
 
@@ -110,7 +110,7 @@ def test_agent_config_reads_the_sessions_models():
 
 @respx.mock
 def test_attach_reports_the_models_test_and_config(tmp_path):
-    respx.get(f"{URL}/agents/livekit:tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(return_value=httpx.Response(200, json=AGENT))
     post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
     c, session = ctx(), ModelSession(llm=Model("anthropic", "claude-haiku-4-5"), tts=Model("cartesia", "sonic-2"))
 
@@ -125,19 +125,20 @@ def test_attach_reports_the_models_test_and_config(tmp_path):
 
 @respx.mock
 def test_a_release_pinned_in_metadata_is_fetched(tmp_path):
-    get = respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={**AGENT, "release": 2}))
+    get = respx.get(f"{URL}/agents/tonys-pizza?release=2&platform=livekit").mock(return_value=httpx.Response(200, json={**AGENT, "release": 2}))
+    room = respx.get(f"{URL}/agents/tonys-pizza?release=1&platform=livekit").mock(return_value=httpx.Response(200, json={**AGENT, "release": 1}))
     client = SopOps(URL, cache_dir=tmp_path)
     session = Session(userdata=SimpleNamespace(sopops_release=None, sopops_agent=None, order=[]))
     asyncio.run(attach(ctx(job_metadata='{"sopops_release": 2}'), session, "tonys-pizza", client=client))
     assert get.calls.last.request.url.params["release"] == "2" and session.userdata.sopops_release == 2
 
     asyncio.run(attach(ctx(room_metadata='{"sopops": {"release": 1}}'), Session(userdata={}), "tonys-pizza", client=client))
-    assert get.calls.last.request.url.params["release"] == "1"
+    assert room.calls.last.request.url.params["release"] == "1"
 
 
 @respx.mock
 def test_a_failed_post_never_breaks_shutdown(tmp_path):
-    respx.get(f"{URL}/agents/tonys-pizza").mock(side_effect=httpx.ConnectError("down"))
+    respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(side_effect=httpx.ConnectError("down"))
     respx.post(f"{URL}/sessions").mock(side_effect=httpx.ConnectError("down"))
     c = ctx()
 
@@ -180,7 +181,7 @@ def tools_ran(call_id, name, arguments, output, at):
 
 def routes():
     return (
-        respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT)),
+        respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(return_value=httpx.Response(200, json=AGENT)),
         respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True})),
         respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(return_value=httpx.Response(200, json={"accepted": 1, "duplicates": 0})),
         respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"})),
@@ -244,7 +245,7 @@ def test_stream_sends_turns_and_tool_calls_in_batches_then_the_full_session(tmp_
 
 @respx.mock
 def test_stream_failures_never_reach_the_agent(tmp_path):
-    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(return_value=httpx.Response(200, json=AGENT))
     opened = respx.post(f"{URL}/sessions/open").mock(side_effect=[httpx.Response(503), httpx.Response(201, json={"id": "s1", "created": True})])
     events = respx.post(f"{URL}/sessions/livekit/AJ_1/events").mock(side_effect=httpx.ConnectError("down"))
     post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
@@ -286,7 +287,7 @@ def test_a_full_queue_drops_events_and_batches_stay_bounded(tmp_path):
 @respx.mock
 def test_attach_fills_per_call_values(tmp_path):
     """The caller's name is filled here and never reaches sopops."""
-    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={
+    respx.get(f"{URL}/agents/tonys-pizza?platform=livekit").mock(return_value=httpx.Response(200, json={
         **AGENT, "prompt": "You are Tony's. It's {{now}}. Greet {{caller}}. Ask about {{special}}."}))
     posted = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
     c, session = ctx(), Session()

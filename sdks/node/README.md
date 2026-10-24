@@ -25,7 +25,7 @@ async function entrypoint(ctx: JobContext) {
 }
 ```
 
-Call `attach` after `ctx.connect()` so it can read the room's metadata. The agent is `livekit:<the job's agent name>` unless you pass `agent`. If sopops is down, `attach` returns the last good copy, then your `fallback`, so it never blocks a call.
+Call `attach` after `ctx.connect()` so it can read the room's metadata. The agent is the job's LiveKit agent name unless you pass a raw LiveKit identifier in `agent`. If sopops is down, `attach` returns the last good copy, then your `fallback`, so it never blocks a call.
 
 ## Any framework
 

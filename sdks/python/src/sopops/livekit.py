@@ -92,9 +92,10 @@ async def attach(
 ) -> Instructions:
     """Fetch the agent's instructions, note the release in `session.userdata`, and post the session at shutdown.
 
-    `agent`: the sopc agent id or platform ref; default `livekit:<the job's agent name>`. `release` pins one;
-    default: a pin in job or room metadata, else the live release. `fallback`: text to use if sopops is down and
-    nothing is cached (see `SopOps.fetch_instructions`). Call it after `ctx.connect()` for room metadata.
+    `agent`: the LiveKit agent identifier, such as its name or phone number; default: the job's agent name.
+    `release` pins one; default: a pin in job or room metadata, else the live release. `fallback`: text to use if
+    sopops is down and nothing is cached (see `SopOps.fetch_instructions`). Call it after `ctx.connect()` for room
+    metadata.
 
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
     `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
@@ -104,9 +105,11 @@ async def attach(
     listed in `ins.unfilled`, so you can log one that shouldn't be there.
     `on_guidance`: not yet used: reserved for runtime guidance in a later version."""
     client = client or SopOps()
-    agent = agent or f"livekit:{ctx.job.agent_name}"
+    agent = agent or ctx.job.agent_name
+    if not agent:
+        raise ValueError("pass agent= when the LiveKit job has no agent name")
     pin = release if release is not None else pinned_release(ctx)
-    ins = await client.fetch_instructions(agent, pin, fallback=fallback, variables=variables)
+    ins = await client.fetch_instructions(agent, pin, platform="livekit", fallback=fallback, variables=variables)
     _remember(session, ins)
     record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, on_guidance=on_guidance)
     return ins

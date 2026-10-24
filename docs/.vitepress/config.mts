@@ -59,28 +59,32 @@ export default defineConfig({
     logo: "/favicon.svg",
     siteTitle: "sopops",
     nav: [
-      { text: "Quickstart", link: "/quickstart" },
+      { text: "Get started", link: "/first-agent" },
       { text: "API", link: "/api/" },
       { text: "sopops.dev", link: "https://sopops.dev" },
     ],
     sidebar: [
-      { text: "Start", items: [
-        { text: "Quickstart", link: "/quickstart" },
+      { text: "Tutorial", items: [
+        { text: "Run the local demo", link: "/first-agent" },
+      ] },
+      { text: "Concepts", items: [
+        { text: "How sopops improves agents", link: "/what-is-sopops" },
+        { text: "Sessions and review", link: "/sessions-and-review" },
+      ] },
+      { text: "How-to guides", items: [
         { text: "Import your agents", link: "/import" },
         { text: "Connect your agent", link: "/connect" },
-      ] },
-      { text: "Use", items: [
-        { text: "Sessions and review", link: "/sessions-and-review" },
         { text: "A/B tests", link: "/ab-tests" },
         { text: "Instructions in git", link: "/git" },
       ] },
-      { text: "Run", items: [
+      { text: "Self-hosting", collapsed: true, items: [
+        { text: "Set up sopops", link: "/quickstart" },
         { text: "Configuration", link: "/configuration" },
         { text: "Sign-in", link: "/sign-in" },
       ] },
-      { text: "API reference", items: [
-        { text: "Overview", link: "/api/" },
+      { text: "Reference", collapsed: true, items: [
         { text: "SDKs", link: "/sdk" },
+        { text: "Overview", link: "/api/" },
         { text: "Agents and config", link: "/api/agents-and-config" },
         { text: "Releases", link: "/api/releases" },
         { text: "Sessions", link: "/api/sessions" },

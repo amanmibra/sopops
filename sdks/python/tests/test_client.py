@@ -36,6 +36,9 @@ def test_fetch_instructions(client):
     run(client.fetch_instructions("tonys-pizza", release=2))
     assert route.calls.last.request.url.params["release"] == "2"
 
+    run(client.fetch_instructions("tonys-pizza", platform="livekit"))
+    assert route.calls.last.request.url.params["platform"] == "livekit"
+
 
 @respx.mock
 def test_an_outage_uses_the_last_good_copy(client):
