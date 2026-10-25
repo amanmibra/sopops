@@ -62,6 +62,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        print("sopops deployment verification: api-20261025", flush=True)
         # On Postgres, session events from every process (a Hatchet worker too) arrive by LISTEN/NOTIFY.
         listener = None
         if store.sessions.postgres:

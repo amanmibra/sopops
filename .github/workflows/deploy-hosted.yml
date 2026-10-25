@@ -1,0 +1,66 @@
+name: Deploy hosted
+
+# The private hosted workflow owns AWS authentication and builds this exact OSS commit.
+# Keep this separate from the existing Render deployment until the production cutover.
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: "Full OSS commit SHA (empty: this main revision). Manual dispatch skips CI."
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: deploy-hosted-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'amanmibra/sopops' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OSS_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+    steps:
+      # No checkout: this privileged workflow never executes code from the triggering run.
+      - name: Validate source revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$OSS_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Expected a full lowercase 40-character OSS commit SHA."
+            exit 1
+          fi
+
+      - name: Dispatch the private hosted production workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.SOPOPS_HOSTED_DISPATCH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::SOPOPS_HOSTED_DISPATCH_TOKEN must have Actions write access to sopops-hosted."
+            exit 1
+          fi
+          gh workflow run deploy-production.yml \
+            --repo amanmibra/sopops-hosted \
+            --ref main \
+            --raw-field "oss_sha=$OSS_SHA"
+          {
+            echo "Hosted deployment requested for OSS commit \`$OSS_SHA\`."
+            echo
+            echo "Dispatch acceptance is not deployment completion."
+            echo "[Follow the hosted deployment](https://github.com/amanmibra/sopops-hosted/actions/workflows/deploy-production.yml)."
+          } >> "$GITHUB_STEP_SUMMARY"
