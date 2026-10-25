@@ -25,7 +25,18 @@ async function entrypoint(ctx: JobContext) {
 }
 ```
 
-Call `attach` after `ctx.connect()` so it can read the room's metadata. The agent is the job's LiveKit agent name unless you pass a raw LiveKit identifier in `agent`. If sopops is down, `attach` returns the last good copy, then your `fallback`, so it never blocks a call.
+Call `attach` after `ctx.connect()` so it can read the room's metadata. The agent is the job's LiveKit agent name unless you pass a raw LiveKit identifier in `agent`. `attach` notes the release in `session.userData` (`sopops_release`). If sopops is down, `attach` returns the last good copy, then your `fallback`, so it never blocks a call. With `stream: true` it also sends each turn and tool call as it happens; the full session posted at shutdown still replaces what was streamed.
+
+## ElevenLabs
+
+```ts
+import { elevenLabsSession } from "sopops/elevenlabs";
+
+const s = await elevenLabsSession(sopops, { agent: "agent_123" });   // the ElevenLabs agent id
+const conversation = await Conversation.startSession({ ...s.sessionOptions });
+```
+
+On a server, `s.initiationData` is the answer to ElevenLabs's conversation initiation webhook. `stream: true` streams the conversation and posts it when it ends.
 
 ## Any framework
 
@@ -39,7 +50,9 @@ await sopops.postSession({ platform: "api", external_id: callId, agent: ins.agen
                            turns: [{ role: "user", text: "Hi", offset_s: 0.4 }] });
 ```
 
-`ins.text` is the instructions, `ins.release` the release they came from, `ins.blocks` the blocks they were built from. Without a client to keep, the exported `fetchInstructions("front-desk")` does the fetch on its own.
+`ins.text` is the instructions, `ins.release` the release they came from, `ins.blocks` the blocks they were built from. Without a client to keep, the exported `fetchInstructions("front-desk")` does the fetch on its own. `variables` fills per-call `{{placeholders}}` in your process, and `sopops.stream(...)` sends a session's turns as the call runs.
+
+The Python client in [sdks/python](../python) has the same surface, in snake_case. The onboarding MCP server, `sopops-mcp`, ships with the Python package and runs with `uvx`, so TypeScript projects use it the same way.
 
 ## More
 
@@ -57,7 +70,7 @@ A complete agent is in [examples/livekit-restaurant](../../examples/livekit-rest
 
 | | |
 |---|---|
-| [`FileCache`, `SOPOPS_CACHE_DIR`](https://docs.sopops.dev/connect#install-the-client) | The last good instructions on disk |
+| [`FileCache`, `SOPOPS_CACHE_DIR`](https://docs.sopops.dev/sdk#where-the-last-good-copy-is-kept) | The last good instructions on disk (`sopops/node`); the default is in memory |
 | [`releasePin(metadata)`](https://docs.sopops.dev/ab-tests#what-you-can-pass) | A release pinned in job or room metadata |
 | [`s.link`, `@elevenlabs/react`](https://docs.sopops.dev/connect#connect-elevenlabs) | Your own `onConnect`, and React |
 | [Browsers](https://docs.sopops.dev/connect#connect-elevenlabs) | Runtime-only tokens, `SOPOPS_CORS_ORIGINS` |

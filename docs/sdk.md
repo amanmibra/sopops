@@ -6,12 +6,14 @@ Most agents reach sopops through one of the two clients: `sopops` on PyPI and `s
 
 | Python | TypeScript | Holds |
 |---|---|---|
-| `sopops` | `sopops` | `SopOps`, `Instructions`, `SessionStream`, the two errors, and the helpers for placeholders and pinned releases. |
+| `sopops` | `sopops` | `SopOps`, `Instructions`, `SessionStream`, the two errors, `MemoryCache`, and the helpers for placeholders and pinned releases. Python's `FileCache` is here too. |
 | `sopops.livekit` | `sopops/livekit` | The LiveKit Agents adapter: `attach`, `record_session`, `from_livekit`, `pinned_release`, `agent_config`. |
-| | `sopops/elevenlabs` | `elevenLabsSession`, for browser calls on `@elevenlabs/client` or `@elevenlabs/react`. Python has no ElevenLabs adapter. |
-| | `sopops/node` | `FileCache`, the last good instructions on disk. Python caches on disk already. |
+| `sopops.elevenlabs` | `sopops/elevenlabs` | The ElevenLabs adapter: `elevenlabs_session`, `elevenLabsSession`. |
+| | `sopops/node` | `FileCache`, the last good instructions on disk. It's a separate path because it needs `node:fs`, which browsers and edge runtimes don't have. |
 
-Python needs 3.10 or later and httpx, and the LiveKit adapter is the `livekit` extra. The TypeScript package is ESM, has no dependencies, and runs on Node 18+, in browsers and on edge runtimes. Neither adapter imports its framework at import time, so importing one costs nothing in a process that doesn't use it.
+The two packages have the same features. What differs is naming, and a few things that only make sense in one runtime; [What is in one SDK only](#what-is-in-one-sdk-only) lists them.
+
+Python needs 3.10 or later and httpx, and the LiveKit adapter is the `livekit` extra. The ElevenLabs adapter needs no extra. The TypeScript package is ESM, has no dependencies, and runs on Node 18+, in browsers and on edge runtimes. Neither adapter imports its framework at import time, so importing one costs nothing in a process that doesn't use it.
 
 ## Settings come from the environment unless you pass them
 
@@ -23,7 +25,7 @@ Python needs 3.10 or later and httpx, and the LiveKit adapter is the `livekit` e
 
 A token's scope decides what it can do: `runtime` fetches instructions, `ingest` sends sessions. Anything that does both, like the LiveKit adapter's `attach`, needs both scopes on the one token. TypeScript reads the environment only where `process.env` exists, so a browser passes `url` and `token` itself.
 
-Python logs through the `sopops`, `sopops.stream` and `sopops.livekit` loggers; TypeScript writes the same lines to the console.
+Python logs through the `sopops`, `sopops.stream`, `sopops.livekit` and `sopops.elevenlabs` loggers; TypeScript writes the same lines to the console.
 
 ## `SopOps` holds the connection
 
@@ -45,7 +47,8 @@ const sopops = new SopOps({ cache: new FileCache() });  // Node: keep the copy o
 | `url` | `url` | `SOPOPS_URL` | The workspace's API URL. A trailing slash is trimmed. |
 | `token` | `token` | `SOPOPS_TOKEN`, else `SOPOPS_INGEST_TOKEN` | Sent as `Authorization: Bearer`. Left off entirely when there is none, which a workspace with no token yet still answers. |
 | `timeout` | `timeoutMs` | 2.0 seconds, 2000 ms | How long the call-start fetch may take before the cached copy is used. The per-request defaults below override it elsewhere. |
-| `cache_dir` | `cache` | `SOPOPS_CACHE_DIR` or `~/.cache/sopops`, and in TypeScript a `MemoryCache` shared by the process | Python writes JSON files; TypeScript keeps instructions in memory until you hand it a cache. |
+| `cache` | `cache` | Python: a `FileCache` in `cache_dir`. TypeScript: a `MemoryCache` shared by the process | Where the last good copy is kept. Any object with `get` and `set` will do. See [Where the last good copy is kept](#where-the-last-good-copy-is-kept). |
+| `cache_dir` | | `SOPOPS_CACHE_DIR` or `~/.cache/sopops` | Python only: the directory of the default `FileCache`. |
 | `transport` | `fetch` | httpx's default, `globalThis.fetch` | For tests, and for a runtime with its own fetch. |
 
 In Python `url` and `token` are positional and the rest keyword-only; in TypeScript it is all one options object. Python opens a fresh httpx client per request, so keeping one `SopOps` for the process is free.
@@ -124,7 +127,7 @@ const ins = await sopops.fetchInstructions("tonys-pizza", { variables: { now: "7
 if (ins.unfilled?.length) console.warn(`no value for ${ins.unfilled}`);
 ```
 
-The substitution itself is two functions: `fill(text, variables)` returns the text with every known placeholder replaced, and `unfilled(text)` returns the ones left, in order and without repeats. TypeScript exports both from `sopops`; in Python they live in `sopops.client` rather than the package root.
+The substitution itself is two functions: `fill(text, variables)` returns the text with every known placeholder replaced, and `unfilled(text)` returns the ones left, in order and without repeats. Both packages export them from `sopops`.
 
 ## Sending a finished session
 
@@ -143,10 +146,7 @@ const out = await sopops.postSession(session, { retries: 2, timeoutMs: 5000 });
 A stream is the same session arriving in pieces. It exists so a long call shows up in sopops before it ends; the full session posted at the end still replaces everything streamed, so the stream is never the record of truth.
 
 ```python
-from sopops import SessionStream
-
-stream = SessionStream(sopops, {"platform": "api", "external_id": call_id, "agent": ins.agent, "release": ins.release})
-stream.start()                                   # from inside the running event loop
+stream = sopops.stream({"platform": "api", "external_id": call_id, "agent": ins.agent, "release": ins.release})
 stream.turn({"role": "user", "text": "Delivery please.", "at": time.time()})
 stream.tool_call({"name": "check_delivery_zone", "arguments": {...}, "result": {...}})
 await stream.aclose()                            # sends what's queued, then stops
@@ -161,8 +161,8 @@ await stream.close();
 
 | Python | TypeScript | What it does |
 |---|---|---|
-| `SessionStream(client, session, ...)` | `sopops.stream(session, options?)` | Builds the stream. `session` holds the fields `open_session` takes; `platform` and `external_id` are required. |
-| `start()` | | Starts the background sender, from inside the running loop. TypeScript sends on a timer and needs no start. |
+| `sopops.stream(session, ...)`, `SessionStream(client, session, ...)` | `sopops.stream(session, options?)`, `new SessionStream(sopops, session, options?)` | Builds the stream. `session` holds the fields `open_session` takes (`platform` and `external_id` are required, and `test` and `config` are sent too). |
+| `start()` | | Optional. Python's background sender starts on the first event queued inside a running event loop; `start()` starts it earlier. TypeScript sends on a timer and needs no start. |
 | `turn(turn)` | `turn(turn)` | Queues a turn: `role`, `text`, and `at` or `offset_s`. |
 | `tool_call(call)` | `toolCall(call)` | Queues a tool call: `name`, `arguments`, `result`, `is_error`, `call_id`, and `at` or `offset_s`. |
 | `aclose(timeout=1.0)` | `close(timeoutMs = 1000)` | Sends what's queued, then stops, giving up after the timeout. Never raises. |
@@ -207,15 +207,21 @@ import { fetchInstructions } from "sopops";
 const ins = await fetchInstructions("tonys-pizza", 14, { fallback: FALLBACK });
 ```
 
-Python's `fetch(agent, release=None, *, fallback, variables, url, token, timeout=2.0, cache_dir)` blocks, for code that isn't async, and raises `RuntimeError` if you call it inside a running event loop. TypeScript's `fetchInstructions(agent, release?, options)` takes the client's own options plus `fallback`, and has no `variables`. Both build a client per call and fall back exactly as the method does, so anything hot should keep a `SopOps` instead.
+Python's `fetch(agent, release=None, *, platform, fallback, variables, url, token, timeout=2.0, cache_dir, cache)` blocks, for code that isn't async, and raises `RuntimeError` if you call it inside a running event loop. TypeScript's `fetchInstructions(agent, release?, options)` is async, because nothing in JavaScript blocks, and takes the client's own options plus `platform`, `fallback` and `variables`. Both build a client per call and fall back exactly as the method does, so anything hot should keep a `SopOps` instead.
 
 ## Reading a release pinned in metadata
 
 `release_pin(metadata)` and `releasePin(metadata)` pull a pinned release out of job or room metadata, written either as `{"sopops_release": 3}` or as `{"sopops": {"release": 3}}`, passed as a JSON string or an already parsed object. A boolean, or anything that isn't a number, comes back as none. The LiveKit adapter reads the pin for you; see [A/B tests](ab-tests.md) for what pinning is for.
 
-## Where TypeScript keeps the last good copy
+## Where the last good copy is kept
 
-Python caches on disk and needs nothing. TypeScript takes a cache on the client, and anything with these two methods will do:
+Both clients take a `cache`, and any object with these two methods will do. Each method can be plain or async.
+
+```python
+class InstructionCache(Protocol):
+    def get(self, key: str) -> Instructions | None | Awaitable[Instructions | None]: ...
+    def set(self, key: str, value: Instructions) -> None | Awaitable[None]: ...
+```
 
 ```ts
 interface InstructionCache {
@@ -226,8 +232,10 @@ interface InstructionCache {
 
 | Class | Where | Survives |
 |---|---|---|
-| `MemoryCache` from `sopops` | A `Map` in the process. The default, shared by every client that takes no cache. | The process. |
-| `FileCache` from `sopops/node` | One JSON file per key under `dir`, default `SOPOPS_CACHE_DIR` or `~/.cache/sopops`. Written to a temporary name and renamed, so a crash never leaves half a file. | A restart. |
+| `MemoryCache`, from `sopops` in both | A dict or `Map` in the process. TypeScript's default, shared by every client that takes no cache. | The process. |
+| `FileCache`, from `sopops` (Python) or `sopops/node` (TypeScript) | One JSON file per key under `dir`, default `SOPOPS_CACHE_DIR` or `~/.cache/sopops`. Written to a temporary name and renamed, so a crash never leaves half a file. Python's default. | A restart. |
+
+The defaults differ on purpose. A Python process always has a disk. A TypeScript client may run in a browser or on an edge runtime with no filesystem, so on Node you pass `new FileCache()` to get the same behaviour. A cache that can't be read or written only logs; the call goes on.
 
 ## The LiveKit adapter does both halves
 
@@ -243,7 +251,7 @@ import { attach } from "sopops/livekit";
 const ins = await attach(ctx, session, { agent: "tonys-pizza", fallback: FALLBACK });
 ```
 
-`attach` fetches the instructions, notes the release in `session.userdata`, and registers the shutdown callback that posts the session. Call it after `ctx.connect()`, or the room's metadata isn't there to read a pin from.
+`attach` fetches the instructions, notes the release and agent in the session's user data (`session.userdata` in Python, `session.userData` in TypeScript, as `sopops_release` and `sopops_agent`), and registers the shutdown callback that posts the session with the shutdown reason in its metadata. Call it after `ctx.connect()`, or the room's metadata isn't there to read a pin from.
 
 | Python | TypeScript | What it does |
 |---|---|---|
@@ -254,43 +262,77 @@ const ins = await attach(ctx, session, { agent: "tonys-pizza", fallback: FALLBAC
 | `variables` | `variables` | Values for the placeholders only this call knows. |
 | `test` | `test` | Names the [A/B test](ab-tests.md) this call is part of. |
 | `config` | `config` | Settings to report beyond the models read off the session. Yours win. |
-| `stream` | | Python only: also send each turn and tool call as the call runs. |
-| `on_guidance` | | Not yet used, reserved for a later version. |
+| `stream` | `stream` | Also send each turn and tool call as the call runs, from the session's `conversation_item_added` and `function_tools_executed` events. Default false. |
+| `on_guidance` | `onGuidance` | Not yet used, reserved for a later version. |
 
 In Python `agent` is the third positional argument and the rest are keyword-only; in TypeScript they are one options object, and the client is named `sopops` there rather than `client`.
 
 | Function | What it does |
 |---|---|
-| `record_session(ctx, session, *, client, agent, stream, test, config)`, `recordSession(ctx, session, options)` | The posting half on its own, for code that got its instructions some other way. It posts `session.history` at shutdown, keyed by the job id because rooms get reused, and logs its errors rather than raising them into shutdown. Python reads the release from `session.userdata`; TypeScript takes `release` in its options, and its `sopops` client is required. |
+| `record_session(ctx, session, *, client, agent, release, stream, test, config, on_guidance)`, `recordSession(ctx, session, options?)` | The posting half on its own, for code that got its instructions some other way. It posts `session.history` at shutdown, keyed by the job id because rooms get reused, and logs its errors rather than raising them into shutdown. `release` defaults to the one `attach` noted in the session's user data, and the client to a new `SopOps()`. |
 | `from_livekit(history)`, `fromLiveKit(history)` | Maps a LiveKit `ChatContext`, or its dict form, to sopops turns and tool calls. Python answers a `(turns, tool_calls)` tuple, TypeScript a `{turns, toolCalls}` object. A message repeating the one before it is dropped, because LiveKit can add a user transcript twice. |
 | `pinned_release(ctx)`, `pinnedRelease(ctx)` | The release pinned in the job's dispatch metadata, else the room's. |
 | `agent_config(session)`, `agentConfig(session)` | What the session runs with: `llm`, `stt` and `tts` as `<provider>/<model>`, plus `voice` when the TTS names one. Whatever a plugin doesn't report is left out, which is what makes release comparisons work with no extra setup. |
 
-## The ElevenLabs adapter is TypeScript only
+## The ElevenLabs adapter
 
-`elevenLabsSession(sopops, input)` fetches the instructions and builds the `startSession` options that carry them, so a browser call runs the live release. The agent has to allow overriding its system prompt under Security → Overrides, or ElevenLabs refuses the session.
+`elevenlabs_session(client, agent, ...)` and `elevenLabsSession(sopops, input)` fetch the instructions and build the overrides that carry them, so the conversation runs the live release. `agent` is the raw ElevenLabs agent id, scoped to the `elevenlabs` platform, the way `attach` scopes a LiveKit name. The agent has to allow overriding its system prompt under Security → Overrides, or ElevenLabs refuses the session.
+
+```python
+from sopops.elevenlabs import elevenlabs_session
+
+s = await elevenlabs_session(sopops, "agent_123", stream=True)
+conversation = Conversation(elevenlabs, s.agent_id, requires_auth=True, audio_interface=DefaultAudioInterface(),
+                            config=ConversationInitiationData(conversation_config_override=s.overrides, dynamic_variables=s.dynamic_variables),
+                            **s.callbacks)
+conversation.start_session()
+await s.end(conversation_id=await asyncio.to_thread(conversation.wait_for_session_end))
+```
 
 ```ts
 import { elevenLabsSession } from "sopops/elevenlabs";
 
-const s = await elevenLabsSession(sopops, { agent: "front-desk", stream: true });
+const s = await elevenLabsSession(sopops, { agent: "agent_123", stream: true });
 const conversation = await Conversation.startSession({ ...s.sessionOptions });
 ```
 
-| Input | What it does |
-|---|---|
-| `agent` | Required. The ElevenLabs identifier, such as its agent id. |
-| `stream` | Send messages and tool results as they happen, and post the whole conversation when it ends. Needs `ingest`. Default false. |
-| `test`, `config` | Sent as the dynamic variables `sopops_test` and `sopops_<key>`. sopops reads the agent's LLM, voice and TTS model itself. |
-| `release`, `fallback`, `variables` | As on `fetchInstructions`. |
+| Python | TypeScript | What it does |
+|---|---|---|
+| `agent` | `agent` | Required. The ElevenLabs agent id. |
+| `stream` | `stream` | Send the conversation as it happens, and post the whole conversation when it ends. Needs `ingest`. Default false. |
+| `test`, `config` | `test`, `config` | Sent as the dynamic variables `sopops_test` and `sopops_<key>`. sopops reads the agent's LLM, voice and TTS model itself. |
+| `release`, `fallback`, `variables` | `release`, `fallback`, `variables` | As on `fetch_instructions`. |
+| `on_guidance` | `onGuidance` | Not yet used, reserved for a later version. |
 
-What comes back carries `instructions`, the `sessionOptions` to spread into `startSession`, `link(conversationId)` and `end(reason?)`. The built-in `onConnect` calls `link` for you, which is what ties the post-call session to the release it ran on; pass your own `onConnect` and you have to call `link` from it. With `stream: true`, `onDisconnect` calls `end`, which closes the stream and posts the full conversation. Neither `link` nor `end` ever throws, and calling `end` twice returns the same promise.
+| Python | TypeScript | What it is |
+|---|---|---|
+| `instructions` | `instructions` | The `Instructions` fetched. |
+| `initiation_data` | `initiationData` | The `conversation_initiation_client_data` message, for a server: the answer to ElevenLabs's conversation initiation webhook (inbound phone calls), or the first message on a conversation WebSocket. |
+| `agent_id`, `overrides`, `dynamic_variables`, `callbacks` | `sessionOptions` | What the platform's own client SDK takes. TypeScript's is spread into `@elevenlabs/client`'s or `@elevenlabs/react`'s `startSession`, with `onConnect` (and with `stream: true`, `onMessage`, `onAgentToolResponse`, `onDisconnect`) wired up. Python's go to the `elevenlabs` package's `Conversation` and `ConversationInitiationData`; with `stream=True`, `callbacks` holds `callback_agent_response` and `callback_user_transcript`. |
+| `link(conversation_id)` | `link(conversationId)` | Ties the post-call session to the release it ran on. Never raises. |
+| `connect(conversation_id)` | `sessionOptions.onConnect` | The conversation id is known: link it, and with streaming, send what was said so far. |
+| `turn(role, text)`, `tool_result(name, call_id, result, is_error)` | `sessionOptions.onMessage`, `sessionOptions.onAgentToolResponse` | Keep a turn or a tool result. Python's can be called from the ElevenLabs SDK's own thread. |
+| `end(reason="", *, conversation_id=None)` | `end(reason?)` | With streaming, close the stream and post the full conversation. Python's `conversation_id` connects first, because the Python SDK only gives the id when the session ends. Never raises; a second call waits for the first. |
+
+TypeScript's built-in `onConnect` calls `link` for you; pass your own `onConnect` and you have to call `link` from it. With `stream: true`, `onDisconnect` calls `end`.
+
+## What is in one SDK only
+
+| What | Where | Why |
+|---|---|---|
+| `sopops-mcp`, the onboarding MCP server | Python (the `mcp` extra) | It's a tool a coding agent runs with `uvx`, not a library your agent imports, so it serves TypeScript projects as well. A second copy would be one more thing to keep in step. |
+| `sessionOptions` for `@elevenlabs/client` and `@elevenlabs/react` | TypeScript | Those are browser SDKs. Python's equivalent is `callbacks` and `ConversationInitiationData` for the `elevenlabs` package. |
+| `FileCache` under its own import path | TypeScript (`sopops/node`) | It needs `node:fs`, so it stays out of the browser bundle. In Python it's in `sopops`. |
+| A blocking fetch | Python (`fetch`) | JavaScript has no blocking I/O; TypeScript's `fetchInstructions` helper is the async equivalent. |
+| `SessionStream.start()` | Python | asyncio needs a running loop to start the sender. It starts on its own with the first event; `start()` only starts it earlier. |
+
+Vapi has no adapter in either SDK. Fetch with `platform="vapi"` / `{ platform: "vapi" }` and link the call with `record_served` / `recordServed`.
 
 ## Errors
 
 | Error | When |
 |---|---|
-| `SopOpsError` | sopops answered with an error status, refused a session, or couldn't be reached. TypeScript carries the HTTP status on `.status`, null when the request never landed. |
+| `SopOpsError` | sopops answered with an error status, refused a session, or couldn't be reached. It carries the HTTP status on `.status`, `None` or `null` when the request never landed. |
 | `SopOpsUnavailable` | A subclass of the above: no instructions at all, because sopops failed, nothing was cached, and no `fallback` was given. |
 
-Fetching, posting and `record_served` raise these. Streaming never does, and neither does the LiveKit adapter's shutdown post.
+Fetching, posting and `record_served` raise these. Streaming never does, and neither do the LiveKit adapter's shutdown post or the ElevenLabs adapter's `link` and `end`. An agent that isn't on ElevenLabs makes the ElevenLabs adapter raise `ValueError` in Python and `Error` in TypeScript.
