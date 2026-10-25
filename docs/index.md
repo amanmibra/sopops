@@ -16,3 +16,5 @@ Run a local demo that imports prompts, checks calls, and publishes a fix. It
 uses known calls, so you can see each result before you connect your own agent.
 
 Read [how sopops improves agents](what-is-sopops.md) to understand the loop.
+Recording calls from your own agent takes no code on LiveKit, ElevenLabs and
+Vapi; see [Connect your agent](connect.md).

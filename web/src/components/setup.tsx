@@ -544,7 +544,8 @@ function ConnectStep({ flow }: { flow: Flow }) {
       wide
       sub={
         <>
-          Each agent gets its instructions from sopops and sends its calls back to be checked. Here's what {listNames(plats.shown.map(platformName), "and")}{" "}
+          Each agent gets its instructions from sopops and sends its calls back to be checked. The two are set up separately, and calls can come back with no
+          code even while the instructions stay in your agent's code. Here's what {listNames(plats.shown.map(platformName), "and")}{" "}
           {plats.shown.length === 1 ? "needs" : "need"}.
         </>
       }

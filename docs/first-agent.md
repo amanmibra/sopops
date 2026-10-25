@@ -15,6 +15,9 @@ and sign-in yourself.
 4. Review two findings and publish release 2.
 5. Replay 100 calls and compare the releases.
 
+The demo uses the LiveKit SDK. Your own agents can send calls back with no
+code; see [Connect your agent](connect.md).
+
 Before you begin, install Git, Python, Node, [just](https://github.com/casey/just),
 and [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later. On macOS, run
 `brew install just` to install just.

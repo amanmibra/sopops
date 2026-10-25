@@ -71,8 +71,8 @@ export function ImportView({ id }: { id: string }) {
       {(d.status === "applied" || d.pr_state === "merged") && (
         <Panel title="Connect your agents">
           <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
-            After you publish, each agent needs two things: its instructions from sopops, and a way to send its sessions back for checks. Here's what each
-            platform needs.
+            After you publish, each agent needs two things: its instructions from sopops, and a way to send its sessions back for checks. They are set up
+            separately, and sessions can come back with no code even while the instructions stay in the agent's code. Here's what each platform needs.
           </p>
           <ConnectGuide />
         </Panel>
