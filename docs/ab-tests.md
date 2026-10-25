@@ -150,7 +150,7 @@ Values are strings. `sopops_*` keys in job or room metadata count too.
 
 Add the API key under Settings → Platforms and set up the post-call webhook ([Connect](connect.md#connect-elevenlabs)). sopops reads each agent's LLM, temperature, TTS model, voice and speech-to-text provider, with a call's overrides on top. Two agents with different settings need nothing else.
 
-Send a test name or extra settings as dynamic variables: `sopops_test`, `sopops_version`, and so on. The TypeScript SDK does this with `elevenLabsSession(sopops, { agent, test, config })`.
+Send a test name or extra settings as dynamic variables: `sopops_test`, `sopops_version`, and so on. Both SDKs do this: `elevenlabs_session(sopops, agent, test=..., config=...)` in Python, `elevenLabsSession(sopops, { agent, test, config })` in TypeScript.
 
 ## Vapi
 

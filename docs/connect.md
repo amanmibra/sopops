@@ -129,15 +129,23 @@ async function entrypoint(ctx: JobContext) {
 - To stream phone calls live, on Enterprise, turn on live monitoring and Monitoring in the agent's Advanced settings. sopops follows each call the conversation-initiation webhook serves on the monitor socket, using the API key.
 - A refused socket falls back to the post-call webhook, and Settings says why.
 
-**Sessions from code:** the TypeScript SDK's `elevenLabsSession` (posted, optionally streamed) fetches the instructions and builds the `startSession` options that carry them, so a browser call runs the live release. A complete page is in [examples/elevenlabs-web](../examples/elevenlabs-web). The Python SDK's `elevenlabs_session` does the same for the `elevenlabs` package, and both return `initiation_data` / `initiationData` for a server that answers ElevenLabs's conversation initiation webhook ([SDK reference](sdk.md#the-elevenlabs-adapter)).
+**Sessions from code:** `elevenLabsSession` in TypeScript or `elevenlabs_session` in Python (posted, optionally streamed) fetches the instructions and builds the `startSession` options that carry them, so a browser call runs the live release. A complete page is in [examples/elevenlabs-web](../examples/elevenlabs-web). The Python SDK's `elevenlabs_session` does the same for the `elevenlabs` package, and both return `initiation_data` / `initiationData` for a server that answers ElevenLabs's conversation initiation webhook ([SDK reference](sdk.md#the-elevenlabs-adapter)).
 
 ```ts
 import { SopOps } from "sopops";
 import { elevenLabsSession } from "sopops/elevenlabs";
 
 const sopops = new SopOps({ url: SOPOPS_URL, token: SOPOPS_TOKEN });
-const s = await elevenLabsSession(sopops, { agent: "front-desk", stream: true });
+const s = await elevenLabsSession(sopops, { agent: "agent_123", stream: true });   // the ElevenLabs agent id
 const conversation = await Conversation.startSession({ ...s.sessionOptions });
+```
+
+```python
+from sopops import SopOps
+from sopops.elevenlabs import elevenlabs_session
+
+sopops = SopOps(url=SOPOPS_URL, token=SOPOPS_TOKEN)
+s = await elevenlabs_session(sopops, "agent_123", stream=True)                     # the ElevenLabs agent id
 ```
 
 - `@elevenlabs/react` takes the same options: `useConversation().startSession({ ...s.sessionOptions })`.
