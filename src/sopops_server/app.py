@@ -96,6 +96,8 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     def healthz(response: Response) -> dict:
         if revision := os.environ.get("SOPOPS_BUILD_OSS_SHA"):
             response.headers["X-Sopops-Build"] = revision
+        if release := os.environ.get("SOPOPS_BUILD_RELEASE"):
+            response.headers["X-Sopops-Release"] = release
         return {"ok": True}
 
     for r in (
