@@ -8,9 +8,10 @@ binary (default: `sopc` on PATH). Sign-in with GitHub or Google is on once a log
 
 from __future__ import annotations
 
+import os
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Response
 from fastapi.routing import APIRoute
 
 from . import __version__
@@ -93,7 +94,9 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
     rt = runtime.register(app, store)  # push to platforms, their call-start webhooks, runtime token
 
     @app.get("/healthz", include_in_schema=False)
-    def healthz() -> dict:
+    def healthz(response: Response) -> dict:
+        if revision := os.environ.get("SOPOPS_BUILD_OSS_SHA"):
+            response.headers["X-Sopops-Build"] = revision
         return {"ok": True}
 
     for r in (

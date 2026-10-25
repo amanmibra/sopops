@@ -90,3 +90,24 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  cloudflare-deploy-proof:
+    name: Dispatch verified Cloudflare staging deployment
+    needs: [backend, web, sdk-python, sdk-node]
+    if: >-
+      github.repository == 'amanmibra/sopops' &&
+      github.event_name == 'push' && github.ref == 'refs/heads/ci/cloudflare-proof'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    env:
+      GH_TOKEN: ${{ secrets.SOPOPS_HOSTED_DISPATCH_TOKEN }}
+      OSS_SHA: ${{ github.sha }}
+    steps:
+      - name: Dispatch exact tested revision to private hosted workflow
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          gh workflow run deploy-production.yml --repo amanmibra/sopops-hosted \
+            --ref ci/cloudflare --raw-field "oss_sha=$OSS_SHA"
+          echo "Requested Cloudflare staging deployment for $OSS_SHA" >> "$GITHUB_STEP_SUMMARY"

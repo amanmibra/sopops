@@ -1,0 +1,43 @@
+name: Deploy hosted Cloudflare
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full OSS main commit SHA
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: deploy-hosted-cloudflare-dispatch
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'amanmibra/sopops' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      OSS_SHA: ${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+      GH_TOKEN: ${{ secrets.SOPOPS_HOSTED_DISPATCH_TOKEN }}
+    steps:
+      - name: Dispatch exact verified OSS revision
+        run: |
+          set -euo pipefail
+          [[ "$OSS_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid OSS SHA'; exit 1; }
+          test -n "$GH_TOKEN"
+          gh workflow run deploy-cloudflare.yml --repo amanmibra/sopops-hosted \
+            --ref main --raw-field "oss_sha=$OSS_SHA"
+          echo "Requested Cloudflare staging deployment for $OSS_SHA" >> "$GITHUB_STEP_SUMMARY"
