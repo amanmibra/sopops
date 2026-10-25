@@ -4,7 +4,7 @@ name: release-sdk
 # (publish-sdk-release.yml).
 #
 #   gh workflow run release-sdk.yml -f bump=patch
-#   gh workflow run release-sdk.yml -f bump=minor -f dry_run=true
+#   gh workflow run release-sdk.yml -f bump=patch -f dry_run=true
 #
 # The SDKs ship the same features, so there is no per-SDK choice: releasing one alone is how they drift.
 # main only takes pull requests, so the bump goes through one too, opened with GITHUB_TOKEN. That needs
@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: "patch: fixes. minor: new features, backward compatible. major: breaking changes."
+        description: "patch: the default, for fixes and new features alike. minor: only for a breaking change. major: 1.0 and later breaking changes."
         type: choice
         options: [patch, minor, major]
         default: patch

@@ -72,7 +72,7 @@ The guides are Markdown files in `docs/`, and [VitePress](https://vitepress.dev)
 
 ```sh
 gh workflow run release-sdk.yml -f bump=patch                 # or minor, major
-gh workflow run release-sdk.yml -f bump=minor -f dry_run=true # checks, bump and notes only; opens nothing
+gh workflow run release-sdk.yml -f bump=patch -f dry_run=true # checks, bump and notes only; opens nothing
 ```
 
 1. `release-sdk.yml` bumps both SDKs to the same next version (`pyproject.toml` with `uv.lock` and `__version__`, and `package.json`), runs both SDKs' checks, and opens a pull request "Release SDKs <version>" from `release/sdk-v<version>`. Its description is the release notes: the commits under each SDK since its last release.
@@ -85,9 +85,9 @@ You can also start step 1 from the Actions tab. Don't edit SDK versions by hand:
 
 Pick the bump from what changed for someone who already uses the SDK:
 
-- **patch:** bug fixes and internal changes. Existing code behaves as documented, only better.
-- **minor:** something new, such as a function, an option or an adapter, and existing code keeps working.
-- **major:** existing code has to change, such as a removed or renamed export, a changed signature or default, or a dropped runtime version. While the SDKs are below 1.0, use minor for these and say so in the release notes.
+- **patch:** almost every release. Fixes, new functions, options and adapters, and parity work all ship as patches, as long as existing code keeps working.
+- **minor:** only when existing code has to change, such as a removed or renamed export, a changed signature or default, or a dropped runtime version. Agree it with the maintainer first and say what breaks in the release notes.
+- **major:** reserved for 1.0.
 
 Both SDKs have been at the same version since 0.5.0 (tagged `py-v0.5.0` and `node-v0.5.0`; releases from here on are tagged `sdk-v<version>`).
 
