@@ -33,21 +33,19 @@ These variables set the deployment's defaults; see [Models](sessions-and-review.
 | `SOPOPS_MODEL_PRICES` | unset | Prices for spend estimates, JSON in USD per million tokens, e.g. `{"openai/gpt-5-mini": [0.25, 2]}`. Adds to or overrides the built-in table (Jev, current Claude models). |
 | `SOPOPS_DSPY_CACHE_DIR` | unset | Disk cache for model responses (transcripts are written there). In memory otherwise. |
 
-## Sign-in and email
+## Sign-in
 
-See [Sign in](sign-in.md).
+See [Sign in](sign-in.md). sopops sends no email: invites, join links and password resets are links to copy. For single sign-on on a self-hosted sopops, [put it behind Cloudflare Zero Trust](sign-in.md#put-sopops-behind-cloudflare-zero-trust).
 
 | Variable | Default | What it does |
 |---|---|---|
 | `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | unset | Sign in with GitHub. |
 | `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | unset | Sign in with Google. |
-| `SOPOPS_SMTP_HOST`, `SOPOPS_SMTP_PORT`, `SOPOPS_SMTP_USER`, `SOPOPS_SMTP_PASSWORD`, `SOPOPS_SMTP_FROM` | unset, `587` | Email for sign-in links and invites. Port 465 is TLS from the start; others use STARTTLS when offered. `SOPOPS_SMTP_FROM` is the sender, defaulting to the user if that's an address. |
-| `SOPOPS_EMAIL_DEV` | unset | `1`: email sign-in without SMTP. Links go to the server log. Local use and demos only. |
-| `SOPOPS_AUTH_REQUIRED` | on when GitHub, Google or email is set up | `true` or `false` forces sign-in. `true` with nothing set up: email and password sign-in. |
+| `SOPOPS_AUTH_REQUIRED` | on when GitHub or Google is set up | `true` or `false` forces sign-in. `true` with nothing set up: email and password sign-in. |
 | `SOPOPS_OPEN_SIGNUP` | `true` | Anyone can sign up (name, email, password, team name) and owns the new team, with no invite link. On wherever passwords are the way in. Set it to `0` for invites only, which a sopops on a public address and this server's model keys may want. |
-| `SOPOPS_LOGIN_PROVIDERS` | unset | Comma-separated provider ids (`github`, `google`, `email`, `password`, and any a plugin registers): the only ones offered. Unset, every provider that's set up is offered. A list naming none that are set up is ignored, with a warning. |
-| `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated. Only verified emails at these domains can sign in. With email set up, they can also make a password account. |
-| `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach the web UI, path included if it has one (`https://example.com/sopops`). Base of invite, sign-in and password links, and of the pages sign-in sends people back to. Also the base of sign-in callbacks unless `SOPOPS_PUBLIC_API_URL` is set. |
+| `SOPOPS_LOGIN_PROVIDERS` | unset | Comma-separated provider ids (`github`, `google`, `password`, and any a plugin registers): the only ones offered. Unset, every provider that's set up is offered. A list naming none that are set up is ignored, with a warning. |
+| `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated. Only verified emails at these domains can sign in. |
+| `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach the web UI, path included if it has one (`https://example.com/sopops`). Base of invite, join and password links, and of the pages sign-in sends people back to. Also the base of sign-in callbacks unless `SOPOPS_PUBLIC_API_URL` is set. |
 | `SOPOPS_PUBLIC_API_URL` | `SOPOPS_PUBLIC_URL` | Where the browser reaches the API, when that isn't under `SOPOPS_PUBLIC_URL` (the UI at `https://example.com/app`, the API at `https://example.com/api`). Base of sign-in callbacks. |
 
 ## Serving sopops under a path

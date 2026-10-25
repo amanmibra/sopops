@@ -1,15 +1,16 @@
 # Sign in
 
-sopops ships four ways to sign in, and runs with none of them until one is set up, which suits local use and demos.
+sopops ships three ways to sign in, and runs with none of them until one is set up, which suits local use and demos.
 
 | Way | Set | Notes |
 |---|---|---|
-| Password | `SOPOPS_AUTH_REQUIRED=true` | Works with no email set up. |
-| Email sign-in link | `SOPOPS_SMTP_*` | A link that works once, for 15 minutes. |
+| Password | `SOPOPS_AUTH_REQUIRED=true` | Email and password. |
 | GitHub | `SOPOPS_GITHUB_OAUTH_CLIENT_ID`, `SOPOPS_GITHUB_OAUTH_CLIENT_SECRET` | OAuth with `state` and PKCE. |
 | Google | `SOPOPS_GOOGLE_CLIENT_ID`, `SOPOPS_GOOGLE_CLIENT_SECRET` | OAuth with `state` and PKCE. |
 
-Set up GitHub, Google or email and sign-in is on. Passwords are offered whenever it is on, so `SOPOPS_AUTH_REQUIRED=true` alone is a sopops people sign in to with passwords and nothing else. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
+Set up GitHub or Google and sign-in is on. Passwords are offered whenever it is on, so `SOPOPS_AUTH_REQUIRED=true` alone is a sopops people sign in to with passwords and nothing else. Agents, webhooks and coding agents keep using workspace tokens and webhook secrets.
+
+sopops never sends email. Invites, join links and password resets are links you copy and send yourself. A self-hosted sopops is for your own team, so the simplest way to give it single sign-on is to [put it behind Cloudflare Zero Trust](#put-sopops-behind-cloudflare-zero-trust).
 
 ## Turn on sign-in with passwords
 
@@ -32,9 +33,9 @@ The rest (a join link, the team's platforms, agents, the first release, calls) c
 | Email domain | If the team allows their domain, they just sign in. |
 
 - Existing accounts join right away. Others open the link and set a password, or sign in with that email another way.
-- With SMTP, sopops emails the link. You can always copy it.
+- sopops shows the link once, for you to send. It doesn't email it.
 - A new link replaces the old one, which stops working.
-- Under "Invited, not signed in yet", cancel, resend (with email) or copy a new link (without).
+- Under "Invited, not signed in yet", cancel an invite or copy a new link for it.
 - An invite can't set a password for an existing account.
 
 ## Teams and roles
@@ -51,13 +52,12 @@ Only verified emails count, and one verified email is one person across every pr
 
 ## Reset a password
 
-An owner or admin clicks "Reset password" on a row in Settings, Members, and sends the link; admins can't reset owners. If the only owner is locked out, run on the server:
+Someone who forgot their password asks an owner or admin, who clicks "Reset password" on their row in Settings, Members, and sends them the link; admins can't reset owners. If the only owner is locked out, run on the server:
 
 ```sh
 sopops reset-password ana@example.com   # add --url https://sopops.example.com without SOPOPS_PUBLIC_URL
 ```
 
-- With email set up, "Forgot password?" sends the link.
 - Change your own under your avatar, Change password.
 - Setting or changing a password signs that person out everywhere else.
 
@@ -70,17 +70,6 @@ sopops reset-password ana@example.com   # add --url https://sopops.example.com w
 - Tries count against the password limits.
 
 > **Warning:** sopops doesn't check that people own the email they sign up with, and every team runs on this server's model keys. Turn it on only when sopops is open to the public.
-
-## Sign in with email
-
-Set the `SOPOPS_SMTP_*` variables ([Configuration](configuration.md#sign-in-and-email)). The sign-in page then offers "Email me a sign-in link instead" and "Forgot password?".
-
-- The token sits after `#`, which browsers never send to the server, and the page needs one click, so mail scanners that open links can't use one up.
-- The page always says "If that address can sign in, we sent a link".
-- `SOPOPS_ALLOWED_EMAIL_DOMAINS` lets people at those domains make accounts through an emailed set-password link.
-- `SOPOPS_EMAIL_DEV=1` turns on email sign-in with no SMTP, for demos. Links go to the server log at INFO, marked `[SOPOPS_EMAIL_DEV]`.
-
-> **Warning:** Never use `SOPOPS_EMAIL_DEV` on a reachable server. Anyone who reads the log can sign in as anyone.
 
 ## Sign in with GitHub
 
@@ -112,7 +101,7 @@ SOPOPS_LOGIN_PROVIDERS=github,password   # these two, whatever else is set up
 
 | | |
 |---|---|
-| Ids | `github`, `google`, `email`, `password`, and any a plugin registers |
+| Ids | `github`, `google`, `password`, and any a plugin registers |
 | Unset | Every provider that's set up is offered. The default. |
 | An id that isn't set up | Skipped, as it is when the list is unset. |
 | A list that names nothing set up | Ignored whole, with a warning in the log, so a typo can't lock everyone out. |
@@ -164,7 +153,7 @@ class AcmeSSO(LoginProvider):
 acme-sso = "acme_sso:AcmeSSO"
 ```
 
-Install the package next to sopops and restart. The button appears once `configured()` is true, and `SOPOPS_LOGIN_PROVIDERS=acme-sso` makes it the only way in. A provider that mails a link instead of redirecting sets `redirects = False` and implements `configured` alone, as `email` does.
+Install the package next to sopops and restart. The button appears once `configured()` is true, and `SOPOPS_LOGIN_PROVIDERS=acme-sso` makes it the only way in. A provider with its own routes instead of a redirect sets `redirects = False` and implements `configured` alone, as `password` does.
 
 A provider can bring more than a name and an address:
 
@@ -179,8 +168,32 @@ PropelAuth is one such provider, in a package of its own outside this repo.
 
 ## Run behind a proxy
 
-- Set `SOPOPS_PUBLIC_URL` (e.g. `https://sopops.example.com`) so callback, sign-in and invite links match what you registered.
-- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client email limit counts each real client.
+- Set `SOPOPS_PUBLIC_URL` (e.g. `https://sopops.example.com`) so callback, invite, join and password links match what you registered.
+- Run uvicorn with `--proxy-headers` and `--forwarded-allow-ips`. It then sees `X-Forwarded-Proto` for Secure cookies, and the per-client password limit counts each real client.
+
+## Put sopops behind Cloudflare Zero Trust
+
+A self-hosted sopops is for people inside your company. Cloudflare Access puts your identity provider in front of it, so nobody reaches the sign-in page without signing in to your company first. See Cloudflare's [Access applications](https://developers.cloudflare.com/cloudflare-one/applications/) docs for each step.
+
+1. Put the domain's DNS on Cloudflare and point `sopops.example.com` at your server as a proxied (orange cloud) record, or publish it through a Cloudflare Tunnel.
+2. In Zero Trust, add an identity provider under Integrations: Google Workspace, Okta, Microsoft Entra ID, GitHub, or one-time PIN (a code sent by Cloudflare to the address).
+3. Add a self-hosted application for `sopops.example.com`, with an Allow policy for your org, such as "Emails ending in `@example.com`" or a group from your identity provider.
+4. Add a second application for the paths that voice platforms, agents and GitHub call, with a Bypass policy (Include: Everyone). Access picks the more specific path, so these skip the login and the rest of the hostname keeps it:
+
+| Path | Who calls it |
+|---|---|
+| `/v1/workspaces/*/capture/*` | LiveKit and ElevenLabs webhooks |
+| `/v1/workspaces/*/runtime/*` | ElevenLabs and Vapi call-start webhooks, `runtime/served` |
+| `/v1/workspaces/*/sessions`, `/v1/workspaces/*/sessions/*` | Agents sending calls (an `ingest` token) |
+| `/v1/workspaces/*/agents/*` | Agents fetching their instructions (a `runtime` token) |
+| `/v1/github/webhook` | GitHub |
+| `/v1/workspaces/*/config/*`, `/v1/onboarding/*` | Coding agents with a `config` or onboarding token, if you use them from outside |
+
+A wildcard covers the segments below it but not the parent path, which is why `sessions` is listed twice. Where the caller can send extra headers (your own scripts, say), a service token with a Service Auth policy instead of Bypass keeps Access checking and logging those requests.
+
+- Keep sign-in on in sopops too (`SOPOPS_AUTH_REQUIRED=true`, or GitHub or Google). The bypassed paths reach sopops directly, and with sign-in off sopops leaves its own routes under them open.
+- Set `SOPOPS_REQUIRE_WEBHOOK_SECRET=true`, so call-start webhooks need the workspace's secret or token.
+- Set `SOPOPS_PUBLIC_URL` to the Cloudflare hostname.
 
 ## How long links last
 
@@ -188,7 +201,6 @@ Every link below is a random token, stored hashed.
 
 | Link or try | Lasts | Limit |
 |---|---|---|
-| Email sign-in link | Once, 15 minutes | 5 per address and 20 per client per 15 minutes |
 | Password reset link | Once, 1 hour | |
 | Invite link | 7 days | |
 | Wrong password tries | | 10 per address and 30 per client per 15 minutes |
