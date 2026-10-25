@@ -1,6 +1,6 @@
 {
   "name": "sopops",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Fetch your agent's instructions from sopops at call start, and send each finished session back.",
   "license": "Apache-2.0",
   "type": "module",
