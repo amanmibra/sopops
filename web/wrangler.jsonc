@@ -3,10 +3,10 @@
 // are unchanged. sopops.dev deploys it with Workers Builds (Cloudflare's GitHub connection), root directory `web`.
 //
 // `pnpm build:cloudflare` builds for a sub-path (default /app/, the API at /api; set SOPOPS_WEB_BASE and
-// SOPOPS_WEB_API_BASE to change them) into dist-cloudflare/. The Worker expects a router in front that takes the base
-// off the path before forwarding (sopops.dev/app/w/demo arrives as /w/demo), so every page that isn't a file gets
-// index.html and the client-side router takes it. No account, zone or hostname is named here: the Worker is reached
-// only through that router's service binding, attached in the Cloudflare dashboard.
+// SOPOPS_WEB_API_BASE to change them) under that path in dist-cloudflare/ (cloudflare/build.mjs), so the Worker answers
+// sopops.dev/app/... with the path as it is: a Workers route sends it the requests, nothing takes the base off. Every
+// page that isn't a file gets index.html and the client-side router takes it. No account, zone or hostname is named
+// here: the route is managed with the rest of sopops.dev's Cloudflare configuration.
 {
   "name": "sopops-app",
   "compatibility_date": "2026-10-01",
@@ -16,7 +16,7 @@
   "assets": {
     "directory": "./dist-cloudflare",
     "not_found_handling": "single-page-application",
-    // Paths are served as asked: no /index.html -> / redirects, which would name a path without the router's base.
-    "html_handling": "none"
+    // /app -> /app/, and /app/index.html -> /app/.
+    "html_handling": "auto-trailing-slash"
   }
 }

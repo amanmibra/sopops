@@ -1,10 +1,10 @@
 # Cache rules for the Cloudflare build (pnpm build:cloudflare), which Workers Static Assets reads from the build's
-# root. Paths are as the UI Worker sees them: a router in front takes the base (/app) off first.
+# root. cloudflare/build.mjs puts the UI's base (/app/) in for /{base}/; paths are the public ones, as requested.
 # Hashed bundles never change under one name; everything else (index.html, the SPA fallback) is checked every time.
 /*
   Cache-Control: no-cache
   X-Content-Type-Options: nosniff
 
-/assets/*
+/{base}/assets/*
   ! Cache-Control
   Cache-Control: public, max-age=31536000, immutable

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:cloudflare": "tsc -b && SOPOPS_WEB_BASE=${SOPOPS_WEB_BASE:-/app/} SOPOPS_WEB_API_BASE=${SOPOPS_WEB_API_BASE:-/api} vite build --outDir dist-cloudflare --emptyOutDir && node -e \"require('fs').copyFileSync('cloudflare/_headers', 'dist-cloudflare/_headers')\"",
+    "build:cloudflare": "tsc -b && node cloudflare/build.mjs",
     "typecheck": "tsc -b",
     "preview": "vite preview",
     "openapi": "cd .. && uv run python -m sopops_server.openapi > web/openapi.json",
