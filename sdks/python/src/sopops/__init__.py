@@ -19,7 +19,7 @@ from .client import (
 )
 from .stream import SessionStream
 
-__version__ = "0.2.0"
+__version__ = "0.5.0"
 __all__ = [
     "FileCache", "InstructionCache", "Instructions", "MemoryCache", "SessionStream", "SopOps", "SopOpsError", "SopOpsUnavailable",
     "fetch", "fill", "release_pin", "unfilled",
