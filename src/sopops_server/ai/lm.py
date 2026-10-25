@@ -4,10 +4,13 @@
   `SOPOPS_MODEL_FAST` and `SOPOPS_MODEL_REASONING`, e.g. `anthropic/claude-haiku-4-5`. If only one is set it serves
   both. Any provider DSPy knows works, and any OpenAI-compatible endpoint (`SOPOPS_LLM_API_BASE`). Provider keys come
   from the usual variables (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, ...).
-- `decide`: what answers the decision signatures (outputs that are all `Noul` / `Choice`): TypeSafe's Jev
-  (`dspy.experimental.TypeSafe`) when it's on (`TYPESAFE_API_KEY`, or `SOPOPS_JEV=on`; `pip install 'sopops-server[jev]'`),
-  else the decision model (`SOPOPS_MODEL_DECISION`, default the fast model), which DSPy asks for probability evidence
-  and decodes the same way.
+- `decide`: what answers the decision signatures (outputs that are all `Noul` / `Choice`): a system-1 classifier when
+  there is one, else the decision model (`SOPOPS_MODEL_DECISION`, default the fast model), which DSPy asks for
+  probability evidence and decodes the same way. The classifier, in order: a team's own TypeSafe key (Jev, called
+  directly); the model gateway's system-1 classifier (`SOPOPS_SYSTEM1_URL`, `sopops_server.ai.system1`), which holds
+  the deployment's classifier keys; TypeSafe's Jev called directly (`dspy.experimental.TypeSafe`) when it's on
+  (`TYPESAFE_API_KEY`, or `SOPOPS_JEV=on`; `pip install 'sopops-server[jev]'`). When the gateway's classifier is
+  unavailable, the decision model answers that decision instead.
 - `sopops/<name>` (`sopops/sopops-decision`, `sopops/sopops-fast`, `sopops/sopops-reasoning`): a hosted sopops's own
   models, served by its private model gateway at `SOPOPS_LM_URL` (an OpenAI-compatible endpoint, key `SOPOPS_LM_KEY`).
   The gateway decides which model answers each name, so a team only ever sees the sopops name.
@@ -25,6 +28,7 @@ Tests use `sopops_server.ai.fakes`.
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -36,7 +40,9 @@ import dspy
 from dspy.experimental import TypeSafe
 
 from . import dspy_fixes  # noqa: F401  (installs the decision-adapter fix)
-from . import spend
+from . import spend, system1
+
+log = logging.getLogger("sopops_server.ai.lm")
 
 ROLES = ("fast", "reasoning")
 ROLE_ENV = {"fast": "SOPOPS_MODEL_FAST", "reasoning": "SOPOPS_MODEL_REASONING"}
@@ -94,7 +100,7 @@ def jev_enabled(env: Mapping[str, str] | None = None) -> bool:
 
 @dataclass
 class Usage:
-    """Running totals per role (Jev's under `jev`), for logs and the benchmark."""
+    """Running totals per role (a system-1 classifier's, Jev's or the gateway's, under `jev`), for logs and the benchmark."""
 
     calls: int = 0
     input_tokens: int = 0
@@ -127,7 +133,8 @@ class AI(Protocol):
     def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction: ...
 
     def decision_native(self) -> bool:
-        """Whether decisions run on a System One backend (Jev), which answers Choices over long option lists."""
+        """Whether decisions run on a System One backend (Jev, or the gateway's classifier), which answers Choices over
+        long option lists."""
 
 
 def as_predict(predictor: dspy.Predict | type[dspy.Signature]) -> dspy.Predict:
@@ -150,20 +157,24 @@ def configure_cache() -> None:
 
 
 class Models:
-    """The real implementation: a `dspy.LM` per role, and Jev for decisions when it's on."""
+    """The real implementation: a `dspy.LM` per role, and a system-1 classifier for decisions when there is one."""
 
     def __init__(self, models: Mapping[str, str | None] | None = None, *, jev: bool | None = None, jev_model: str | None = None,
-                 api_base: str | None = None, api_key: str | None = None, jev_api_key: str | None = None, cache: bool = True):
+                 api_base: str | None = None, api_key: str | None = None, jev_api_key: str | None = None, cache: bool = True,
+                 system1_gateway: system1.Gateway | bool | None = None):
         """`api_key` and `jev_api_key` are a workspace's own keys (`ai.keys`); without them the provider's usual
         variables apply. `cache=False` skips DSPy's response cache, whose keys leave out the API key: trying a key
-        must reach the provider."""
+        must reach the provider. `system1_gateway`: the gateway's classifier (None: from the environment, False: not
+        used, as for a team's own TypeSafe key); when there is one it answers decisions instead of Jev directly."""
         configure_cache()
         self._models = dict(models) if models is not None else None
         self.api_base = api_base if api_base is not None else os.environ.get("SOPOPS_LLM_API_BASE") or None
         self.api_key = api_key
         self.jev_api_key = jev_api_key
         self.cache = cache
-        self.jev = jev_enabled() if jev is None else jev
+        gw = system1.gateway() if system1_gateway is None or system1_gateway is True else system1_gateway
+        self.system1: system1.Gateway | None = gw or None
+        self.jev = (jev_enabled() if jev is None else jev) and self.system1 is None
         self.jev_model = jev_model or os.environ.get("SOPOPS_JEV_MODEL") or JEV_MODEL
         self.usage = Usage()
         self._clients: dict[str, Any] = {}
@@ -171,29 +182,50 @@ class Models:
 
     def model(self, role: str) -> str | None:
         if role == DECIDE:
+            if self.system1 is not None:
+                return self.system1.model
             if self.jev:
                 return self.jev_model
-            if self._models is not None and DECIDE in self._models:
-                return self._models[DECIDE] or self.model("fast")
-            return decision_model() or self.model("fast")
+            return self.decision_fallback()
         m = self._models.get(role) if self._models is not None and role in self._models else model_for(role)
         return None if not m or m == RULES else m
 
+    def decision_fallback(self) -> str | None:
+        """The model that answers decisions without a classifier (and when the gateway's is unavailable)."""
+        if self._models is not None and DECIDE in self._models:
+            return self._models[DECIDE] or self.model("fast")
+        return decision_model() or self.model("fast")
+
     def decision_native(self) -> bool:
-        return self.jev
+        return self.jev or self.system1 is not None
 
     def client(self, role: str) -> Any:
-        """The role's client: a `dspy.LM`, or for `decide` with Jev on, `dspy.experimental.TypeSafe`."""
+        """The role's client: a `dspy.LM`, or for `decide`, the classifier's System One client
+        (`system1.GatewaySystemOne`, or `dspy.experimental.TypeSafe` with Jev on)."""
+        if role == DECIDE and self.system1 is not None:
+            key = f"system1:{self.system1.url}:{self.system1.model}"
+            with self._lock:
+                if key not in self._clients:
+                    self._clients[key] = system1.GatewaySystemOne(self.system1, cache=self.cache)
+                return self._clients[key]
         model = self.model(role)
         if not model:
             raise NotConfigured(f"no model for role '{role}': set SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING")
         jev = role == DECIDE and self.jev
-        key = f"jev:{model}" if jev else model
+        if jev:
+            key = f"jev:{model}"
+            with self._lock:
+                if key not in self._clients:
+                    self._clients[key] = TypeSafe(model, api_key=self.jev_api_key, cache=self.cache, timeout=JEV_TIMEOUT_S)
+                return self._clients[key]
+        return self.lm(model)
+
+    def lm(self, model: str) -> Any:
+        """A `dspy.LM` for a model string (a `sopops/` name goes through the model gateway)."""
+        key = model
         with self._lock:
             if key not in self._clients:
-                if jev:
-                    self._clients[key] = TypeSafe(model, api_key=self.jev_api_key, cache=self.cache, timeout=JEV_TIMEOUT_S)
-                elif model.startswith(SOPOPS_PREFIX):
+                if model.startswith(SOPOPS_PREFIX):
                     gw = gateway()
                     if gw is None:
                         raise NotConfigured(f"{model} needs the model gateway: set {LM_URL_ENV} and {LM_KEY_ENV}")
@@ -208,21 +240,35 @@ class Models:
             return self._clients[key]
 
     def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction:
-        client = self.client(role).copy()
+        try:
+            return self._run(role, self.client(role).copy(), predictor, inputs)
+        except system1.Unavailable as e:
+            fallback = self.decision_fallback() if role == DECIDE else None
+            if not fallback:
+                raise AIError(f"{self.model(role)}: Unavailable: {str(e)[:500]}") from e
+            # As a deployment without a classifier would: the decision model answers, with the same thresholds.
+            log.warning("system-1 classifier unavailable, %s answers instead: %s", fallback, str(e)[:300])
+            return self._run(role, self.lm(fallback).copy(), predictor, inputs, model=fallback)
+
+    def _run(self, role: str, client: Any, predictor: dspy.Predict | type[dspy.Signature], inputs: dict[str, Any], model: str | None = None) -> dspy.Prediction:
         started = time.monotonic()
         try:
             with dspy.context(lm=client), spend.tracking():
                 return as_predict(predictor)(**inputs)
+        except system1.Unavailable:
+            raise
         except Exception as e:  # provider, parse and decoding errors come in many types; report them as one
-            raise AIError(f"{self.model(role)}: {type(e).__name__}: {str(e)[:500]}") from e
+            raise AIError(f"{model or self.model(role)}: {type(e).__name__}: {str(e)[:500]}") from e
         finally:
-            self._record(role, client, time.monotonic() - started)
+            self._record(role, client, time.monotonic() - started, model)
 
-    def _record(self, role: str, client: Any, seconds: float) -> None:
+    def _record(self, role: str, client: Any, seconds: float, model: str | None = None) -> None:
         row = {"input_tokens": 0.0, "output_tokens": 0.0, "cost_usd": 0.0, "seconds": seconds}
-        jev = isinstance(client, TypeSafe)
-        model = self.model(role) if not jev else self.jev_model
+        jev = getattr(client, "supports_decision_requests", False) is True  # Jev directly, or the gateway's classifier
+        model = model or (self.model(role) if not jev else self.jev_model)
         for h in getattr(client, "history", []):
+            if jev and h.get("model"):
+                model = h["model"]  # the gateway says which backend model answered (jev-1.13.0)
             u = h.get("usage") or {}
             tokens_in = float(u.get("prompt_tokens") or u.get("input_tokens") or 0)
             tokens_out = float(u.get("completion_tokens") or u.get("output_tokens") or 0)

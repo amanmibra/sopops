@@ -32,7 +32,7 @@ from sqlmodel import Session
 from ..errors import workspace_id
 from ..orm import AISetting
 from ..runtime import crypto
-from . import lm
+from . import lm, system1
 from .signatures import KeyCheck
 
 if TYPE_CHECKING:
@@ -143,7 +143,8 @@ class AIKeys:
             decision = lm.decision_model()
         return {
             "typesafe_key": team_ts or _env(TYPESAFE_ENV),
-            "typesafe_source": "team" if team_ts else ("default" if _env(TYPESAFE_ENV) else None),
+            # The deployment's: its TypeSafe key, or its model gateway's system-1 classifier (Jev, with the key there).
+            "typesafe_source": "team" if team_ts else ("default" if _env(TYPESAFE_ENV) or system1.gateway() else None),
             "provider": provider,
             "provider_key": team_key,
             "provider_source": "team" if team_key else ("default" if provider and _env(PROVIDERS.get(provider, PROVIDERS["other"]).env) else None),
@@ -165,7 +166,7 @@ class AIKeys:
             "fast": {"model": r["fast"], "source": r["fast_source"]},
             "reasoning": {"model": r["reasoning"], "source": r["reasoning_source"]},
             "decision": {"model": r["decision"], "source": "default" if r["decision"] else None},
-            "ready": bool((r["typesafe_key"] or r["decision"]) and r["fast"] and r["reasoning"]),
+            "ready": bool((r["typesafe_source"] or r["decision"]) and r["fast"] and r["reasoning"]),
             "providers": [{"id": p.id, "label": p.label, "lists_models": p.id != "other", "key_url": p.key_url,
                            "has_default_key": bool(_env(p.env))} for p in offered()],
             "typesafe_key_url": TYPESAFE_KEY_URL,
@@ -184,8 +185,9 @@ class AIKeys:
                 return hit[1]
         r = self._resolved(row)
         models = {"fast": r["fast"], "reasoning": r["reasoning"], lm.DECIDE: r["decision"]}
-        ai = lm.Models(models, jev=bool(r["typesafe_key"]) or lm.jev_enabled(),
-                       api_base=r["api_base"], api_key=r["provider_key"], jev_api_key=r["typesafe_key"])
+        # A team's own TypeSafe key goes to TypeSafe directly; otherwise the gateway's classifier, when there is one.
+        ai = lm.Models(models, jev=bool(r["typesafe_key"]) or lm.jev_enabled(), api_base=r["api_base"], api_key=r["provider_key"],
+                       jev_api_key=r["typesafe_key"], system1_gateway=False if r["typesafe_source"] == "team" else None)
         with self._lock:
             self._cache[row.workspace] = (row.updated_at, ai)
         return ai
@@ -197,7 +199,7 @@ class AIKeys:
         if not key:
             raise KeyRejected("Paste a TypeSafe API key.")
         try:
-            lm.Models({}, jev=True, jev_api_key=key, cache=False).predict(lm.DECIDE, KeyCheck, sentence="It's raining in Boston.")
+            lm.Models({}, jev=True, jev_api_key=key, cache=False, system1_gateway=False).predict(lm.DECIDE, KeyCheck, sentence="It's raining in Boston.")
         except lm.AIError as e:
             raise KeyRejected(f"TypeSafe didn't accept this key: {_short(e)}") from e
         self._save(workspace, typesafe_ciphertext=crypto.encrypt(key), typesafe_hint=crypto.hint(key))
@@ -261,7 +263,7 @@ class AIKeys:
         from . import estimate
 
         r = self._resolved(self.row(workspace))
-        jev = bool(r["typesafe_key"]) or lm.jev_enabled()
+        jev = bool(r["typesafe_key"]) or lm.jev_enabled() or system1.gateway() is not None  # the gateway's classifier is Jev
         decision = (os.environ.get("SOPOPS_JEV_MODEL") or lm.JEV_MODEL) if jev else fast
         models = {"decision": decision, "fast": fast.strip(), "reasoning": reasoning.strip()}
         return estimate.estimate(models, calls_per_month, estimate.measured(self.store.engine, workspace))

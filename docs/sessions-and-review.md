@@ -85,7 +85,7 @@ Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, 
 
 | Topic | What to know |
 |---|---|
-| **Jev** | With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key. |
+| **Jev** | With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key. A deployment with a model gateway can serve Jev (or another system-1 classifier) from there instead (`SOPOPS_SYSTEM1_URL`), keeping the key in the gateway. |
 | **A team's own keys** | The environment variables are the deployment's defaults. In setup, and later in Settings under Checks, a team adds its own TypeSafe key, picks Anthropic, OpenAI, Google or any other LiteLLM provider, pastes a key (or uses the deployment's) and picks the two models from those the key can use. Each key and model is tried before it's saved, stored encrypted with `SOPOPS_SECRET_KEY`, and never shown again. Anything a team doesn't set uses the default. |
 | **Check modes** | `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand. |
 | **Spend** | Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See Results → Insights → Model spend, and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored. |

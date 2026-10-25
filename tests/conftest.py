@@ -52,7 +52,7 @@ def no_sign_in(monkeypatch):
 @pytest.fixture(autouse=True)
 def no_models(monkeypatch):
     """Tests never reach a real model: no model env, and the process-wide client reset."""
-    for var in (*ROLE_ENV.values(), "TYPESAFE_API_KEY", "SOPOPS_JEV", "SOPOPS_DECISIONS", "SOPOPS_CHECK_REVIEW", "SOPOPS_CHECK_MODE"):
+    for var in (*ROLE_ENV.values(), "TYPESAFE_API_KEY", "SOPOPS_JEV", "SOPOPS_SYSTEM1_URL", "SOPOPS_SYSTEM1_MODEL", "SOPOPS_SYSTEM1_KEY", "SOPOPS_SYSTEM1", "SOPOPS_DECISIONS", "SOPOPS_CHECK_REVIEW", "SOPOPS_CHECK_MODE"):
         monkeypatch.delenv(var, raising=False)
     set_ai(None)
     yield
