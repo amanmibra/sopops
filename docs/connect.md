@@ -2,6 +2,14 @@
 
 Agents get their instructions from sopops and send their sessions back. Paths below start with `/v1/workspaces/{ws}`, where `{ws}` is the workspace id.
 
+| Platform | Instructions | Sessions |
+|---|---|---|
+| LiveKit | Code: `attach` | No code (room capture), or code: `attach`, with tool calls |
+| ElevenLabs | No code: push on publish, or the conversation-initiation webhook | No code: the post-call webhook |
+| Vapi | No code: push on publish, or the assistant-request webhook | No code: the end-of-call report |
+
+You can set up sessions without instructions. An agent can keep its instructions in its own code and still send every call back with no code.
+
 ## Install the client
 
 ```sh
@@ -61,7 +69,7 @@ Session capture without code sits under the gear icon → Agents and platforms �
 
 ## Connect LiveKit
 
-**Instructions:** the LiveKit adapter's `attach`, in either SDK. The token needs the `runtime` and `ingest` scopes.
+**Instructions:** the LiveKit adapter's `attach`, in either SDK. LiveKit has no call-start webhook, so instructions need `attach`. The token needs the `runtime` and `ingest` scopes. To only record calls, skip to **Sessions with no code** below.
 
 ```python
 from sopops.livekit import attach
@@ -99,11 +107,13 @@ async function entrypoint(ctx: JobContext) {
 **Sessions with no code** (no tool calls):
 
 1. In Settings, connect the project: URL, an API key and its secret.
-2. Run `pip install 'sopops-server[livekit]'` where sopops and its worker run.
+2. Self-hosted without Docker only: run `pip install 'sopops-server[livekit]'` where sopops and its worker run. The Docker image already has it.
 3. In LiveKit Cloud → Settings → Webhooks, add `/v1/workspaces/{ws}/capture/livekit/webhook`, signed with that key.
 
 - sopops joins each room an agent joins, hidden and subscribe-only, and streams `lk.transcription` into a session keyed by the job id, closed when the call ends, as `attach` does.
 - The agent is the dispatch name, else `{"sopops": {"agent": "<id>"}}` in job or room metadata, else the mapping in Settings.
+- Only LiveKit Cloud URLs work, unless `SOPOPS_LIVEKIT_ANY_HOST` is set ([configuration](configuration.md)).
+- sopops doesn't know which release the call ran unless it is pinned as `{"sopops_release": 3}` in job or room metadata.
 
 ## Connect ElevenLabs
 

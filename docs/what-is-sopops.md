@@ -11,14 +11,16 @@ those blocks with its own text into a prompt. When you publish, sopops creates a
 release that records the exact prompt each agent receives.
 
 At the start of a call, an agent fetches its instructions and records the
-release it ran. If you change an instruction later, the next call fetches the
-new release. A call that already started keeps its original release.
+release it ran, or its platform gets them by webhook. With push delivery,
+publishing writes the instructions into the agent on its platform. If you
+change an instruction later, the next call fetches the new release. A call
+that already started keeps its original release.
 
 ## A checked call links a rule to evidence
 
-Send each finished call to sopops. It records the transcript, tool calls, and
-release, then checks the procedures that applied. A result includes the rule,
-status, and quotes that support it.
+Send each finished call to sopops, by webhook or SDK. It records the
+transcript, tool calls, and release, then checks the procedures that applied.
+A result includes the rule, status, and quotes that support it.
 
 Findings from similar calls become patterns. A pattern can show a real mistake,
 a valid exception, an outdated procedure, or a checker mistake.

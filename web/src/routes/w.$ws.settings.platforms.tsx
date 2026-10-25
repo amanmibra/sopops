@@ -10,7 +10,8 @@ function Platforms() {
   return (
     <>
       <SectionHead title="Connect your agents to sopops">
-        Each agent gets its instructions from sopops and sends its calls back to be checked. Start with the table, then add keys for the platforms you use.
+        Each agent gets its instructions from sopops and sends its calls back to be checked. The two are set up separately, and calls can come back with no code
+        even while the instructions stay in your agent's code. Start with the table, then add keys for the platforms you use.
       </SectionHead>
       <PlatformsYouUse />
       <RuntimePanels />

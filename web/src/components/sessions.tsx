@@ -176,13 +176,15 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         Sessions
       </PageTitle>
       <Sub>
-        Every voice call and text chat your agents had, newest first. Send them from {plats.has("livekit") && (
+        Every voice call and text chat your agents had, newest first. They arrive from your platforms with no code (
+        <HrefLink href={settingsHref(ws, "platforms")}>Settings, under Platforms</HrefLink>). You can also send them from{" "}
+        {plats.has("livekit") && (
           <>
-            the <HrefLink href="https://github.com/amanmibra/sopops#sessions">LiveKit helper</HrefLink>,{" "}
+            the <HrefLink href="https://github.com/amanmibra/sopops/blob/main/docs/connect.md#connect-livekit">LiveKit helper</HrefLink>,{" "}
           </>
         )}
-        the API or{" "}
-        <code className="text-sm">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink> (the gear icon).
+        the API or <code className="text-sm">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink>{" "}
+        (the gear icon).
       </Sub>
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">

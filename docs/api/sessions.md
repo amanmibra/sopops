@@ -1,6 +1,6 @@
 # Sessions
 
-A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the SDKs' adapters, [Python](../../sdks/python) and [Node](../../sdks/node)), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API. All of them use one [canonical format](#the-canonical-format).
+A session is one conversation an agent had: a voice call or a text chat. Sessions come from LiveKit (the SDK adapters, [Python](../../sdks/python) and [Node](../../sdks/node), or no-code room capture), ElevenLabs or Vapi, or from OpenTelemetry, a file import or the API. All of them use one [canonical format](#the-canonical-format).
 
 ## Send and read sessions
 
