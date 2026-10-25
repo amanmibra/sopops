@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import type { AuthState, InviteInfo } from "@/lib/api";
 import { call, sdk } from "@/lib/api";
 import { pendingInvite, useAuth, useSignOut } from "@/lib/auth";
+import { appHref } from "@/lib/paths";
 
 export const Route = createFileRoute("/invite")({ component: Invite });
 
@@ -63,7 +64,7 @@ function Invite() {
       <Card title={`You're in ${inv.org_name}`}>
         <p className="text-muted-foreground mb-5 text-sm">You joined as {inv.role === "member" ? "a member" : `an ${inv.role}`}.</p>
         <Button asChild>
-          <a href="/">Open sopops</a>
+          <a href={appHref("/")}>Open sopops</a>
         </Button>
       </Card>
     );

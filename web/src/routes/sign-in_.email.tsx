@@ -5,6 +5,7 @@ import { Card } from "@/components/account";
 import { Banner } from "@/components/bits";
 import { Button } from "@/components/ui/button";
 import { call, sdk } from "@/lib/api";
+import { appHref, appPath, assignApp } from "@/lib/paths";
 
 export const Route = createFileRoute("/sign-in_/email")({ component: EmailLink });
 
@@ -28,7 +29,7 @@ function EmailLink() {
           {error ? `${error.charAt(0).toUpperCase()}${error.slice(1)}.` : "It's missing its code."} Links work once, for 15 minutes.
         </p>
         <Button asChild variant="outline">
-          <a href="/sign-in">Get a new link</a>
+          <a href={appHref("/sign-in")}>Get a new link</a>
         </Button>
       </Card>
     );
@@ -37,7 +38,7 @@ function EmailLink() {
     try {
       const got = await call(sdk.confirmEmailLink({ body: { token } }));
       qc.clear();
-      window.location.assign(got.next.startsWith("/sign-in") ? "/" : got.next);
+      assignApp(appPath(got.next).startsWith("/sign-in") ? "/" : got.next);
     } catch (e) {
       setError((e instanceof Error ? e.message : String(e)).replace(/\.$/, ""));
       setBusy(false);

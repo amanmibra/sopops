@@ -15,6 +15,7 @@ import { ConnectGuide } from "./connect-guide";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { apiOrigin } from "@/lib/paths";
 
 type Mode = AgentDeliveryOut["mode"];
 type Platform = PlatformCredentials["platform"];
@@ -182,7 +183,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
   const [shown, setShown] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const name = platformName(creds.platform);
-  const hook = `${window.location.origin}/v1/workspaces/${encodeURIComponent(ws)}/${WEBHOOK[creds.platform].path}`;
+  const hook = `${apiOrigin()}/v1/workspaces/${encodeURIComponent(ws)}/${WEBHOOK[creds.platform].path}`;
   const refresh = () => qc.invalidateQueries({ queryKey: keyOf(ws, "platforms") });
 
   const save = async (kind: SecretKind, value: string | null) => {

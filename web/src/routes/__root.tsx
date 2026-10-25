@@ -5,6 +5,7 @@ import { TopBar } from "@/components/layout";
 import { SupportBanner } from "@/components/support";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { appHref } from "@/lib/paths";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   component: Root,
@@ -12,7 +13,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     <main className="px-8 py-6">
       <h1 className="text-2xl font-semibold">Not found</h1>
       <p className="text-muted-foreground">
-        There's no page here. <a href="/">Go home</a>.
+        There's no page here. <a href={appHref("/")}>Go home</a>.
       </p>
     </main>
   ),

@@ -45,7 +45,7 @@ from .auth import access, providers
 from .auth.service import Accounts
 from .db import database_url
 from .events import PgListener
-from . import extensions
+from . import extensions, urls
 from .jobs import Jobs
 from .onboarding.service import Onboarding, ai_from_env
 from .sopc import Sopc
@@ -121,7 +121,10 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         app.include_router(r)
     app.include_router(onboarding.router(store, app.state.onboarding), dependencies=OPEN)
     extensions.load(app, store, jobs)  # before the UI's catch-all, or it answers the extensions' routes
-    app.include_router(ui.router())
+    web = ui.web_dir()
+    app.state.layout = urls.Layout.of(web)  # where the built UI and its API live: "/" and "/v1" unless built for a sub-path
+    app.add_middleware(urls.PrefixMiddleware, layout=app.state.layout)
+    app.include_router(ui.router(web))
     return app
 
 

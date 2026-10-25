@@ -14,3 +14,5 @@ docs/.vitepress/dist/
 docs/.vitepress/cache/
 sdks/node/*.tgz
 sdks/python/dist/
+web/dist-cloudflare/
+web/.wrangler/

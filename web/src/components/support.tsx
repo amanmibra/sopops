@@ -16,6 +16,7 @@ import { Checkbox } from "./ui/checkbox";
 import { DropdownMenuItem } from "./ui/dropdown-menu";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { assignApp } from "@/lib/paths";
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const fail = (e: unknown) => toast.error(message(e));
@@ -33,7 +34,7 @@ export function SupportBanner({ auth }: { auth: AuthState }) {
   // The session has died of its own accord: load the app again as yourself, so none of the customer's data is left on
   // screen without the band over it.
   useEffect(() => {
-    if (was.current && !running) window.location.assign("/");
+    if (was.current && !running) assignApp("/");
     was.current = running;
   }, [running]);
   return state.data?.running ? <Band state={state.data} /> : null;
@@ -73,7 +74,7 @@ function Band({ state }: { state: SupportState }) {
       fail(e);
       return;
     }
-    window.location.assign("/"); // a full load: nothing of the customer's stays in a cache
+    assignApp("/"); // a full load: nothing of the customer's stays in a cache
   };
 
   const ends = when(state.until);
@@ -138,7 +139,7 @@ export function StartSupportSession() {
       return;
     }
     // A full load, as the customer's member: nothing of your own account stays cached, and / lands in their workspace.
-    window.location.assign("/");
+    assignApp("/");
   };
 
   return (

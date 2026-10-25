@@ -46,7 +46,24 @@ See [Sign in](sign-in.md).
 | `SOPOPS_OPEN_SIGNUP` | `true` | Anyone can sign up (name, email, password, team name) and owns the new team, with no invite link. On wherever passwords are the way in. Set it to `0` for invites only, which a sopops on a public address and this server's model keys may want. |
 | `SOPOPS_LOGIN_PROVIDERS` | unset | Comma-separated provider ids (`github`, `google`, `email`, `password`, and any a plugin registers): the only ones offered. Unset, every provider that's set up is offered. A list naming none that are set up is ignored, with a warning. |
 | `SOPOPS_ALLOWED_EMAIL_DOMAINS` | unset | Comma-separated. Only verified emails at these domains can sign in. With email set up, they can also make a password account. |
-| `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach sopops. Base of sign-in callbacks and invite links. |
+| `SOPOPS_PUBLIC_URL` | the request's own address | Where people reach the web UI, path included if it has one (`https://example.com/sopops`). Base of invite, sign-in and password links, and of the pages sign-in sends people back to. Also the base of sign-in callbacks unless `SOPOPS_PUBLIC_API_URL` is set. |
+| `SOPOPS_PUBLIC_API_URL` | `SOPOPS_PUBLIC_URL` | Where the browser reaches the API, when that isn't under `SOPOPS_PUBLIC_URL` (the UI at `https://example.com/app`, the API at `https://example.com/api`). Base of sign-in callbacks. |
+
+## Serving sopops under a path
+
+By default the UI is at `/` and the API at `/v1/...`. To put sopops under a path behind a reverse proxy, build the UI
+for it and tell the server where people reach it:
+
+```sh
+SOPOPS_WEB_BASE=/sopops/ pnpm -C web build    # the UI's base; its API calls go to /sopops/v1/... too
+SOPOPS_PUBLIC_URL=https://example.com/sopops   # for links and sign-in callbacks
+```
+
+The UI and the API can have separate prefixes: `SOPOPS_WEB_API_BASE=/api` at build time, and `SOPOPS_PUBLIC_API_URL`
+on the server. The server reads both bases back from the built UI. A proxy can forward with the prefix still on the
+path, or take it off and say which in `X-Forwarded-Prefix`; a proxy that takes it off without saying makes a redirect
+loop. `web/wrangler.jsonc` builds the UI for Cloudflare Workers instead (`pnpm build:cloudflare`), for a deployment
+that serves it from there; nothing in self-hosting uses it.
 
 ## Platforms and webhooks
 

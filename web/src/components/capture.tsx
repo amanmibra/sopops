@@ -13,6 +13,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { apiOrigin } from "@/lib/paths";
 
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const captureKey = (ws: string) => ["ws", ws, "runtime", "capture"];
@@ -30,7 +31,7 @@ function useCapture() {
 
 /** A webhook address to copy, with the steps that go with it. */
 function HookBox({ title, path, steps, children }: { title: string; path: string; steps: ReactNode[]; children?: ReactNode }) {
-  const url = `${window.location.origin}${path}`;
+  const url = `${apiOrigin()}${path}`;
   return (
     <div className="bg-muted/40 grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">{title}</div>

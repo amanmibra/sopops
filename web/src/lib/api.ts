@@ -3,8 +3,9 @@ import { type QueryClient, infiniteQueryOptions, queryOptions } from "@tanstack/
 import { client } from "@/client/client.gen";
 import * as sdk from "@/client/sdk.gen";
 import type { ConfigResponse, IssueOut, RuleResultOut, SessionSummary } from "@/client/types.gen";
+import { API_BASE, appPath, assignApp } from "./paths";
 
-client.setConfig({ baseUrl: "" });
+client.setConfig({ baseUrl: API_BASE });
 
 /** Signed in, requests that change things carry the CSRF token: the sopops_csrf cookie's value, as a header. */
 const CSRF_COOKIE = "sopops_csrf";
@@ -55,8 +56,8 @@ export async function call<T>(p: Promise<{ data?: T; error?: unknown; response?:
 
 /** The session ended (expired, or signed out elsewhere): to the sign-in page, then back here. */
 export function toSignIn() {
-  const here = window.location.pathname + window.location.search;
-  if (!window.location.pathname.startsWith("/sign-in")) window.location.assign(`/sign-in?next=${encodeURIComponent(here)}`);
+  const here = appPath() + window.location.search;
+  if (!appPath().startsWith("/sign-in")) assignApp(`/sign-in?next=${encodeURIComponent(here)}`);
 }
 
 /** An issue made here rather than by sopc (a message to show the same way). */

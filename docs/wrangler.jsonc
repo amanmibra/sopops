@@ -1,4 +1,6 @@
-// docs.sopops.dev: VitePress's static build, served as assets by a Cloudflare Worker (no Worker code).
+// The docs: VitePress's static build, served as assets by a Cloudflare Worker (no Worker code). At docs.sopops.dev
+// the build is at the root of .vitepress/dist; built with DOCS_BASE=/docs/ it is under .vitepress/dist/docs/, so this
+// Worker answers sopops.dev/docs/... with the path as it is.
 {
   "name": "sopops-docs",
   "compatibility_date": "2026-10-01",

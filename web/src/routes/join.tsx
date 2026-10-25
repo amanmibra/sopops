@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { type AuthState, type JoinInfo, call, sdk } from "@/lib/api";
 import { pendingJoin, useAuth } from "@/lib/auth";
 import { FLOWS, setupHref } from "@/lib/setup";
+import { appHref, assignApp } from "@/lib/paths";
 
 export const Route = createFileRoute("/join")({ component: Join });
 
@@ -70,7 +71,7 @@ function JoinSignedIn({ auth, info, token }: { auth: AuthState; info: JoinInfo; 
       const state = await call(sdk.acceptJoinLink({ body: { token } }));
       pendingJoin.set(null);
       qc.clear();
-      window.location.assign(into(state, false)); // the team's home asks for platforms if nobody has picked
+      assignApp(into(state, false)); // the team's home asks for platforms if nobody has picked
     } catch (e) {
       setError(message(e));
       setBusy(false);
@@ -106,7 +107,7 @@ function JoinSignedIn({ auth, info, token }: { auth: AuthState; info: JoinInfo; 
           variant="outline"
           onClick={() => {
             pendingJoin.set(null);
-            window.location.assign("/");
+            assignApp("/");
           }}
         >
           Not now
@@ -131,7 +132,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
   const signIn = (
     <p className="text-muted-foreground mt-4 text-sm">
       Have an account here?{" "}
-      <a className="text-primary underline-offset-2 hover:underline" href={`/sign-in?next=${encodeURIComponent("/join")}`}>
+      <a className="text-primary underline-offset-2 hover:underline" href={appHref(`/sign-in?next=${encodeURIComponent("/join")}`)}>
         Sign in to join
       </a>
       .
@@ -142,7 +143,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
       <Card title={`Join ${info.org_name} on sopops`}>
         <p className="text-muted-foreground mb-4 text-sm">Sign in, and you'll join as {asRole(info.role)}.</p>
         <Button asChild>
-          <a href={`/sign-in?next=${encodeURIComponent("/join")}`}>Sign in to join</a>
+          <a href={appHref(`/sign-in?next=${encodeURIComponent("/join")}`)}>Sign in to join</a>
         </Button>
       </Card>
     );
@@ -170,7 +171,7 @@ function JoinNew({ auth, info, token }: { auth: AuthState; info: JoinInfo; token
       const state = await call(sdk.joinWithLink({ body: { token, name: name.trim(), email: email.trim(), password } }));
       pendingJoin.set(null);
       qc.clear();
-      window.location.assign(into(state, info.needs_platforms));
+      assignApp(into(state, info.needs_platforms));
     } catch (err) {
       setError(message(err));
     }

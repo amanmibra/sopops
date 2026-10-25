@@ -18,6 +18,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
+import { appPath, assignApp } from "@/lib/paths";
 
 /** Pages anyone can open: signing in, signing up, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
 const OPEN_PAGES = ["/sign-in", "/sign-up", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
@@ -74,7 +75,7 @@ export function useSignedIn() {
   const qc = useQueryClient();
   return (next: string) => {
     qc.clear();
-    window.location.assign(next.startsWith("/sign-in") ? "/" : next);
+    assignApp(appPath(next).startsWith("/sign-in") ? "/" : next);
   };
 }
 
@@ -366,7 +367,7 @@ function NameYourTeam({ email }: { email: string }) {
     setError(null);
     try {
       const made = await call(sdk.createTeam({ body: { name: name.trim() } }));
-      window.location.assign(`/w/${encodeURIComponent(made.workspace)}`);
+      assignApp(`/w/${encodeURIComponent(made.workspace)}`);
     } catch (e) {
       setError(message(e));
       setBusy(false);
@@ -473,7 +474,7 @@ export function UserMenu({ auth }: { auth: AuthState }) {
     try {
       const state = await call(sdk.switchOrg({ body: { org_id: orgId } }));
       qc.clear();
-      window.location.assign(state.org?.workspace ? `/w/${encodeURIComponent(state.org.workspace)}` : "/");
+      assignApp(state.org?.workspace ? `/w/${encodeURIComponent(state.org.workspace)}` : "/");
     } catch (e) {
       toast.error(message(e));
     }
@@ -542,7 +543,7 @@ function CreateTeam({ onDone }: { onDone: () => void }) {
     try {
       const made = await call(sdk.createTeam({ body: { name: name.trim() } }));
       qc.clear();
-      window.location.assign(`/w/${encodeURIComponent(made.workspace)}`);
+      assignApp(`/w/${encodeURIComponent(made.workspace)}`);
     } catch (e) {
       setError(message(e));
       setBusy(false);

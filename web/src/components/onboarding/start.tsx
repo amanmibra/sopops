@@ -22,6 +22,7 @@ import { Textarea } from "../ui/textarea";
 import { repoProjectQuery, repoQuery } from "../repo";
 import { ProjectFinding, RepoConnect } from "./github";
 import { SopcSource } from "./sopc";
+import { apiOrigin } from "@/lib/paths";
 
 type Where = "sopops" | "repo";
 type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc";
@@ -457,7 +458,7 @@ function AgentSource({ mode }: { mode: "hosted" | "repo" }) {
     setBusy(true);
     setError(null);
     try {
-      const k = await call(sdk.startAgentImport({ path: { workspace: ws }, body: { mode, server_url: window.location.origin, author: author() } }));
+      const k = await call(sdk.startAgentImport({ path: { workspace: ws }, body: { mode, server_url: apiOrigin(), author: author() } }));
       rememberKickoff(k);
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
       go(wsHref(ws, "import", k.import.id));

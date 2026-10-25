@@ -2,6 +2,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { SessionEvent } from "./api";
+import { apiUrl } from "./paths";
 
 export function useSessionStream(ws: string) {
   const qc = useQueryClient();
@@ -10,7 +11,7 @@ export function useSessionStream(ws: string) {
   const timers = useRef(new Map<string, number>());
 
   useEffect(() => {
-    const source = new EventSource(`/v1/workspaces/${encodeURIComponent(ws)}/sessions/stream`);
+    const source = new EventSource(apiUrl(`/v1/workspaces/${encodeURIComponent(ws)}/sessions/stream`));
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false); // EventSource reconnects by itself
     source.addEventListener("session", (msg) => {
@@ -42,7 +43,7 @@ export function useSessionStream(ws: string) {
 export function useRepoStream(ws: string) {
   const qc = useQueryClient();
   useEffect(() => {
-    const source = new EventSource(`/v1/workspaces/${encodeURIComponent(ws)}/sessions/stream`);
+    const source = new EventSource(apiUrl(`/v1/workspaces/${encodeURIComponent(ws)}/sessions/stream`));
     source.addEventListener("repo", () => void qc.invalidateQueries({ queryKey: ["ws", ws] }));
     return () => source.close();
   }, [ws, qc]);

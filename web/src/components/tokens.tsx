@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { apiOrigin } from "@/lib/paths";
 
 type Scope = "ingest" | "runtime" | "config";
 
@@ -31,7 +32,7 @@ export function TokensPanel() {
   const [days, setDays] = useState("");
   const [shown, setShown] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const url = `${window.location.origin}/v1/workspaces/${encodeURIComponent(ws)}`;
+  const url = `${apiOrigin()}/v1/workspaces/${encodeURIComponent(ws)}`;
   const refresh = () => qc.invalidateQueries({ queryKey: ["ws", ws, "tokens"] });
 
   const toggle = (s: Scope, on: boolean) => setScopes((cur) => (on ? [...new Set([...cur, s])] : cur.filter((x) => x !== s)));

@@ -2,6 +2,7 @@
 // it always did, with the "Your name" box recording authors. Signed in, the server records the user instead.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type AuthState, call, q, sdk } from "./api";
+import { apiUrl, assignApp } from "./paths";
 
 let current: AuthState | null = null;
 
@@ -20,13 +21,13 @@ export function useSignOut(to = "/sign-in") {
   return async () => {
     await call(sdk.signOut());
     qc.clear();
-    window.location.assign(to);
+    assignApp(to);
   };
 }
 
 /** Where each provider's button starts signing in, coming back to `next`. */
 export const signInHref = (provider: string, next: string) =>
-  `/v1/auth/login/${encodeURIComponent(provider)}?next=${encodeURIComponent(next)}`;
+  apiUrl(`/v1/auth/login/${encodeURIComponent(provider)}?next=${encodeURIComponent(next)}`);
 
 // An invite or join link's token waits here while its holder signs in, so it never goes in a URL the server logs.
 function pending(key: string) {

@@ -9,6 +9,7 @@ import { useWs } from "@/lib/workspace";
 import { Banner, CopyBlock, ErrorBanner, Note, Panel } from "./bits";
 import { SectionHead } from "./settings";
 import { Button } from "./ui/button";
+import { apiOrigin } from "@/lib/paths";
 
 // sopops-mcp ships in the Python SDK's `mcp` extra; uvx installs it from the repo until it's on PyPI (see
 // sdks/python/src/sopops/mcp.py and the server's kickoff).
@@ -31,7 +32,7 @@ export function McpSection() {
   const list = useQuery(q.tokens(ws));
   const [made, setMade] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const url = window.location.origin;
+  const url = apiOrigin();
   const live = (list.data ?? []).filter((t) => t.active && t.scopes.includes("config"));
   const create = async () => {
     setBusy(true);

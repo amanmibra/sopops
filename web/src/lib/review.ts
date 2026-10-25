@@ -2,6 +2,7 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { AgentPromptChange, CalibrateIn, OverrideIn, ReviewExample, ReviewItem, SuggestionSummary, VerdictIn } from "@/client/types.gen";
 import { call, sdk } from "./api";
+import { apiUrl } from "./paths";
 
 export type Verdict = VerdictIn["verdict"];
 export const VERDICTS: Verdict[] = ["real", "acceptable", "sop_wrong", "checker_wrong"];
@@ -64,7 +65,7 @@ export const review = {
   dismiss: (ws: string, id: string, note: string | null, reviewer: string | null) => call(sdk.dismissSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { note, reviewer } })),
 };
 
-export const regressionHref = (ws: string, id: string) => `/v1/workspaces/${encodeURIComponent(ws)}/patterns/${encodeURIComponent(id)}/regression`;
+export const regressionHref = (ws: string, id: string) => apiUrl(`/v1/workspaces/${encodeURIComponent(ws)}/patterns/${encodeURIComponent(id)}/regression`);
 
 /** A suggestion's one-line summary: the first sentence of its rationale. */
 export const summaryOf = (s: SuggestionSummary) => s.rationale?.split(/(?<=[.!?])\s/)[0] ?? null;

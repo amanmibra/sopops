@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { Card, SignInButtons } from "@/components/account";
 import { Banner } from "@/components/bits";
 import { useGo } from "@/components/href-link";
-import { useAuth } from "@/lib/auth";
+import { signInHref, useAuth } from "@/lib/auth";
 
 type Search = { next?: string; error?: string };
 
@@ -28,7 +28,7 @@ function SignIn() {
   const only = auth && !auth.password_email && auth.providers.length === 1 && auth.providers[0]?.redirects ? auth.providers[0].id : null;
   useEffect(() => {
     if (done) void go(safeNext(next), { replace: true });
-    else if (only && !error) window.location.replace(`/v1/auth/login/${only}?next=${encodeURIComponent(safeNext(next))}`);
+    else if (only && !error) window.location.replace(signInHref(only, safeNext(next)));
   }, [done, only, error, next, go]);
   if (!auth || done || (only && !error)) return null;
   if (auth.first_account) return <Navigate to="/welcome" replace />;

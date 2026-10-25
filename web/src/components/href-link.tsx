@@ -1,13 +1,14 @@
 import { useRouter } from "@tanstack/react-router";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
+import { appHref } from "@/lib/paths";
 
 /** A link to an app path built at runtime (item pages). Navigates through the router, so unsaved-edit guards apply. */
 export function HrefLink({ href, className, onClick, ...props }: ComponentProps<"a"> & { href: string }) {
   const router = useRouter();
   return (
     <a
-      href={href}
+      href={appHref(href)}
       className={cn("text-primary hover:underline underline-offset-2", className)}
       onClick={(e) => {
         onClick?.(e);

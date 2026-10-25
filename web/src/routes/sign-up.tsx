@@ -3,7 +3,8 @@ import { useEffect } from "react";
 import { Card, PasswordEmail } from "@/components/account";
 import { NewAccount } from "@/components/new-account";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
+import { signInHref, useAuth } from "@/lib/auth";
+import { appHref, assignApp } from "@/lib/paths";
 
 export const Route = createFileRoute("/sign-up")({ component: SignUp });
 
@@ -19,7 +20,7 @@ function SignUp() {
     ? authState.providers[0].id
     : null;
   useEffect(() => {
-    if (only) window.location.replace(`/v1/auth/login/${only}?next=${encodeURIComponent("/")}`);
+    if (only) window.location.replace(signInHref(only, "/"));
   }, [only]);
   const auth = useAuth().data;
   if (!auth) return null;
@@ -34,12 +35,12 @@ function SignUp() {
       </p>
       {auth.sign_up && (
         <div className="mb-5">
-          <PasswordEmail signUp onBack={() => window.location.assign("/sign-in")} />
+          <PasswordEmail signUp onBack={() => assignApp("/sign-in")} />
         </div>
       )}
       {!auth.sign_up && (
         <Button asChild variant="outline">
-          <a href="/sign-in">Back to sign in</a>
+          <a href={appHref("/sign-in")}>Back to sign in</a>
         </Button>
       )}
     </Card>

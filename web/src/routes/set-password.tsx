@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { call, sdk } from "@/lib/api";
+import { appHref } from "@/lib/paths";
 
 export const Route = createFileRoute("/set-password")({ component: SetPassword });
 
@@ -40,7 +41,7 @@ function SetPassword() {
           if it's there.
         </p>
         <Button asChild variant="outline">
-          <a href="/sign-in">Go to sign in</a>
+          <a href={appHref("/sign-in")}>Go to sign in</a>
         </Button>
       </Card>
     );

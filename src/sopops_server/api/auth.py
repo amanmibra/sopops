@@ -3,7 +3,8 @@
 The browser signs in at `/v1/auth/login/<provider>`, which sends it to GitHub or Google with `state` and a PKCE code
 challenge, kept with the code verifier in a short-lived HttpOnly cookie. The provider sends it back to
 `/v1/auth/callback/<provider>`, which checks `state`, trades the code for the profile and starts a login session. The
-callback URL is SOPOPS_PUBLIC_URL (the address people reach sopops at) plus that path, else this request's own address.
+callback URL is the API's public address plus that path (`sopops_server.urls`: SOPOPS_PUBLIC_API_URL, else
+SOPOPS_PUBLIC_URL, else this request's own address), and the pages it sends people back to are under the UI's.
 
 Email sign-in: `POST /v1/auth/email` mails a link (`<sopops>/sign-in/email#<token>`) and always answers the same,
 whether the address gets one or not. The page posts the token to `/v1/auth/email/confirm` when the person clicks, which
@@ -43,7 +44,6 @@ import binascii
 import hmac
 import json
 import logging
-import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
@@ -51,7 +51,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from .. import mail
+from .. import mail, urls
 from ..auth import access, email, mode, providers
 from ..auth.service import (INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword,
                              check_role, clean_email, sign_up_domains)
@@ -100,7 +100,7 @@ from ..tokens import Forbidden, Unauthorized
 
 log = logging.getLogger("sopops.auth")
 
-PUBLIC_URL_ENV = "SOPOPS_PUBLIC_URL"
+PUBLIC_URL_ENV = urls.PUBLIC_URL_ENV
 OAUTH_COOKIE = "sopops_oauth"
 OAUTH_COOKIE_PATH = "/v1/auth/callback"
 OAUTH_TTL_S = 600
@@ -108,20 +108,22 @@ SESSION_MAX_AGE = SESSION_DAYS * 24 * 3600
 LINK_SENT = "If that address can sign in, we sent a link. It works for 15 minutes."
 PASSWORD_LINK_SENT = "If that address can have a password here, we sent a link to set one. It works for an hour."
 
-
-def public_url(request: Request) -> str:
-    """Where people reach sopops: SOPOPS_PUBLIC_URL, else this request's own scheme and host."""
-    return (os.environ.get(PUBLIC_URL_ENV, "").strip() or str(request.base_url)).rstrip("/")
+public_url = urls.public_url  # where people reach the UI: the links sopops sends
 
 
 def callback_url(request: Request, provider: str) -> str:
-    return f"{public_url(request)}/v1/auth/callback/{provider}"
+    return f"{urls.public_api_url(request)}/v1/auth/callback/{provider}"
+
+
+def oauth_cookie_path(request: Request) -> str:
+    """The callback's path as the browser sees it, so the flow's cookie goes there and nowhere else."""
+    return urls.api_path(request, OAUTH_COOKIE_PATH)
 
 
 def login_url(request: Request, provider: str) -> str:
     """Where to start signing in with this provider. A provider that owns the teams takes it as the address to send
     somebody back to once they've made one there, so the new team is mirrored on the way back in."""
-    return f"{public_url(request)}/v1/auth/login/{provider}"
+    return f"{urls.public_api_url(request)}/v1/auth/login/{provider}"
 
 
 def set_password_url(public: str, token: str) -> str:
@@ -250,7 +252,7 @@ def router(accounts: Accounts) -> APIRouter:
         st, verifier = secrets.token_urlsafe(24), secrets.token_urlsafe(48)
         out = RedirectResponse(p.authorize_url(callback_url(request, provider), st, verifier), status_code=302)
         flow = json.dumps({"p": provider, "s": st, "v": verifier, "n": safe_next(next)}).encode()
-        out.set_cookie(OAUTH_COOKIE, base64.urlsafe_b64encode(flow).decode(), max_age=OAUTH_TTL_S, path=OAUTH_COOKIE_PATH, httponly=True,
+        out.set_cookie(OAUTH_COOKIE, base64.urlsafe_b64encode(flow).decode(), max_age=OAUTH_TTL_S, path=oauth_cookie_path(request), httponly=True,
                        samesite="lax", secure=access.secure(request))
         return out
 
@@ -259,8 +261,8 @@ def router(accounts: Accounts) -> APIRouter:
         """The provider sends the browser back here. On success: a login session, then the page it started from."""
 
         def fail(message: str) -> Response:
-            out = RedirectResponse(f"/sign-in?error={quote(message)}", status_code=303)
-            out.delete_cookie(OAUTH_COOKIE, path=OAUTH_COOKIE_PATH)
+            out = RedirectResponse(urls.ui_path(request, f"/sign-in?error={quote(message)}"), status_code=303)
+            out.delete_cookie(OAUTH_COOKIE, path=oauth_cookie_path(request))
             return out
 
         flow = _read_flow(request.cookies.get(OAUTH_COOKIE))
@@ -279,8 +281,8 @@ def router(accounts: Accounts) -> APIRouter:
         except Refused as e:
             return fail(str(e))
         log.info("user %s signed in with %s", user.id, provider)
-        out = RedirectResponse(safe_next(flow.get("n")), status_code=303)
-        out.delete_cookie(OAUTH_COOKIE, path=OAUTH_COOKIE_PATH)
+        out = RedirectResponse(urls.ui_path(request, safe_next(flow.get("n"))), status_code=303)
+        out.delete_cookie(OAUTH_COOKIE, path=oauth_cookie_path(request))
         access.set_session_cookies(out, request, token, SESSION_MAX_AGE)
         return out
 

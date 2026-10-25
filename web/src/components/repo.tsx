@@ -20,6 +20,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { Textarea } from "./ui/textarea";
+import { apiOrigin } from "@/lib/paths";
 
 /** The workspace's repository, or null when none is connected. */
 export const repoQuery = (ws: string) => ({
@@ -391,7 +392,7 @@ function CreateApp() {
     try {
       const got = await call(
         sdk.githubAppManifest({
-          body: { public_url: window.location.origin, return_to: window.location.pathname, organization: org.trim() || null, webhook_url: hook.trim() || null },
+          body: { public_url: apiOrigin(), return_to: window.location.pathname, organization: org.trim() || null, webhook_url: hook.trim() || null },
         }),
       );
       const form = document.createElement("form");
@@ -428,7 +429,7 @@ function CreateApp() {
           <Input id="app-org" className="h-9" value={org} placeholder="acme" onChange={(e) => setOrg(e.target.value)} />
         </Field>
         <Field id="app-hook" label="Webhook address" hint="GitHub can't reach 127.0.0.1. Leave empty, or use a smee.io channel to get changes as they happen.">
-          <Input id="app-hook" className="h-9" value={hook} placeholder={`${window.location.origin}/v1/github/webhook`} onChange={(e) => setHook(e.target.value)} />
+          <Input id="app-hook" className="h-9" value={hook} placeholder={`${apiOrigin()}/v1/github/webhook`} onChange={(e) => setHook(e.target.value)} />
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">

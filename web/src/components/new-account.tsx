@@ -9,6 +9,7 @@ import { RedirectButtons } from "./account";
 import { StepShell } from "./setup";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { appHref, assignApp } from "@/lib/paths";
 
 export type AccountStep = "name" | "account" | "team";
 
@@ -18,7 +19,7 @@ const MIN_PASSWORD = 10;
 /** Into the team's setup, at step 4, with nothing cached from before. */
 function intoSetup(ws: string) {
   setupProgress.set(ws, "first", "people");
-  window.location.assign(setupHref(ws, "people", "first"));
+  assignApp(setupHref(ws, "people", "first"));
 }
 
 /**
@@ -49,7 +50,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
   const signIn = signUp && (
     <p className="text-muted-foreground mt-4 text-sm">
       Have an account?{" "}
-      <a className="text-primary underline-offset-2 hover:underline" href="/sign-in">
+      <a className="text-primary underline-offset-2 hover:underline" href={appHref("/sign-in")}>
         Sign in
       </a>
     </p>
@@ -151,7 +152,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
         const made = await call(sdk.signUp({ body: { ...body, team: team.trim() } }));
         qc.clear();
         if (made.org?.workspace) intoSetup(made.org.workspace);
-        else window.location.assign("/");
+        else assignApp("/");
       } catch (e) {
         // the email, the password, or too many tries: all on step 2
         setStep("account");
@@ -174,7 +175,7 @@ export function NewAccount({ auth, start, signUp = false }: { auth: AuthState; s
     } catch (e) {
       setError(message(e));
       qc.clear();
-      window.location.assign("/welcome?step=team"); // signed in now: the team step tries again
+      assignApp("/welcome?step=team"); // signed in now: the team step tries again
     }
   };
   return <TeamForm team={team} setTeam={setTeam} back={() => to("name")} error={error} run={create} label="Create team" />;

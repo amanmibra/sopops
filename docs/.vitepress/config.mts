@@ -3,6 +3,11 @@ import { defineConfig } from "vitepress";
 
 const REPO = "https://github.com/amanmibra/sopops";
 
+// Where the site lives: "/" on docs.sopops.dev, "/docs/" on sopops.dev (DOCS_BASE=/docs/ pnpm build). The build goes
+// under the same path in .vitepress/dist, so the Worker serving that folder (wrangler.jsonc) answers /docs/... itself,
+// and a router in front passes the path through as it is.
+const BASE = `/${(process.env.DOCS_BASE ?? "/").replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");
+
 // Guides and API pages link to each other (connect.md, ../api/sessions.md), to API.md, and to code elsewhere in the
 // repo (../sdks/python). On the site, a page in docs/ becomes its path, API.md becomes /api/, and anything else links
 // to the file on GitHub. Links resolve against the folder of the page they're on.
@@ -21,13 +26,15 @@ function siteLink(href: string, page: string): string {
 }
 
 export default defineConfig({
+  base: BASE,
+  outDir: `.vitepress/dist${BASE}`,
   title: "sopops docs",
   description: "Set up sopops, connect your voice agents, and read what every call got wrong.",
   cleanUrls: true,
   lastUpdated: true,
   srcExclude: ["README.md", "node_modules/**"],
   head: [
-    ["link", { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
+    ["link", { rel: "icon", type: "image/svg+xml", href: `${BASE}favicon.svg` }],
     ["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
     ["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
     ["link", { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600&family=IBM+Plex+Mono:wght@400;600&display=swap" }],
