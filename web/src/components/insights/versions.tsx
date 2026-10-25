@@ -13,7 +13,7 @@ import { when } from "@/lib/kinds";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { RuleText, Segmented } from "../bits";
-import { ConfigJson, SettingValue, settingText } from "../config-view";
+import { JsonDialog, JsonInline, jsonInline } from "../json-view";
 import { HrefLink } from "../href-link";
 import { Button } from "../ui/button";
 import { Hint, OutcomeBar, OutcomeLegend, RateN, Skel, StatusBar, WidgetCard } from "./kit";
@@ -84,7 +84,7 @@ function SettingsLine({ v }: { v: VersionOut }) {
     <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
       {keys.map((k) => (
         <span key={k} className="whitespace-nowrap">
-          <span className="text-muted-foreground">{settingName(k)}</span> <SettingValue value={v.config[k]} />
+          <span className="text-muted-foreground">{settingName(k)}</span> <JsonInline value={v.config[k]} />
         </span>
       ))}
       {v.prompt && (
@@ -94,7 +94,7 @@ function SettingsLine({ v }: { v: VersionOut }) {
       )}
       {/* the stop keeps a click on View JSON from toggling the row it sits in */}
       <span onClick={(e) => e.stopPropagation()}>
-        <ConfigJson value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
+        <JsonDialog value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
       </span>
     </span>
   );
@@ -242,7 +242,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
               <td className="text-muted-foreground border-b px-3 py-2 font-medium">{settingName(k)}</td>
               {picked.map((v) => (
                 <td key={v.id} className="border-b px-3 py-2 font-mono text-sm font-semibold">
-                  {settingValue(v, k) == null ? <span className="text-muted-foreground font-sans font-normal">not reported</span> : <SettingValue value={settingValue(v, k)} className="font-semibold" />}
+                  {settingValue(v, k) == null ? <span className="text-muted-foreground font-sans font-normal">not reported</span> : <JsonInline value={settingValue(v, k)} className="font-semibold" />}
                 </td>
               ))}
             </tr>
@@ -259,7 +259,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
             <td className="text-muted-foreground px-3 py-2">All settings</td>
             {picked.map((v) => (
               <td key={v.id} className="px-3 py-2">
-                <ConfigJson value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
+                <JsonDialog value={v.config} title={`Version ${shortId(v)}: config`} subtitle={`What ${v.agent ?? "this agent"} ran with, as sopops stored it.`} />
               </td>
             ))}
           </tr>
@@ -267,7 +267,7 @@ function Lineup({ d, onPick }: { d: VersionsResponse; onPick: (v: string[]) => v
       </table>
       {same.length > 0 && (
         <div className="text-muted-foreground border-t px-3 py-2 text-xs">
-          Same on all: {same.map((k) => `${settingName(k)} ${settingText(picked[0]?.config[k])}`).join(" · ")}
+          Same on all: {same.map((k) => `${settingName(k)} ${jsonInline(picked[0]?.config[k])}`).join(" · ")}
         </div>
       )}
     </section>

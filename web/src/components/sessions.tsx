@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { ChecksPanel, Highlighted, RESULT, type Result, ResultTag, type TurnMarks, turnMarks } from "./checks";
 import { Banner, ErrorBanner, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
-import { ConfigJson, SettingValue } from "./config-view";
+import { JsonBlock, JsonDialog, JsonInline } from "./json-view";
 import { usePlatforms } from "@/lib/platforms";
 import { PlatformLabel } from "./brand-icon";
 import { HrefLink, useGo } from "./href-link";
@@ -444,7 +444,6 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
   );
 }
 
-const json = (v: unknown) => (typeof v === "string" ? v : JSON.stringify(v, null, 2));
 
 /** Where to open a session: a rule's finding, and the turn to scroll to. */
 export type SessionAt = { procedure?: string; rule?: string; turn?: number; finding?: string };
@@ -546,15 +545,15 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
           </Panel>
           {s.tool_calls.length > 0 && (
             <Panel title="Tool calls">
-              <ul className="grid gap-2">
+              <ul className="grid grid-cols-[minmax(0,1fr)] gap-3">
                 {s.tool_calls.map((t, i) => (
-                  <li key={i} className="text-sm">
-                    <div className="font-mono font-semibold">
+                  <li key={i} className="min-w-0 text-sm">
+                    <div className="font-mono font-semibold break-all">
                       {String(t.name ?? "tool")}
                       {t.is_error ? <Tag className="bg-err-soft text-err ml-2 border-transparent">error</Tag> : null}
                     </div>
-                    {t.arguments != null && <pre className="bg-muted mt-1 overflow-x-auto rounded-md px-2 py-1 text-xs">{json(t.arguments)}</pre>}
-                    {t.result != null && <pre className="bg-muted mt-1 overflow-x-auto rounded-md px-2 py-1 text-xs">→ {json(t.result)}</pre>}
+                    {t.arguments != null && <JsonBlock value={t.arguments} className="mt-1" />}
+                    {t.result != null && <JsonBlock value={t.result} prefix="→ " tone={t.is_error ? "err" : undefined} className="mt-1" />}
                   </li>
                 ))}
               </ul>
@@ -568,13 +567,13 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
                     <div key={k} className="contents">
                       <dt className="text-muted-foreground break-all">{k}</dt>
                       <dd className="min-w-0 break-all">
-                        <SettingValue value={v} />
+                        <JsonInline value={v} />
                       </dd>
                     </div>
                   ))}
                 </dl>
                 <div className="mt-3 flex flex-wrap items-center gap-3">
-                  <ConfigJson value={s.config} title="What this session ran with" subtitle={s.config_hash ? `Version ${s.config_hash}: sessions with the same agent, release and config are one version.` : undefined} />
+                  <JsonDialog value={s.config} title="What this session ran with" subtitle={s.config_hash ? `Version ${s.config_hash}: sessions with the same agent, release and config are one version.` : "What the agent ran with, as sopops stored it."} />
                   {s.config_hash && <span className="text-muted-foreground font-mono text-xs">{s.config_hash}</span>}
                 </div>
               </>
@@ -584,7 +583,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
           </Panel>
           <Panel title="Metadata">
             {Object.keys(s.metadata).length ? (
-              <pre className="overflow-x-auto text-xs">{json(s.metadata)}</pre>
+              <JsonBlock value={s.metadata} />
             ) : (
               <Note>None.</Note>
             )}
