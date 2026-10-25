@@ -1,0 +1,126 @@
+name: release-sdk
+
+# Opens the pull request that releases both SDKs together under one version. Merging it publishes them
+# (publish-sdk-release.yml).
+#
+#   gh workflow run release-sdk.yml -f bump=patch
+#   gh workflow run release-sdk.yml -f bump=minor -f dry_run=true
+#
+# The SDKs ship the same features, so there is no per-SDK choice: releasing one alone is how they drift.
+# main only takes pull requests, so the bump goes through one too, opened with GITHUB_TOKEN. That needs
+# "Allow GitHub Actions to create and approve pull requests" (Settings > Actions > General). A pull request
+# opened by GITHUB_TOKEN doesn't start ci.yml, which is why the checks run here before it's opened.
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "patch: fixes. minor: new features, backward compatible. major: breaking changes."
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+        required: true
+      dry_run:
+        description: Run checks and show the bump and notes, but open nothing
+        type: boolean
+        default: false
+
+permissions: {}
+
+# Two runs at once would compute the same version; the second waits and then finds the first one's PR.
+concurrency:
+  group: release-sdk
+  cancel-in-progress: false
+
+jobs:
+  open-release-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # push the release branch
+      pull-requests: write   # open the pull request
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # A release from a branch would ship code that main doesn't have.
+      - name: Refuse anything but main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Run this on main, not ${GITHUB_REF}."
+          exit 1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # every tag, for the version check and the notes
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: sdks/node/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: sdks/node/pnpm-lock.yaml
+
+      # The script fails if sdk-v<next> is already tagged.
+      - name: Bump both SDKs
+        id: bump
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          version=$(.github/scripts/bump-sdk-version.sh "$BUMP")
+          branch="release/sdk-v$version"
+          open=$(gh pr list --head "$branch" --state open --json url --jq '.[0].url // empty')
+          if [ -n "$open" ]; then
+            echo "::error::A release pull request for $version is already open: $open"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
+      # After the bump, so the checks see the files that ship. Same commands as ci.yml.
+      - name: Python checks
+        working-directory: sdks/python
+        run: |
+          uv run --python 3.12 pytest -q
+          uv run --python 3.12 --extra livekit --extra mcp --with mypy mypy --strict src
+      - name: Node checks
+        working-directory: sdks/node
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm typecheck
+          pnpm test
+          pnpm build
+
+      - name: Commit and write the notes
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -q -c "$BRANCH"
+          git add sdks/python/pyproject.toml sdks/python/uv.lock sdks/python/src/sopops/__init__.py sdks/node/package.json
+          git commit -q -m "Release SDKs $VERSION"
+          {
+            .github/scripts/sdk-release-notes.sh "$VERSION" "$BRANCH"
+            echo
+            echo "Merging this tags \`sdk-v$VERSION\` and publishes both SDKs (publish-sdk-release.yml)."
+            echo "Both SDKs' checks passed in [the run that opened it]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID)."
+          } > "$RUNNER_TEMP/notes.md"
+          {
+            echo "## Release SDKs $VERSION"
+            cat "$RUNNER_TEMP/notes.md"
+            echo '```diff'
+            git show --format= HEAD -- . ':!sdks/python/uv.lock'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/notes.md"
+          git show --stat --format='%s' HEAD
+
+      # A branch left by a closed, unmerged release PR is stale; with no open PR on it, replacing it is safe.
+      - name: Open the release pull request
+        if: ${{ !inputs.dry_run }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          BRANCH: ${{ steps.bump.outputs.branch }}
+        run: |
+          git push --force origin "HEAD:refs/heads/$BRANCH"
+          gh pr create --base main --head "$BRANCH" --title "Release SDKs $VERSION" --body-file "$RUNNER_TEMP/notes.md"

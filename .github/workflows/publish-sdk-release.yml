@@ -1,0 +1,183 @@
+name: publish-sdk-release
+
+# Publishes both SDKs when a release pull request from release-sdk.yml merges: tags sdk-v<version> on the
+# merge commit, publishes to PyPI and npm, then writes the GitHub Release.
+#
+# It runs on the push to main rather than on the pull request's close event, so publishing runs from main's
+# own copy of this file with ref refs/heads/main, and the pypi and npm environments can be limited to main.
+# A push that isn't a merged release/sdk-v* pull request does nothing.
+#
+# Both registries trust this file by name, through OIDC with no stored token. The publish steps are jobs
+# here, not calls into another workflow, because npm checks the calling workflow's name and PyPI the called
+# one's; one file keeps both on the same, supported identity. Register it once on each (CONTRIBUTING.md):
+#   pypi.org: project sopops > Manage > Publishing: GitHub, amanmibra/sopops, publish-sdk-release.yml, env pypi
+#   npmjs.com: package sopops > Settings > Trusted publisher: GitHub Actions, amanmibra/sopops,
+#              publish-sdk-release.yml, env npm
+#
+# Safe to re-run: an existing tag on the same commit is reused, and a version already on PyPI or npm is skipped.
+# To finish a release whose run can no longer be re-run: gh workflow run publish-sdk-release.yml -f tag=sdk-v0.6.0
+on:
+  push:
+    branches: [main]
+    paths: [sdks/python/pyproject.toml, sdks/node/package.json]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: An existing sdk-v tag to finish publishing
+        type: string
+        required: true
+
+permissions: {}
+
+concurrency:
+  group: publish-sdk-release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # the tag
+      pull-requests: read    # which pull request the commit came from
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+      publish_python: ${{ steps.registries.outputs.python }}
+      publish_node: ${{ steps.registries.outputs.node }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}   # empty on a push: the pushed commit
+          fetch-depth: 0
+      - name: Find the release
+        id: release
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          py=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdks/python/pyproject.toml | head -n1)
+          node=$(node -p 'require("./sdks/node/package.json").version')
+          if [ "$py" != "$node" ]; then
+            echo "::error::sdks/python is at $py and sdks/node at $node; a release ships one version."
+            exit 1
+          fi
+          tag="sdk-v$py"
+          sha=$(git rev-parse HEAD)
+          if [ -n "$INPUT_TAG" ]; then
+            if [ "$INPUT_TAG" != "$tag" ]; then
+              echo "::error::$INPUT_TAG holds version $py."
+              exit 1
+            fi
+          else
+            merged=$(gh api "repos/$GITHUB_REPOSITORY/commits/$sha/pulls" --jq \
+              '[.[] | select(.merged_at != null and .head.repo.full_name == env.GITHUB_REPOSITORY) | .head.ref][0] // empty')
+            if [ "$merged" != "release/sdk-v$py" ]; then
+              echo "Not the merge of a release pull request (came from '${merged:-a direct push}'); nothing to publish."
+              exit 0
+            fi
+          fi
+          # A re-run finds its own tag; a tag on another commit means this version shipped from elsewhere.
+          existing=$(git rev-parse -q --verify "refs/tags/$tag^{commit}" || true)
+          if [ -n "$existing" ] && [ "$existing" != "$sha" ]; then
+            echo "::error::$tag already points at $existing, not $sha."
+            exit 1
+          fi
+          if [ -z "$existing" ]; then
+            # Through the API with GITHUB_TOKEN, so the tag itself starts no other workflow.
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$tag" -f sha="$sha" > /dev/null
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$py" >> "$GITHUB_OUTPUT"
+      - name: Check what's already published
+        id: registries
+        if: steps.release.outputs.tag != ''
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if curl -fsS -o /dev/null "https://pypi.org/pypi/sopops/$VERSION/json"; then
+            echo "sopops $VERSION is already on PyPI"; echo "python=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "python=true" >> "$GITHUB_OUTPUT"
+          fi
+          if [ -n "$(npm view "sopops@$VERSION" version 2>/dev/null)" ]; then
+            echo "sopops $VERSION is already on npm"; echo "node=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "node=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  pypi:
+    needs: tag
+    if: needs.tag.outputs.publish_python == 'true'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write   # the OIDC token PyPI trusts
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+      - uses: astral-sh/setup-uv@v6
+      - name: Test
+        working-directory: sdks/python
+        run: uv run --python 3.12 pytest -q
+      - name: Build
+        working-directory: sdks/python
+        run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: sdks/python/dist
+
+  npm:
+    needs: tag
+    if: needs.tag.outputs.publish_node == 'true'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write   # the OIDC token npm trusts, and the provenance statement
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.tag.outputs.tag }}
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: sdks/node/package.json
+      # No registry-url: it writes an .npmrc that expects a token, and publishing here uses OIDC instead.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm with trusted publishing
+        run: npm install -g npm@11   # trusted publishing needs npm 11.5.1 or later; Node 22 ships 10
+      - name: Install, test, build
+        working-directory: sdks/node
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm test
+          pnpm build
+      - name: Publish
+        working-directory: sdks/node
+        run: npm publish --access public --provenance
+
+  # Only once both packages are live, so the release never announces a version someone can't install.
+  github-release:
+    needs: [tag, pypi, npm]
+    if: >-
+      always() && needs.tag.result == 'success' && needs.tag.outputs.tag != ''
+      && contains(fromJSON('["success", "skipped"]'), needs.pypi.result)
+      && contains(fromJSON('["success", "skipped"]'), needs.npm.result)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create the GitHub Release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then echo "$TAG already has a release"; exit 0; fi
+          .github/scripts/sdk-release-notes.sh "${TAG#sdk-v}" "$TAG" > "$RUNNER_TEMP/notes.md"
+          gh release create "$TAG" --verify-tag --title "SDKs ${TAG#sdk-v}" --notes-file "$RUNNER_TEMP/notes.md"

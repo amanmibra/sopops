@@ -1,0 +1,45 @@
+name: sdk-release-reminder
+
+# Once a month, opens an issue when the SDKs have commits since their last release, so fixes don't sit
+# unreleased. It only reminds; releasing is still a run of release-sdk.yml.
+on:
+  schedule:
+    - cron: "0 15 1 * *"   # the 1st of each month
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Open an issue for unreleased SDK commits
+        run: |
+          body=""
+          for sdk in python node; do
+            prefix=$([ "$sdk" = python ] && echo py-v || echo node-v)
+            # The newest release of this SDK: a lockstep sdk-v tag, or its own tag from before them.
+            last=$(git tag -l "sdk-v*" "$prefix*" --sort=-creatordate | head -n1)
+            commits=$(git log --format='- %s (%h)' --invert-grep --grep='^Release ' "$last..HEAD" -- "sdks/$sdk")
+            if [ -n "$commits" ]; then
+              body+=$'\n'"## sdks/$sdk, since $last"$'\n\n'"$commits"$'\n'
+            fi
+          done
+          if [ -z "$body" ]; then echo "Nothing unreleased."; exit 0; fi
+          body+=$'\n'"Release both: \`gh workflow run release-sdk.yml -f bump=patch\` (or minor, major)."
+          title="Unreleased SDK changes"
+          # One open reminder at a time: refresh it rather than stacking a new one each month.
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

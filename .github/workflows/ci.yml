@@ -86,3 +86,18 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # The SDKs ship together under one version (release-sdk.yml), so a change that moves one alone fails here.
+  sdk-versions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Python and Node SDK versions match
+        run: |
+          py=$(sed -n 's/^version = "\(.*\)"$/\1/p' sdks/python/pyproject.toml | head -n1)
+          node=$(node -p 'require("./sdks/node/package.json").version')
+          if [ "$py" != "$node" ]; then
+            echo "::error::sdks/python is at $py and sdks/node at $node; release them together with release-sdk.yml"
+            exit 1
+          fi
+          echo "Both SDKs at $py"
