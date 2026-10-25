@@ -124,7 +124,7 @@ export function GetSetUp({ items, empty, onHide }: { items: Item[]; empty: boole
             <HrefLink href={href("procedure", "new")}>procedure</HrefLink>.
           </>
         ) : (
-          <HrefLink href={wsHref(ws, "insights")}>Go to Insights</HrefLink>
+          <HrefLink href={wsHref(ws, "results")}>Go to Results</HrefLink>
         )}
       </p>
     </div>

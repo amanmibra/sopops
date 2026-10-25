@@ -197,7 +197,7 @@ function RulesTable({ d, filters }: { d: CompareResponse; filters: InsightFilter
                   return (
                     <tr key={`${r.procedure_id}/${r.rule_id}`} className="hover:bg-muted/60">
                       <td className={cn(td, "max-w-[420px]")}>
-                        <HrefLink href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
+                        <HrefLink href={insightsHref(ws, ["results", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
                           {ruleName(r.kind, r.index)}
                         </HrefLink>
                         {r.rule_change === "changed" ? (
@@ -389,7 +389,7 @@ export function CompareView({ filters, onFilters, a, b, onPick }: { filters: Ins
                       {d.procedures.map((p) => (
                         <tr key={p.procedure_id} className="hover:bg-muted/60">
                           <td className={td}>
-                            <HrefLink href={insightsHref(ws, ["insights", "procedures", p.procedure_id], filters)} className="font-semibold">
+                            <HrefLink href={insightsHref(ws, ["results", "procedures", p.procedure_id], filters)} className="font-semibold">
                               {p.procedure_name}
                             </HrefLink>
                             <div className="text-xs">

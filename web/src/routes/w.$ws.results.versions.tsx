@@ -6,7 +6,7 @@ import { validateInsightSearch } from "@/lib/insights";
 type Search = InsightFilters & { test?: string; v?: string[] };
 const strs = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : typeof v === "string" && v ? [v] : undefined);
 
-export const Route = createFileRoute("/w/$ws/insights/versions")({
+export const Route = createFileRoute("/w/$ws/results/versions")({
   validateSearch: (s: Record<string, unknown>): Search => ({ ...validateInsightSearch(s), test: typeof s.test === "string" && s.test ? s.test : undefined, v: strs(s.v) }),
   component: Versions,
 });

@@ -674,7 +674,7 @@ function AllPatterns({
         <section key={pid} className="bg-card min-w-0 overflow-hidden rounded-lg border">
           <header className="flex items-baseline justify-between gap-3 border-b bg-[var(--band)] px-4 py-2">
             <h2 className="text-sm font-semibold">{procName(pid)}</h2>
-            <HrefLink href={wsHref(ws, "insights", "procedures", pid)} className="text-xs">
+            <HrefLink href={wsHref(ws, "results", "procedures", pid)} className="text-xs">
               Insights
             </HrefLink>
           </header>
@@ -793,8 +793,8 @@ export function PatternView({ id }: { id: string }) {
   };
   const subs = d.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub");
   const facts: [string, ReactNode][] = [
-    ["Procedure", <HrefLink href={wsHref(ws, "insights", "procedures", d.procedure_id)}>{proc}</HrefLink>],
-    ["Rule", <HrefLink href={wsHref(ws, "insights", "procedures", d.procedure_id, "rules", d.rule_id)}>{ruleName(d.rule.kind, d.rule.index)}</HrefLink>],
+    ["Procedure", <HrefLink href={wsHref(ws, "results", "procedures", d.procedure_id)}>{proc}</HrefLink>],
+    ["Rule", <HrefLink href={wsHref(ws, "results", "procedures", d.procedure_id, "rules", d.rule_id)}>{ruleName(d.rule.kind, d.rule.index)}</HrefLink>],
     ["Theme", d.theme_name ?? "—"],
     ["Kind", d.kind === "rule" ? "Every finding on the rule" : d.kind === "sub" ? "A named failure mode" : "Findings that fit no failure mode"],
     ["First seen", when(d.first_seen) || "—"],

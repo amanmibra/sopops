@@ -175,7 +175,7 @@ just examples/walkthrough/backfill
 Posts the 200 calls with the SDK (`SopOps.post_session`, 8 at a time), each converted by the LiveKit adapter's own `from_livekit`, stamped release 1, and waits for the pipeline. These pages are in **QA** mode (the switch in the top bar):
 
 - **Sessions** (`/w/walkthrough/sessions`): 200 calls, each with its transcript, tool calls and the result per procedure. Open one with a finding: the rule, its status and the quote that shows it highlighted in the transcript.
-- **Insights** (`/w/walkthrough/insights`): sessions checked, followed end to end and needing attention; the procedure scoreboard (delivery orders looks worst, because of the broad rule); a procedure's rule ladder (`/w/walkthrough/insights/procedures/allergen-check`).
+- **Insights** (`/w/walkthrough/results`): sessions checked, followed end to end and needing attention; the procedure scoreboard (delivery orders looks worst, because of the broad rule); a procedure's rule ladder (`/w/walkthrough/results/procedures/allergen-check`).
 - **Patterns** (`/w/walkthrough/patterns?tab=all`): each rule with findings is a pattern, grouped by theme; a rule with 8 or more findings is split into named failure modes. Expected: allergen never 1 split into three (the two real claims and the disclaimer), the delivery-time rule with 61 findings, and the others as in the table. A pattern's page (`/w/walkthrough/patterns/<id>`) has its rule, examples and sessions.
 - **Report** (`/w/walkthrough/report`): the same, read like a hand-written call review.
 
@@ -213,7 +213,7 @@ Expected in fake mode, all PASS:
 - Each planted failure mode matched to a pattern by its calls (names don't matter), and allergen never 1 split into three.
 - Verdicts: the acceptable and checker-wrong patterns have all their findings suppressed; the real ones still count. Regression cases exported.
 - Both suggestions applied and in release 2.
-- **Insights → Release compare** (`/w/walkthrough/insights/releases`, 30 days): allergen check's pass rate up from about 53% to about 85%, and its never rule 1 from about 73% to 94%. Delivery orders stays about level: release 1's delivery-time findings are already suppressed by the acceptable verdict, so the rewording shows in the per-rule findings, not in the pass rate.
+- **Insights → Release compare** (`/w/walkthrough/results/releases`, 30 days): allergen check's pass rate up from about 53% to about 85%, and its never rule 1 from about 73% to 94%. Delivery orders stays about level: release 1's delivery-time findings are already suppressed by the acceptable verdict, so the rewording shows in the per-rule findings, not in the pass rate.
 - Reworded rules keep their history: release 2's delivery never rule 1 continues release 1's (linked by the applied suggestion), with one row in release compare and in the rule ladder ("reworded in release 2"), and one rule pattern holding both releases' findings and the eta verdict.
 - Calibration answers (a preview, nothing saved): every procedure has enough verdicts to fit. Try it under **the gear icon → Calibration**: Preview shows the labels used and each threshold before and after. In fake mode the scripted decisions answer every question alike, so every threshold stays where it is; with real models some move.
 

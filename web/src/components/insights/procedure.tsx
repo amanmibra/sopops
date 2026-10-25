@@ -46,7 +46,7 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
   const t = d.thresholds;
   const cols = cn("grid items-center gap-x-4 px-4", d.release_split ? "md:grid-cols-[2rem_minmax(0,2.4fr)_minmax(7rem,1.3fr)_4.5rem_6.5rem_8.5rem_4.5rem]" : "md:grid-cols-[2rem_minmax(0,2.6fr)_minmax(7rem,1.4fr)_4.5rem_6.5rem_4.5rem]", "grid-cols-[2rem_minmax(0,1fr)_6.5rem]");
   const hideNarrow = "hidden md:block";
-  const rulePage = (r: LadderRow) => insightsHref(ws, ["insights", "procedures", d.procedure_id, "rules", r.rule_id], filters);
+  const rulePage = (r: LadderRow) => insightsHref(ws, ["results", "procedures", d.procedure_id, "rules", r.rule_id], filters);
   return (
     <div className="text-sm">
       <div className={cn(cols, "text-muted-foreground border-b py-2 text-xs font-medium")}>
@@ -294,7 +294,7 @@ export function ProcedureInsightsView({ id, filters, onFilters }: { id: string; 
   const noChecks = !!d && d.tiles.current.checks === 0;
   return (
     <div className="w-full min-w-0">
-      <BackBar href={insightsHref(ws, ["insights"], filters)} label="Results" filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
+      <BackBar href={insightsHref(ws, ["results"], filters)} label="Results" filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
         <section className="bg-card flex flex-wrap items-start justify-between gap-4 rounded-lg border px-4 py-4">
           {!d && res.isPending ? (

@@ -130,7 +130,7 @@ function Fixed() {
   const loading = !fixes || compares.some((c) => c.isPending);
 
   return (
-    <Block title="What the fixes did" aside={<HrefLink href={wsHref(ws, "insights")} className="t-label text-foreground">Results →</HrefLink>} >
+    <Block title="What the fixes did" aside={<HrefLink href={wsHref(ws, "results")} className="t-label text-foreground">Results →</HrefLink>} >
       <dl className="grid grid-cols-3 border-b">
         {(
           [
@@ -288,7 +288,7 @@ function MissRate() {
   const before = t?.prior;
   const delta = t?.delta_points.need_attention_pct;
   return (
-    <Block title="Missed this week" aside={<HrefLink href={wsHref(ws, "insights")} className="t-label text-foreground">Results →</HrefLink>} className="lg:col-span-5">
+    <Block title="Missed this week" aside={<HrefLink href={wsHref(ws, "results")} className="t-label text-foreground">Results →</HrefLink>} className="lg:col-span-5">
       <div className="px-4 py-4">
         {!now ? (
           <Note>{res.error ? "Insights didn't load." : "Loading…"}</Note>

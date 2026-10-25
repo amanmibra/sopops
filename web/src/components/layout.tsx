@@ -488,9 +488,9 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
         </RailGroup>
         <RailGroup label="Results" collapsed={c}>
-          <RailItem collapsed={c} href={wsHref(ws, "insights")} icon={ChartLine} label="Overview" />
-          <RailItem collapsed={c} href={wsHref(ws, "insights", "releases")} icon={GitCompare} label="Release compare" />
-          <RailItem collapsed={c} href={wsHref(ws, "insights", "versions")} icon={TestTube2} label="A/B tests" />
+          <RailItem collapsed={c} href={wsHref(ws, "results")} icon={ChartLine} label="Overview" />
+          <RailItem collapsed={c} href={wsHref(ws, "results", "releases")} icon={GitCompare} label="Release compare" />
+          <RailItem collapsed={c} href={wsHref(ws, "results", "versions")} icon={TestTube2} label="A/B tests" />
           <RailItem collapsed={c} href={wsHref(ws, "report")} icon={FileText} label="Review report" />
         </RailGroup>
         <RailGroup label="Instructions" collapsed={c}>

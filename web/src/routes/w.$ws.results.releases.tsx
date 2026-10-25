@@ -6,7 +6,7 @@ import { validateInsightSearch } from "@/lib/insights";
 type Search = InsightFilters & { a?: number; b?: number };
 const int = (v: unknown) => (v != null && v !== "" && Number.isInteger(Number(v)) ? Number(v) : undefined);
 
-export const Route = createFileRoute("/w/$ws/insights/releases")({
+export const Route = createFileRoute("/w/$ws/results/releases")({
   validateSearch: (s: Record<string, unknown>): Search => ({ ...validateInsightSearch(s), a: int(s.a), b: int(s.b) }),
   component: Compare,
 });

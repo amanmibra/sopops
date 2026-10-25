@@ -160,7 +160,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
   const [all, setAll] = useState(false);
   const sorted = useMemo(() => [...rows].sort(SORTS[sort].by), [rows, sort]);
   const shown = all ? sorted : sorted.slice(0, TOP_N);
-  const page = (pid: string) => insightsHref(ws, ["insights", "procedures", pid], { ...filters, procedure: undefined });
+  const page = (pid: string) => insightsHref(ws, ["results", "procedures", pid], { ...filters, procedure: undefined });
   return (
     <WidgetCard
       title="Procedures"
@@ -251,7 +251,7 @@ function Scoreboard({ rows, callouts, filters, scope, unit, minN }: { rows: Scor
                       <Hint tip={<TipBody head={`${ruleName(top.kind, top.index)}: failed ${top.fails} of ${top.n}`}><RuleText text={top.text} /></TipBody>} focusable={false}>
                         <span className="block">
                           <HrefLink
-                            href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", top.rule_id], { ...filters, procedure: undefined })}
+                            href={insightsHref(ws, ["results", "procedures", r.procedure_id, "rules", top.rule_id], { ...filters, procedure: undefined })}
                             onClick={(e) => e.stopPropagation()}
                             className={cn("font-semibold", top.tone === "bad" ? "text-err" : top.tone === "warn" ? "text-warn" : "text-foreground")}
                           >

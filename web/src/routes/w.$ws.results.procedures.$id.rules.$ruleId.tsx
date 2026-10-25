@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { RuleInsightsView } from "@/components/insights";
 import { validateInsightSearch } from "@/lib/insights";
 
-export const Route = createFileRoute("/w/$ws/insights/procedures/$id/rules/$ruleId")({ validateSearch: validateInsightSearch, component: RuleInsights });
+export const Route = createFileRoute("/w/$ws/results/procedures/$id/rules/$ruleId")({ validateSearch: validateInsightSearch, component: RuleInsights });
 
 function RuleInsights() {
   const { id, ruleId } = Route.useParams();

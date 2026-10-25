@@ -431,7 +431,7 @@ function RulesTable({ d, filters }: { d: VersionsResponse; filters: InsightFilte
             {rules.map((r) => (
               <tr key={`${r.procedure_id}/${r.lineage_id}`} className="hover:bg-muted/60">
                 <td className={cn(td, "max-w-[380px]")}>
-                  <HrefLink href={insightsHref(ws, ["insights", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
+                  <HrefLink href={insightsHref(ws, ["results", "procedures", r.procedure_id, "rules", r.rule_id], filters)} className="font-semibold">
                     {ruleName(r.kind, r.index)}
                   </HrefLink>
                   {d.procedures.length > 1 && <span className="text-muted-foreground ml-2 text-xs">{names.get(r.procedure_id) ?? r.procedure_id}</span>}
@@ -605,7 +605,7 @@ export function VersionsView({ filters, onFilters, test, v, onTest, onPick }: { 
                       {d.procedures.map((p) => (
                         <tr key={p.procedure_id} className="hover:bg-muted/60">
                           <td className={td}>
-                            <HrefLink href={insightsHref(ws, ["insights", "procedures", p.procedure_id], filters)} className="font-semibold">
+                            <HrefLink href={insightsHref(ws, ["results", "procedures", p.procedure_id], filters)} className="font-semibold">
                               {p.procedure_name}
                             </HrefLink>
                           </td>

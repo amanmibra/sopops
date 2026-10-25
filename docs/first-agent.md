@@ -95,7 +95,7 @@ confirms that it sent and checked 200 earlier calls against release 1:
 checked: 200 checked
 ```
 
-Open `http://127.0.0.1:8585/w/walkthrough/insights`. **Overview** shows the
+Open `http://127.0.0.1:8585/w/walkthrough/results`. **Overview** shows the
 measured result first. Use it to find a change that needs attention or a
 release worth comparing.
 
@@ -145,7 +145,7 @@ PASS  new: stamped release 2 (fetched by the SDK at call start)
 PASS  allergen-check (the fix): pass rate 53% (...) -> 85% (...)
 ```
 
-Open `http://127.0.0.1:8585/w/walkthrough/insights/releases` to compare
+Open `http://127.0.0.1:8585/w/walkthrough/results/releases` to compare
 releases. The allergen procedure improves on calls that ran the new
 instructions. The delivery rule keeps its history across the rewording, while
 its acceptable findings stay out of the pass rate.

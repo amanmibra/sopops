@@ -40,11 +40,11 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
   const warn = d?.kind === "warning";
   return (
     <div className="w-full min-w-0">
-      <BackBar href={insightsHref(ws, ["insights", "procedures", procedureId], filters)} label={procName} filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
+      <BackBar href={insightsHref(ws, ["results", "procedures", procedureId], filters)} label={procName} filters={filters} onFilters={onFilters} status={<AsOf at={res.dataUpdatedAt} fetching={res.isFetching} onRefresh={() => void res.refetch()} />} />
       <div className="grid gap-4">
         <section className="bg-card rounded-lg border px-4 py-4">
           <div className="text-muted-foreground text-xs">
-            <HrefLink href={insightsHref(ws, ["insights"], filters)}>Results</HrefLink> / <HrefLink href={insightsHref(ws, ["insights", "procedures", procedureId], filters)}>{procName}</HrefLink>
+            <HrefLink href={insightsHref(ws, ["results"], filters)}>Results</HrefLink> / <HrefLink href={insightsHref(ws, ["results", "procedures", procedureId], filters)}>{procName}</HrefLink>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-lg font-semibold">{d ? ruleName(d.kind, d.index) : "Rule"}</h1>
