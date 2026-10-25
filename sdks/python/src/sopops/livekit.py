@@ -73,7 +73,8 @@ def pinned_release(ctx: JobContext) -> int | None:
     """A release pinned for this call in the job's dispatch metadata, else the room's metadata."""
     job = getattr(ctx, "job", None)
     room = getattr(ctx, "room", None)
-    return release_pin(getattr(job, "metadata", None)) or release_pin(getattr(room, "metadata", None))
+    pin = release_pin(getattr(job, "metadata", None))
+    return pin if pin is not None else release_pin(getattr(room, "metadata", None))
 
 
 async def attach(
@@ -121,13 +122,14 @@ def record_session(
     *,
     client: SopOps | None = None,
     agent: str | None = None,
+    release: int | None = None,
     stream: bool = False,
     test: str | None = None,
     config: Mapping[str, Any] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> None:
-    """Post `session.history` to sopops when the job shuts down, keyed by the job id (rooms get reused), with the
-    release from `session.userdata`. Errors are logged, never raised into shutdown.
+    """Post `session.history` to sopops when the job shuts down, keyed by the job id (rooms get reused), with
+    `release`, else the release `attach` noted in `session.userdata`. Errors are logged, never raised into shutdown.
 
     `stream=True` also opens the session now and sends each turn and tool call as it happens, in batches from a
     background task (see `SessionStream`); it never blocks or raises into the agent. The full post at shutdown
@@ -135,7 +137,7 @@ def record_session(
     a later version."""
     client = client or SopOps()
     started = datetime.now(timezone.utc)
-    live = _stream(ctx, session, client, agent, started, on_guidance, test, config) if stream else None
+    live = _stream(ctx, session, client, agent, release, started, on_guidance, test, config) if stream else None
 
     async def send(reason: str = "") -> None:
         if live is not None:
@@ -147,7 +149,7 @@ def record_session(
                 "platform": "livekit",
                 "external_id": ctx.job.id,
                 "agent": agent or _get(userdata, AGENT_KEY) or ctx.job.agent_name or None,
-                "release": _get(userdata, RELEASE_KEY),
+                "release": release if release is not None else _get(userdata, RELEASE_KEY),
                 "started_at": started.isoformat(),
                 "ended_at": datetime.now(timezone.utc).isoformat(),
                 "turns": turns,
@@ -165,7 +167,7 @@ def record_session(
 
 
 def _stream(
-    ctx: JobContext, session: AgentSession[Any], client: SopOps, agent: str | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
+    ctx: JobContext, session: AgentSession[Any], client: SopOps, agent: str | None, release: int | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
     test: str | None = None, config: Mapping[str, Any] | None = None,
 ) -> SessionStream:
     """Open a SessionStream for the job and feed it from the session's `conversation_item_added` and
@@ -178,7 +180,7 @@ def _stream(
             "external_id": ctx.job.id,
             "channel": "voice",
             "agent": agent or _get(userdata, AGENT_KEY) or ctx.job.agent_name or None,
-            "release": _get(userdata, RELEASE_KEY),
+            "release": release if release is not None else _get(userdata, RELEASE_KEY),
             "started_at": started.isoformat(),
             "metadata": {"room": ctx.room.name},
             "test": test,

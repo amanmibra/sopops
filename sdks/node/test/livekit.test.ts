@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryCache, SopOps } from "../src/index.js";
-import { attach, fromLiveKit, recordSession } from "../src/livekit.js";
+import { agentConfig, attach, fromLiveKit, pinnedRelease, recordSession } from "../src/livekit.js";
 
 const URL = "http://sopops.test/v1/workspaces/prod";
 
@@ -74,11 +74,11 @@ function mockFetch(agent: Record<string, unknown> = AGENT) {
 }
 
 function jobContext(metadata: { job?: string; room?: string } = {}) {
-  const callbacks: Array<() => Promise<void>> = [];
+  const callbacks: Array<(reason?: string) => Promise<void>> = [];
   return {
     job: { id: "AJ_1", agentName: "tonys-pizza", metadata: metadata.job ?? "" },
     room: { name: "room-1", metadata: metadata.room ?? "" },
-    addShutdownCallback: (cb: () => Promise<void>) => callbacks.push(cb),
+    addShutdownCallback: (cb: (reason?: string) => Promise<void>) => callbacks.push(cb),
     callbacks,
   };
 }
@@ -133,5 +133,105 @@ describe("attach", () => {
     const ins = await attach(jobContext({ room: '{"sopops": {"release": 1}}' }), session, { sopops: room.client });
     expect(room.calls[0]!.url).toBe(`${URL}/agents/tonys-pizza?release=1&platform=livekit`);
     expect(ins.release).toBe(1);
+  });
+});
+
+/** Like `voice.AgentSession`: reading `userData` before it's set throws, and `on(event, listener)` with `emit` for the test. */
+class StreamingSession {
+  history = { toJSON: () => HISTORY };
+  handlers: Record<string, Array<(ev: any) => void>> = {};
+  private data: unknown;
+  get userData(): unknown {
+    if (this.data === undefined) throw new Error("VoiceSession userData is not set");
+    return this.data;
+  }
+  set userData(value: unknown) {
+    this.data = value;
+  }
+  on(event: string, listener: (ev: any) => void) {
+    (this.handlers[event] ??= []).push(listener);
+  }
+  emit(event: string, ev: unknown) {
+    for (const h of this.handlers[event] ?? []) h(ev);
+  }
+}
+
+const said = (role: string, text: string, createdAt: number, interrupted = false) => ({ item: { type: "message", role, content: [text], createdAt, interrupted } });
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+describe("attach with stream", () => {
+  it("notes the release in userData and posts the shutdown reason, sending nothing until shutdown", async () => {
+    const { calls, client } = mockFetch();
+    const ctx = jobContext();
+    const s = new StreamingSession();
+    await attach(ctx, s, { sopops: client });
+    expect(s.userData).toEqual({ sopops_release: 3, sopops_agent: "tonys-pizza" });
+    expect(s.handlers).toEqual({});
+    await ctx.callbacks[0]!("user_left");
+    expect(calls.map((c) => c.url)).toEqual([`${URL}/agents/tonys-pizza?platform=livekit`, `${URL}/sessions`]);
+    expect(calls[1]!.body.metadata).toEqual({ room: "room-1", shutdown_reason: "user_left" });
+  });
+
+  it("streams turns and tool calls as they happen, then posts the full session", async () => {
+    const { calls, client } = mockFetch();
+    const ctx = jobContext();
+    const s = new StreamingSession();
+    const guidance = vi.fn();
+    await attach(ctx, s, { sopops: client, stream: true, test: "t1", onGuidance: guidance });
+    s.emit("conversation_item_added", said("assistant", "Luigi's, how can I help?", 100_000));
+    s.emit("conversation_item_added", said("user", "A table for six.", 104_000));
+    s.emit("conversation_item_added", said("user", "A table for six.", 104_100)); // a repeat: dropped
+    s.emit("function_tools_executed", {
+      functionCalls: [{ name: "check_reservations", args: '{"party_size": 6}', callId: "c1", createdAt: 106_000 }],
+      functionCallOutputs: [{ output: '{"available": true}', isError: false }],
+    });
+    s.emit("conversation_item_added", { item: undefined }); // malformed: logged
+    await wait(600); // one flush interval
+    await ctx.callbacks[0]!("done");
+
+    const open = calls.filter((c) => c.url === `${URL}/sessions/open`);
+    expect(open).toHaveLength(1);
+    expect(open[0]!.body).toMatchObject({ platform: "livekit", external_id: "AJ_1", channel: "voice", agent: "tonys-pizza", release: 3, test: "t1", metadata: { room: "room-1" } });
+    const sent = calls.filter((c) => c.url === `${URL}/sessions/livekit/AJ_1/events`).flatMap((c) => c.body.events);
+    expect(sent.map((e: any) => [e.seq, e.type])).toEqual([[0, "turn"], [1, "turn"], [2, "turn"], [3, "tool_call"]]);
+    expect(sent[3].tool_call).toEqual({ name: "check_reservations", arguments: '{"party_size": 6}', call_id: "c1", at: 106_000, result: '{"available": true}', is_error: false });
+    const full = calls.filter((c) => c.url === `${URL}/sessions`);
+    expect(full).toHaveLength(1);
+    expect(full[0]!.body).toMatchObject({ external_id: "AJ_1", release: 3, test: "t1", metadata: { shutdown_reason: "done" } });
+    expect(guidance).not.toHaveBeenCalled(); // reserved
+  });
+});
+
+describe("recordSession defaults", () => {
+  it("reads the release attach noted in userData", async () => {
+    const { calls, client } = mockFetch();
+    const ctx = jobContext();
+    const s = new StreamingSession();
+    s.userData = { sopops_release: 9, sopops_agent: "tonys-pizza" };
+    recordSession(ctx, s, { sopops: client });
+    await ctx.callbacks[0]!();
+    expect(calls[0]!.body).toMatchObject({ agent: "tonys-pizza", release: 9 });
+  });
+
+  it("builds its own client from the environment", async () => {
+    vi.stubEnv("SOPOPS_URL", URL);
+    try {
+      expect(() => recordSession(jobContext(), session)).not.toThrow();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe("agentConfig and pinnedRelease", () => {
+  it("names a provider by its company when a plugin reports its API host", () => {
+    expect(agentConfig({ ...session, llm: { provider: "api.anthropic.com", model: "claude-haiku-4-5" }, stt: { provider: "deepgram", model: "nova-3" } })).toEqual({
+      llm: "anthropic/claude-haiku-4-5",
+      stt: "deepgram/nova-3",
+    });
+  });
+
+  it("counts a pin of release 0", () => {
+    expect(pinnedRelease(jobContext({ job: '{"sopops_release": 0}', room: '{"sopops_release": 4}' }))).toBe(0);
   });
 });

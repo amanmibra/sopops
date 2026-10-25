@@ -185,3 +185,74 @@ def test_a_variable_that_does_not_line_up_warns_and_never_blocks(client, caplog)
     assert ins.text == "Greet {{caller}}." and ins.unfilled == ("caller",)                  # the call goes on
     warnings = " ".join(r.getMessage() for r in caplog.records)
     assert "no value for {{caller}}" in warnings and "{{calller}} has no placeholder" in warnings
+
+
+@respx.mock
+def test_a_pluggable_cache_and_the_error_status(tmp_path):
+    from sopops import MemoryCache
+
+    cache = MemoryCache()
+    c = SopOps(URL, cache=cache)
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+    run(c.fetch_instructions("tonys-pizza"))
+    assert not list(tmp_path.iterdir())  # nothing on disk
+
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(503, json={"detail": "down"}))
+    assert run(c.fetch_instructions("tonys-pizza")).source == "cache"
+    with pytest.raises(SopOpsUnavailable):
+        run(SopOps(URL, cache=MemoryCache()).fetch_instructions("tonys-pizza"))
+
+    respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(401, json={"detail": "invalid ingest token"}))
+    with pytest.raises(SopOpsError) as e:
+        run(c.post_session({"platform": "api", "external_id": "x"}))
+    assert e.value.status == 401
+
+
+def test_an_async_cache_works_too():
+    from sopops import MemoryCache
+
+    class AsyncCache:
+        def __init__(self):
+            self.inner = MemoryCache()
+
+        async def get(self, key):
+            return self.inner.get(key)
+
+        async def set(self, key, value):
+            self.inner.set(key, value)
+
+    c = SopOps(URL, cache=AsyncCache())
+    with respx.mock:
+        respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=AGENT))
+        run(c.fetch_instructions("tonys-pizza"))
+    with respx.mock:
+        respx.get(f"{URL}/agents/tonys-pizza").mock(side_effect=httpx.ConnectError("down"))
+        assert run(c.fetch_instructions("tonys-pizza")).source == "cache"
+
+
+@respx.mock
+def test_the_agent_is_escaped_in_the_path(client):
+    route = respx.get(f"{URL}/agents/livekit%3A%2B15550100").mock(return_value=httpx.Response(200, json=AGENT))
+    run(client.fetch_instructions("livekit:+15550100"))
+    assert route.called
+
+
+def test_fill_and_unfilled_are_exported():
+    assert sopops.fill("Hi {{name}}, {{day}}", {"name": "Sam"}) == "Hi Sam, {{day}}"
+    assert sopops.unfilled("Hi {{name}}, {{day}} {{name}}") == ("name", "day")
+
+
+@respx.mock
+def test_stream_starts_on_its_own_and_opens_with_test_and_config(client):
+    opened = respx.post(f"{URL}/sessions/open").mock(return_value=httpx.Response(201, json={"id": "s1", "created": True}))
+    events = respx.post(f"{URL}/sessions/api/c1/events").mock(return_value=httpx.Response(200, json={"accepted": 1, "duplicates": 0}))
+
+    async def call():
+        stream = client.stream({"platform": "api", "external_id": "c1", "test": "t1", "config": {"version": "v2"}}, flush_interval=0.01)
+        stream.turn({"role": "user", "text": "Hi"})  # no start(): queueing in a running loop starts it
+        await asyncio.sleep(0.1)
+        assert events.call_count == 1
+        await stream.aclose()
+
+    run(call())
+    assert json.loads(opened.calls.last.request.content) == {"platform": "api", "external_id": "c1", "test": "t1", "config": {"version": "v2"}}

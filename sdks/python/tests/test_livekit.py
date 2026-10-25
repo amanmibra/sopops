@@ -301,3 +301,19 @@ def test_attach_fills_per_call_values(tmp_path):
 
     asyncio.run(call())
     assert "Sam" not in posted.calls.last.request.content.decode()
+
+
+@respx.mock
+def test_record_session_takes_a_release_and_a_zero_pin_counts(tmp_path):
+    from sopops.livekit import pinned_release, record_session
+
+    post = respx.post(f"{URL}/sessions").mock(return_value=httpx.Response(201, json={"id": "s1"}))
+    c = ctx()
+
+    async def call():
+        record_session(c, Session(), client=SopOps(URL, cache_dir=tmp_path), agent="tonys-pizza", release=5)
+        await c.callbacks[0]("done")
+
+    asyncio.run(call())
+    assert json.loads(post.calls.last.request.content)["release"] == 5
+    assert pinned_release(ctx(job_metadata='{"sopops_release": 0}', room_metadata='{"sopops_release": 4}')) == 0

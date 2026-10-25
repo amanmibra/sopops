@@ -24,13 +24,14 @@ from .client import SopOps
 log = logging.getLogger("sopops.stream")
 
 EventType = Literal["turn", "tool_call"]
-OPEN_FIELDS = ("platform", "external_id", "channel", "agent", "release", "version_ref", "started_at", "metadata")
+OPEN_FIELDS = ("platform", "external_id", "channel", "agent", "release", "version_ref", "started_at", "metadata", "test", "config")
 
 
 class SessionStream:
     """Streams one session's events to sopops from a background task.
 
     `session` holds the fields `SopOps.open_session` takes (`platform` and `external_id` are required).
+    Sending starts on the first event queued inside a running event loop, or on `start()`.
     Events are sent at most every `flush_interval` seconds, at most `max_batch` per request; at most `max_queue`
     wait to be sent, and the rest are dropped.
     """
@@ -64,7 +65,8 @@ class SessionStream:
         self._closed = False
 
     def start(self) -> None:
-        """Start the background sender. Call from inside the running event loop."""
+        """Start the background sender. Call from inside the running event loop. Optional: queueing an event inside
+        a running loop starts it too."""
         if self._runner is None and not self._closed:
             self._runner = asyncio.get_running_loop().create_task(self._run(), name=f"sopops-stream-{self.external_id}")
 
@@ -89,6 +91,11 @@ class SessionStream:
             return
         event = {"seq": self._seq, "type": kind, kind: dict(payload)}
         self._seq += 1
+        if self._runner is None:
+            try:
+                self.start()
+            except RuntimeError:  # no running loop yet: start() later sends what's queued
+                pass
         try:
             self._queue.put_nowait(event)
         except asyncio.QueueFull:

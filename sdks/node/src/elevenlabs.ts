@@ -9,6 +9,9 @@
  * or ElevenLabs rejects the session. This package doesn't depend on `@elevenlabs/client`; the shapes below
  * match its `SessionConfig` (v1.28).
  *
+ * `initiationData` is the same override as ElevenLabs's `conversation_initiation_client_data` message, for a server:
+ * the answer to its conversation initiation webhook (inbound phone calls), or the first message on a WebSocket.
+ *
  * With `stream: true`, the conversation's messages and tool results also go to sopops as they happen, and the
  * full conversation is posted when it ends (a token with the `ingest` scope is needed).
  */
@@ -40,8 +43,18 @@ export interface ElevenLabsSessionOptions {
   onDisconnect?: (details: { reason: string }) => void;
 }
 
+/** ElevenLabs's `conversation_initiation_client_data` message. */
+export interface ElevenLabsInitiationData {
+  type: "conversation_initiation_client_data";
+  conversation_config_override: { agent: { prompt: { prompt: string } } };
+  dynamic_variables: Record<string, string | number | boolean>;
+}
+
 export interface ElevenLabsSession {
   instructions: Instructions;
+  /** The same override and dynamic variables as a `conversation_initiation_client_data` message, for a server:
+   *  answer ElevenLabs's conversation initiation webhook with it, or send it first on a conversation WebSocket. */
+  initiationData: ElevenLabsInitiationData;
   /** Spread into `startSession`. If you pass your own `onConnect`, call `link(conversationId)` from it. */
   sessionOptions: ElevenLabsSessionOptions;
   /** Report the conversation id to sopops so the post-call session links to this release. Never throws. */
@@ -90,11 +103,17 @@ export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSession
     dynamicVariables,
     onConnect: ({ conversationId }) => void link(conversationId),
   };
-  if (!input.stream) return { instructions, link, sessionOptions, end: async () => {} };
+  const initiationData: ElevenLabsInitiationData = {
+    type: "conversation_initiation_client_data",
+    conversation_config_override: sessionOptions.overrides,
+    dynamic_variables: dynamicVariables,
+  };
+  if (!input.stream) return { instructions, initiationData, link, sessionOptions, end: async () => {} };
 
   const recorder = new Recorder(sopops, instructions, input.onGuidance, { test: input.test ?? null, config: input.config ?? {} });
   return {
     instructions,
+    initiationData,
     link,
     end: (reason) => recorder.end(reason),
     sessionOptions: {

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import inspect
 import json
 import logging
 import os
@@ -12,10 +13,13 @@ import re
 import tempfile
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
-from typing import Any, Literal, Mapping, Sequence
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Literal, Mapping, Protocol, Sequence
 from urllib.parse import quote
 
 import httpx
+
+if TYPE_CHECKING:
+    from .stream import SessionStream
 
 log = logging.getLogger("sopops")
 
@@ -23,11 +27,19 @@ Source = Literal["live", "cache", "fallback"]
 
 
 class SopOpsError(Exception):
-    """sopops answered with an error, or couldn't be reached."""
+    """sopops answered with an error, or couldn't be reached. `status` is the HTTP status, None when the request
+    never landed."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class SopOpsUnavailable(SopOpsError):
     """No instructions: sopops failed, nothing was cached for this agent, and no fallback was given."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
 
 
 @dataclass(frozen=True)
@@ -48,6 +60,53 @@ class Instructions:
     """`live` from sopops, `cache` the last good copy on disk (sopops failed), `fallback` the text you passed."""
     unfilled: tuple[str, ...] = ()
     """Placeholders still in `text`: ones you passed no value for. Empty unless you passed `variables`."""
+
+
+class InstructionCache(Protocol):
+    """Where the last good instructions are kept. `get` and `set` may be plain or async methods."""
+
+    def get(self, key: str) -> Instructions | None | Awaitable[Instructions | None]: ...
+
+    def set(self, key: str, value: Instructions) -> None | Awaitable[None]: ...
+
+
+class MemoryCache:
+    """Keeps instructions in memory for the process's lifetime."""
+
+    def __init__(self) -> None:
+        self._items: dict[str, Instructions] = {}
+
+    def get(self, key: str) -> Instructions | None:
+        return self._items.get(key)
+
+    def set(self, key: str, value: Instructions) -> None:
+        self._items[key] = value
+
+
+class FileCache:
+    """Keeps each agent's last good instructions as a JSON file in `dir` (default `SOPOPS_CACHE_DIR` or
+    `~/.cache/sopops`), so they survive restarts. The default cache of `SopOps`."""
+
+    def __init__(self, dir: str | os.PathLike[str] | None = None) -> None:
+        self.dir = Path(dir or os.environ.get("SOPOPS_CACHE_DIR") or Path.home() / ".cache" / "sopops")
+
+    def _file(self, key: str) -> Path:
+        return self.dir / f"{hashlib.sha256(key.encode()).hexdigest()[:24]}.json"
+
+    def get(self, key: str) -> Instructions | None:
+        try:
+            return Instructions(**json.loads(self._file(key).read_text()))
+        except (OSError, ValueError, TypeError):
+            return None
+
+    def set(self, key: str, value: Instructions) -> None:
+        """Atomically, so a crash mid-write never leaves a broken copy."""
+        path = self._file(key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
+        with os.fdopen(fd, "w") as f:
+            json.dump(asdict(value), f)
+        os.replace(tmp, path)
 
 
 PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
@@ -115,6 +174,7 @@ def fetch(
     token: str | None = None,
     timeout: float = 2.0,
     cache_dir: str | os.PathLike[str] | None = None,
+    cache: InstructionCache | None = None,
 ) -> Instructions:
     """The agent's instructions, blocking: one call for code that isn't async.
 
@@ -136,7 +196,7 @@ def fetch(
         pass
     else:
         raise RuntimeError("sopops.fetch blocks: in async code use `await SopOps(...).fetch_instructions(agent, release)`")
-    client = SopOps(url, token, timeout=timeout, cache_dir=cache_dir)
+    client = SopOps(url, token, timeout=timeout, cache_dir=cache_dir, cache=cache)
     return asyncio.run(client.fetch_instructions(agent, release, platform=platform, fallback=fallback, variables=variables))
 
 
@@ -146,8 +206,9 @@ class SopOps:
     `url` is the workspace's API URL (`http://sopops.internal:8484/v1/workspaces/prod`), default `SOPOPS_URL`.
     `token` is a workspace token (Settings → Tokens; scope `runtime` to fetch, `ingest` to send sessions), default
     `SOPOPS_TOKEN` (or `SOPOPS_INGEST_TOKEN`).
-    `timeout` bounds the fetch at call start; on any failure the last good copy on disk is used
-    (`cache_dir`, default `SOPOPS_CACHE_DIR` or `~/.cache/sopops`).
+    `timeout` bounds the fetch at call start; on any failure the last good copy is used. `cache` is where that copy
+    is kept (any `InstructionCache`, such as `MemoryCache()`); the default is a `FileCache` in `cache_dir`
+    (default `SOPOPS_CACHE_DIR` or `~/.cache/sopops`).
     """
 
     def __init__(
@@ -157,6 +218,7 @@ class SopOps:
         *,
         timeout: float = 2.0,
         cache_dir: str | os.PathLike[str] | None = None,
+        cache: InstructionCache | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         url = url or os.environ.get("SOPOPS_URL")
@@ -166,6 +228,7 @@ class SopOps:
         self.token = token if token is not None else (os.environ.get("SOPOPS_TOKEN") or os.environ.get("SOPOPS_INGEST_TOKEN"))
         self.timeout = timeout
         self.cache_dir = Path(cache_dir or os.environ.get("SOPOPS_CACHE_DIR") or Path.home() / ".cache" / "sopops")
+        self.cache: InstructionCache = cache if cache is not None else FileCache(self.cache_dir)
         self._transport = transport
 
     def _client(self, timeout: float) -> httpx.AsyncClient:
@@ -190,9 +253,9 @@ class SopOps:
         params = {k: v for k, v in {"release": str(release) if release is not None else None, "platform": platform}.items() if v is not None}
         try:
             async with self._client(self.timeout) as http:
-                res = await asyncio.wait_for(http.get(f"/agents/{agent}", params=params), self.timeout + 0.5)
+                res = await asyncio.wait_for(http.get(f"/agents/{quote(agent, safe='')}", params=params), self.timeout + 0.5)
             if res.status_code >= 400:
-                raise SopOpsError(f"sopops answered {res.status_code} for agent '{agent}': {_detail(res)}")
+                raise SopOpsError(f"sopops answered {res.status_code} for agent '{agent}': {_detail(res)}", res.status_code)
             body = res.json()
             got = Instructions(
                 text=body["prompt"], release=body["release"], agent=body["agent"], blocks=body.get("components", []),
@@ -200,7 +263,7 @@ class SopOps:
             )
         except (httpx.HTTPError, asyncio.TimeoutError, SopOpsError, ValueError, KeyError) as e:
             reason = str(e) or type(e).__name__
-            cached = self._read_cache(agent, release, platform)
+            cached = await self._read_cache(agent, release, platform)
             if cached is not None:
                 log.warning("sopops: using the cached instructions for %s (release %s): %s", agent, cached.release, reason)
                 return _filled(cached, variables)
@@ -208,7 +271,7 @@ class SopOps:
                 log.error("sopops: using the fallback instructions for %s, nothing cached: %s", agent, reason)
                 return _filled(Instructions(text=fallback, release=None, agent=agent, source="fallback"), variables)
             raise SopOpsUnavailable(f"no instructions for '{agent}': {reason}") from e
-        self._write_cache(agent, release, platform, got)   # unfilled, so the next call fills it with its own values
+        await self._write_cache(agent, release, platform, got)   # unfilled, so the next call fills it with its own values
         return _filled(got, variables)
 
     async def fetch_platform_instructions(self, platform: str, agent: str, release: int | None = None, *,
@@ -219,27 +282,25 @@ class SopOps:
         cache, and variable behavior as `fetch_instructions`. The cache is scoped to `platform`."""
         return await self.fetch_instructions(agent, release, platform=platform, fallback=fallback, variables=variables)
 
-    def _cache_file(self, agent: str, release: int | None, platform: str | None = None) -> Path:
-        key = hashlib.sha256(f"{self.url}\n{agent}\n{release if release is not None else 'live'}\n{platform or ''}".encode()).hexdigest()[:24]
-        return self.cache_dir / f"{key}.json"
+    def _cache_key(self, agent: str, release: int | None, platform: str | None) -> str:
+        return f"{self.url}\n{agent}\n{release if release is not None else 'live'}\n{platform or ''}"
 
-    def _read_cache(self, agent: str, release: int | None, platform: str | None = None) -> Instructions | None:
+    async def _read_cache(self, agent: str, release: int | None, platform: str | None = None) -> Instructions | None:
         try:
-            data = json.loads(self._cache_file(agent, release, platform).read_text())
-            return Instructions(**{**data, "source": "cache"})
-        except (OSError, ValueError, TypeError):
+            got = self.cache.get(self._cache_key(agent, release, platform))
+            if inspect.isawaitable(got):
+                got = await got
+        except Exception:  # noqa: BLE001 - a cache that can't answer is a cache miss
             return None
+        return replace(got, source="cache") if isinstance(got, Instructions) else None
 
-    def _write_cache(self, agent: str, release: int | None, platform: str | None, got: Instructions) -> None:
-        """Atomically, so a crash mid-write never leaves a broken copy. Failures only log: the call goes on."""
-        path = self._cache_file(agent, release, platform)
+    async def _write_cache(self, agent: str, release: int | None, platform: str | None, got: Instructions) -> None:
+        """Failures only log: the call goes on."""
         try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".tmp-")
-            with os.fdopen(fd, "w") as f:
-                json.dump(asdict(got), f)
-            os.replace(tmp, path)
-        except OSError as e:
+            done = self.cache.set(self._cache_key(agent, release, platform), got)
+            if inspect.isawaitable(done):
+                await done
+        except Exception as e:  # noqa: BLE001
             log.warning("sopops: couldn't cache instructions for %s: %s", agent, e)
 
     async def record_served(self, platform: str, call_id: str, agent: str, release: int, *, timeout: float = 3.0) -> None:
@@ -248,7 +309,7 @@ class SopOps:
         async with self._client(timeout) as http:
             res = await http.post("/runtime/served", json={"platform": platform, "call_id": call_id, "agent": agent, "release": release})
         if res.status_code >= 400:
-            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
+            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}", res.status_code)
 
     # --- call end ----------------------------------------------------------------------------
 
@@ -266,10 +327,10 @@ class SopOps:
                     last = SopOpsError(f"couldn't reach sopops: {type(e).__name__}")
                     continue
                 if res.status_code == 429 or res.status_code >= 500:
-                    last = SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
+                    last = SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}", res.status_code)
                     continue
                 if res.status_code >= 400:
-                    raise SopOpsError(f"sopops refused the session ({res.status_code}): {_detail(res)}")
+                    raise SopOpsError(f"sopops refused the session ({res.status_code}): {_detail(res)}", res.status_code)
                 out: dict[str, Any] = res.json()
                 return out
         assert last is not None
@@ -279,7 +340,8 @@ class SopOps:
 
     async def open_session(self, session: Mapping[str, Any], *, timeout: float = 3.0) -> dict[str, Any]:
         """Open a session while the call runs, so its events can be sent as they happen: `platform`,
-        `external_id` and optionally `channel`, `agent`, `release`, `version_ref`, `started_at`, `metadata`.
+        `external_id` and optionally `channel`, `agent`, `release`, `version_ref`, `started_at`, `metadata`, `test`,
+        `config`.
         Returns `{id, created}`. Safe to repeat: keyed by (platform, external_id), like `post_session`."""
         return await self._post("/sessions/open", dict(session), timeout)
 
@@ -290,6 +352,14 @@ class SopOps:
         path = f"/sessions/{quote(platform, safe='')}/{quote(external_id, safe='')}/events"
         return await self._post(path, {"events": [dict(e) for e in events]}, timeout)
 
+    def stream(self, session: Mapping[str, Any], *, flush_interval: float = 0.5, max_batch: int = 50, max_queue: int = 1000,
+               on_guidance: Callable[[Mapping[str, Any]], Any] | None = None) -> SessionStream:
+        """Stream a session's turns and tool calls while the call runs (see `SessionStream`). It starts sending on
+        the first event queued inside a running event loop."""
+        from .stream import SessionStream
+
+        return SessionStream(self, session, flush_interval=flush_interval, max_batch=max_batch, max_queue=max_queue, on_guidance=on_guidance)
+
     async def _post(self, path: str, body: dict[str, Any], timeout: float) -> dict[str, Any]:
         """One POST, no retries."""
         try:
@@ -298,7 +368,7 @@ class SopOps:
         except httpx.HTTPError as e:
             raise SopOpsError(f"couldn't reach sopops: {type(e).__name__}") from e
         if res.status_code >= 400:
-            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}")
+            raise SopOpsError(f"sopops answered {res.status_code}: {_detail(res)}", res.status_code)
         out: dict[str, Any] = res.json()
         return out
 

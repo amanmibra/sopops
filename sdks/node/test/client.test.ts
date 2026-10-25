@@ -115,6 +115,11 @@ describe("elevenLabsSession", () => {
     expect(s.sessionOptions.agentId).toBe("agent_123");
     expect(s.sessionOptions.overrides).toEqual({ agent: { prompt: { prompt: "You are the front desk." } } });
     expect(s.sessionOptions.dynamicVariables).toEqual({ sopops_agent: "front-desk", sopops_release: 3 });
+    expect(s.initiationData).toEqual({
+      type: "conversation_initiation_client_data",
+      conversation_config_override: { agent: { prompt: { prompt: "You are the front desk." } } },
+      dynamic_variables: { sopops_agent: "front-desk", sopops_release: 3 },
+    });
 
     s.sessionOptions.onConnect({ conversationId: "conv_9" });
     await vi.waitFor(() => expect(m.calls).toHaveLength(2));

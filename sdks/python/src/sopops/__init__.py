@@ -1,11 +1,26 @@
 """sopops client: fetch an agent's instructions at call start, and send each finished session back.
 
-Framework adapters live in their own modules and import their framework lazily: `sopops.livekit`.
+Platform adapters live in their own modules and import their framework lazily: `sopops.livekit`, `sopops.elevenlabs`.
 `SessionStream` optionally sends a session's events while the call runs.
 """
 
-from .client import Instructions, SopOps, SopOpsError, SopOpsUnavailable, fetch, release_pin
+from .client import (
+    FileCache,
+    InstructionCache,
+    Instructions,
+    MemoryCache,
+    SopOps,
+    SopOpsError,
+    SopOpsUnavailable,
+    fetch,
+    fill,
+    release_pin,
+    unfilled,
+)
 from .stream import SessionStream
 
 __version__ = "0.2.0"
-__all__ = ["Instructions", "SessionStream", "SopOps", "SopOpsError", "SopOpsUnavailable", "fetch", "release_pin"]
+__all__ = [
+    "FileCache", "InstructionCache", "Instructions", "MemoryCache", "SessionStream", "SopOps", "SopOpsError", "SopOpsUnavailable",
+    "fetch", "fill", "release_pin", "unfilled",
+]
