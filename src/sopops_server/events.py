@@ -24,6 +24,7 @@ Callback = Callable[[Event], None]
 class Broker:
     def __init__(self) -> None:
         self._subs: dict[str, set[Callback]] = defaultdict(set)
+        self._all: set[Callback] = set()
         self._lock = threading.Lock()
 
     def subscribe(self, workspace: str, callback: Callback) -> Callable[[], None]:
@@ -37,9 +38,25 @@ class Broker:
 
         return unsubscribe
 
+    def subscribe_all(self, callback: Callback) -> Callable[[], None]:
+        """Receive every session event.
+
+        Hosted extensions use this for durable side effects such as metering;
+        callers must make their own handler idempotent because an event can be
+        delivered more than once after a Postgres reconnect.
+        """
+        with self._lock:
+            self._all.add(callback)
+
+        def unsubscribe() -> None:
+            with self._lock:
+                self._all.discard(callback)
+        return unsubscribe
+
     def publish(self, event: Event) -> None:
         with self._lock:
             subs = list(self._subs.get(event["workspace"], ()))
+            subs += list(self._all)
         for cb in subs:
             try:
                 cb(event)
