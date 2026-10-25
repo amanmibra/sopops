@@ -11,9 +11,8 @@ concurrency:
 
 jobs:
   backend:
-    # Postgres is what the hosted deployments run on, so this job gates them (deploy.yml and
-    # deploy-hosted.yml run after ci). SQLite, the self-host default, runs in ci-sqlite.yml without
-    # blocking a deploy.
+    # Postgres is what the hosted deployment runs on, so this job gates it (deploy-hosted.yml runs
+    # after ci). SQLite, the self-host default, runs in ci-sqlite.yml without blocking a deploy.
     name: backend (postgres)
     runs-on: ubuntu-latest
     env:
