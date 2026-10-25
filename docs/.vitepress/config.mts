@@ -3,7 +3,7 @@ import { defineConfig } from "vitepress";
 
 const REPO = "https://github.com/amanmibra/sopops";
 
-// Where the site lives: "/" on docs.sopops.dev, "/docs/" on sopops.dev (DOCS_BASE=/docs/ pnpm build). The build goes
+// Where the site lives: "/" by default (pnpm build), "/docs/" on sopops.dev (pnpm build:cloudflare). The build goes
 // under the same path in .vitepress/dist, so the Worker serving that folder (wrangler.jsonc) answers /docs/... itself,
 // and a router in front passes the path through as it is.
 const BASE = `/${(process.env.DOCS_BASE ?? "/").replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");

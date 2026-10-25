@@ -1,9 +1,11 @@
-// The docs: VitePress's static build, served as assets by a Cloudflare Worker (no Worker code). At docs.sopops.dev
-// the build is at the root of .vitepress/dist; built with DOCS_BASE=/docs/ it is under .vitepress/dist/docs/, so this
-// Worker answers sopops.dev/docs/... with the path as it is.
+// The docs: VitePress's static build, served as assets by a Cloudflare Worker (no Worker code), at sopops.dev/docs/.
+// `wrangler deploy` (and Workers Builds, which runs it) builds first with `pnpm build:cloudflare`: the site built for
+// /docs/ (DOCS_BASE, default /docs/), under .vitepress/dist/docs/, so this Worker answers sopops.dev/docs/... with the
+// path as it is. `pnpm build` alone builds for the site root, for local use; it is never what this Worker serves.
 {
   "name": "sopops-docs",
   "compatibility_date": "2026-10-01",
+  "build": { "command": "pnpm build:cloudflare" },
   "assets": {
     "directory": ".vitepress/dist",
     "not_found_handling": "404-page",

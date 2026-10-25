@@ -1,15 +1,14 @@
 {
   "name": "sopops-docs",
   "private": true,
-  "description": "The guides in this folder, built with VitePress and served as static files by a Cloudflare Worker: at docs.sopops.dev by default, or under sopops.dev/docs/ when built with DOCS_BASE=/docs/.",
+  "description": "The guides in this folder, built with VitePress. `pnpm build` builds them for the site root; `pnpm build:cloudflare` builds them under /docs/ for the Cloudflare Worker that serves sopops.dev/docs (wrangler.jsonc).",
   "type": "module",
   "scripts": {
     "dev": "vitepress dev",
     "build": "vitepress build",
     "preview": "vitepress preview",
-    "deploy": "vitepress build && wrangler deploy",
-    "build:sopops.dev": "DOCS_BASE=/docs/ vitepress build",
-    "deploy:sopops.dev": "DOCS_BASE=/docs/ vitepress build && wrangler deploy"
+    "build:cloudflare": "rm -rf .vitepress/dist && DOCS_BASE=${DOCS_BASE:-/docs/} vitepress build",
+    "deploy": "wrangler deploy"
   },
   "devDependencies": {
     "vitepress": "1.6.4"
