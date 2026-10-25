@@ -21,6 +21,7 @@ from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
 from sopops_server import Sopc, Store, cli, create_app, mail
+from sopops_server.api.auth import SESSION_MAX_AGE
 from sopops_server.auth import access, mode, providers
 from sopops_server.auth.service import csrf_token
 from sopops_server.db import upgrade
@@ -314,6 +315,51 @@ def test_secure_cookies_on_https(app):
     res = sign_in(c, "github", "1", "ana@example.com")
     assert all("Secure" in h for h in res.headers.get_list("set-cookie") if h.startswith(("sopops_session=", "sopops_csrf=")))
     assert any("HttpOnly" not in h for h in res.headers.get_list("set-cookie") if h.startswith("sopops_csrf="))  # the UI reads it
+
+
+def hint_of(res: httpx.Response) -> str | None:
+    """The Set-Cookie header for the signed-in hint, if the response sent one."""
+    return next((h for h in res.headers.get_list("set-cookie") if h.startswith(f"{access.SIGNED_IN_COOKIE}=")), None)
+
+
+def test_signing_in_sets_the_signed_in_hint(app):
+    c = TestClient(app, base_url="https://sopops.example")
+    res = sign_in(c, "github", "1", "ana@example.com")
+    hint = hint_of(res)
+    assert hint is not None and hint.startswith("sopops_signed_in=1;")
+    attrs = [a.strip() for a in hint.split(";")[1:]]
+    assert "Path=/" in attrs and "Secure" in attrs and "SameSite=lax" in attrs and "HttpOnly" not in attrs
+    session = next(h for h in res.headers.get_list("set-cookie") if h.startswith("sopops_session="))
+    assert "HttpOnly" in session  # the real session cookie is unchanged
+    assert f"Max-Age={SESSION_MAX_AGE}" in attrs and f"Max-Age={SESSION_MAX_AGE}" in session  # lives as long as the session
+    assert "Max-Age=0" not in (hint_of(c.get("/v1/auth/session")) or "")  # renewed with the session as it slides
+
+
+def test_the_hint_grants_nothing(app, files):
+    c = TestClient(app, cookies={access.SIGNED_IN_COOKIE: "1"})
+    res = c.get("/v1/workspaces")
+    assert res.status_code == 401
+    assert c.get("/v1/auth/session").json()["user"] is None
+
+
+def test_signing_out_clears_the_hint(owner):
+    assert owner.cookies.get(access.SIGNED_IN_COOKIE) == "1"
+    out = owner.post("/v1/auth/logout")
+    assert out.status_code == 204 and "Max-Age=0" in hint_of(out) and "Path=/" in hint_of(out)
+    assert owner.cookies.get(access.SIGNED_IN_COOKIE) is None
+
+
+def test_a_dead_session_clears_the_hint(owner, app):
+    with db(owner) as d, d.begin():
+        s = d.exec(select(LoginSession)).one()
+        s.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        d.add(s)
+    res = owner.get("/v1/workspaces")
+    assert res.status_code == 401 and "Max-Age=0" in hint_of(res)
+    stale = TestClient(app, cookies={access.SIGNED_IN_COOKIE: "1"})  # the hint left over, no session at all
+    res = stale.get("/v1/auth/session")
+    assert res.json()["user"] is None and "Max-Age=0" in hint_of(res)
+    assert hint_of(TestClient(app).get("/v1/auth/session")) is None  # nothing to clear, nothing sent
 
 
 # --- roles -------------------------------------------------------------------------------

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .. import forms
+from ..auth import access
 from ..errors import Ambiguous, Conflict, NotFound
 from ..github import GitHubError
 from ..insights import BadFilter
@@ -36,8 +37,11 @@ def register(app: FastAPI) -> None:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
 
     @app.exception_handler(Unauthorized)
-    def _unauthorized(_, exc: Unauthorized) -> JSONResponse:
-        return JSONResponse(status_code=401, content={"detail": str(exc)}, headers={"WWW-Authenticate": "Bearer"})
+    def _unauthorized(request: Request, exc: Unauthorized) -> JSONResponse:
+        out = JSONResponse(status_code=401, content={"detail": str(exc)}, headers={"WWW-Authenticate": "Bearer"})
+        if getattr(request.state, "stale_login", False) and access.SIGNED_IN_COOKIE in request.cookies:
+            access.clear_signed_in_cookie(out, request)  # the session is gone, so the landing page shouldn't say "Open app"
+        return out
 
     @app.exception_handler(Forbidden)
     def _forbidden(_, exc: Forbidden) -> JSONResponse:

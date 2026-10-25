@@ -56,6 +56,10 @@ SESSION_COOKIE = "sopops_session"
 CSRF_COOKIE = "sopops_csrf"
 MIMIC_COOKIE = "sopops_mimic"
 MIMIC_CSRF_COOKIE = "sopops_mimic_csrf"
+# A UI hint for pages outside the app (the landing page at `/` shows "Open app" rather than "Sign in"). It holds no
+# secret and grants nothing: it isn't HttpOnly, so page scripts and server-rendered pages on the same host can read it,
+# and it's set and cleared beside the session cookie. Path `/` so the whole host sees it, not just the API's prefix.
+SIGNED_IN_COOKIE = "sopops_signed_in"
 CSRF_HEADER = "X-CSRF-Token"
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 NO_MEMBERSHIP = "you're not a member of an org on this sopops yet. Ask an owner to invite you"
@@ -160,6 +164,7 @@ async def guard(request: Request) -> None:
     if cur is None:
         if kind == TOKEN_OR_SESSION:
             return  # the route checks its runtime token
+        request.state.stale_login = True  # the 401 handler drops the signed-in hint, if the browser still has one
         raise Unauthorized("sign in first")
     if request.method not in SAFE_METHODS:
         _check_csrf(request, token or "", cookie)
@@ -205,12 +210,19 @@ def set_session_cookies(response: Response, request: Request, token: str, max_ag
     s = secure(request)
     response.set_cookie(SESSION_COOKIE, token, max_age=max_age, path="/", httponly=True, samesite="lax", secure=s)
     response.set_cookie(CSRF_COOKIE, csrf_token(token), max_age=max_age, path="/", httponly=False, samesite="lax", secure=s)
+    response.set_cookie(SIGNED_IN_COOKIE, "1", max_age=max_age, path="/", httponly=False, samesite="lax", secure=s)
 
 
 def clear_session_cookies(response: Response, request: Request) -> None:
     s = secure(request)
     response.delete_cookie(SESSION_COOKIE, path="/", httponly=True, samesite="lax", secure=s)
     response.delete_cookie(CSRF_COOKIE, path="/", httponly=False, samesite="lax", secure=s)
+    clear_signed_in_cookie(response, request)
+
+
+def clear_signed_in_cookie(response: Response, request: Request) -> None:
+    """Drop the signed-in hint alone: for a request whose session turned out to be gone or expired."""
+    response.delete_cookie(SIGNED_IN_COOKIE, path="/", httponly=False, samesite="lax", secure=secure(request))
 
 
 def set_mimic_cookies(response: Response, request: Request, token: str, max_age: int) -> None:

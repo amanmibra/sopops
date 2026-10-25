@@ -199,5 +199,6 @@ Every link below is a random token, stored hashed.
 - Every provider that redirects uses OAuth with `state` and PKCE.
 - Sessions are random tokens in an HttpOnly, SameSite=Lax cookie, stored hashed.
 - Cookie requests that change something send `X-CSRF-Token`, the `sopops_csrf` cookie's value. Other sites can't read it. The web UI does this.
+- A `sopops_signed_in=1` cookie (Path=/, not HttpOnly) is set and cleared beside the session, so pages on the same host, such as a landing page, can show "Open app" instead of "Sign in". It's a hint only and grants nothing.
 - With sign-in on, fetching instructions needs the workspace's runtime token or a signed-in person, even with no token yet. Make one in Settings, Access.
 - Every route's rule is in [`src/sopops_server/auth/access.py`](../src/sopops_server/auth/access.py).

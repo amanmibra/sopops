@@ -107,6 +107,8 @@ def test_sign_in_goes_through_the_public_addresses(app, monkeypatch):
     assert back.status_code == 303 and back.headers["location"] == "/app/w/demo/sessions"
     session = next(h for h in back.headers.get_list("set-cookie") if h.startswith("sopops_session="))
     assert "Path=/;" in session or session.endswith("Path=/")  # the UI at /app and the API at /api both get it
+    hint = next(h for h in back.headers.get_list("set-cookie") if h.startswith("sopops_signed_in=1"))
+    assert ("Path=/;" in hint or hint.endswith("Path=/")) and "Secure" in hint  # the landing page at / reads it too
     cleared = next(h for h in back.headers.get_list("set-cookie") if h.startswith("sopops_oauth="))
     assert "Path=/api/v1/auth/callback" in cleared
     # A failed callback lands on the UI's sign-in page.

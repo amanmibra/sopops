@@ -241,6 +241,8 @@ def router(accounts: Accounts) -> APIRouter:
         cur = accounts.current(token)
         if cur is not None and token:
             access.set_session_cookies(response, request, token, SESSION_MAX_AGE)
+        elif access.SIGNED_IN_COOKIE in request.cookies:
+            access.clear_signed_in_cookie(response, request)  # signed out or expired: drop the landing page's hint
         return state(cur, request)
 
     @r.get("/v1/auth/login/{provider}", response_class=RedirectResponse, status_code=302, responses={404: {"description": "No such provider here."}})
