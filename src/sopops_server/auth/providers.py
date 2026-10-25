@@ -1,15 +1,14 @@
-"""Login providers: a registry that `github`, `google`, `email` and `password` register into, and that a plugin can add to.
+"""Login providers: a registry that `github`, `google` and `password` register into, and that a plugin can add to.
 
 A redirect provider (GitHub, Google, most plugins) sends the browser to its sign-in page (`authorize_url`, with `state` and a PKCE code challenge) and, when
 the browser comes back with a code, trades it for the person's profile (`profile`). Only a verified email counts: a
-provider returns `email=None` when it has none, and sign-in is refused. `email` doesn't redirect (`redirects = False`):
-it mails a link instead (`sopops_server.auth.email`), so the login and callback routes don't take it. Nor does `password`
-(`sopops_server.auth.password`), which has its own routes.
+provider returns `email=None` when it has none, and sign-in is refused. `password` doesn't redirect (`redirects = False`):
+it has its own routes (`sopops_server.auth.password`), so the login and callback routes don't take it.
 
 **Plugins.** A package adds providers by registering them, either from code (`register(MyProvider())`) or through the
 `sopops.login_providers` entry point group, whose entries are loaded when the app starts (`load_plugins`). That's the
 extension point for, say, SAML or a managed sign-in service in a package of its own; the open core ships GitHub,
-Google, email links and passwords. A plugin's provider is an ordinary one and can do more than say who signed in: it
+Google and passwords. A plugin's provider is an ordinary one and can do more than say who signed in: it
 can own the teams (`owns_teams`), end its own session when somebody signs out (`end_session`) and send webhooks
 (`webhook_events`, read by `sopops_server.auth.webhooks`).
 

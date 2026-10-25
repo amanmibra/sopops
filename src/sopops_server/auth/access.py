@@ -2,7 +2,7 @@
 
 | Kind | With sign-in on | With sign-in off |
 |---|---|---|
-| `open` | anyone (the sign-in flow, email sign-in links, passwords, sign-up, join links, the UI's files, health, API docs) | anyone |
+| `open` | anyone (the sign-in flow, passwords, sign-up, join links, the UI's files, health, API docs) | anyone |
 | `token` | the route checks its own token (ingest, runtime or onboarding); no login session | same |
 | `webhook` | the route checks the sender's signature or secret; no login session | same |
 | `token_or_session` | a login session, or the route's runtime token (prompt fetches) | as before |
@@ -17,7 +17,7 @@ listed. Workspaces in another org answer 404, as if they weren't there.
 the value of the `sopops_csrf` cookie, which is an HMAC of the session token (`service.csrf_token`): another site can
 make the browser send the session cookie, but can't read the CSRF cookie to copy it into a header. The session cookie
 is also SameSite=Lax. Token and webhook routes take no cookie, so they need no CSRF token. The open routes that sign in
-(a password, an email link, an invite) have no session to check against; they take only JSON, which another site can't
+(a password, a password link, an invite) have no session to check against; they take only JSON, which another site can't
 make a browser send without passing CORS.
 
 **Support sessions** (`sopops_server.auth.support`). Support staff can work in one customer org to help them, which
@@ -46,7 +46,7 @@ from starlette.responses import Response
 from ..errors import NotFound
 from ..tokens import Forbidden, Unauthorized
 from . import actor, github, google, mode  # noqa: F401  (these register their providers)
-from . import email, password  # noqa: F401, I001  (register their providers after them, so they're listed last)
+from . import password  # noqa: F401, I001  (registers its provider after them, so it's listed last)
 from .service import MANAGERS, Accounts, Current, csrf_token
 
 OPEN, TOKEN, WEBHOOK, TOKEN_OR_SESSION, SIGNED_IN, SESSION, ADMIN = "open", "token", "webhook", "token_or_session", "signed_in", "session", "admin"
@@ -68,9 +68,8 @@ NO_MEMBERSHIP = "you're not a member of an org on this sopops yet. Ask an owner 
 ROUTES: dict[str, str] = {
     # open: the sign-in flow, the UI's files, health and the API docs
     "spa": OPEN, "healthz": OPEN, "openapi": OPEN, "swagger_ui_html": OPEN, "swagger_ui_redirect": OPEN, "redoc_html": OPEN,
-    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN, "request_email_link": OPEN,
-    "confirm_email_link": OPEN,
-    "password_login": OPEN, "first_account": OPEN, "sign_up": OPEN, "join_with_password": OPEN, "request_password_link": OPEN, "lookup_password_link": OPEN,
+    "auth_session": OPEN, "sign_in": OPEN, "auth_callback": OPEN, "lookup_invite": OPEN,
+    "password_login": OPEN, "first_account": OPEN, "sign_up": OPEN, "join_with_password": OPEN, "lookup_password_link": OPEN,
     "set_password": OPEN, "lookup_join_link": OPEN, "join_with_link": OPEN,
     "onboarding_skill": OPEN,  # SKILL.md, the same text the repo publishes
     # signed in, with or without a membership

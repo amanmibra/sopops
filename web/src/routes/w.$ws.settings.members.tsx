@@ -12,7 +12,7 @@ function Members() {
     return (
       <SectionHead title="Choose who can use sopops">
         People don't sign in on this sopops, so there are no members to manage. To have people sign in, set SOPOPS_AUTH_REQUIRED=true for email and
-        password, or set up GitHub, Google or SMTP (see "Sign in" in the README), then restart sopops.
+        password, or set up GitHub or Google (see "Sign in" in the README), then restart sopops.
       </SectionHead>
     );
   return (

@@ -1,9 +1,9 @@
-// Signing in: the gate every page goes through, the sign-in buttons, the password and email forms, the "ask your team"
+// Signing in: the gate every page goes through, the sign-in buttons, the password form, the "ask your team"
 // page, and the user menu in the top bar (avatar, name, your teams and making one, change password, sign out). The
 // first account on a fresh install is made on /welcome, and anyone else's on /sign-up (components/new-account.tsx).
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
-import { Check, KeyRound, LogOut, Mail, Plus } from "lucide-react";
+import { Check, KeyRound, LogOut, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AuthState, type UserOut, call, sdk } from "@/lib/api";
@@ -20,8 +20,8 @@ import { Label } from "./ui/label";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "./ui/dropdown-menu";
 import { appPath, assignApp } from "@/lib/paths";
 
-/** Pages anyone can open: signing in, signing up, the first run, an emailed sign-in link, a link that sets a password, and invite and join links. */
-const OPEN_PAGES = ["/sign-in", "/sign-up", "/welcome", "/sign-in/email", "/set-password", "/invite", "/join"];
+/** Pages anyone can open: signing in, signing up, the first run, a link that sets a password, and invite and join links. */
+const OPEN_PAGES = ["/sign-in", "/sign-up", "/welcome", "/set-password", "/invite", "/join"];
 
 /** Pages that need a login but no team. Support staff belong to no customer team by design, so the page where they
  *  start a support session has to open before the "ask your team" gate. The server still checks they are staff. */
@@ -105,49 +105,26 @@ export function RedirectButtons({ auth, next }: { auth: AuthState; next: string 
   );
 }
 
-type Form = "password" | "link" | "forgot";
-
 /**
- * The ways to sign in here: GitHub and Google buttons, then an email and password. With email set up, "Forgot
- * password?" and "Email me a sign-in link instead" swap the form for one that emails a link. `password={false}` leaves
- * the password form out (an invite for someone with no account yet, who makes one instead).
+ * The ways to sign in here: GitHub and Google buttons, then an email and password. sopops sends no email, so a forgotten
+ * password is reset by an owner or admin. `password={false}` leaves the password form out (an invite for someone with no
+ * account yet, who makes one instead).
  */
 export function SignInButtons({ auth, next, password = true }: { auth: AuthState; next: string; password?: boolean }) {
   const byPassword = password && auth.providers.some((p) => p.id === "password");
-  const byEmail = auth.providers.some((p) => p.id === "email");
-  const [form, setForm] = useState<Form>(byPassword ? "password" : "link");
   const redirects = auth.providers.some((p) => p.redirects);
-  if (!redirects && !byPassword && !byEmail)
-    return <p className="text-muted-foreground text-sm">No way to sign in is set up on this sopops yet. Ask whoever runs it.</p>;
-  // An invite's token waits in this tab, and an emailed link may open in another: signing in accepts the invite anyway.
-  const after = next === "/invite" ? "/" : next;
-  const back = byPassword ? () => setForm("password") : undefined;
+  if (!redirects && !byPassword) return <p className="text-muted-foreground text-sm">No way to sign in is set up on this sopops yet. Ask whoever runs it.</p>;
   return (
     <div className="grid gap-2">
       <RedirectButtons auth={auth} next={next} />
-      {redirects && (byPassword || byEmail) && <Or />}
-      {form === "password" && byPassword && <PasswordSignIn next={next} />}
-      {form === "link" && byEmail && <EmailSignIn next={after} onBack={back} />}
-      {form === "forgot" && <PasswordEmail signUp={false} onBack={() => setForm("password")} />}
-      {form === "password" && byPassword && (
-        <div className="text-muted-foreground mt-1 grid gap-1 text-center text-sm">
-          {auth.password_email ? (
-            <TextButton onClick={() => setForm("forgot")}>Forgot password?</TextButton>
-          ) : (
-            <span>Forgot your password? Ask an owner or admin for a reset link.</span>
-          )}
-          {byEmail && <TextButton onClick={() => setForm("link")}>Email me a sign-in link instead</TextButton>}
-        </div>
+      {redirects && byPassword && <Or />}
+      {byPassword && (
+        <>
+          <PasswordSignIn next={next} />
+          <p className="text-muted-foreground mt-1 text-center text-sm">Forgot your password? Ask an owner or admin for a reset link.</p>
+        </>
       )}
     </div>
-  );
-}
-
-function TextButton({ onClick, children }: { onClick: () => void; children: ReactNode }) {
-  return (
-    <button type="button" className="hover:text-foreground underline-offset-2 hover:underline" onClick={onClick}>
-      {children}
-    </button>
   );
 }
 
@@ -205,130 +182,6 @@ function PasswordSignIn({ next }: { next: string }) {
       <Button type="submit" className="mt-1 h-10 text-sm" disabled={busy || !email.trim() || !password}>
         Sign in
       </Button>
-    </form>
-  );
-}
-
-/** Email a link that sets a password: "Forgot password?", or making an account at an allowed domain. */
-export function PasswordEmail({ signUp, onBack }: { signUp: boolean; onBack: () => void }) {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const send = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setSent((await call(sdk.requestPasswordLink({ body: { email: email.trim() } }))).message);
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (sent)
-    return (
-      <Banner tone="ok">
-        <b>Check your email.</b> {sent} Didn't get it? Check spam, or{" "}
-        <button type="button" className="underline underline-offset-2" onClick={onBack}>
-          go back to sign in
-        </button>
-        .
-      </Banner>
-    );
-  return (
-    <form
-      className="grid gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <p className="text-muted-foreground text-sm leading-relaxed">
-        {signUp ? "We email you a link to set your password and make your account." : "We email you a link to set a new password."}
-      </p>
-      <Label htmlFor="password-email" className="text-sm">
-        {signUp ? "Work email" : "Email"}
-      </Label>
-      <Input
-        id="password-email"
-        type="email"
-        required
-        autoComplete="email"
-        className="h-10"
-        placeholder="name@example.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      {error && <Banner tone="err">{error}</Banner>}
-      <Button type="submit" className="h-10 gap-2 text-sm" disabled={busy || !email.trim()}>
-        <Mail className="size-[18px]" /> {signUp ? "Email me a link" : "Email me a reset link"}
-      </Button>
-      <TextButton onClick={onBack}>
-        <span className="text-muted-foreground text-sm">Back to sign in</span>
-      </TextButton>
-    </form>
-  );
-}
-
-/** Ask for a sign-in link by email. The answer never says whether the address has an account. */
-function EmailSignIn({ next, onBack }: { next: string; onBack?: () => void }) {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const send = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const got = await call(sdk.requestEmailLink({ body: { email: email.trim(), next } }));
-      setSent(got.message);
-    } catch (e) {
-      setError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (sent)
-    return (
-      <Banner tone="ok">
-        <b>Check your email.</b> {sent} Didn't get it? Check spam, or{" "}
-        <button type="button" className="underline underline-offset-2" onClick={() => setSent(null)}>
-          try again
-        </button>
-        .
-      </Banner>
-    );
-  return (
-    <form
-      className="grid gap-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void send();
-      }}
-    >
-      <Label htmlFor="sign-in-link-email" className="text-sm">
-        Email
-      </Label>
-      <Input
-        id="sign-in-link-email"
-        type="email"
-        required
-        autoComplete="email"
-        className="h-10"
-        placeholder="name@example.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      {error && <Banner tone="err">{error}</Banner>}
-      <Button type="submit" className="h-10 gap-2 text-sm" disabled={busy || !email.trim()}>
-        <Mail className="size-[18px]" /> Email me a sign-in link
-      </Button>
-      {onBack && (
-        <TextButton onClick={onBack}>
-          <span className="text-muted-foreground text-sm">Sign in with a password instead</span>
-        </TextButton>
-      )}
     </form>
   );
 }

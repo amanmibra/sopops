@@ -6,20 +6,16 @@ challenge, kept with the code verifier in a short-lived HttpOnly cookie. The pro
 callback URL is the API's public address plus that path (`sopops_server.urls`: SOPOPS_PUBLIC_API_URL, else
 SOPOPS_PUBLIC_URL, else this request's own address), and the pages it sends people back to are under the UI's.
 
-Email sign-in: `POST /v1/auth/email` mails a link (`<sopops>/sign-in/email#<token>`) and always answers the same,
-whether the address gets one or not. The page posts the token to `/v1/auth/email/confirm` when the person clicks, which
-starts a login session (see `sopops_server.auth.email` for why the token is after `#` and needs the click).
-
 Passwords (`sopops_server.auth.password`): `POST /v1/auth/password/login` signs in. On a fresh install,
 `/v1/auth/password/first-account` makes the owner. With SOPOPS_OPEN_SIGNUP on, `/v1/auth/sign-up` makes an account and a
 new team it owns. `/v1/auth/invites/join` accepts an invite by making an account with a
 password. Links that set a password (`<sopops>/set-password#<token>`) come from an owner or admin
-(`/v1/org/members/<id>/password-link`), from `sopops reset-password`, or by email (`/v1/auth/password/email`), and the
-page posts the token to `/v1/auth/password/set`. These routes are open, like the rest of signing in, and take JSON only:
+(`/v1/org/members/<id>/password-link`) or from `sopops reset-password`, and the page posts the token to
+`/v1/auth/password/set`. These routes are open, like the rest of signing in, and take JSON only:
 another site can't make a browser send JSON here without CORS, which sopops doesn't allow by default.
 
-Invite links carry their token after `#`, so it never reaches the server's access log; the page posts it here. With
-SMTP set up, sopops also emails them.
+Invite links carry their token after `#`, so it never reaches the server's access log; the page posts it here.
+sopops never sends email: whoever invites someone gets the link back to send them.
 
 A team's join link (`<sopops>/join#<token>`, made at `/v1/org/join-link`) isn't tied to an email: the page looks it up
 at `/v1/auth/join/lookup`, then makes an account and joins at `/v1/auth/join`, or, signed in, joins at
@@ -48,20 +44,17 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
-from .. import mail, urls
-from ..auth import access, email, mode, providers
+from .. import urls
+from ..auth import access, mode, providers
 from ..auth.service import (INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword,
-                             check_role, clean_email, sign_up_domains)
+                             check_role, clean_email)
 from ..orm import Org
 from ..schemas.auth import (
     AddPeopleIn,
     AuthState,
-    EmailLinkConfirmIn,
-    EmailLinkIn,
-    EmailLinkSent,
     FirstAccountIn,
     InviteCreated,
     InviteIn,
@@ -79,7 +72,6 @@ from ..schemas.auth import (
     OrgIn,
     OrgOut,
     PasswordChangeIn,
-    PasswordEmailIn,
     PasswordLinkCreated,
     PasswordLinkInfo,
     PasswordLinkTokenIn,
@@ -105,8 +97,6 @@ OAUTH_COOKIE = "sopops_oauth"
 OAUTH_COOKIE_PATH = "/v1/auth/callback"
 OAUTH_TTL_S = 600
 SESSION_MAX_AGE = SESSION_DAYS * 24 * 3600
-LINK_SENT = "If that address can sign in, we sent a link. It works for 15 minutes."
-PASSWORD_LINK_SENT = "If that address can have a password here, we sent a link to set one. It works for an hour."
 
 public_url = urls.public_url  # where people reach the UI: the links sopops sends
 
@@ -209,9 +199,7 @@ def router(accounts: Accounts) -> APIRouter:
                   "new_team_url": p.new_team_url(login_url(request, p.id)) if p.owns_teams and not p.manages_teams() else None}
                  for p in providers.configured()]
         pw = passwords()
-        by_email = pw and email.EmailLogin().configured()
-        extra = {"first_account": pw and not accounts.has_users(), "password_email": by_email, "sign_up": by_email and bool(sign_up_domains()),
-                 "open_signup": pw and mode.open_signup()}
+        extra = {"first_account": pw and not accounts.has_users(), "open_signup": pw and mode.open_signup()}
         if cur is None:
             plats = None if mode.required() else accounts.platforms(None)
             return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra, "platforms": plats}
@@ -288,35 +276,6 @@ def router(accounts: Accounts) -> APIRouter:
         access.set_session_cookies(out, request, token, SESSION_MAX_AGE)
         return out
 
-    @r.post("/v1/auth/email", response_model=EmailLinkSent, status_code=202, responses={404: {"description": "Email sign-in isn't set up."}})
-    def request_email_link(req: EmailLinkIn, request: Request, background: BackgroundTasks) -> dict:
-        """Email a sign-in link. The answer is the same whether or not the address gets one (this sopops doesn't take
-        its domain, or it asked too often: 5 links per address and 20 per client per 15 minutes)."""
-        if not email.EmailLogin().configured():
-            raise HTTPException(404, "sign-in by email isn't set up on this sopops")
-        try:
-            token = accounts.request_link(req.email, request.client.host if request.client else None, safe_next(req.next))
-        except ValueError as e:
-            raise HTTPException(400, str(e)) from None
-        if token is not None:
-            to, site = req.email.strip().lower(), public_url(request)
-            link = email.link_url(site, token)
-            background.add_task(email.deliver, email.sign_in_message(to, link, site), link)
-        return {"message": LINK_SENT}
-
-    @r.post("/v1/auth/email/confirm", response_model=SignedIn, responses={404: {"description": "Unknown, used or expired."}})
-    def confirm_email_link(req: EmailLinkConfirmIn, request: Request, response: Response) -> dict:
-        """Sign in with an emailed link's token: the link is used up, and a login session starts."""
-        if not email.EmailLogin().configured():
-            raise HTTPException(404, "sign-in by email isn't set up on this sopops")
-        try:
-            user, token, next = accounts.use_link(req.token)
-        except LinkInvalid as e:
-            raise HTTPException(404, f"{e}. Ask for a new one") from None
-        except Refused as e:
-            raise HTTPException(403, str(e)) from None
-        return signed_in(request, response, user.id, token, "email", next)
-
     # --- passwords --------------------------------------------------------------------
 
     @r.post("/v1/auth/password/login", response_model=SignedIn, responses={401: {"description": "Wrong email or password."},
@@ -379,24 +338,6 @@ def router(accounts: Accounts) -> APIRouter:
             raise HTTPException(403, str(e)) from None
         return signed_in(request, response, user.id, token, "a new password (an invite)")
 
-    @r.post("/v1/auth/password/email", response_model=EmailLinkSent, status_code=202, responses={404: {"description": "Email isn't set up."}})
-    def request_password_link(req: PasswordEmailIn, request: Request, background: BackgroundTasks) -> dict:
-        """Email a link that sets a password: "Forgot password?", or making an account at SOPOPS_ALLOWED_EMAIL_DOMAINS.
-        The answer is the same whether or not the address gets one."""
-        need_passwords()
-        if not email.EmailLogin().configured():
-            raise HTTPException(404, "sopops can't send email here. Ask an owner or admin for a link to reset your password")
-        try:
-            got = accounts.request_password_link(req.email, client_ip(request))
-        except ValueError as e:
-            raise HTTPException(400, str(e)) from None
-        if got is not None:
-            token, has_account = got
-            to, site = req.email.strip().lower(), public_url(request)
-            link = set_password_url(site, token)
-            background.add_task(email.deliver, email.password_message(to, link, site, has_account), link)
-        return {"message": PASSWORD_LINK_SENT}
-
     @r.post("/v1/auth/password/link", response_model=PasswordLinkInfo, responses={404: {"description": "Unknown, used or expired."}})
     def lookup_password_link(req: PasswordLinkTokenIn) -> dict:
         """What a password link is for: the email, and whether using it makes the account."""
@@ -408,11 +349,11 @@ def router(accounts: Accounts) -> APIRouter:
 
     @r.post("/v1/auth/password/set", response_model=SignedIn, responses={404: {"description": "Unknown, used or expired."}})
     def set_password(req: PasswordSetIn, request: Request, response: Response) -> dict:
-        """Set the password with a link (used up here), making the account if it's new. Every login session the user
-        had ends, and this browser signs in."""
+        """Set the password with a link (used up here). Every login session the user had ends, and this browser signs
+        in."""
         need_passwords()
         try:
-            user, token = accounts.use_password_link(req.token, req.password, req.name)
+            user, token = accounts.use_password_link(req.token, req.password)
         except LinkInvalid as e:
             raise HTTPException(404, f"{e}. Ask for a new one") from None
         except ValueError as e:
@@ -595,18 +536,9 @@ def router(accounts: Accounts) -> APIRouter:
         accounts.end_join_link(org_id)
         return Response(status_code=204)
 
-    def send_invite(request: Request, cur: Current, org_id: str, inv: dict, token: str) -> dict:
-        """The invite with its link, emailed when sopops sends email (a failure is logged, and the link is still there to copy)."""
-        link = f"{public_url(request)}/invite#{token}"
-        emailed = False
-        if mail.sends():
-            inviter = cur.user.name or cur.user.email
-            try:
-                mail.send(email.invite_message(inv["email"], link, inviter, accounts.org(org_id).name, inv["role"], INVITE_DAYS))
-                emailed = True
-            except mail.MailError as e:
-                log.warning("couldn't email the invite %s: %s", inv["id"], e)
-        return {**inv, "link": link, "emailed": emailed}
+    def with_link(request: Request, inv: dict, token: str) -> dict:
+        """The invite with its link, for whoever invited them to send. sopops sends no email."""
+        return {**inv, "link": f"{public_url(request)}/invite#{token}", "emailed": False}
 
     @r.get("/v1/org/members", response_model=list[MemberOut])
     def list_members(request: Request) -> list[dict]:
@@ -616,7 +548,8 @@ def router(accounts: Accounts) -> APIRouter:
     @r.post("/v1/org/members", response_model=list[PersonAdded])
     def add_members(req: AddPeopleIn, request: Request) -> list[dict]:
         """Add people by email, as admins or members (owners can add owners). Someone with an account joins now; anyone
-        else gets an invite (emailed when sopops sends email) and joins when they sign in with that email, any way."""
+        else gets an invite, whose link comes back to send them, and joins when they sign in with that email, any way.
+        Where a provider owns the team, it sends its own invite emails."""
         cur, org_id, role = org_of(request)
         owner = team_provider(accounts.org(org_id))
         if owner is not None:  # the provider holds the team, so it holds the invites, and it does the emailing
@@ -628,7 +561,7 @@ def router(accounts: Accounts) -> APIRouter:
         out = []
         for a in added:
             if a["status"] == "invited":
-                out.append({"email": a["email"], "status": "invited", "invite": send_invite(request, cur, org_id, a["invite"], a["token"])})
+                out.append({"email": a["email"], "status": "invited", "invite": with_link(request, a["invite"], a["token"])})
             else:
                 out.append({"email": a["email"], "status": a["status"], "user_id": a.get("user_id")})
         return out
@@ -707,8 +640,9 @@ def router(accounts: Accounts) -> APIRouter:
 
     @r.post("/v1/org/invites", response_model=InviteCreated, status_code=201)
     def create_invite(req: InviteIn, request: Request) -> dict:
-        """Invite someone by email. With SMTP set up it's emailed to them; either way the link comes back to copy. It
-        works for 7 days, once, and replaces their open invite."""
+        """Invite someone by email: the link comes back for you to send them (sopops sends no email). It works for 7
+        days, once, and replaces their open invite. Where a provider owns the team, the provider emails its own invite
+        and `link` is empty."""
         cur, org_id, role = org_of(request)
         owner = team_provider(accounts.org(org_id))
         if owner is not None:
@@ -719,17 +653,16 @@ def router(accounts: Accounts) -> APIRouter:
             inv, token = accounts.invite(org_id, cur.user.id, role, req.email, req.role)
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
-        return send_invite(request, cur, org_id, inv, token)
+        return with_link(request, inv, token)
 
     @r.post("/v1/org/invites/{id}/resend", response_model=InviteCreated)
     def resend_invite(id: str, request: Request) -> dict:
-        """A new link for an open invite, good for 7 more days (the old link stops working), emailed again when sopops
-        sends email."""
-        cur, org_id, _ = org_of(request)
+        """A new link for an open invite, good for 7 more days, to send them yourself. The old link stops working."""
+        _, org_id, _ = org_of(request)
         if team_provider(accounts.org(org_id)) is not None:  # their invite, their link, and no way to ask for another
             raise HTTPException(409, "that invite can't be sent again from here. Cancel it and invite them again")
         inv, token = accounts.resend_invite(org_id, id)
-        return send_invite(request, cur, org_id, inv, token)
+        return with_link(request, inv, token)
 
     @r.delete("/v1/org/invites/{id}", status_code=204, responses={502: {"description": "The provider wouldn't withdraw it."}})
     def revoke_invite(id: str, request: Request) -> Response:
@@ -751,7 +684,7 @@ def router(accounts: Accounts) -> APIRouter:
 
 
 def org_out(o: Org, role: str) -> dict:
-    return {"id": o.id, "name": o.name, "slug": o.slug, "allowed_domains": list(o.allowed_domains or []), "role": role, "sends_email": mail.sends()}
+    return {"id": o.id, "name": o.name, "slug": o.slug, "allowed_domains": list(o.allowed_domains or []), "role": role}
 
 
 def _read_flow(cookie: str | None) -> dict | None:

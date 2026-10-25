@@ -5,7 +5,7 @@ changing their SOPs**. It is deliberately narrow:
 
 | | |
 |---|---|
-| Who can start one | Only an address in SOPOPS_SUPPORT_EMAILS, **proved** by GitHub, Google or an email sign-in link — a password never proves it (`Support.is_staff`). The list is read from the environment on every request; nothing in the app can add to it, so nobody can make themselves support staff. Unset or empty (the default) turns the feature off and the routes answer 404, as if they weren't there. |
+| Who can start one | Only an address in SOPOPS_SUPPORT_EMAILS, **proved** by GitHub or Google — a password never proves it (`Support.is_staff`). The list is read from the environment on every request; nothing in the app can add to it, so nobody can make themselves support staff. Unset or empty (the default) turns the feature off and the routes answer 404, as if they weren't there. |
 | What the customer controls | `orgs.support_access`, on by default. An owner or admin turns it off, which refuses new sessions and ends any that is open against the org right then. |
 | How long | `minutes`, 60 by default and 480 at most. The session dies at `mimic_until` whatever happens: it doesn't slide, and using it doesn't extend it. |
 | What it can do | Everything a member can, writes included: edit SOPs, publish releases. The role is `member`, so admin routes (members, invites, keys) refuse on their own. |
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 STAFF_ENV = "SOPOPS_SUPPORT_EMAILS"
 DEFAULT_MINUTES = 60
 MAX_MINUTES = 480
-PROVES_EMAIL = ("github", "google", "email")  # the providers that own the address they hand over
+PROVES_EMAIL = ("github", "google", "email")  # the providers that own the address they hand over ("email": older versions' sign-in links)
 OFF = "support sessions aren't set up on this sopops"
 NO_CONSENT = "this team has turned support access off. Ask them to turn it back on before you look"
 SUPPORT_OFF = "support access is off"  # why a team can't be picked in the list
@@ -82,7 +82,8 @@ class Support:
 
     def is_staff(self, user: User) -> bool:
         """Whether this user may start support sessions: their address is in SOPOPS_SUPPORT_EMAILS, **and** a
-        provider that owns the address vouched for it — GitHub, Google, or an email sign-in link sent to it.
+        provider that owns the address vouched for it — GitHub or Google (or an email sign-in link, which
+        older versions of sopops sent).
 
         A password is never that proof, however the account came by one, invite included. An invite says an owner
         trusted the address, not that whoever typed the password owns it, and two paths let a stranger pick the

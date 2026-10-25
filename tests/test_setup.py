@@ -103,7 +103,7 @@ def test_adding_people_from_setup(fresh):
     assert added.status_code == 200, added.text
     got = added.json()
     assert [p["status"] for p in got] == ["invited", "invited"]
-    assert all(p["invite"]["link"].startswith("http://testserver/invite#") and not p["invite"]["emailed"] for p in got)  # no SMTP: links to copy
+    assert all(p["invite"]["link"].startswith("http://testserver/invite#") and not p["invite"]["emailed"] for p in got)  # links to send on
     assert {i["email"]: i["role"] for i in c.get("/v1/org/invites").json()} == {"bo@example.com": "admin", "cy@example.com": "admin"}
     assert c.get("/v1/org").json()["name"] == "Northwind"
 

@@ -750,18 +750,6 @@ export type AuthState = {
      */
     first_account: boolean;
     /**
-     * Password Email
-     *
-     * sopops can email a link that sets a password ("Forgot password?"): SMTP is set up, or SOPOPS_EMAIL_DEV.
-     */
-    password_email: boolean;
-    /**
-     * Sign Up
-     *
-     * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
-     */
-    sign_up: boolean;
-    /**
      * Open Signup
      *
      * SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.
@@ -1965,46 +1953,6 @@ export type ElevenLabsCapture = {
 };
 
 /**
- * EmailLinkConfirmIn
- */
-export type EmailLinkConfirmIn = {
-    /**
-     * Token
-     *
-     * From the sign-in link (the part after #).
-     */
-    token: string;
-};
-
-/**
- * EmailLinkIn
- */
-export type EmailLinkIn = {
-    /**
-     * Email
-     */
-    email: string;
-    /**
-     * Next
-     *
-     * A path on this site to open after signing in.
-     */
-    next?: string | null;
-};
-
-/**
- * EmailLinkSent
- */
-export type EmailLinkSent = {
-    /**
-     * Message
-     *
-     * The same whatever the address: it doesn't say whether one was sent.
-     */
-    message: string;
-};
-
-/**
  * EventOut
  */
 export type EventOut = {
@@ -2892,7 +2840,7 @@ export type InviteCreated = {
     /**
      * Emailed
      *
-     * sopops emailed the link to them.
+     * The provider that owns the team emailed the invite itself, and `link` is empty. sopops never sends email: for its own invites this is false, and you send the link.
      */
     emailed: boolean;
 };
@@ -4215,12 +4163,6 @@ export type OrgOut = {
      * Your role in it.
      */
     role: 'owner' | 'admin' | 'member';
-    /**
-     * Sends Email
-     *
-     * Whether sopops emails invites (SMTP is set up). If not, send the links yourself.
-     */
-    sends_email: boolean;
 };
 
 /**
@@ -4406,16 +4348,6 @@ export type PasswordChangeIn = {
 };
 
 /**
- * PasswordEmailIn
- */
-export type PasswordEmailIn = {
-    /**
-     * Email
-     */
-    email: string;
-};
-
-/**
  * PasswordLinkCreated
  */
 export type PasswordLinkCreated = {
@@ -4443,12 +4375,6 @@ export type PasswordLinkInfo = {
      * Email
      */
     email: string;
-    /**
-     * Has Account
-     *
-     * False: using the link makes the account, so ask for a name too.
-     */
-    has_account: boolean;
     /**
      * Expires At
      */
@@ -4503,12 +4429,6 @@ export type PasswordSetIn = {
      * 10 to 256 characters, not the email address.
      */
     password: string;
-    /**
-     * Name
-     *
-     * For a new account.
-     */
-    name?: string;
 };
 
 /**
@@ -4831,7 +4751,7 @@ export type PersonAdded = {
      */
     user_id: string | null;
     /**
-     * For `invited`: the invite, its link (shown once) and whether it was emailed.
+     * For `invited`: the invite, its link (shown once), to send them.
      */
     invite: InviteCreated | null;
 };
@@ -5762,7 +5682,7 @@ export type ProviderOut = {
     /**
      * Id
      *
-     * `github`, `google`, `email`, `password`, or a plugin's.
+     * `github`, `google`, `password`, or a plugin's.
      */
     id: string;
     /**
@@ -5772,7 +5692,7 @@ export type ProviderOut = {
     /**
      * Redirects
      *
-     * Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`).
+     * Signing in goes through `/v1/auth/login/<id>`. False for `password` (post to `/v1/auth/password/login`).
      */
     redirects: boolean;
     /**
@@ -8658,18 +8578,6 @@ export type SignedIn = {
      */
     first_account: boolean;
     /**
-     * Password Email
-     *
-     * sopops can email a link that sets a password ("Forgot password?"): SMTP is set up, or SOPOPS_EMAIL_DEV.
-     */
-    password_email: boolean;
-    /**
-     * Sign Up
-     *
-     * People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.
-     */
-    sign_up: boolean;
-    /**
      * Open Signup
      *
      * SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.
@@ -11332,64 +11240,6 @@ export type SignInErrors = {
 
 export type SignInError = SignInErrors[keyof SignInErrors];
 
-export type RequestEmailLinkData = {
-    body: EmailLinkIn;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/email';
-};
-
-export type RequestEmailLinkErrors = {
-    /**
-     * Email sign-in isn't set up.
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RequestEmailLinkError = RequestEmailLinkErrors[keyof RequestEmailLinkErrors];
-
-export type RequestEmailLinkResponses = {
-    /**
-     * Successful Response
-     */
-    202: EmailLinkSent;
-};
-
-export type RequestEmailLinkResponse = RequestEmailLinkResponses[keyof RequestEmailLinkResponses];
-
-export type ConfirmEmailLinkData = {
-    body: EmailLinkConfirmIn;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/email/confirm';
-};
-
-export type ConfirmEmailLinkErrors = {
-    /**
-     * Unknown, used or expired.
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type ConfirmEmailLinkError = ConfirmEmailLinkErrors[keyof ConfirmEmailLinkErrors];
-
-export type ConfirmEmailLinkResponses = {
-    /**
-     * Successful Response
-     */
-    200: SignedIn;
-};
-
-export type ConfirmEmailLinkResponse = ConfirmEmailLinkResponses[keyof ConfirmEmailLinkResponses];
-
 export type PasswordLoginData = {
     body: PasswordLoginIn;
     path?: never;
@@ -11521,35 +11371,6 @@ export type JoinWithPasswordResponses = {
 };
 
 export type JoinWithPasswordResponse = JoinWithPasswordResponses[keyof JoinWithPasswordResponses];
-
-export type RequestPasswordLinkData = {
-    body: PasswordEmailIn;
-    path?: never;
-    query?: never;
-    url: '/v1/auth/password/email';
-};
-
-export type RequestPasswordLinkErrors = {
-    /**
-     * Email isn't set up.
-     */
-    404: unknown;
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type RequestPasswordLinkError = RequestPasswordLinkErrors[keyof RequestPasswordLinkErrors];
-
-export type RequestPasswordLinkResponses = {
-    /**
-     * Successful Response
-     */
-    202: EmailLinkSent;
-};
-
-export type RequestPasswordLinkResponse = RequestPasswordLinkResponses[keyof RequestPasswordLinkResponses];
 
 export type LookupPasswordLinkData = {
     body: PasswordLinkTokenIn;

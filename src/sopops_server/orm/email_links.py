@@ -8,7 +8,8 @@ from sqlmodel import Column, DateTime, Field, Index, SQLModel
 
 
 class EmailLink(SQLModel, table=True):
-    """A sign-in link sent by email. The token is stored as a sha256 hash; the link works once (`used_at`), for 15
+    """A sign-in link sent by email, from older versions of sopops: nothing writes to this table any more, and the
+    table stays so its migrations stay as they were. The token is stored as a sha256 hash; the link works once (`used_at`), for 15
     minutes. `ip` is who asked, for the per-address rate limit; `next` is the page to open after signing in."""
 
     __tablename__ = "email_links"

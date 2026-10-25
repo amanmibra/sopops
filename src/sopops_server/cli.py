@@ -208,7 +208,7 @@ def patterns(argv: list[str]) -> None:
 
 
 def reset_password(argv: list[str]) -> None:
-    """Print a link that sets someone's password: for an owner who can't sign in, or anyone without email set up."""
+    """Print a link that sets someone's password: for an owner who can't sign in, or anyone who forgot it."""
     parser = argparse.ArgumentParser(prog="sopops reset-password", description="Print a link that sets the password for an account. It works once, for "
                                      "an hour, and ends the account's login sessions.")
     parser.add_argument("email")

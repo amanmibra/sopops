@@ -808,96 +808,6 @@
         }
       }
     },
-    "/v1/auth/email": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Request Email Link",
-        "description": "Email a sign-in link. The answer is the same whether or not the address gets one (this sopops doesn't take\nits domain, or it asked too often: 5 links per address and 20 per client per 15 minutes).",
-        "operationId": "request_email_link",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EmailLinkIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailLinkSent"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Email sign-in isn't set up."
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/v1/auth/email/confirm": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Confirm Email Link",
-        "description": "Sign in with an emailed link's token: the link is used up, and a login session starts.",
-        "operationId": "confirm_email_link",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/EmailLinkConfirmIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SignedIn"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Unknown, used or expired."
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/auth/password/login": {
       "post": {
         "tags": [
@@ -1090,51 +1000,6 @@
         }
       }
     },
-    "/v1/auth/password/email": {
-      "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Request Password Link",
-        "description": "Email a link that sets a password: \"Forgot password?\", or making an account at SOPOPS_ALLOWED_EMAIL_DOMAINS.\nThe answer is the same whether or not the address gets one.",
-        "operationId": "request_password_link",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PasswordEmailIn"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "202": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/EmailLinkSent"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Email isn't set up."
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/v1/auth/password/link": {
       "post": {
         "tags": [
@@ -1186,7 +1051,7 @@
           "auth"
         ],
         "summary": "Set Password",
-        "description": "Set the password with a link (used up here), making the account if it's new. Every login session the user\nhad ends, and this browser signs in.",
+        "description": "Set the password with a link (used up here). Every login session the user had ends, and this browser signs\nin.",
         "operationId": "set_password",
         "requestBody": {
           "content": {
@@ -1857,7 +1722,7 @@
           "auth"
         ],
         "summary": "Add Members",
-        "description": "Add people by email, as admins or members (owners can add owners). Someone with an account joins now; anyone\nelse gets an invite (emailed when sopops sends email) and joins when they sign in with that email, any way.",
+        "description": "Add people by email, as admins or members (owners can add owners). Someone with an account joins now; anyone\nelse gets an invite, whose link comes back to send them, and joins when they sign in with that email, any way.\nWhere a provider owns the team, it sends its own invite emails.",
         "operationId": "add_members",
         "requestBody": {
           "content": {
@@ -2060,7 +1925,7 @@
           "auth"
         ],
         "summary": "Create Invite",
-        "description": "Invite someone by email. With SMTP set up it's emailed to them; either way the link comes back to copy. It\nworks for 7 days, once, and replaces their open invite.",
+        "description": "Invite someone by email: the link comes back for you to send them (sopops sends no email). It works for 7\ndays, once, and replaces their open invite. Where a provider owns the team, the provider emails its own invite\nand `link` is empty.",
         "operationId": "create_invite",
         "requestBody": {
           "content": {
@@ -2102,7 +1967,7 @@
           "auth"
         ],
         "summary": "Resend Invite",
-        "description": "A new link for an open invite, good for 7 more days (the old link stops working), emailed again when sopops\nsends email.",
+        "description": "A new link for an open invite, good for 7 more days, to send them yourself. The old link stops working.",
         "operationId": "resend_invite",
         "parameters": [
           {
@@ -14910,18 +14775,6 @@
             "description": "Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.",
             "default": false
           },
-          "password_email": {
-            "type": "boolean",
-            "title": "Password Email",
-            "description": "sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.",
-            "default": false
-          },
-          "sign_up": {
-            "type": "boolean",
-            "title": "Sign Up",
-            "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
-            "default": false
-          },
           "open_signup": {
             "type": "boolean",
             "title": "Open Signup",
@@ -14948,8 +14801,6 @@
           "org",
           "orgs",
           "first_account",
-          "password_email",
-          "sign_up",
           "open_signup",
           "platforms"
         ],
@@ -17040,62 +16891,6 @@
         ],
         "title": "ElevenLabsCapture"
       },
-      "EmailLinkConfirmIn": {
-        "properties": {
-          "token": {
-            "type": "string",
-            "maxLength": 256,
-            "title": "Token",
-            "description": "From the sign-in link (the part after #)."
-          }
-        },
-        "type": "object",
-        "required": [
-          "token"
-        ],
-        "title": "EmailLinkConfirmIn"
-      },
-      "EmailLinkIn": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 320,
-            "title": "Email"
-          },
-          "next": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 512
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Next",
-            "description": "A path on this site to open after signing in."
-          }
-        },
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "title": "EmailLinkIn"
-      },
-      "EmailLinkSent": {
-        "properties": {
-          "message": {
-            "type": "string",
-            "title": "Message",
-            "description": "The same whatever the address: it doesn't say whether one was sent."
-          }
-        },
-        "type": "object",
-        "required": [
-          "message"
-        ],
-        "title": "EmailLinkSent"
-      },
       "EventOut": {
         "properties": {
           "id": {
@@ -18656,7 +18451,7 @@
           "emailed": {
             "type": "boolean",
             "title": "Emailed",
-            "description": "sopops emailed the link to them."
+            "description": "The provider that owns the team emailed the invite itself, and `link` is empty. sopops never sends email: for its own invites this is false, and you send the link."
           }
         },
         "type": "object",
@@ -20719,11 +20514,6 @@
             ],
             "title": "Role",
             "description": "Your role in it."
-          },
-          "sends_email": {
-            "type": "boolean",
-            "title": "Sends Email",
-            "description": "Whether sopops emails invites (SMTP is set up). If not, send the links yourself."
           }
         },
         "type": "object",
@@ -20732,8 +20522,7 @@
           "name",
           "slug",
           "allowed_domains",
-          "role",
-          "sends_email"
+          "role"
         ],
         "title": "OrgOut"
       },
@@ -21031,20 +20820,6 @@
         ],
         "title": "PasswordChangeIn"
       },
-      "PasswordEmailIn": {
-        "properties": {
-          "email": {
-            "type": "string",
-            "maxLength": 320,
-            "title": "Email"
-          }
-        },
-        "type": "object",
-        "required": [
-          "email"
-        ],
-        "title": "PasswordEmailIn"
-      },
       "PasswordLinkCreated": {
         "properties": {
           "email": {
@@ -21076,11 +20851,6 @@
             "type": "string",
             "title": "Email"
           },
-          "has_account": {
-            "type": "boolean",
-            "title": "Has Account",
-            "description": "False: using the link makes the account, so ask for a name too."
-          },
           "expires_at": {
             "type": "string",
             "format": "date-time",
@@ -21090,7 +20860,6 @@
         "type": "object",
         "required": [
           "email",
-          "has_account",
           "expires_at"
         ],
         "title": "PasswordLinkInfo"
@@ -21156,13 +20925,6 @@
             "maxLength": 1024,
             "title": "Password",
             "description": "10 to 256 characters, not the email address."
-          },
-          "name": {
-            "type": "string",
-            "maxLength": 256,
-            "title": "Name",
-            "description": "For a new account.",
-            "default": ""
           }
         },
         "type": "object",
@@ -21826,7 +21588,7 @@
                 "type": "null"
               }
             ],
-            "description": "For `invited`: the invite, its link (shown once) and whether it was emailed."
+            "description": "For `invited`: the invite, its link (shown once), to send them."
           }
         },
         "type": "object",
@@ -23440,7 +23202,7 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "`github`, `google`, `email`, `password`, or a plugin's."
+            "description": "`github`, `google`, `password`, or a plugin's."
           },
           "label": {
             "type": "string",
@@ -23449,7 +23211,7 @@
           "redirects": {
             "type": "boolean",
             "title": "Redirects",
-            "description": "Signing in goes through `/v1/auth/login/<id>`. False for `email` (post the address to `/v1/auth/email`) and `password` (post to `/v1/auth/password/login`)."
+            "description": "Signing in goes through `/v1/auth/login/<id>`. False for `password` (post to `/v1/auth/password/login`)."
           },
           "owns_teams": {
             "type": "boolean",
@@ -28613,18 +28375,6 @@
             "description": "Nobody has an account yet: post to `/v1/auth/password/first-account` to make the first one, which owns the org.",
             "default": false
           },
-          "password_email": {
-            "type": "boolean",
-            "title": "Password Email",
-            "description": "sopops can email a link that sets a password (\"Forgot password?\"): SMTP is set up, or SOPOPS_EMAIL_DEV.",
-            "default": false
-          },
-          "sign_up": {
-            "type": "boolean",
-            "title": "Sign Up",
-            "description": "People at SOPOPS_ALLOWED_EMAIL_DOMAINS can make an account themselves, by asking for that link.",
-            "default": false
-          },
           "open_signup": {
             "type": "boolean",
             "title": "Open Signup",
@@ -28656,8 +28406,6 @@
           "org",
           "orgs",
           "first_account",
-          "password_email",
-          "sign_up",
           "open_signup",
           "platforms",
           "next"

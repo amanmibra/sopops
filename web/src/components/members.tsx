@@ -55,10 +55,10 @@ export function MembersPanel({ auth }: { auth: AuthState }) {
         (elsewhere ? (
           <InviteSomeone orgName={auth.org?.name ?? ""} />
         ) : (
-          <AddPeople sendsEmail={org.data?.sends_email ?? false} orgName={auth.org?.name ?? ""} />
+          <AddPeople orgName={auth.org?.name ?? ""} />
         ))}
       <People auth={auth} manager={manager} elsewhere={elsewhere} />
-      {manager && <Pending sendsEmail={org.data?.sends_email ?? false} elsewhere={elsewhere} />}
+      {manager && <Pending elsewhere={elsewhere} />}
       {manager && !elsewhere && org.data && <Domains domains={org.data.allowed_domains} orgName={org.data.name} />}
       {!manager && <Note>Owners and admins add people and change roles.</Note>}
     </>
@@ -172,7 +172,7 @@ function People({ auth, manager, elsewhere }: { auth: AuthState; manager: boolea
   );
 }
 
-/** Links shown once: to copy when sopops doesn't email them (or the email didn't go), and password reset links. */
+/** Links shown once, to copy and send: invite links and password reset links. sopops sends no email. */
 function LinkBox({ email, link, what = "the invite link", note = "It isn't shown again." }: { email: string; link: string; what?: string; note?: string }) {
   const copy = () => navigator.clipboard.writeText(link).then(() => toast.success("Copied."), fail);
   return (
@@ -340,7 +340,7 @@ function InviteSomeone({ orgName }: { orgName: string }) {
   );
 }
 
-function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: string }) {
+function AddPeople({ orgName }: { orgName: string }) {
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [role, setRole] = useState<Role>("member");
@@ -373,8 +373,7 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
     >
       <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Anyone who already has an account joins {orgName} right away. Everyone else gets an invite link. They open it and set a password, or sign in another way
-        with that email, and they're in.{" "}
-        {sendsEmail ? "sopops emails them the link." : "sopops doesn't send email here, so you get the link to send them yourself."}
+        with that email, and they're in. sopops doesn't send email: you get the link to send them yourself.
       </p>
       <form
         className="grid gap-3"
@@ -428,8 +427,8 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
                 {p.status === "invited" && p.invite && (
                   <>
                     <b>{p.email}</b> is invited as {asRole(p.invite.role)}.{" "}
-                    {p.invite.emailed ? "We emailed them the link." : sendsEmail ? "The email didn't go." : "They join when they open the link."}
-                    {!p.invite.emailed && <LinkBox email={p.email} link={p.invite.link} />}
+                    They join when they open the link.
+                    <LinkBox email={p.email} link={p.invite.link} />
                   </>
                 )}
               </li>
@@ -442,29 +441,14 @@ function AddPeople({ sendsEmail, orgName }: { sendsEmail: boolean; orgName: stri
 }
 
 /**
- * Invited, not signed in yet: send the invite again or cancel it. Without email, "Copy link" copies a new link instead:
- * links are stored hashed, so the old one can't be shown again, and it stops working.
+ * Invited, not signed in yet: copy a new link or cancel the invite. "Copy link" makes a new link: links are stored
+ * hashed, so the old one can't be shown again, and it stops working.
  */
-function Pending({ sendsEmail, elsewhere }: { sendsEmail: boolean; elsewhere: boolean }) {
+function Pending({ elsewhere }: { elsewhere: boolean }) {
   const qc = useQueryClient();
   const list = useQuery(mq.invites());
   const [fresh, setFresh] = useState<InviteCreated | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ["org", "invites"] });
-  const resend = async (i: InviteOut) => {
-    try {
-      const got = await call(sdk.resendInvite({ path: { id: i.id } }));
-      await refresh();
-      if (got.emailed) {
-        setFresh(null);
-        toast.success(`Sent again to ${i.email}.`);
-      } else {
-        setFresh(got);
-        if (sendsEmail) toast.error(`The email to ${i.email} didn't go. Copy the new link instead.`);
-      }
-    } catch (e) {
-      fail(e);
-    }
-  };
   const copyLink = async (i: InviteOut) => {
     try {
       const got = await call(sdk.resendInvite({ path: { id: i.id } }));
@@ -512,11 +496,7 @@ function Pending({ sendsEmail, elsewhere }: { sendsEmail: boolean; elsewhere: bo
                   </td>
                   <td className="text-muted-foreground border-b py-2 pr-2">invited {when(i.created_at)}</td>
                   <td className="border-b py-2 text-right whitespace-nowrap">
-                    {elsewhere ? null : sendsEmail ? (
-                      <Button size="sm" variant="ghost" onClick={() => void resend(i)}>
-                        Resend
-                      </Button>
-                    ) : (
+                    {!elsewhere && (
                       <Button size="sm" variant="ghost" onClick={() => void copyLink(i)}>
                         <Copy /> Copy link
                       </Button>

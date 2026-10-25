@@ -39,7 +39,7 @@ services:
       # Encrypts stored platform keys and secrets, and where people reach sopops (.env.example says more).
       SOPOPS_SECRET_KEY: ${SOPOPS_SECRET_KEY:-}
       SOPOPS_PUBLIC_URL: ${SOPOPS_PUBLIC_URL:-}
-      # Sign-in: forced on or off, or unset (on once GitHub, Google or email is set up).
+      # Sign-in: forced on or off, or unset (on once GitHub or Google is set up).
       SOPOPS_AUTH_REQUIRED: ${SOPOPS_AUTH_REQUIRED:-}
       SOPOPS_ALLOWED_EMAIL_DOMAINS: ${SOPOPS_ALLOWED_EMAIL_DOMAINS:-}
       SOPOPS_OPEN_SIGNUP: ${SOPOPS_OPEN_SIGNUP:-}
@@ -47,13 +47,6 @@ services:
       SOPOPS_GITHUB_OAUTH_CLIENT_SECRET: ${SOPOPS_GITHUB_OAUTH_CLIENT_SECRET:-}
       SOPOPS_GOOGLE_CLIENT_ID: ${SOPOPS_GOOGLE_CLIENT_ID:-}
       SOPOPS_GOOGLE_CLIENT_SECRET: ${SOPOPS_GOOGLE_CLIENT_SECRET:-}
-      # Email: sign-in links, invites and reset links.
-      SOPOPS_SMTP_HOST: ${SOPOPS_SMTP_HOST:-}
-      SOPOPS_SMTP_PORT: ${SOPOPS_SMTP_PORT:-}
-      SOPOPS_SMTP_USER: ${SOPOPS_SMTP_USER:-}
-      SOPOPS_SMTP_PASSWORD: ${SOPOPS_SMTP_PASSWORD:-}
-      SOPOPS_SMTP_FROM: ${SOPOPS_SMTP_FROM:-}
-      SOPOPS_EMAIL_DEV: ${SOPOPS_EMAIL_DEV:-}
       # Models that check sessions (LiteLLM model strings) and the provider's key; unset, sessions aren't checked.
       SOPOPS_MODEL_FAST: ${SOPOPS_MODEL_FAST:-}
       SOPOPS_MODEL_REASONING: ${SOPOPS_MODEL_REASONING:-}
