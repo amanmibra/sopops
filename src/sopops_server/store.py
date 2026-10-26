@@ -271,8 +271,8 @@ class Store:
             blocks = [b for b in target["blocks"] if b != block]
             return self._put(db, ws, head, items, "agent", agent, {**target, "blocks": blocks}, author, note)
 
-    def preview_agent(self, workspace: str, agent: str, data: dict) -> dict:
-        """Compile head with this agent's unsaved fields, without saving anything."""
+    def preview_agent(self, workspace: str, agent: str, data: dict | None) -> dict:
+        """Compile head with this agent's unsaved fields, without saving anything. No fields: the agent as it is at head."""
         ws = workspace_id(workspace)
         with self._session() as db:
             head = self._head_rows(db, ws)
@@ -280,12 +280,16 @@ class Store:
         out = {"valid": False, "issues": [], "prompt": None, "hash": None, "blocks": [], "released_prompt": None, "release": current["number"] if current else None}
         if current and agent in current["build"]["agents"]:
             out["released_prompt"] = current["build"]["agents"][agent]["prompt"]
+        items = self._items(head)
+        existing = forms.find(items, "agent", agent)
+        if data is None:
+            if not existing:
+                raise NotFound(f"no agent {agent}")
+            data = {f: existing[f] for f in forms.FIELDS["agent"]}
         issues = forms.check("agent", agent, data)
         if issues:
             return {**out, "issues": [i.to_dict() for i in issues]}
         files = {r["path"]: r["content"] for r in head}
-        items = self._items(head)
-        existing = forms.find(items, "agent", agent)
         try:
             path, text, _ = forms.write("agent", agent, data, existing["file"] if existing and existing.get("version") else None, self.sopc.export)
         except Invalid as e:

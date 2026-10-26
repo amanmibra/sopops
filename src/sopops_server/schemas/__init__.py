@@ -22,6 +22,7 @@ from .checks import (
 from .config import (
     AgentConfig,
     AgentFields,
+    AtHead,
     AgentIn,
     AgentSaved,
     BlockRequest,
@@ -260,6 +261,7 @@ __all__ = [
     "AgentConfig",
     "AgentDeliveryOut",
     "AgentFields",
+    "AtHead",
     "AgentImportOut",
     "AgentImportRequest",
     "AgentIn",

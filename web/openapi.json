@@ -4609,7 +4609,7 @@
           "config"
         ],
         "summary": "Preview Agent",
-        "description": "The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.",
+        "description": "The instructions this agent would get with these fields, compiled with the rest of head. Without a body (or\n`{}`), the agent as it is at head. Saves nothing.",
         "operationId": "preview_agent",
         "security": [
           {
@@ -4637,11 +4637,21 @@
           }
         ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AgentFields"
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/AgentFields"
+                  },
+                  {
+                    "$ref": "#/components/schemas/AtHead"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
               }
             }
           }
@@ -4656,6 +4666,9 @@
                 }
               }
             }
+          },
+          "404": {
+            "description": "No body, and no such agent at head."
           },
           "422": {
             "description": "Validation Error",
@@ -15142,6 +15155,13 @@
         },
         "type": "object",
         "title": "ApplyRequest"
+      },
+      "AtHead": {
+        "properties": {},
+        "additionalProperties": false,
+        "type": "object",
+        "title": "AtHead",
+        "description": "An empty body: use the agent's fields as they are at head."
       },
       "AuthState": {
         "properties": {

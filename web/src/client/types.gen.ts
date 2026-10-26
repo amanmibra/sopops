@@ -714,6 +714,15 @@ export type ApplyRequest = {
 };
 
 /**
+ * AtHead
+ *
+ * An empty body: use the agent's fields as they are at head.
+ */
+export type AtHead = {
+    [key: string]: never;
+};
+
+/**
  * AuthState
  */
 export type AuthState = {
@@ -13893,7 +13902,10 @@ export type RemoveBlockResponses = {
 export type RemoveBlockResponse = RemoveBlockResponses[keyof RemoveBlockResponses];
 
 export type PreviewAgentData = {
-    body: AgentFields;
+    /**
+     * Req
+     */
+    body?: AgentFields | AtHead | null;
     path: {
         /**
          * Workspace
@@ -13909,6 +13921,10 @@ export type PreviewAgentData = {
 };
 
 export type PreviewAgentErrors = {
+    /**
+     * No body, and no such agent at head.
+     */
+    404: unknown;
     /**
      * Validation Error
      */

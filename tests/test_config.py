@@ -331,6 +331,13 @@ def test_preview(seeded):
     res = seeded.post(f"{CFG}/agents/new-one/preview", json={"platform": "vapi", "platform_id": "x", "blocks": ["restaurant-host", "brand-voice", "allergen-check"]}).json()
     assert not res["valid"] and any(i["code"] == "unset_variable" for i in res["issues"]) and res["released_prompt"] is None
 
+    # no fields (the MCP tool sends {}): the agent as it is at head
+    for body in ({}, None):
+        res = seeded.post(f"{CFG}/agents/tonys-pizza/preview", json=body).json()
+        assert res["valid"] and res["prompt"].startswith(tonys["context"].strip()) and res["released_prompt"] == expected("tonys-pizza.prompt.md")
+    assert seeded.post(f"{CFG}/agents/new-one/preview", json={}).status_code == 404
+    assert seeded.post(f"{CFG}/agents/tonys-pizza/preview", json={"platform": "vapi"}).status_code == 422  # partial fields are still an error
+
 
 def test_procedures(seeded):
     proc = {

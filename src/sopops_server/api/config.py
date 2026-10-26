@@ -11,6 +11,7 @@ from pydantic import BaseModel, create_model
 from ..schemas import (
     AgentConfig,
     AgentFields,
+    AtHead,
     AgentIn,
     AgentSaved,
     BlockRequest,
@@ -143,10 +144,11 @@ def router(store: Store) -> APIRouter:
         item, changed = store.remove_block(workspace, id, block, author, note)
         return {"item": item, "changed": changed}
 
-    @r.post("/v1/workspaces/{workspace}/config/agents/{id}/preview", response_model=PreviewResponse, dependencies=OPEN, tags=["config"])
-    def preview_agent(workspace: str, id: str, req: AgentFields) -> dict:
-        """The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing."""
-        return store.preview_agent(workspace, id, req.model_dump())
+    @r.post("/v1/workspaces/{workspace}/config/agents/{id}/preview", response_model=PreviewResponse, responses={404: {"description": "No body, and no such agent at head."}}, dependencies=OPEN, tags=["config"])
+    def preview_agent(workspace: str, id: str, req: AgentFields | AtHead | None = None) -> dict:
+        """The instructions this agent would get with these fields, compiled with the rest of head. Without a body (or
+        `{}`), the agent as it is at head. Saves nothing."""
+        return store.preview_agent(workspace, id, req.model_dump() if isinstance(req, AgentFields) else None)
 
     @r.post("/v1/workspaces/{workspace}/migrate", response_model=MigrateResponse, responses=INVALID, dependencies=OPEN, tags=["config"])
     def migrate(workspace: str, req: MigrateRequest | None = None) -> dict:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from .. import forms
 from .base import BaseModel, Files
@@ -36,6 +36,12 @@ class AgentFields(BaseModel):
     context: str = Field("", description="Text only this agent gets. It goes first in the agent's instructions.")
     blocks: list[str] = Field([], description="Shared instructions, procedures and groups, in order.")
     variables: dict[str, str] = Field({}, description="Values for {{placeholders}}; override the defaults in settings.")
+
+
+class AtHead(BaseModel):
+    """An empty body: use the agent's fields as they are at head."""
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class InstructionFields(BaseModel):

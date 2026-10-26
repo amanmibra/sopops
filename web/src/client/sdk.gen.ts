@@ -1030,7 +1030,8 @@ export const removeBlock = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Preview Agent
  *
- * The instructions this agent would get with these fields, compiled with the rest of head. Saves nothing.
+ * The instructions this agent would get with these fields, compiled with the rest of head. Without a body (or
+ * `{}`), the agent as it is at head. Saves nothing.
  */
 export const previewAgent = <ThrowOnError extends boolean = false>(options: Options<PreviewAgentData, ThrowOnError>): RequestResult<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError> => (options.client ?? client).post<PreviewAgentResponses, PreviewAgentErrors, ThrowOnError>({
     security: [{ scheme: 'bearer', type: 'http' }],
