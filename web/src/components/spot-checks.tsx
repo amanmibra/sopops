@@ -4,10 +4,10 @@
 // short celebration and "Give me N more".
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Loader2, PartyPopper } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
-import { KIND_STATUSES, RULE_STATUS, type RuleStatus, type SpotCheckItem, type SpotCheckResponse, review, rq, statusPhrase } from "@/lib/review";
+import { KIND_STATUSES, RULE_STATUS, type ReviewItem, type RuleStatus, type SpotCheckItem, type SpotCheckResponse, review, rq, statusPhrase } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ErrorBanner, RuleText, Tag } from "./bits";
@@ -24,7 +24,9 @@ const SIZES = [10, 25, 50, 100];
 /** The checker's status first (`1`: it was right), then the others in the kind's order. */
 export const answersFor = (i: SpotCheckItem): RuleStatus[] => [i.status, ...KIND_STATUSES[i.kind].filter((s) => s !== i.status)];
 
-type Filters = { agent?: string; procedure?: string; rule?: string; why?: Why; since?: string; until?: string; sort: "value" | "newest" };
+type Source = "batch" | "marked";
+const SOURCE: Record<Source, string> = { batch: "Spot checks", marked: "Marked Checker is wrong" };
+type Filters = { source?: Source; agent?: string; procedure?: string; rule?: string; why?: Why; since?: string; until?: string; sort: "value" | "newest" };
 type Pending = Record<string, { status: RuleStatus; phase: "sending" | "error"; error?: unknown }>;
 
 function whyChips(item: SpotCheckItem) {
@@ -187,6 +189,7 @@ export function SpotChecks() {
   const { ws } = useWs();
   const qc = useQueryClient();
   const res = useQuery(rq.spotChecks(ws));
+  const marked = useQuery(rq.review(ws, ["closed"]));
   const [filters, setFilters] = useState<Filters>({ sort: "value" });
   const [pending, setPending] = useState<Pending>({});
   const [changing, setChanging] = useState<Set<string>>(new Set());
@@ -200,10 +203,10 @@ export function SpotChecks() {
     const uniq = (xs: [string, string][]) => [...new Map(xs).entries()].sort((a, b) => a[1].localeCompare(b[1]));
     return {
       agents: uniq(all.filter((i) => i.agent_id).map((i) => [i.agent_id!, i.agent_id!])),
-      procedures: uniq(all.map((i) => [i.procedure_id, i.procedure_name ?? i.procedure_id])),
+      procedures: uniq([...all.map((i): [string, string] => [i.procedure_id, i.procedure_name ?? i.procedure_id]), ...(marked.data?.items ?? []).filter((p) => p.verdict?.verdict === "checker_wrong").map((p): [string, string] => [p.procedure_id, p.procedure_name])]),
       rules: uniq(all.filter((i) => !filters.procedure || i.procedure_id === filters.procedure).map((i) => [i.rule_id, `${i.procedure_name ?? i.procedure_id}: ${ruleName(i.kind, i.index)}`])),
     };
-  }, [all, filters.procedure]);
+  }, [all, marked.data, filters.procedure]);
   const shown = all.filter(
     (i) =>
       (!filters.agent || i.agent_id === filters.agent) &&
@@ -283,8 +286,14 @@ export function SpotChecks() {
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
+  const markedShown = (marked.data?.items ?? []).filter((p) => p.verdict?.verdict === "checker_wrong" && (!filters.procedure || p.procedure_id === filters.procedure));
+  const showBatch = filters.source !== "marked";
+  const showMarked = filters.source !== "batch";
+
+  let batch: ReactNode = null;
   if (res.isPending)
-    return (
+    batch = (
       <div className="grid gap-3" aria-busy>
         {[0, 1, 2].map((i) => (
           <div key={i} className="bg-card grid gap-2 rounded-lg border p-4">
@@ -295,8 +304,8 @@ export function SpotChecks() {
         ))}
       </div>
     );
-  if (res.error || !d)
-    return (
+  else if (res.error || !d)
+    batch = (
       <Banner tone="err">
         Couldn't load the spot checks. {res.error instanceof Error ? res.error.message : ""}{" "}
         <Button size="xs" variant="outline" onClick={() => void res.refetch()}>
@@ -304,9 +313,8 @@ export function SpotChecks() {
         </Button>
       </Banner>
     );
-
-  if (d.done || d.size === 0)
-    return (
+  else if (d.done || d.size === 0)
+    batch = (
       <div role="status" className="bg-card relative flex flex-col items-center gap-3 overflow-hidden rounded-lg border px-4 py-10 text-center">
         {celebrate && <Confetti />}
         {d.done ? (
@@ -316,7 +324,7 @@ export function SpotChecks() {
               Batch done: {d.answered}/{d.size}
             </div>
             <p className="text-muted-foreground max-w-[60ch] text-sm">
-              {d.corrections ? `You found ${plural(d.corrections, "mistake the checker made", "mistakes the checker made")}. They're kept as labels and used to recalibrate it.` : "The checker got every one right."}
+              {d.corrections ? `You found ${plural(d.corrections, "wrong call", "wrong calls")} by the checker. Each one is training data for your checker.` : "The checker got every one right. Confirmations are training data too."}
             </p>
           </>
         ) : (
@@ -329,60 +337,121 @@ export function SpotChecks() {
         <MoreButton initial={d.default_batch} onDraw={(n) => void draw(n)} busy={drawing} />
       </div>
     );
+  else
+    batch = (
+      <>
+        {!calls.length && <p className="text-muted-foreground text-sm">Nothing in this batch matches the filters.</p>}
+        {calls.map((items) => {
+          const first = items[0];
+          const qs = new URLSearchParams({ procedure: first.procedure_id, rule: first.rule_id });
+          const left = items.filter(open).length;
+          return (
+            <article key={first.session_id} className="bg-card rounded-lg border">
+              <header className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-[var(--band)] px-4 py-2 text-xs">
+                <span className="text-foreground font-medium">{first.agent_id ?? "Call"}</span>
+                <span aria-hidden>·</span>
+                <HrefLink href={`${wsHref(ws, "sessions", first.session_id)}?${qs}`} title="Open the call: its transcript answers all these rules">
+                  Call {when(first.started_at)}
+                </HrefLink>
+                <span aria-hidden>·</span>
+                <span className="text-k-procedure">{[...new Set(items.map((i) => i.procedure_name ?? i.procedure_id))].join(", ")}</span>
+                <span className="ml-auto">{left ? `${plural(left, "rule", "rules")} to check` : "All answered"}</span>
+              </header>
+              <ul className="grid gap-1 p-2">
+                {items.map((it) => (
+                  <ItemRow
+                    key={it.spot_check_id}
+                    item={changing.has(it.spot_check_id) ? { ...it, answered: false } : it}
+                    focused={current?.spot_check_id === it.spot_check_id}
+                    pending={pending[it.spot_check_id]}
+                    onFocus={() => setFocus(flat.findIndex((x) => x.spot_check_id === it.spot_check_id))}
+                    onPick={(s) => void pick(it, s)}
+                    onChange={() => setChanging((c) => new Set(c).add(it.spot_check_id))}
+                  />
+                ))}
+              </ul>
+            </article>
+          );
+        })}
+      </>
+    );
 
-  const set = (patch: Partial<Filters>) => setFilters((f) => ({ ...f, ...patch }));
+  const batchFilters = showBatch && d && !d.done && d.size > 0;
   return (
     <div className="grid gap-3">
-      <Progress d={d} />
+      {showBatch && d && !d.done && d.size > 0 && <Progress d={d} />}
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect label="Agent" value={filters.agent} options={opts.agents} onChange={(v) => set({ agent: v })} />
+        <FilterSelect<Source> label="Source" value={filters.source} options={(Object.keys(SOURCE) as Source[]).map((x) => [x, SOURCE[x]])} onChange={(v) => set({ source: v })} />
+        {batchFilters && <FilterSelect label="Agent" value={filters.agent} options={opts.agents} onChange={(v) => set({ agent: v })} />}
         <FilterSelect label="Procedure" value={filters.procedure} options={opts.procedures} onChange={(v) => set({ procedure: v, rule: undefined })} />
-        <FilterSelect label="Rule" value={filters.rule} options={opts.rules} onChange={(v) => set({ rule: v })} />
-        <FilterSelect<Why> label="Reason" value={filters.why} options={(Object.keys(WHY) as Why[]).map((w) => [w, WHY[w]])} onChange={(v) => set({ why: v })} />
-        <label className="text-muted-foreground flex items-center gap-1 text-xs">
-          From <input type="date" className="bg-background h-8 rounded-md border px-2 text-sm" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
-        </label>
-        <label className="text-muted-foreground flex items-center gap-1 text-xs">
-          to <input type="date" className="bg-background h-8 rounded-md border px-2 text-sm" value={filters.until ?? ""} onChange={(e) => set({ until: e.target.value || undefined })} />
-        </label>
-        <select aria-label="Sort" className="bg-background ml-auto h-8 rounded-md border px-2 text-sm" value={filters.sort} onChange={(e) => set({ sort: e.target.value as Filters["sort"] })}>
-          <option value="value">Most valuable first</option>
-          <option value="newest">Newest first</option>
-        </select>
+        {batchFilters && (
+          <>
+            <FilterSelect label="Rule" value={filters.rule} options={opts.rules} onChange={(v) => set({ rule: v })} />
+            <FilterSelect<Why> label="Reason" value={filters.why} options={(Object.keys(WHY) as Why[]).map((w) => [w, WHY[w]])} onChange={(v) => set({ why: v })} />
+            <label className="text-muted-foreground flex items-center gap-1 text-xs">
+              From <input type="date" className="bg-background h-8 rounded-md border px-2 text-sm" value={filters.since ?? ""} onChange={(e) => set({ since: e.target.value || undefined })} />
+            </label>
+            <label className="text-muted-foreground flex items-center gap-1 text-xs">
+              to <input type="date" className="bg-background h-8 rounded-md border px-2 text-sm" value={filters.until ?? ""} onChange={(e) => set({ until: e.target.value || undefined })} />
+            </label>
+            <select aria-label="Sort" className="bg-background ml-auto h-8 rounded-md border px-2 text-sm" value={filters.sort} onChange={(e) => set({ sort: e.target.value as Filters["sort"] })}>
+              <option value="value">Most valuable first</option>
+              <option value="newest">Newest first</option>
+            </select>
+          </>
+        )}
       </div>
-      {!calls.length && <p className="text-muted-foreground text-sm">Nothing in this batch matches the filters.</p>}
-      {calls.map((items) => {
-        const first = items[0];
-        const qs = new URLSearchParams({ procedure: first.procedure_id, rule: first.rule_id });
-        const left = items.filter(open).length;
-        return (
-          <article key={first.session_id} className="bg-card rounded-lg border">
-            <header className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-[var(--band)] px-4 py-2 text-xs">
-              <span className="text-foreground font-medium">{first.agent_id ?? "Call"}</span>
-              <span aria-hidden>·</span>
-              <HrefLink href={`${wsHref(ws, "sessions", first.session_id)}?${qs}`} title="Open the call: its transcript answers all these rules">
-                Call {when(first.started_at)}
-              </HrefLink>
-              <span aria-hidden>·</span>
-              <span className="text-k-procedure">{[...new Set(items.map((i) => i.procedure_name ?? i.procedure_id))].join(", ")}</span>
-              <span className="ml-auto">{left ? `${plural(left, "rule", "rules")} to check` : "All answered"}</span>
-            </header>
-            <ul className="grid gap-1 p-2">
-              {items.map((it) => (
-                <ItemRow
-                  key={it.spot_check_id}
-                  item={changing.has(it.spot_check_id) ? { ...it, answered: false } : it}
-                  focused={current?.spot_check_id === it.spot_check_id}
-                  pending={pending[it.spot_check_id]}
-                  onFocus={() => setFocus(flat.findIndex((x) => x.spot_check_id === it.spot_check_id))}
-                  onPick={(s) => void pick(it, s)}
-                  onChange={() => setChanging((c) => new Set(c).add(it.spot_check_id))}
-                />
-              ))}
-            </ul>
-          </article>
-        );
-      })}
+      {showBatch && batch}
+      {showMarked && <MarkedRows items={markedShown} loading={marked.isPending} error={marked.error} onRetry={() => void marked.refetch()} alone={!showBatch} />}
     </div>
+  );
+}
+
+/** Patterns marked "Checker is wrong" on Mistakes: already answered, listed here with the spot checks as the checker's training data. */
+function MarkedRows({ items, loading, error, onRetry, alone }: { items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void; alone: boolean }) {
+  const { ws } = useWs();
+  if (loading) return null;
+  if (error)
+    return (
+      <Banner tone="err">
+        Couldn't load the patterns marked Checker is wrong. {error instanceof Error ? error.message : ""}{" "}
+        <Button size="xs" variant="outline" onClick={onRetry}>
+          Try again
+        </Button>
+      </Banner>
+    );
+  if (!items.length) return alone ? <p className="text-muted-foreground text-sm">Nothing marked Checker is wrong on Mistakes yet.</p> : null;
+  return (
+    <>
+      {items.map((p) => (
+        <article key={p.pattern_id} className="bg-card rounded-lg border">
+          <header className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 border-b bg-[var(--band)] px-4 py-2 text-xs">
+            <span className="text-foreground font-medium">Marked Checker is wrong</span>
+            <span aria-hidden>·</span>
+            <span>
+              {p.verdict?.reviewer ? `${p.verdict.reviewer}, ` : ""}
+              {when(p.verdict!.created_at)}
+            </span>
+            <span aria-hidden>·</span>
+            <span className="text-k-procedure">{p.procedure_name}</span>
+            <HrefLink className="ml-auto" href={wsHref(ws, "patterns", p.pattern_id)} title="Open the pattern on Mistakes">
+              {plural(p.findings, "finding", "findings")} in {plural(p.sessions, "call", "calls")}
+            </HrefLink>
+          </header>
+          <div className="px-4 py-3 text-sm">
+            <p className="font-medium">{p.name}</p>
+            {p.rule_text && (
+              <p className="text-muted-foreground mt-0.5">
+                <RuleText text={p.rule_text} />
+              </p>
+            )}
+            {p.verdict?.note && <p className="mt-1">“{p.verdict.note}”</p>}
+            <p className="text-muted-foreground mt-1 flex items-center gap-1.5">
+              <Check className="text-ok size-4" /> Answered: the agent didn't make this mistake; the checker flagged it wrongly.
+            </p>
+          </div>
+        </article>
+      ))}
+    </>
   );
 }

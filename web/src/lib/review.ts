@@ -12,7 +12,7 @@ export const VERDICT: Record<Verdict, { label: string; key: string; help: string
   real: { label: "Real mistake", key: "1", help: "The agent made a real mistake. Its fix is followed in Fixing, then Fixed.", tone: "bg-err-soft text-err", suggests: true },
   acceptable: { label: "Acceptable", key: "2", help: "Fine in this situation. Closed and hidden from now on. Doesn't go to Fixing or Fixed, even if you edit the rule.", tone: "bg-brand-soft text-primary", suggests: true },
   sop_wrong: { label: "SOP is wrong", key: "3", help: "The instruction is wrong or outdated. Its fix is followed in Fixing, then Fixed.", tone: "bg-warn-soft text-warn", suggests: true },
-  checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Closed, hidden, and used to recalibrate. Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
+  checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged; the agent didn't make this mistake. Closed, hidden, and listed on Fine tune as training data for the checker. Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
 export type { RuleCorrectionOut, RuleLabelOut, SpotCheckItem, SpotCheckResponse } from "@/client/types.gen";
@@ -62,8 +62,8 @@ export const MISSED_STATUSES: Record<RuleKind, RuleStatus[]> = { step: ["skipped
 export const statusPhrase = (s: RuleStatus) => (s === "not_applicable" ? "not applicable" : RULE_STATUS[s].label);
 
 /** The Patterns page's tabs, and the review states each lists. */
-export type PatternsTab = "review" | "spot" | "open" | "fixing" | "fixed" | "all";
-export const TAB_STATES: Record<Exclude<PatternsTab, "all" | "spot">, ReviewState[]> = {
+export type PatternsTab = "review" | "open" | "fixing" | "fixed" | "all";
+export const TAB_STATES: Record<Exclude<PatternsTab, "all">, ReviewState[]> = {
   review: ["needs_review", "regressed"],
   open: ["open"],
   fixing: ["fixing"],

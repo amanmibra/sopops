@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { ApiError, refresh } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
-import { type MergeConflict, type PlanAgent, SUGGESTION_STATUSES, type SinceWritten, type SuggestionDetail, type SuggestionStatus, review, rq, summaryOf } from "@/lib/review";
+import { type MergeConflict, type PlanAgent, type SinceWritten, type SuggestionDetail, type SuggestionStatus, review, rq, summaryOf } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, Note, PageTitle, RuleText, Sub, Tag } from "./bits";
@@ -27,13 +27,24 @@ import { Input } from "./ui/input";
 import { Collapsible } from "./views";
 
 type Tab = SuggestionStatus | "all";
+/** The tabs, and the statuses each lists: a pull request waits under Proposed, and a merged one counts as Applied. */
+export const FIX_TABS: { tab: Tab; statuses: SuggestionStatus[] | null }[] = [
+  { tab: "proposed", statuses: ["proposed", "pr_open"] },
+  { tab: "applied", statuses: ["applied", "merged"] },
+  { tab: "dismissed", statuses: ["dismissed"] },
+  { tab: "failed", statuses: ["failed"] },
+  { tab: "all", statuses: null },
+];
+/** An old link's status, as the tab that now lists it. */
+export const tabOf = (s: SuggestionStatus | "all"): Tab => (s === "pr_open" ? "proposed" : s === "merged" ? "applied" : s);
 
 export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: (s: Tab | undefined) => void }) {
   const { ws, cfg } = useWs();
-  const tab: Tab = status ?? "proposed";
-  const res = useQuery(rq.suggestions(ws, tab === "all" ? undefined : tab));
-  const proposed = useQuery({ ...rq.suggestions(ws, "proposed"), retry: false });
-  const items = res.data?.items ?? [];
+  const tab: Tab = status ? tabOf(status) : "proposed";
+  const res = useQuery(rq.suggestions(ws));
+  const inTab = (t: Tab) => (res.data?.items ?? []).filter((x) => FIX_TABS.find((f) => f.tab === t)?.statuses?.includes(x.status) ?? true);
+  const items = inTab(tab);
+  const waiting = inTab("proposed").length;
   const procName = (id?: string | null) => (id ? (cfg.procedures.find((p) => p.id === id)?.name ?? id) : null);
   return (
     <Page wide>
@@ -42,7 +53,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
         SOP changes written from a pattern's verdict. Review the diff and how each agent's instructions change, then apply it as a draft (or a pull request, with a connected repo) or dismiss it.
       </Sub>
       <nav className="mb-4 flex gap-0.5 overflow-x-auto border-b" aria-label="Suggestion status">
-        {([...SUGGESTION_STATUSES, "all"] as Tab[]).map((t) => (
+        {FIX_TABS.map(({ tab: t }) => (
           <button
             key={t}
             type="button"
@@ -51,7 +62,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
             className={cn("text-muted-foreground hover:text-foreground -mb-px flex shrink-0 cursor-pointer items-center gap-2 border-b-2 border-transparent px-3 py-2", tab === t && "border-primary text-foreground font-medium")}
           >
             {t === "all" ? "All" : SUGGESTION_STATUS[t].label}
-            {t === "proposed" && !!proposed.data?.items.length && <span className="bg-warn-soft text-warn rounded-full px-2 text-sm tabular-nums">{proposed.data.items.length}</span>}
+            {t === "proposed" && !!waiting && <span className="bg-warn-soft text-warn rounded-full px-2 text-sm tabular-nums">{waiting}</span>}
           </button>
         ))}
       </nav>
@@ -81,7 +92,11 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
           {items.map((s) => (
             <li key={s.suggestion_id}>
               <HrefLink href={wsHref(ws, "suggestions", s.suggestion_id)} className="text-foreground hover:bg-muted/60 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:no-underline">
-                <SuggestionStatusTag status={s.status} />
+                <span className="flex items-center gap-1.5">
+                  {s.status === "pr_open" && <GitPullRequest className="text-primary size-4" aria-hidden />}
+                  {s.status === "merged" && <GitMerge className="text-primary size-4" aria-hidden />}
+                  <SuggestionStatusTag status={s.status} />
+                </span>
                 <ConflictTag freshness={s.freshness} />
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{summaryOf(s) ?? s.pattern_name ?? "Suggested change"}</span>
@@ -89,7 +104,6 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
                     {[procName(s.procedure_id), s.pattern_name && summaryOf(s) ? `from “${s.pattern_name}”` : null].filter(Boolean).join(" · ")}
                   </span>
                 </span>
-                {s.pr_url && <GitPullRequest className="text-primary size-4" aria-label="Has a pull request" />}
                 <span className="text-muted-foreground text-xs whitespace-nowrap">{ago(s.created_at)}</span>
               </HrefLink>
             </li>

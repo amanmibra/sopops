@@ -22,13 +22,13 @@ const progressOf = (x: { fix_sessions?: number | null; fix_sessions_needed?: num
 /** The suggestion that belongs to the current verdict (written after it), if any. */
 const fixFor = (s: SuggestionSummary | null | undefined, v: VerdictOut | null | undefined) => (s && (!v || s.created_at >= v.created_at) ? s : null);
 
-const EMPTY: Record<Exclude<PatternsTab, "review" | "all" | "spot">, { head: string; body: string }> = {
+const EMPTY: Record<Exclude<PatternsTab, "review" | "all">, { head: string; body: string }> = {
   open: { head: "Nothing open", body: "Real mistakes and wrong SOPs wait here until a fix is applied." },
   fixing: { head: "No fixes in progress", body: "When a fix for a Real mistake or SOP is wrong verdict is applied or sent as a pull request, it waits here for its release and 10 sessions on it." },
   fixed: { head: "No fixes confirmed yet", body: "A fix for a Real mistake or SOP is wrong verdict counts as held after 10 sessions on its release with no findings in the pattern." },
 };
 
-export function StateList({ tab, items, loading, error, onRetry }: { tab: Exclude<PatternsTab, "review" | "all" | "spot">; items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void }) {
+export function StateList({ tab, items, loading, error, onRetry }: { tab: Exclude<PatternsTab, "review" | "all">; items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void }) {
   if (loading)
     return (
       <div className="grid gap-3" aria-busy>

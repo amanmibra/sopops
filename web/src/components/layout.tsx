@@ -27,6 +27,7 @@ import {
   Sun,
   Tag as TagIcon,
   TestTube2,
+  SlidersHorizontal,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type AuthState, q } from "@/lib/api";
@@ -486,6 +487,7 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={CircleAlert} label="Mistakes" count={needsReview} countTitle="Mistakes to review: no verdict yet, or back after a fix" />
           <RailItem collapsed={c} href={wsHref(ws, "suggestions")} icon={Wrench} label="Fixes" count={proposed} countTitle="Fixes waiting for a decision" />
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
+          <RailItem collapsed={c} href={wsHref(ws, "fine-tune")} icon={SlidersHorizontal} label="Fine tune" />
         </RailGroup>
         <RailGroup label="Results" collapsed={c}>
           <RailItem collapsed={c} href={wsHref(ws, "results")} icon={ChartLine} label="Overview" />

@@ -21,6 +21,7 @@ import { Route as WWsRouteImport } from './routes/w.$ws'
 import { Route as WWsIndexRouteImport } from './routes/w.$ws.index'
 import { Route as WWsChangesRouteImport } from './routes/w.$ws.changes'
 import { Route as WWsConvertRouteImport } from './routes/w.$ws.convert'
+import { Route as WWsFineTuneRouteImport } from './routes/w.$ws.fine-tune'
 import { Route as WWsOverviewRouteImport } from './routes/w.$ws.overview'
 import { Route as WWsReportRouteImport } from './routes/w.$ws.report'
 import { Route as WWsSettingsRouteImport } from './routes/w.$ws.settings'
@@ -124,6 +125,11 @@ const WWsChangesRoute = WWsChangesRouteImport.update({
 const WWsConvertRoute = WWsConvertRouteImport.update({
   id: '/convert',
   path: '/convert',
+  getParentRoute: () => WWsRoute,
+} as any)
+const WWsFineTuneRoute = WWsFineTuneRouteImport.update({
+  id: '/fine-tune',
+  path: '/fine-tune',
   getParentRoute: () => WWsRoute,
 } as any)
 const WWsOverviewRoute = WWsOverviewRouteImport.update({
@@ -362,6 +368,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
+  '/w/$ws/fine-tune': typeof WWsFineTuneRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
   '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
@@ -419,6 +426,7 @@ export interface FileRoutesByTo {
   '/welcome': typeof WelcomeRoute
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
+  '/w/$ws/fine-tune': typeof WWsFineTuneRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
   '/w/$ws/setup': typeof WWsSetupRoute
@@ -477,6 +485,7 @@ export interface FileRoutesById {
   '/w/$ws': typeof WWsRouteWithChildren
   '/w/$ws/changes': typeof WWsChangesRoute
   '/w/$ws/convert': typeof WWsConvertRoute
+  '/w/$ws/fine-tune': typeof WWsFineTuneRoute
   '/w/$ws/overview': typeof WWsOverviewRoute
   '/w/$ws/report': typeof WWsReportRoute
   '/w/$ws/settings': typeof WWsSettingsRouteWithChildren
@@ -537,6 +546,7 @@ export interface FileRouteTypes {
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
+    | '/w/$ws/fine-tune'
     | '/w/$ws/overview'
     | '/w/$ws/report'
     | '/w/$ws/settings'
@@ -594,6 +604,7 @@ export interface FileRouteTypes {
     | '/welcome'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
+    | '/w/$ws/fine-tune'
     | '/w/$ws/overview'
     | '/w/$ws/report'
     | '/w/$ws/setup'
@@ -651,6 +662,7 @@ export interface FileRouteTypes {
     | '/w/$ws'
     | '/w/$ws/changes'
     | '/w/$ws/convert'
+    | '/w/$ws/fine-tune'
     | '/w/$ws/overview'
     | '/w/$ws/report'
     | '/w/$ws/settings'
@@ -794,6 +806,13 @@ declare module '@tanstack/react-router' {
       path: '/convert'
       fullPath: '/w/$ws/convert'
       preLoaderRoute: typeof WWsConvertRouteImport
+      parentRoute: typeof WWsRoute
+    }
+    '/w/$ws/fine-tune': {
+      id: '/w/$ws/fine-tune'
+      path: '/fine-tune'
+      fullPath: '/w/$ws/fine-tune'
+      preLoaderRoute: typeof WWsFineTuneRouteImport
       parentRoute: typeof WWsRoute
     }
     '/w/$ws/overview': {
@@ -1142,6 +1161,7 @@ const WWsSettingsRouteWithChildren = WWsSettingsRoute._addFileChildren(
 interface WWsRouteChildren {
   WWsChangesRoute: typeof WWsChangesRoute
   WWsConvertRoute: typeof WWsConvertRoute
+  WWsFineTuneRoute: typeof WWsFineTuneRoute
   WWsOverviewRoute: typeof WWsOverviewRoute
   WWsReportRoute: typeof WWsReportRoute
   WWsSettingsRoute: typeof WWsSettingsRouteWithChildren
@@ -1181,6 +1201,7 @@ interface WWsRouteChildren {
 const WWsRouteChildren: WWsRouteChildren = {
   WWsChangesRoute: WWsChangesRoute,
   WWsConvertRoute: WWsConvertRoute,
+  WWsFineTuneRoute: WWsFineTuneRoute,
   WWsOverviewRoute: WWsOverviewRoute,
   WWsReportRoute: WWsReportRoute,
   WWsSettingsRoute: WWsSettingsRouteWithChildren,

@@ -43,7 +43,7 @@ Live UI updates work from any process on Postgres, only from the sopops process 
 | Real mistake | Agent was wrong | Findings count. Suggests an instructions edit. |
 | Acceptable | Fine here | Findings suppressed: kept, but out of every Insights number. Suggests a rule exception. |
 | SOP is wrong | Instruction outdated | Suggests a rule rewrite. |
-| Checker is wrong | sopops misjudged | Findings suppressed, kept as calibration labels. |
+| Checker is wrong | sopops misjudged; the agent didn't make this mistake | Findings suppressed, kept as calibration labels, and listed on Fine tune. |
 
 You can mark one finding wrong. A judged pattern exports its sessions as regression cases (JSON Lines).
 
@@ -57,7 +57,7 @@ You can mark one finding wrong. A judged pattern exports its sessions as regress
 
 A corrected rule shows the status, who gave it and when. A missed mistake doesn't add a finding: the session's result, its patterns and Insights keep what the checker found, so a correction never changes a number without showing it. Every correction is a calibration label. The latest call on a rule wins, and it outlives a re-check.
 
-**Spot checks.** Review → Mistakes → Spot checks asks about rules the checker passed, one batch at a time (25 by default, `PUT /v1/workspaces/{ws}/spot-checks/settings`), so the work doesn't grow with call volume. A batch is spread across procedures and agents, and takes close calls and decisions the reviewer model changed first. Items are grouped by call, so one transcript answers all its rules, with filters for agent, procedure, rule, dates and why it was picked. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. A finished batch offers "Give me N more"; nothing is drawn twice, and an item left unanswered for 7 days expires quietly. Answers are labels, like corrections.
+**Fine tune.** Review → Fine tune collects data for tuning sopops to your calls; its first collection point is **Checker spot checks**, one table with the patterns marked Checker is wrong on Mistakes and spot checks. Spot checks ask about rules the checker passed, one batch at a time (25 by default, `PUT /v1/workspaces/{ws}/spot-checks/settings`), so the work doesn't grow with call volume. A batch is spread across procedures and agents, and takes close calls and decisions the reviewer model changed first. Items are grouped by call, so one transcript answers all its rules, with filters for agent, procedure, rule, dates and why it was picked. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. A finished batch offers "Give me N more"; nothing is drawn twice, and an item left unanswered for 7 days expires quietly. Answers are labels, like corrections.
 
 | State | When |
 |---|---|
