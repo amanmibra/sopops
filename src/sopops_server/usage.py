@@ -6,6 +6,9 @@
 - **Per session**: the cost of calls about a session (routing, checks, the reviewer, assigning its findings) divided
   by the sessions they were about. Work over many sessions (clustering, themes, suggestions, calibration) isn't in it.
 - **By day**: UTC days from the window's start to its end, empty days included.
+
+And calls over a period (`GET …/usage/calls`): sessions sopops received in full (posted whole, or streamed and closed;
+open ones aren't, yet), by when they started, in `[start, end)`, with a count per UTC day.
 """
 
 from __future__ import annotations
@@ -18,7 +21,7 @@ from sqlmodel import Session, func, select
 
 from .ai import lm as ai_lm
 from .ai import spend
-from .orm import ModelCall
+from .orm import ModelCall, SessionRecord
 
 if TYPE_CHECKING:
     from .insights import Filters
@@ -64,6 +67,22 @@ class Usage:
         n = len(per_session)
         return {"start": f.start, "end": f.end, "total": _row(*total), "by_purpose": by["purpose"], "by_model": by["model"],
                 "sessions": n, "per_session_usd": round(sum(per_session.values()) / n, 6) if n else None, "daily": series}
+
+    def calls(self, workspace: str, start: datetime, end: datetime) -> dict[str, Any]:
+        """Sessions received in full that started in [start, end), in total and per UTC day (empty days included)."""
+        S = SessionRecord
+        start, end = _utc(start), _utc(end)
+        with Session(self.store.engine) as db:
+            starts = db.exec(select(S.started_at).where(S.workspace_id == workspace, S.status != "open", S.started_at >= start, S.started_at < end)).all()
+        days: dict[str, int] = defaultdict(int)
+        for at in starts:
+            days[_utc(at).date().isoformat()] += 1
+        day, last = start.date(), (end - timedelta(microseconds=1)).date()
+        series = []
+        while day <= last:
+            series.append({"day": day, "calls": days.get(day.isoformat(), 0)})
+            day += timedelta(days=1)
+        return {"start": start, "end": end, "calls": len(starts), "daily": series}
 
     def session(self, workspace: str, session_id: str) -> dict[str, Any]:
         """{model_calls, cost_usd} of the calls about one session."""

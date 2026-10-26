@@ -1,4 +1,4 @@
-"""Model spend: tokens and estimated cost of model calls, by purpose, model and day."""
+"""Model spend: tokens and estimated cost of model calls, by purpose, model and day. And calls: sessions received, by day."""
 
 from __future__ import annotations
 
@@ -66,3 +66,15 @@ class PricesResponse(BaseModel):
 
 class FeaturesOut(BaseModel):
     features: list[str] = Field(description="Features this server adds beyond open-source sopops, turned on by its extensions: `fine_tune` on hosted sopops.")
+
+
+class DayCalls(BaseModel):
+    day: date = Field(description="A UTC day.")
+    calls: int
+
+
+class CallsResponse(BaseModel):
+    start: datetime
+    end: datetime = Field(description="Exclusive.")
+    calls: int = Field(description="Sessions received in full (posted whole, or streamed and closed) that started in [start, end).")
+    daily: list[DayCalls] = Field(description="Every UTC day of the period, empty ones included.")

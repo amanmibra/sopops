@@ -1,5 +1,6 @@
 """Model spend: every model call recorded with its tokens and estimated cost, for its workspace, session and purpose
-(through DSPy's usage tracker, on the real client path and the fakes alike), and GET …/usage over a window."""
+(through DSPy's usage tracker, on the real client path and the fakes alike), and GET …/usage over a window. And
+GET …/usage/calls: the calls a workspace sent in a period."""
 
 from datetime import datetime, timedelta, timezone
 
@@ -8,6 +9,7 @@ import pytest
 from conftest import SOPC_BIN, WS
 from sqlmodel import Session, select
 from test_review import ALLERGEN, env, rule_pattern, verdict  # noqa: F401  (env is a fixture)
+from test_sessions import ingest, session, stream_post, token  # noqa: F401  (token is a fixture)
 
 from sopops_server import Sopc, Store
 from sopops_server.ai import spend
@@ -84,3 +86,26 @@ def test_usage_by_purpose_model_session_and_day(env, monkeypatch):
     p = env.client.get("/v1/model-prices").json()
     assert {"model": "fake/reasoning", "input_per_m": 3.0, "output_per_m": 15.0, "source": "env"} in p["prices"]
     assert {r["role"]: r["input_per_m"] for r in p["roles"]} == {"fast": None, "reasoning": None, "decide": None}  # no models configured here
+
+
+def test_calls_in_a_period_count_sessions_received_in_full_by_start(client, token):
+    month = datetime(2025, 9, 1, tzinfo=timezone.utc)
+    starts = [month - timedelta(seconds=1), month, month + timedelta(days=2, hours=23), month + timedelta(days=2, hours=23, minutes=5), datetime(2025, 10, 1, tzinfo=timezone.utc)]
+    for i, at in enumerate(starts):
+        assert ingest(client, token, session(f"room-{i}", started_at=at.isoformat())).status_code == 201
+    assert stream_post(client, token, "/open", {"platform": "livekit", "external_id": "live-1"}).status_code == 201
+
+    got = client.get(f"{WS}/usage/calls", params={"start": month.isoformat(), "end": "2025-10-01T00:00:00Z"}).json()
+    assert got["calls"] == 3  # [start, end): the session a second before and the one at `end` are out
+    assert len(got["daily"]) == 30 and got["daily"][0] == {"day": "2025-09-01", "calls": 1} and got["daily"][2] == {"day": "2025-09-03", "calls": 2}
+    assert sum(d["calls"] for d in got["daily"]) == 3
+    assert client.get(f"{WS}/usage/calls", params={"start": "2025-09-15T00:00:00Z"}).json()["end"].startswith("2025-10-01T00:00:00")  # to the month's end
+
+    # By default, this UTC month: the open session started in it, but isn't a call until it's closed.
+    now = client.get(f"{WS}/usage/calls").json()
+    assert now["start"].startswith(datetime.now(timezone.utc).strftime("%Y-%m-01T00:00:00")) and now["calls"] == 0
+    assert stream_post(client, token, "/livekit/live-1/close").status_code == 200
+    assert client.get(f"{WS}/usage/calls").json()["calls"] == 1
+
+    assert client.get(f"{WS}/usage/calls", params={"start": month.isoformat(), "end": month.isoformat()}).status_code == 422
+    assert client.get(f"{WS}/usage/calls", params={"start": "2025-01-01T00:00:00Z", "end": "2026-03-01T00:00:00Z"}).status_code == 422
