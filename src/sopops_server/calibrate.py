@@ -1,6 +1,7 @@
 """Calibrating a workspace's check thresholds from its reviewers' labels: `sopops calibrate` and `POST …/calibrate`.
 
-Each procedure with labeled sessions (`Verdicts.calibration_examples`: verdicts and overrides, this workspace's only)
+Each procedure with labeled sessions (`Verdicts.calibration_examples`: verdicts, overrides and rule labels, with the
+statuses reviewers gave; this workspace's only)
 is fitted with `sopops_server.ai.programs.calibrate` on its `check:<procedure id>` program, against the procedure and
 variables of the most recent labeled session's release and agent. A procedure is refused below the fit's minimums:
 fewer labeled sessions than `programs.FOLDS` (the held-out check needs them), or no rule with `programs.MIN_POSITIVES`
@@ -20,7 +21,7 @@ from sqlmodel import Session, select
 from . import lineage
 from .ai import calibration, decide, programs, spend
 from .ai.lm import DECIDE
-from .orm import Finding
+from .orm import Finding, RuleLabel
 from .pipeline.procedures import candidates
 
 if TYPE_CHECKING:
@@ -41,7 +42,8 @@ class Calibrate:
             pids = [procedure_id]
         else:
             with Session(self.store.engine) as db:
-                pids = sorted(set(db.exec(select(Finding.procedure_id).where(Finding.workspace_id == ws).distinct())))
+                pids = sorted(set(db.exec(select(Finding.procedure_id).where(Finding.workspace_id == ws).distinct()))
+                              | set(db.exec(select(RuleLabel.procedure_id).where(RuleLabel.workspace_id == ws).distinct())))
         out = []
         with spend.scope(self.store.engine, ws, "calibrate"):
             for pid in pids:

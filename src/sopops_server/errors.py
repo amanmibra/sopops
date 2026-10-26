@@ -15,6 +15,10 @@ class Conflict(Exception):
     """409."""
 
 
+class InvalidValue(Exception):
+    """422: a value the request can't have here (a status the rule's kind doesn't have)."""
+
+
 class Ambiguous(Exception):
     """422: the request needs a platform or another disambiguator."""
 

@@ -25,6 +25,7 @@ from .checks import Checks
 from .db import engine_from_url, upgrade
 from .errors import Ambiguous, Conflict, NotFound, platform_id_key, same_ref, workspace_id
 from .insights import Insights
+from .labels import Labels
 from .lineage import Lineage, record
 from .orm import Fetch, FileVersion, Release, Workspace
 from .patterns import Patterns, rekey
@@ -51,6 +52,7 @@ class Store:
         self.patterns = Patterns(self)
         self.lineage = Lineage(self, follow=rekey)
         self.verdicts = Verdicts(self)
+        self.labels = Labels(self)
         self.suggestions = Suggestions(self)
         self.calibrate = Calibrate(self)
         self.insights = Insights(self)

@@ -31,7 +31,7 @@ from hatchet_sdk import (
 from hatchet_sdk.rate_limit import RateLimit, RateLimitDuration
 from sqlmodel import Session, select
 
-from .. import repo_sync
+from .. import extensions, repo_sync
 from ..ai import lm as ai_lm
 from ..capture import LiveConversationRef, LiveRoomRef
 from ..capture.elevenlabs import watch_conversation
@@ -255,6 +255,7 @@ def trigger_process_session(ref: SessionRef) -> None:
 
 
 def start_worker() -> None:
+    extensions.load_worker(_get_store())  # checks run here: an extension's model-call listeners must see them
     worker = hatchet.worker(
         "sopops-worker", slots=int(os.environ.get("SOPOPS_WORKER_SLOTS", "20")), workflows=[process_session_wf, route_wf, check_wf, patterns_wf, recluster_wf, recluster_daily_wf, suggest_wf, calibrate_wf, pr_status_wf, livekit_room_wf, elevenlabs_monitor_wf]
     )

@@ -1,4 +1,4 @@
-"""Verdicts on patterns and overrides on findings."""
+"""Verdicts on patterns, overrides on findings, and labels on rules: corrections and spot checks."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from typing import Literal
 from pydantic import Field
 
 from .base import BaseModel
+from .checks import EvidenceOut, RuleKind, RuleStatus
 
 VerdictKind = Literal["real", "acceptable", "sop_wrong", "checker_wrong"]
 ReviewState = Literal["needs_review", "open", "fixing", "fixed", "regressed", "closed"]
@@ -41,6 +42,8 @@ class VerdictOut(BaseModel):
 
 class OverrideIn(BaseModel):
     correct: bool = Field(description="Whether the checker got this finding right. False suppresses it and makes it a negative calibration label.")
+    status: RuleStatus | None = Field(None, description="What actually happened, if you say: one of the rule kind's statuses. A finding status "
+                                      "(skipped, violated, out_of_order, unheeded) when `correct`, another one when not. A calibration label.")
     note: str | None = None
     reviewer: str | None = None
 
@@ -52,7 +55,73 @@ class OverrideOut(BaseModel):
     procedure_id: str
     rule_id: str
     correct: bool
+    status: RuleStatus | None = None
     note: str | None
     reviewer: str | None
     created_at: datetime
     suppressed: bool | None = Field(description="Whether the finding is suppressed now (an `acceptable` pattern suppresses it either way).")
+
+
+LabelSource = Literal["correction", "spot_check"]
+
+
+class RuleLabelIn(BaseModel):
+    status: RuleStatus = Field(description="What actually happened: one of the rule kind's statuses (steps: done, out_of_order, skipped, not_reached, "
+                               "not_applicable; never rules: violated, ok; warning signs: present, unheeded, absent).")
+    note: str | None = None
+    reviewer: str | None = None
+    source: LabelSource = Field("correction", description="`correction` (from the session) or `spot_check` (an answer in the spot-check queue).")
+
+
+class RuleLabelOut(BaseModel):
+    label_id: str
+    session_id: str
+    procedure_id: str
+    rule_id: str
+    kind: RuleKind
+    checked_status: RuleStatus = Field(description="What the checker said.")
+    status: RuleStatus
+    source: LabelSource
+    note: str | None
+    reviewer: str | None
+    created_at: datetime
+    missed: bool = Field(description="A failure the checker didn't flag. Stored and shown; it doesn't add a finding.")
+    suppressed: bool | None = Field(description="For a rule with a finding: whether it's suppressed now. Null without one.")
+
+
+class SpotCheckItem(BaseModel):
+    session_id: str
+    started_at: datetime
+    procedure_id: str
+    procedure_name: str | None
+    rule_id: str
+    kind: RuleKind
+    index: int
+    text: str
+    status: RuleStatus = Field(description="What the checker said.")
+    evidence: list[EvidenceOut]
+    reason: str | None
+    decision_p: float | None = Field(description="The deciding probability nearest its threshold; null in review mode.")
+    decision_threshold: float | None
+    decided_status: RuleStatus | None = Field(description="The decision's status, before any review.")
+    reviewed: bool | None = Field(description="Whether the reasoning model reviewed the rule.")
+    weight: float = Field(description="How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more.")
+    why: list[Literal["close_call", "review_changed", "sample"]]
+    statuses: list[RuleStatus] = Field(description="The statuses this rule can have.")
+
+
+class SpotCheckResponse(BaseModel):
+    items: list[SpotCheckItem]
+    total: int = Field(description="Sampled and not answered yet.")
+    answered: int = Field(description="Sampled and answered.")
+    rate: float
+    scanned: int = Field(description="Rule results sampled from: the most recent 5,000 with no finding.")
+
+
+class SpotCheckSettings(BaseModel):
+    rate: float = Field(description="Share of rule results with no finding that are spot-checked, before weighting.")
+    default: bool = Field(description="The rate is sopops' default (0.02).")
+
+
+class SpotCheckSettingsIn(BaseModel):
+    rate: float | None = Field(description="Between 0 and 1; null goes back to the default.", ge=0, le=1)

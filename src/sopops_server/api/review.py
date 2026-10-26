@@ -1,5 +1,5 @@
-"""Review: the queue of patterns that need a verdict, verdicts, overrides on findings, the regression export, and
-calibrating check thresholds from those labels."""
+"""Review: the queue of patterns that need a verdict, verdicts, overrides on findings, labels on any rule (corrections
+and spot checks), the regression export, and calibrating check thresholds from those labels."""
 
 from __future__ import annotations
 
@@ -10,7 +10,21 @@ from fastapi import APIRouter, BackgroundTasks, Query, Response
 from ..errors import workspace_id
 from ..jobs import Jobs
 from ..pipeline.types import CalibrateRef, SuggestRef
-from ..schemas import CalibrateIn, CalibrateOut, OverrideIn, OverrideOut, ReviewResponse, ReviewState, VerdictIn, VerdictSaved
+from ..schemas import (
+    CalibrateIn,
+    CalibrateOut,
+    OverrideIn,
+    OverrideOut,
+    ReviewResponse,
+    ReviewState,
+    RuleLabelIn,
+    RuleLabelOut,
+    SpotCheckResponse,
+    SpotCheckSettings,
+    SpotCheckSettingsIn,
+    VerdictIn,
+    VerdictSaved,
+)
 from ..store import Store
 from ..verdicts import SUGGESTIBLE
 from .deps import OPEN
@@ -42,9 +56,34 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.post("/v1/workspaces/{workspace}/findings/{finding_id}/override", response_model=OverrideOut, dependencies=OPEN, tags=["review"])
     def override_finding(workspace: str, finding_id: str, req: OverrideIn) -> dict:
-        """Say whether the checker got one finding right. A wrong one is suppressed and a negative calibration label;
-        it's kept by session and rule, so it outlives a re-check."""
-        return store.verdicts.override(workspace_id(workspace), finding_id, req.correct, req.note, req.reviewer)
+        """Say whether the checker got one finding right, and optionally what actually happened (`status`). A wrong one
+        is suppressed and a negative calibration label; it's kept by session and rule, so it outlives a re-check."""
+        return store.verdicts.override(workspace_id(workspace), finding_id, req.correct, req.note, req.reviewer, req.status)
+
+    @r.post("/v1/workspaces/{workspace}/sessions/{session_id}/rules/{procedure_id}/{rule_id}/label", response_model=RuleLabelOut, dependencies=OPEN,
+            tags=["review"])
+    def label_rule(workspace: str, session_id: str, procedure_id: str, rule_id: str, req: RuleLabelIn) -> dict:
+        """Give one rule of a checked session its right status, with or without a finding: a wrong status, or a
+        mistake the checker missed. On a rule with a finding it's a call on the finding, like an override (a status
+        that isn't a finding suppresses it). A missed mistake is stored, shown and used to calibrate; it doesn't add a
+        finding, so Insights keeps counting what the checker found. Kept by session and rule; the latest call wins."""
+        return store.labels.label(workspace_id(workspace), session_id, procedure_id, rule_id, req.status, req.note, req.reviewer, req.source)
+
+    @r.get("/v1/workspaces/{workspace}/spot-checks", response_model=SpotCheckResponse, dependencies=OPEN, tags=["review"])
+    def spot_checks(workspace: str, limit: int = Query(50, ge=1, le=500)) -> dict:
+        """Rule results with no finding, sampled for a reviewer to check (the workspace's rate, 2% by default),
+        weighted toward close calls: a decision near its threshold, or one the review changed. Answer one with its
+        rule's `label` route and `source: spot_check`."""
+        return store.labels.spot_checks(workspace_id(workspace), limit)
+
+    @r.get("/v1/workspaces/{workspace}/spot-checks/settings", response_model=SpotCheckSettings, dependencies=OPEN, tags=["review"])
+    def get_spot_check_settings(workspace: str) -> dict:
+        return store.labels.settings(workspace_id(workspace))
+
+    @r.put("/v1/workspaces/{workspace}/spot-checks/settings", response_model=SpotCheckSettings, dependencies=OPEN, tags=["review"])
+    def set_spot_check_settings(workspace: str, req: SpotCheckSettingsIn) -> dict:
+        """The share of rule results with no finding that are spot-checked (0 to 1; null for the default, 0.02)."""
+        return store.labels.set_rate(workspace_id(workspace), req.rate)
 
     @r.get("/v1/workspaces/{workspace}/patterns/{pattern_id}/regression", dependencies=OPEN, tags=["review"], response_class=Response,
            responses={200: {"content": {"application/x-ndjson": {}}, "description": "One JSON object per line."}})
@@ -60,7 +99,8 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.post("/v1/workspaces/{workspace}/calibrate", response_model=CalibrateOut, dependencies=OPEN, tags=["review"])
     def calibrate(workspace: str, req: CalibrateIn | None = None) -> dict:
-        """Fit each procedure's check thresholds to the workspace's labels (verdicts and overrides), as a job, and
+        """Fit each procedure's check thresholds to the workspace's labels (verdicts, overrides, corrections and spot
+        checks), as a job, and
         return per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled
         sessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save."""
         req = req or CalibrateIn()

@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, delete, select
 
-from .orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleResult, SessionRecord
+from .labels import correction_out, latest_calls
+from .orm import Finding, Pattern, ProcedureCheck, RuleResult, SessionRecord
 from .pipeline.procedures import agent_variables, fill
 from .pipeline.rollup import FINDING_STATUSES, Judged, Rollup, lenient, worst
 from .pipeline.types import SessionRef
@@ -111,6 +112,7 @@ class Checks:
                 rr = RuleResult(
                     id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
                     kind=j.kind, index=j.index, rule_text=rule.text, rule_text_hash=rule.text_hash, status=j.status, evidence=j.evidence, reason=reason,
+                    decision_p=j.decision_p, decision_threshold=j.decision_threshold, decided_status=j.decided_status, reviewed=j.reviewed,
                 )
                 db.add(rr)
                 if j.status in FINDING_STATUSES:
@@ -165,10 +167,7 @@ class Checks:
                 )
             }
             findings = {f.rule_result_id: f for f in db.exec(select(Finding).where(Finding.session_id == session_id))}
-            overrides = {
-                (o.procedure_id, o.rule_id): o.correct
-                for o in db.exec(select(FindingOverride).where(FindingOverride.session_id == session_id).order_by(FindingOverride.created_at))
-            }
+            calls = {(pid, rid): c for (_, pid, rid), c in latest_calls(db, [session_id]).items()}  # overrides and rule labels
         variables = {rel: agent_variables(self.store, session.workspace_id, rel, session.agent_id) for rel in {c.release_id for c in checks} if rel is not None}
         by_proc: dict[str, list[RuleResult]] = {}
         for r in rules:
@@ -187,7 +186,8 @@ class Checks:
                      "reason": r.reason, "finding": r.status in FINDING_STATUSES, "pattern_id": pats.get(r.id, (None, None))[0],
                      "pattern_name": pats.get(r.id, (None, None))[1], "finding_id": findings[r.id].id if r.id in findings else None,
                      "suppressed": findings[r.id].suppressed if r.id in findings else False,
-                     "override": overrides.get((r.procedure_id, r.rule_id)) if r.id in findings else None}
+                     "override": call.correct if (call := calls.get((r.procedure_id, r.rule_id))) and r.id in findings else None,
+                     "correction": correction_out(calls.get((r.procedure_id, r.rule_id)))}
                     for r in rr
                 ],
             })

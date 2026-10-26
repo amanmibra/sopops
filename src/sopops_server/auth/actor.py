@@ -2,7 +2,7 @@
 into.
 
 `access.guard` sets `current` on every request. Where an author is recorded (file versions, releases, verdicts,
-suggestions, finding overrides, imports and tokens), a row written while someone is signed in gets their user id in
+suggestions, finding overrides, rule labels, imports and tokens), a row written while someone is signed in gets their user id in
 `author_id` and their name in the text column, whatever name the request sent (and so does a suggestion when it's
 applied, sent as a pull request or dismissed). With no sign-in, rows keep the name they were given and no `author_id`.
 This module imports nothing from sopops but the tables, so any layer can use it.
@@ -20,7 +20,7 @@ from sqlalchemy import event
 from sqlalchemy import inspect as sa_inspect
 from sqlmodel import Session, select
 
-from ..orm import FileVersion, FindingOverride, ImportRecord, Org, Release, Suggestion, Token, Verdict
+from ..orm import FileVersion, FindingOverride, ImportRecord, Org, Release, RuleLabel, Suggestion, Token, Verdict
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ class Actor:
 current: ContextVar[Actor | None] = ContextVar("sopops_actor", default=None)
 
 # Each authored table, and its column with the name.
-AUTHOR_COLUMN = {FileVersion: "author", Release: "author", Verdict: "reviewer", Suggestion: "reviewer", FindingOverride: "reviewer",
+AUTHOR_COLUMN = {FileVersion: "author", Release: "author", Verdict: "reviewer", Suggestion: "reviewer", FindingOverride: "reviewer", RuleLabel: "reviewer",
                  ImportRecord: "created_by", Token: "created_by"}
 DEFAULT_ORG = "Default"
 DECIDED = ("applied", "pr_open", "dismissed")

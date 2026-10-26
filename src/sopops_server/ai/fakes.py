@@ -23,7 +23,7 @@ from dspy.lm15 import Message, Response
 from dspy.lm15 import Usage as LMUsage
 from pydantic import BaseModel, TypeAdapter
 
-from . import spend
+from . import spend, tracing
 from .lm import DECIDE, NotConfigured, Usage, as_predict
 from .programs import rule_phrase
 from .signatures import NameRulePattern, SplitRule
@@ -97,6 +97,7 @@ class FakeModels:
         self.decider = decider
         self.models = dict(models) if models is not None else {"fast": "fake/fast", "reasoning": "fake/reasoning"}
         self.calls: list[tuple[str, type[dspy.Signature], dict[str, Any]]] = []
+        self.headers: list[dict[str, str]] = []  # per call, the listeners' headers it would have sent to the model gateway
         self.usage = Usage()
 
     def model(self, role: str) -> str | None:
@@ -117,6 +118,17 @@ class FakeModels:
         p = as_predict(predictor)
         if not self.model(role):
             raise NotConfigured(f"no model for role '{role}'")
+        trace = tracing.start(role, p.signature, inputs, self.model(role))
+        self.headers.append(trace.gateway_headers(self.model(role)))  # what a gateway call would have sent
+        try:
+            got = self._answer(role, p, inputs)
+        except BaseException as e:
+            trace.failed(e)
+            raise
+        trace.done(got)
+        return got
+
+    def _answer(self, role: str, p: dspy.Predict, inputs: dict[str, Any]) -> dspy.Prediction:
         self.calls.append((role, p.signature, inputs))
         self.usage.add("jev" if role == DECIDE and self.decider is not None else role, {})
         if role == DECIDE and self.decider is not None:

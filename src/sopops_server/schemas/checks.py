@@ -27,6 +27,15 @@ class EvidenceOut(BaseModel):
     source: Literal["transcript", "tool_calls"] = "transcript"
 
 
+class RuleCorrectionOut(BaseModel):
+    status: RuleStatus = Field(description="What the reviewer says actually happened.")
+    checked_status: RuleStatus | None = Field(description="What the checker said when they did (null for an override).")
+    source: Literal["correction", "spot_check", "override"]
+    note: str | None
+    reviewer: str | None
+    created_at: datetime
+
+
 class RuleResultOut(BaseModel):
     rule_id: str = Field(description="sopc's stable rule id.")
     kind: RuleKind
@@ -41,6 +50,8 @@ class RuleResultOut(BaseModel):
     finding_id: str | None = Field(None, description="For a finding: its id (to override it).")
     suppressed: bool = Field(False, description="A finding a verdict or override says isn't a problem; the result leaves it out.")
     override: bool | None = Field(None, description="A reviewer's call on the finding: true (the checker was right), false, or none.")
+    correction: RuleCorrectionOut | None = Field(None, description="The status a reviewer gave this rule, if the latest call gave one.")
+
 
 
 class ProcedureCheckOut(BaseModel):

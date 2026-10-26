@@ -13,9 +13,12 @@ Verdict rows are only appended; a pattern's latest is its current verdict. A sub
 its rule pattern's (`inherited`). A recluster that retires a sub-pattern carries its verdict to its successor
 (`carry_over`, called by `sopops_server.patterns`).
 
-An **override** says the checker was right or wrong about one finding (`finding_overrides`); it's kept by session,
+An **override** says the checker was right or wrong about one finding (`finding_overrides`), and can say what
+actually happened (`status`: a finding status when it was right, another status when it wasn't); it's kept by session,
 procedure and rule, so it outlives a re-check. A wrong finding is suppressed and a negative label, like
 `checker_wrong`; a right one overrides a `checker_wrong` pattern for that finding. `acceptable` suppresses either way.
+A rule label (`sopops_server.labels`: a correction or a spot check) on a rule with a finding is a call on it the same
+way; the latest call per session, procedure and rule wins, label or override.
 
 A pattern's **review state** (`state`) follows its verdict and the fix:
 - `needs_review`: no verdict; a verdict carried over by a recluster, not confirmed; or a verdict older than a
@@ -50,7 +53,8 @@ import dspy
 from sqlmodel import Session, and_, func, or_, select
 
 from . import lineage, merge
-from .errors import Conflict, NotFound
+from .errors import Conflict, InvalidValue, NotFound
+from .labels import Call, check_status, latest_calls
 from .orm import (
     Finding,
     FindingOverride,
@@ -58,6 +62,7 @@ from .orm import (
     ProcedureCheck,
     FileVersion,
     Release,
+    RuleLabel,
     RuleLineage,
     RuleResult,
     SessionRecord,
@@ -66,7 +71,7 @@ from .orm import (
     Verdict,
     Workspace,
 )
-from .pipeline.rollup import Judged, rollup, worst
+from .pipeline.rollup import FINDING_STATUSES, Judged, rollup, worst
 
 if TYPE_CHECKING:
     from .store import Store
@@ -99,7 +104,7 @@ def verdict_out(v: Verdict, inherited: bool = False) -> dict[str, Any]:
 
 def override_out(o: FindingOverride, suppressed: bool | None = None) -> dict[str, Any]:
     return {"override_id": o.id, "finding_id": o.finding_id, "session_id": o.session_id, "procedure_id": o.procedure_id, "rule_id": o.rule_id,
-            "correct": o.correct, "note": o.note, "reviewer": o.reviewer, "created_at": _utc(o.created_at), "suppressed": suppressed}
+            "correct": o.correct, "status": o.status, "note": o.note, "reviewer": o.reviewer, "created_at": _utc(o.created_at), "suppressed": suppressed}
 
 
 def suggestion_summary(s: Suggestion, pattern_name: str | None = None, released: Release | None = None) -> dict[str, Any]:
@@ -173,31 +178,26 @@ def carry_over(db: Session, ws: str, pairs: list[tuple[str, str]], now: datetime
         db.add(own[new])
 
 
-def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str]) -> str | None:
-    """A procedure check's result with the rule results in `passed` read as passed. `required` isn't stored on a rule
-    result, but only matters for a skipped step when the goal was reached, and then the leniency mark says it."""
-    if not passed or pc.checked_result in (None, "not_measurable"):
+def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str], corrected: dict[str, str] | None = None) -> str | None:
+    """A procedure check's result with the rule results in `passed` read as passed, and those in `corrected` (rule
+    result id: status) read as a reviewer said. `required` isn't stored on a rule result, but only matters for a skipped
+    step when the goal was reached, and then the leniency mark says it (a step corrected to skipped counts as required)."""
+    corrected = corrected or {}
+    if (not passed and not corrected) or pc.checked_result is None or (pc.checked_result == "not_measurable" and not corrected):
         return pc.checked_result
-    judged = [
-        Judged(r.rule_id, r.kind, r.index, PASS_STATUS.get(r.kind, r.status) if r.id in passed else r.status, [], "",
-               r.kind == "step" and r.status == "skipped" and LENIENT_MARK not in (r.reason or ""))
-        for r in rules
-    ]
+    judged = []
+    for r in rules:
+        status = corrected.get(r.id) or (PASS_STATUS.get(r.kind, r.status) if r.id in passed else r.status)
+        judged.append(Judged(r.rule_id, r.kind, r.index, status, [], "", r.kind == "step" and status == "skipped" and (r.id in corrected or LENIENT_MARK not in (r.reason or ""))))
     return rollup(judged, pc.goal_reached).result
 
 
-def _overrides(db: Session, session_ids: Iterable[str]) -> dict[tuple[str, str, str], FindingOverride]:
-    """The latest override per (session, procedure, rule)."""
-    ids = list(set(session_ids))
-    if not ids:
-        return {}
-    out = {}
-    for o in db.exec(select(FindingOverride).where(FindingOverride.session_id.in_(ids)).order_by(FindingOverride.created_at)):
-        out[(o.session_id, o.procedure_id, o.rule_id)] = o
-    return out
+def _overrides(db: Session, session_ids: Iterable[str]) -> dict[tuple[str, str, str], Call]:
+    """The latest call per (session, procedure, rule): an override or a rule label (`sopops_server.labels`)."""
+    return latest_calls(db, session_ids)
 
 
-def _labels(db: Session, ws: str, findings: list[Finding]) -> dict[str, tuple[str | None, FindingOverride | None]]:
+def _labels(db: Session, ws: str, findings: list[Finding]) -> dict[str, tuple[str | None, Call | None]]:
     """{finding id: (its pattern's verdict, its override)}. A suppressing verdict doesn't reach a finding on a wording
     of the rule published after it: it judged the rule as it was worded then."""
     pids = {f.pattern_id for f in findings if f.pattern_id}
@@ -298,13 +298,22 @@ class Verdicts:
         self.refresh(ws, rules=[(p.procedure_id, p.rule_id)])
         return {**verdict_out(v), "suppressed_count": self.suppressed_count(ws, p)}
 
-    def override(self, ws: str, finding_id: str, correct: bool, note: str | None = None, reviewer: str | None = None) -> dict[str, Any]:
+    def override(self, ws: str, finding_id: str, correct: bool, note: str | None = None, reviewer: str | None = None, status: str | None = None) -> dict[str, Any]:
+        """`status`: what actually happened, one of the rule kind's statuses: a finding status when the finding is
+        right, another one when it's wrong."""
         with self._db() as db, db.begin():
             f = db.get(Finding, finding_id)
             if f is None or f.workspace_id != ws:
                 raise NotFound(f"no finding '{finding_id}'")
+            if status is not None:
+                r = db.get(RuleResult, f.rule_result_id)
+                check_status(r.kind if r else "", status)
+                if correct and status not in FINDING_STATUSES:
+                    raise InvalidValue(f"a right finding's status is a finding status ({', '.join(sorted(FINDING_STATUSES))}), not '{status}'")
+                if not correct and status in FINDING_STATUSES:
+                    raise InvalidValue(f"a wrong finding's status isn't a finding status, like '{status}'")
             o = FindingOverride(id=str(uuid.uuid4()), workspace_id=ws, finding_id=f.id, session_id=f.session_id, procedure_id=f.procedure_id, rule_id=f.rule_id,
-                                correct=correct, note=note or None, reviewer=reviewer or None, created_at=_now())
+                                correct=correct, status=status, note=note or None, reviewer=reviewer or None, created_at=_now())
             db.add(o)
         self.refresh(ws, sessions=[f.session_id])
         with self._db() as db:
@@ -314,7 +323,7 @@ class Verdicts:
     # --- suppression ---------------------------------------------------------------------------------------------
 
     @staticmethod
-    def suppressed_by(verdict: str | None, override: FindingOverride | None) -> bool:
+    def suppressed_by(verdict: str | None, override: Call | None) -> bool:
         if verdict == "acceptable":
             return True
         if override is not None:
@@ -322,7 +331,7 @@ class Verdicts:
         return verdict == "checker_wrong"
 
     @staticmethod
-    def wrong(verdict: str | None, override: FindingOverride | None) -> bool | None:
+    def wrong(verdict: str | None, override: Call | None) -> bool | None:
         """Whether the checker got the finding wrong: True, False, or None when nobody has said."""
         if override is not None:
             return not override.correct
@@ -519,18 +528,24 @@ class Verdicts:
 
     def calibration_examples(self, ws: str, procedure_id: str) -> list[dspy.Example]:
         """Labeled sessions for `sopops_server.ai.programs.calibrate` on `check:<procedure_id>`, from this workspace's
-        verdicts and overrides only: every session with a reviewed finding on the procedure. A finding judged wrong
-        (`checker_wrong`, or overridden as wrong) is a negative label: its rule isn't `failing`, and `deviated` is the
-        result without it; every other finding of the session stays a failure. `wrong` holds the rules judged wrong."""
+        verdicts, overrides and rule labels only: every session with a reviewed finding on the procedure, or a rule
+        label on it (a correction or a spot check). A finding judged wrong (`checker_wrong`, overridden as wrong, or
+        labeled with a status that isn't a finding) is a negative label: its rule isn't `failing`. A rule labeled with
+        a finding status the checker didn't flag (a missed mistake) is `failing`. `deviated` is the result with those
+        corrections (and any status a reviewer gave) applied; every other finding of the session stays a failure.
+        `wrong` holds the rules judged wrong. With no labels and no override statuses, this is what verdicts and
+        overrides alone give."""
         with self._db() as db:
             findings = list(db.exec(select(Finding).where(Finding.workspace_id == ws, Finding.procedure_id == procedure_id)))
             labels = _labels(db, ws, findings)
             by_session: dict[str, list[Finding]] = defaultdict(list)
             for f in findings:
                 by_session[f.session_id].append(f)
-            reviewed = sorted(sid for sid, fs in by_session.items() if any(self.wrong(*labels[f.id]) is not None for f in fs))
+            labeled = set(db.exec(select(RuleLabel.session_id).where(RuleLabel.workspace_id == ws, RuleLabel.procedure_id == procedure_id).distinct()))
+            reviewed = sorted({sid for sid, fs in by_session.items() if any(self.wrong(*labels[f.id]) is not None for f in fs)} | labeled)
             if not reviewed:
                 return []
+            calls = latest_calls(db, reviewed, procedure_id)
             checks = {pc.session_id: pc for pc in db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id.in_(reviewed), ProcedureCheck.procedure_id == procedure_id))}
             rules: dict[str, list[RuleResult]] = defaultdict(list)
             for r in db.exec(select(RuleResult).where(RuleResult.session_id.in_(reviewed), RuleResult.procedure_id == procedure_id)):
@@ -542,8 +557,13 @@ class Verdicts:
             if pc is None:
                 continue
             wrong = {f.rule_result_id for f in by_session[sid] if self.wrong(*labels[f.id])}
-            failing = {f.rule_id for f in by_session[sid] if f.rule_result_id not in wrong}
-            result = reviewed_result(pc, rules[sid], wrong)
+            flagged = {f.rule_result_id for f in by_session[sid]}
+            # the status a reviewer gave each rule (a label, or an override's), where it isn't what the checker said
+            corrected = {r.id: c.status for r in rules[sid] if (c := calls.get((sid, procedure_id, r.rule_id))) and c.status and c.status != r.status
+                         and (r.id not in flagged or (r.id in wrong) == (c.status not in FINDING_STATUSES))}
+            missed = {r.rule_id for r in rules[sid] if r.id not in flagged and corrected.get(r.id) in FINDING_STATUSES}
+            failing = {f.rule_id for f in by_session[sid] if f.rule_result_id not in wrong} | missed
+            result = reviewed_result(pc, rules[sid], wrong, corrected)
             wrong_rules = {f.rule_id for f in by_session[sid] if f.rule_result_id in wrong}
             out.append(dspy.Example(turns=sessions[sid].turns, deviated=result == "deviated", failing=failing, wrong=wrong_rules, session_id=sid).with_inputs("turns"))
         return out

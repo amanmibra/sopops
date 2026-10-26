@@ -47,6 +47,18 @@ Live UI updates work from any process on Postgres, only from the sopops process 
 
 You can mark one finding wrong. A judged pattern exports its sessions as regression cases (JSON Lines).
 
+**Corrections.** On a session, any rule can get its right status:
+
+| Control | On | What it does |
+|---|---|---|
+| Wrong? | A finding | Right or wrong, then "What actually happened?" with the rule's statuses (you can skip it). A wrong finding is suppressed. |
+| Wrong status | Any rule | Pick the status it should have. On a finding, a status that isn't a finding suppresses it, like Wrong?. |
+| Checker missed this | A done step or an ok never rule | Pick the failure the checker missed (skipped, out of order, violated). |
+
+A corrected rule shows the status, who gave it and when. A missed mistake doesn't add a finding: the session's result, its patterns and Insights keep what the checker found, so a correction never changes a number without showing it. Every correction is a calibration label. The latest call on a rule wins, and it outlives a re-check.
+
+**Spot checks.** Review → Mistakes → Spot checks asks about rule results the checker passed: 2% of them by default (`PUT /v1/workspaces/{ws}/spot-checks/settings`), weighted toward close calls. A decision near its threshold is up to 5 times as likely to be asked about, and one the reviewer model changed 4 more. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. Answers are labels, like corrections.
+
 | State | When |
 |---|---|
 | needs review | No verdict, or a recluster changed it. |
@@ -88,9 +100,10 @@ Use strings like `anthropic/claude-haiku-4-5` or `anthropic/claude-sonnet-5-5`, 
 | **Jev** | With `pip install 'sopops-server[jev]'` and a TypeSafe key, TypeSafe's [Jev](https://docs.typesafe.ai) answers decisions instead of the fast model: calibrated probabilities, faster and much cheaper. The reviewer still reviews. Setup asks for a key. A deployment with a model gateway can serve Jev (or another system-1 classifier) from there instead (`SOPOPS_SYSTEM1_URL`), keeping the key in the gateway. |
 | **A team's own keys** | The environment variables are the deployment's defaults. In setup, and later in Settings under Checks, a team adds its own TypeSafe key, picks Anthropic, OpenAI, Google or any other LiteLLM provider, pastes a key (or uses the deployment's) and picks the two models from those the key can use. Each key and model is tried before it's saved, stored encrypted with `SOPOPS_SECRET_KEY`, and never shown again. Anything a team doesn't set uses the default. |
 | **Check modes** | `decide` (default) sends flagged decisions to the reviewer. `review` has it judge every rule. `SOPOPS_CHECK_REVIEW=off` lets decisions stand. |
+| **Tracing** | An extension can register a listener (`sopops_server.ai.tracing.add_listener(after, before)`) that sees each model call, decisions included: workspace, session, procedure and rules, purpose, signature, inputs, outputs and reasoning, model, instructions version, tokens, latency, any error, and a run id shared by one session's check. `before` can add request headers to calls to a hosted model gateway (`sopops/...` models) only. The web app and `sopops worker` both load extensions. None is registered by default, and a failing one never stops a check. |
 | **Spend** | Each call records tokens and estimated cost by purpose and session (prices: `SOPOPS_MODEL_PRICES`). See Results → Insights → Model spend, and each session page ([API reference](api/insights.md#model-spend)). Text sent to models isn't stored. |
 
-**Calibration.** sopops fits decision thresholds per workspace from labeled sessions (verdicts and overrides; checker-wrong labels are negative). Defaults apply until then; `SOPOPS_DECISIONS` overrides them.
+**Calibration.** sopops fits decision thresholds per workspace from labeled sessions (verdicts, overrides, corrections and spot checks; checker-wrong labels are negative, missed mistakes count as failures). Defaults apply until then; `SOPOPS_DECISIONS` overrides them.
 
 ```sh
 sopops calibrate --workspace WS [--procedure P] [--dry-run]   # or POST /v1/workspaces/{ws}/calibrate

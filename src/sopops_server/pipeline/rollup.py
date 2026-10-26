@@ -54,6 +54,12 @@ class Judged:
     evidence: list[dict[str, Any]]
     reason: str
     required: bool = False
+    # the decision before review (`sopops_server.ai.decide`), stored for spot checks: the deciding probability and its
+    # threshold, the decided status, and whether the reasoning model reviewed the rule. None without a decision.
+    decision_p: float | None = None
+    decision_threshold: float | None = None
+    decided_status: str | None = None
+    reviewed: bool | None = None
 
 
 @dataclass

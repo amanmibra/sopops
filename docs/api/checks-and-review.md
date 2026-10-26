@@ -23,7 +23,7 @@ How sopops checks each session against its procedures, groups the same mistake a
 | `checked_at` | datetime | When. |
 | `rules` | list | Steps, then never rules, then warning signs. Fields below. |
 
-Each entry of `rules` is `{rule_id, kind, index, text, status, evidence, reason, finding, finding_id, pattern_id, pattern_name, suppressed, override}`. `kind` is `step`, `never` or `warning`, `index` is 1-based within its kind, and each piece of evidence is `{turn, quote, source}`: `turn` indexes the session's `turns` (null for a tool call with no tool turn), and `source` is `transcript` or `tool_calls`.
+Each entry of `rules` is `{rule_id, kind, index, text, status, evidence, reason, finding, finding_id, pattern_id, pattern_name, suppressed, override, correction}`. `correction` is the status a reviewer gave the rule, `{status, checked_status, source, note, reviewer, created_at}` (`source`: `correction`, `spot_check` or `override`), or null ([labels](#corrections-and-spot-checks)). `kind` is `step`, `never` or `warning`, `index` is 1-based within its kind, and each piece of evidence is `{turn, quote, source}`: `turn` indexes the session's `turns` (null for a tool call with no tool turn), and `source` is `transcript` or `tool_calls`.
 
 ```json
 {
@@ -224,7 +224,8 @@ A reviewer gives a pattern (a rule pattern or a failure mode) a **verdict**, wit
 | | |
 |---|---|
 | Verdicts are appended, never edited | The latest is the pattern's verdict; the rest are its `verdict_history`. A failure mode without one has its rule pattern's (`inherited: true`). |
-| An override | Says whether the checker got one finding right (`correct`). A wrong one is suppressed and becomes a negative label. A right one overrides a `checker_wrong` pattern for that finding. `acceptable` suppresses either way. Overrides are kept by session, procedure and rule, so they outlive a re-check. |
+| An override | Says whether the checker got one finding right (`correct`), and optionally what actually happened (`status`: a finding status when it's right, another one when it's wrong). A wrong one is suppressed and becomes a negative label. A right one overrides a `checker_wrong` pattern for that finding. `acceptable` suppresses either way. Overrides are kept by session, procedure and rule, so they outlive a re-check. |
+| A rule label | A correction or a spot-check answer on one rule ([below](#corrections-and-spot-checks)). On a finding it's a call like an override; the latest call on a rule wins. |
 | Suppressed findings | Kept, flagged (`suppressed` on a session's rule results) and left out of every Insights count and rate. |
 | Rolled up again | A procedure check's `result` is recomputed with its suppressed rules read as passed (`checked_result` keeps the checker's own), and the session's result is the worst of its checks. A session whose only deviation is suppressed counts as followed. |
 | Counted on their own | Insights shows `suppressed` on tiles, scoreboard rows, ladder rows and patterns. |
@@ -258,6 +259,30 @@ curl -s -X POST -H "Content-Type: application/json" \
   }
 }
 ```
+
+### Corrections and spot checks
+
+A reviewer can give any rule of a checked session its right status, finding or not: `POST /v1/workspaces/{ws}/sessions/{id}/rules/{procedure}/{rule}/label` with `{status, note?, reviewer?, source?}`. `status` must be one of the rule kind's ([statuses](#rule-statuses)); `source` is `correction` (default) or `spot_check`. Labels are kept by session, procedure and rule, so they outlive a re-check.
+
+| The label says | On a rule | Then |
+|---|---|---|
+| A status that isn't a finding | With a finding | The finding is suppressed, as for an override marked wrong. |
+| A finding status | With a finding | The finding is right: it overrides a `checker_wrong` pattern for it. |
+| A finding status | Without one (`missed: true`) | Stored and shown on the session. No finding is added: the result, patterns and Insights keep what the checker found. |
+| The checker's status | Without one | A confirmation (a spot check's usual answer). |
+
+Every label is a calibration label. It returns `{label_id, session_id, procedure_id, rule_id, kind, checked_status, status, source, note, reviewer, created_at, missed, suppressed}`.
+
+**Spot checks** sample rule results with no finding for a reviewer to check. `GET /v1/workspaces/{ws}/spot-checks?limit=` returns `{items, total, answered, rate, scanned}`, close calls first. Each item has the rule, the checker's `status`, `evidence` and `reason`, the decision before review (`decision_p`, `decision_threshold`, `decided_status`, `reviewed`), its `weight`, `why` (`close_call`, `review_changed` or `sample`) and the `statuses` it can have.
+
+| | |
+|---|---|
+| Rate | 2% by default. `GET` or `PUT /v1/workspaces/{ws}/spot-checks/settings` with `{rate}` (0 to 1; null for the default). |
+| Weight | 1, plus up to 4 for a decision within 0.25 of its threshold (the closer, the more), plus 4 when the reviewer model changed the decision. |
+| Which | A stable hash of session, procedure and rule under `rate × weight ÷ mean weight`, over the most recent 5,000 results with no finding. The same results stay in the queue until answered. |
+| Answer | The rule's `label` route with `source: spot_check`. |
+
+Rule results checked in review mode (`SOPOPS_CHECK_MODE=review`) have no decision, so they're sampled at weight 1.
 
 ### Review state
 
@@ -323,12 +348,14 @@ Each proposed suggestion has `freshness`, computed when it's read (in every list
 
 ### Calibration
 
-Calibration labels come from verdicts and overrides, per workspace and only from the database.
+Calibration labels come from verdicts, overrides, corrections and spot checks, per workspace and only from the database.
 
 | | |
 |---|---|
-| A labeled session | Any session with a reviewed finding on a procedure, for that procedure's `check:<procedure>` thresholds. |
+| A labeled session | Any session with a reviewed finding on a procedure, or a rule label on it, for that procedure's `check:<procedure>` thresholds. |
 | A negative label | A finding judged wrong. |
+| A missed mistake | A rule labeled with a finding status the checker didn't flag: a failure. |
+| A status a reviewer gave | Read in place of the checker's when the session's result is worked out. |
 | An earlier wording | A label on one labels the rule as the fitted release words it (its lineage). |
 
 `POST /v1/workspaces/{ws}/calibrate` (or `sopops calibrate --workspace WS [--procedure P] [--dry-run]`) fits them (`sopops_server.ai.programs.calibrate`), and returns per procedure the labels used and each question's threshold before and after. It runs as a job: `sopops_calibrate` on Hatchet with the API waiting for it, or else in the API process.
@@ -350,7 +377,10 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 | `GET /v1/workspaces/{ws}/review` | The review queue. Fields below. |
 | `POST /v1/workspaces/{ws}/calibrate` | `{procedure?, dry_run?}`: fit the check thresholds to the labels. Returns `{workspace, dry_run, procedures: [{procedure_id, program, labels, negative_labels, saved, skipped, score_before, score, rules: [{rule_id, lineage_id, kind, index, text, field, before, after, skipped}]}]}`. `text` is the rule as it reads now (its lineage's latest wording). |
 | `POST /v1/workspaces/{ws}/patterns/{id}/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
-| `POST /v1/workspaces/{ws}/findings/{id}/override` | `{correct, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. |
+| `POST /v1/workspaces/{ws}/findings/{id}/override` | `{correct, status?, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. `422` for a status the rule can't have, or one that doesn't fit `correct`. |
+| `POST /v1/workspaces/{ws}/sessions/{id}/rules/{procedure}/{rule}/label` | `{status, note?, reviewer?, source?}`: a correction or a spot-check answer. `404` for a rule the session wasn't checked on, `422` for a status its kind doesn't have. |
+| `GET /v1/workspaces/{ws}/spot-checks` | The spot-check queue. `limit` (default 50, at most 500). |
+| `GET`, `PUT /v1/workspaces/{ws}/spot-checks/settings` | `{rate, default}`; `PUT {rate}`. |
 | `GET /v1/workspaces/{ws}/patterns/{id}/regression` | A regression set for the pattern, as JSON Lines. Fields below. `409` without a verdict. |
 | `POST /v1/workspaces/{ws}/patterns/{id}/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
 | `GET /v1/workspaces/{ws}/suggestions?status=` | Newest first, with each one's `created_at`, `applied_at` (saved as a draft), `pr_opened_at`, `merged_at` (when sopops saw it merged), and `released_in` and `released_at`: the first release whose file has its edit. A proposed one has `freshness`. |

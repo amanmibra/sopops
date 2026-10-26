@@ -67,6 +67,7 @@ class Scope:
 
 
 _scope: contextvars.ContextVar[Scope | None] = contextvars.ContextVar("sopops_spend_scope", default=None)
+_counting: contextvars.ContextVar[list[int] | None] = contextvars.ContextVar("sopops_spend_counting", default=None)
 
 
 # --- prices ----------------------------------------------------------------------------------------------------------
@@ -142,6 +143,16 @@ def current() -> Scope | None:
     return _scope.get()
 
 
+def count_tokens() -> tuple[list[int], contextvars.Token]:
+    """Start adding up the tokens of the calls reported from here: ([input, output], the token to `stop_counting`)."""
+    acc = [0, 0]
+    return acc, _counting.set(acc)
+
+
+def stop_counting(token: contextvars.Token) -> None:
+    _counting.reset(token)
+
+
 def carry(fn: Callable[..., T]) -> Callable[..., T]:
     """`fn` to run in worker threads (`pool.map(carry(fn), items)`) with the caller's scope (and DSPy settings)."""
     ctx = contextvars.copy_context()
@@ -167,13 +178,17 @@ def _tokens(usage: Mapping[str, Any]) -> tuple[int, int]:
 
 
 def record(model: str | None, usage: Mapping[str, Any] | Any) -> None:
-    """One call's usage (DSPy's normalized dict, or an object with those attributes), in the current scope."""
-    s = _scope.get()
-    if s is None or not model:
-        return
+    """One call's usage (DSPy's normalized dict, or an object with those attributes), in the current scope, and for the
+    model-call listeners (`sopops_server.ai.tracing`)."""
     if not isinstance(usage, Mapping):
         usage = {k: getattr(usage, k, None) for k in ("prompt_tokens", "completion_tokens", "input_tokens", "output_tokens")}
     i, o = _tokens(usage)
+    acc = _counting.get()
+    if acc is not None:
+        acc[0], acc[1] = acc[0] + i, acc[1] + o
+    s = _scope.get()
+    if s is None or not model:
+        return
     s.rows.append(ModelCall(workspace_id=s.workspace, session_id=s.session_id, purpose=s.purpose, model=str(model)[:256], input_tokens=i,
                             output_tokens=o, cost_usd=cost(model, i, o), created_at=datetime.now(timezone.utc)))
 

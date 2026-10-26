@@ -15,3 +15,4 @@ class Workspace(SQLModel, table=True):
     workspace: str = Field(primary_key=True, max_length=128)
     current_release: int | None = Field(default=None, description="The release agents are served.")
     org_id: str = Field(max_length=36, description="The org it belongs to.")
+    spot_check_rate: float | None = Field(default=None, description="Share of rule results with no finding sampled for spot checks; null is the default (`labels.SPOT_CHECK_RATE`).")

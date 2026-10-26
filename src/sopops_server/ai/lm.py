@@ -17,7 +17,9 @@
 
 `Models.predict(role, predictor, **inputs)` runs one `dspy.Predict` (or a signature) with that role's model, on its
 own copy of the client, and adds the call's tokens and cost to `usage`; each call is also recorded for the workspace
-in scope (`sopops_server.ai.spend`, through DSPy's usage tracker). DSPy's response cache is in memory only,
+in scope (`sopops_server.ai.spend`, through DSPy's usage tracker), and handed to any model-call listeners
+(`sopops_server.ai.tracing`), whose request headers go with calls to the model gateway (they make DSPy send the call
+through LiteLLM, which carries them). DSPy's response cache is in memory only,
 unless `SOPOPS_DSPY_CACHE_DIR` names a directory for a disk cache (transcripts would be written there).
 
 These variables are the deployment's defaults; a workspace's own keys and models replace them (`sopops_server.ai.keys`).
@@ -40,7 +42,7 @@ import dspy
 from dspy.experimental import TypeSafe
 
 from . import dspy_fixes  # noqa: F401  (installs the decision-adapter fix)
-from . import spend, system1
+from . import spend, system1, tracing
 
 log = logging.getLogger("sopops_server.ai.lm")
 
@@ -240,15 +242,31 @@ class Models:
             return self._clients[key]
 
     def predict(self, role: str, predictor: dspy.Predict | type[dspy.Signature], **inputs: Any) -> dspy.Prediction:
+        model = self.model(role)
+        trace = tracing.start(role, as_predict(predictor).signature, inputs, model)
         try:
-            return self._run(role, self.client(role).copy(), predictor, inputs)
-        except system1.Unavailable as e:
-            fallback = self.decision_fallback() if role == DECIDE else None
-            if not fallback:
-                raise AIError(f"{self.model(role)}: Unavailable: {str(e)[:500]}") from e
-            # As a deployment without a classifier would: the decision model answers, with the same thresholds.
-            log.warning("system-1 classifier unavailable, %s answers instead: %s", fallback, str(e)[:300])
-            return self._run(role, self.lm(fallback).copy(), predictor, inputs, model=fallback)
+            try:
+                out = self._run(role, self._with_headers(self.client(role).copy(), model, trace), predictor, inputs)
+            except system1.Unavailable as e:
+                fallback = self.decision_fallback() if role == DECIDE else None
+                if not fallback:
+                    raise AIError(f"{self.model(role)}: Unavailable: {str(e)[:500]}") from e
+                # As a deployment without a classifier would: the decision model answers, with the same thresholds.
+                log.warning("system-1 classifier unavailable, %s answers instead: %s", fallback, str(e)[:300])
+                out = self._run(role, self._with_headers(self.lm(fallback).copy(), fallback, trace), predictor, inputs, model=fallback)
+        except BaseException as e:
+            trace.failed(e)
+            raise
+        trace.done(out)
+        return out
+
+    @staticmethod
+    def _with_headers(client: Any, model: str | None, trace: tracing.Trace) -> Any:
+        """The client with the listeners' request headers, for a call to the hosted model gateway only."""
+        headers = trace.gateway_headers(model)
+        if not headers or not isinstance(client, dspy.LM):
+            return client
+        return client.copy(extra_headers={**(client.kwargs.get("extra_headers") or {}), **headers})
 
     def _run(self, role: str, client: Any, predictor: dspy.Predict | type[dspy.Signature], inputs: dict[str, Any], model: str | None = None) -> dspy.Prediction:
         started = time.monotonic()

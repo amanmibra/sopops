@@ -8,7 +8,8 @@ from sqlmodel import Column, DateTime, Field, ForeignKeyConstraint, Index, SQLMo
 
 
 class FindingOverride(SQLModel, table=True):
-    """A reviewer's call on one finding: the checker was right (`correct`) or not. Keyed by session, procedure and rule
+    """A reviewer's call on one finding: the checker was right (`correct`) or not, and optionally the rule's right
+    status. Keyed by session, procedure and rule
     as well as the finding, so it outlives a re-check of the session (which writes new findings). Rows are only
     appended; the latest per (session, procedure, rule) wins."""
 
@@ -26,6 +27,7 @@ class FindingOverride(SQLModel, table=True):
     procedure_id: str = Field(max_length=256)
     rule_id: str = Field(max_length=64)
     correct: bool
+    status: str | None = Field(default=None, max_length=16, description="What actually happened, when the reviewer said: one of the rule kind's statuses.")
     note: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     reviewer: str | None = Field(default=None, max_length=256)
     author_id: str | None = Field(default=None, max_length=36, description="The signed-in user who did it (`reviewer` keeps the name).")

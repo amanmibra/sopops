@@ -39,3 +39,10 @@ class RuleResult(SQLModel, table=True):
     status: str = Field(max_length=16)  # step: done|out_of_order|skipped|not_reached|not_applicable; never: violated|ok; warning: present|unheeded|absent
     evidence: list[dict[str, Any]] = Field(sa_column=Column(JSONDoc, nullable=False))  # [{turn, quote, source}]
     reason: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    # the decision before any review (`sopops_server.ai.decide`): the probability that decided the rule, nearest its
+    # threshold, and that threshold; the decided status; whether the reasoning model reviewed it. Null in review mode
+    # (no decision) and on results checked before these were kept. Spot checks weigh close calls with them.
+    decision_p: float | None = Field(default=None)
+    decision_threshold: float | None = Field(default=None)
+    decided_status: str | None = Field(default=None, max_length=16)
+    reviewed: bool | None = Field(default=None)

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from .. import forms
 from ..auth import access
-from ..errors import Ambiguous, Conflict, NotFound
+from ..errors import Ambiguous, Conflict, InvalidValue, NotFound
 from ..github import GitHubError
 from ..insights import BadFilter
 from ..sessions import BadCursor
@@ -27,6 +27,10 @@ def register(app: FastAPI) -> None:
     @app.exception_handler(Conflict)
     def _conflict(_, exc: Conflict) -> JSONResponse:
         return JSONResponse(status_code=409, content={"detail": str(exc)})
+
+    @app.exception_handler(InvalidValue)
+    def _invalid_value(_, exc: InvalidValue) -> JSONResponse:
+        return JSONResponse(status_code=422, content={"detail": str(exc)})
 
     @app.exception_handler(Ambiguous)
     def _ambiguous(_, exc: Ambiguous) -> JSONResponse:

@@ -53,7 +53,7 @@ from ..pipeline.transcript import (
     verify_evidence,
 )
 from ..pipeline.types import Checked, Routed
-from . import calibration, spend
+from . import calibration, spend, tracing
 from .lm import AI, DECIDE
 from .signatures import (
     VERSIONS,
@@ -445,10 +445,32 @@ class Decision:
     evidence: list[dict[str, Any]]
     reason: str
     find: list[str] = field(default_factory=list)  # question names whose evidence to look up
+    p: float | None = None  # the deciding answer nearest its threshold (`closest`), and that threshold
+    t: float | None = None
+
+
+def closest(*answers: Answer | None) -> tuple[float | None, float | None]:
+    """(probability, threshold) of the answer nearest its threshold: how close a call the rule's decision was."""
+    near = min((a for a in answers if a is not None), key=lambda a: abs(a.p - a.t), default=None)
+    return (near.p, near.t) if near else (None, None)
 
 
 def decide(it: Item, got: dict[str, Answer], cfg: DecisionConfig) -> Decision:
-    """The decided status of one rule. A step not done comes back `skipped`; `not_reached` is worked out over the steps."""
+    """The decided status of one rule, with `p` and `t` from the answers that decided it (`closest`). A step not done
+    comes back `skipped`; `not_reached` is worked out over the steps."""
+    d = _decide(it, got, cfg)
+    cond = got[it.cond] if it.cond else None
+    acts = [got[n] for n in it.actions]
+    if d.status == "not_applicable" or (it.rule.kind == "warning" and d.status == "absent"):
+        d.p, d.t = closest(cond)
+    elif it.rule.kind == "warning":
+        d.p, d.t = closest(cond, *acts, *[got[n] for n in it.forbidden])
+    else:
+        d.p, d.t = closest(cond, min(acts, key=lambda a: a.p - a.t, default=None))
+    return d
+
+
+def _decide(it: Item, got: dict[str, Answer], cfg: DecisionConfig) -> Decision:
     kind = it.rule.kind
     cond = got[it.cond] if it.cond else None
     acts = [got[n] for n in it.actions]
@@ -533,7 +555,9 @@ def find_evidence(ai: AI, items: list[Item], decisions: dict[str, Decision], got
                         found[n] = line
     else:
         keys = {f"e{i}": n for i, n in enumerate(texts)}
-        located = ai.predict("fast", LocateEvidence, transcript=render_transcript(turns, []), actions={k: texts[n][0] for k, n in keys.items()}).located
+        rule_of = {n: it.rule.id for it in items for n in decisions[it.rule.id].find}
+        with tracing.context(rules={k: rule_of.get(n) for k, n in keys.items()}):
+            located = ai.predict("fast", LocateEvidence, transcript=render_transcript(turns, []), actions={k: texts[n][0] for k, n in keys.items()}).located
         lines = {x.turn: x for s in segs for x in s}
         for loc in located:
             n = keys.get(loc.key)
@@ -559,6 +583,12 @@ class Decided:
 
 def check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[str, str], turns: list[dict], tool_calls: list[dict],
           cfg: DecisionConfig, params: dict[str, dict[str, Any]] | None = None) -> Decided:
+    with tracing.context(procedure_id=p.id):
+        return _check(ai, engine, workspace, p, variables, turns, tool_calls, cfg, params)
+
+
+def _check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[str, str], turns: list[dict], tool_calls: list[dict],
+           cfg: DecisionConfig, params: dict[str, dict[str, Any]] | None) -> Decided:
     if cfg.mode == "review":
         return _review(ai, p, variables, turns, tool_calls, list(p.rules), {}, None, "")
     items = items_for(p, rule_checks(ai, engine, workspace, p))
@@ -576,16 +606,23 @@ def check(ai: AI, engine: Engine, workspace: str, p: Procedure, variables: dict[
     STATS.add(rules=len(items), rules_reviewed=len(review))
     if review:
         return _review(ai, p, variables, turns, tool_calls, review, decisions, goal.yes, f"Decided: goal reached ({goal.p:.2f}).")
-    rules = [Judged(r.id, r.kind, r.index, decisions[r.id].status, decisions[r.id].evidence, decisions[r.id].reason, r.required) for r in p.rules]
+    rules = [_judged(r, decisions[r.id], False) for r in p.rules]
     return Decided(Checked(rules, goal.yes, f"Decided: goal reached ({goal.p:.2f})."), 0, str(ai.model(DECIDE)), VERSIONS["decide"])
+
+
+def _judged(r: Rule, d: Decision, reviewed: bool, decided: str | None = None) -> Judged:
+    """A rule's stored status, with its decision before review (`decided`: the decided status, when it was reviewed)."""
+    return Judged(r.id, r.kind, r.index, d.status, d.evidence, d.reason, r.required, decision_p=d.p, decision_threshold=d.t,
+                  decided_status=decided if reviewed else d.status, reviewed=reviewed)
 
 
 def _review(ai: AI, p: Procedure, variables: dict[str, str], turns: list[dict], tool_calls: list[dict], review: list[Rule],
             decisions: dict[str, Decision], goal: bool | None, goal_reason: str) -> Decided:
     """The reasoning model judges `review` (every rule in review mode); the other rules keep their decisions."""
-    with spend.purpose("review"):
+    with spend.purpose("review"), tracing.context(procedure_id=p.id, rules={r.key: r.id for r in review}):
         reply = ai.predict("reasoning", CheckRules, transcript=render_transcript(turns, tool_calls), procedure=render_procedure(p, variables),
                            rules_to_check=[r.key for r in review])
+    before = {r.id: decisions[r.id] for r in review if r.id in decisions}  # the decisions the review replaces
     by_key = {j.rule: j for j in reply.rules}
     for r in review:
         j = by_key.get(r.key)
@@ -597,8 +634,10 @@ def _review(ai: AI, p: Procedure, variables: dict[str, str], turns: list[dict], 
         status, reason = j.status, j.reason.strip()
         if status == "violated" and not agent_quote(ev, turns):
             status, reason, ev = "ok", f"{reason} (Not counted: no quote of the agent's own words shows it.)", []
-        decisions[r.id] = Decision(status, False, ev, reason)
-    rules = [Judged(r.id, r.kind, r.index, decisions[r.id].status, decisions[r.id].evidence, decisions[r.id].reason, r.required) for r in p.rules]
+        was = before.get(r.id)
+        decisions[r.id] = Decision(status, False, ev, reason, p=was.p if was else None, t=was.t if was else None)
+    reviewed = {r.id for r in review}
+    rules = [_judged(r, decisions[r.id], r.id in reviewed, before[r.id].status if r.id in before else None) for r in p.rules]
     whole = len(review) == len(p.rules) and not goal_reason
     model = str(ai.model("reasoning")) if whole else f"{ai.model(DECIDE)}+{ai.model('reasoning')}"
     version = VERSIONS["check"] if whole else f"{VERSIONS['decide']}+{VERSIONS['check']}"
