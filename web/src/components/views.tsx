@@ -1,13 +1,11 @@
 // The pages that aren't forms: lists, overview, instructions, unpublished changes, releases, convert, home.
-import { UsageGrid } from "./usage-grid";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { type Component, type DraftAgent, type DraftItem, type ReleaseDetail, call, issuesOf, q, refresh, sdk } from "@/lib/api";
+import { type Component, type DraftAgent, type DraftItem, type ReleaseDetail, call, q, refresh, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
 import { KIND, type Kind, type ListKind, itemOfPath, kindOfComponent, platformName, plural, when } from "@/lib/kinds";
 import type { Item } from "@/lib/model";
-import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, IssueList, LintList, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
 import { ChangeList, useFieldChanges } from "./change-list";
@@ -21,14 +19,13 @@ import { Button } from "./ui/button";
 
 // --- lists ---------------------------------------------------------------------------
 
-/** The Agents page's two views, List (/agents) and Map (/overview, which agent uses which block), and its actions. */
-function AgentsActions({ view }: { view: "list" | "map" }) {
+/** The Agents page's actions. Which agent uses which block is on Overview (/overview). */
+function AgentsActions() {
   const { ws, href } = useWs();
   const go = useGo();
   return (
     <>
       <span className="flex-1" />
-      <Segmented label="Agents view" value={view} options={[["list", "List"], ["map", "Map"]]} onChange={(v) => go(v === "map" ? wsHref(ws, "overview") : href("agent"))} />
       <Button variant="outline" onClick={() => go(wsHref(ws, "import"))}>
         Add agents
       </Button>
@@ -76,7 +73,7 @@ export function ListView({ kind }: { kind: ListKind }) {
       <PageTitle
         aside={
           kind === "agent" ? (
-            <AgentsActions view="list" />
+            <AgentsActions />
           ) : (
             <>
               <span className="flex-1" />
@@ -118,115 +115,6 @@ export function ListView({ kind }: { kind: ListKind }) {
         </table>
       ) : (
         <Note>No {KIND[kind].many.toLowerCase()} yet.</Note>
-      )}
-    </Page>
-  );
-}
-
-// --- overview: which agent uses which block ------------------------------------------
-
-const TERMS: [string, string][] = [
-  ["Agents", "One per deployed agent: its platform id, its own context, and the blocks it uses, in order. sopops joins them into its full instructions."],
-  ["Shared instructions", "Text written once and used by many agents: role, tone, policies, facts. Not step by step."],
-  ["Procedures", "What to do in one situation: a goal, when it applies, steps, never rules and warning signs. QA checks sessions against them."],
-  ["Groups", "A named list of blocks that many agents share. An agent lists a group like one block, and it expands in place."],
-];
-
-export function OverviewView() {
-  const { ws, cfg, model, href } = useWs();
-  const qc = useQueryClient();
-  const go = useGo();
-  const [busy, setBusy] = useState<string | null>(null);
-  const agents = cfg.agents;
-  const sections: [Exclude<ListKind, "agent">, Item[]][] = [
-    ["group", cfg.groups],
-    ["instruction", cfg.instructions],
-    ["procedure", [...cfg.procedures].sort((a, b) => a.name.localeCompare(b.name))],
-  ];
-  const uses = new Map(agents.map((a) => [a.id, { direct: new Set(a.blocks), via: new Map(model.expand(a.blocks).filter((x) => x.via).map((x) => [x.id, x.via!])) }]));
-  // A group nested in a listed group counts as through the outer one.
-  for (const a of agents)
-    for (const g of cfg.groups) {
-      const via = g.used_by.find((u) => u.agent === a.id && u.via);
-      if (via) uses.get(a.id)!.via.set(g.id, via.via!);
-    }
-  const toggle = async (agent: string, id: string, direct: boolean, via: string | undefined) => {
-    const name = model.blockName(id);
-    if (via) {
-      toast.warning(`${agent} gets ${name} through the group ${via}.`, {
-        description: `Take it out of that group, or open ${agent} and list the group's other blocks instead.`,
-        action: { label: `Open ${agent}`, onClick: () => go(href("agent", agent)) },
-      });
-      return;
-    }
-    setBusy(`${agent}/${id}`);
-    try {
-      if (direct) await call(sdk.removeBlock({ path: { workspace: ws, id: agent, block: id }, query: { author: author() } }));
-      else await call(sdk.addBlock({ path: { workspace: ws, id: agent }, body: { block: id, author: author() } }));
-      await refresh(qc, ws);
-      toast.success(direct ? `Took ${name} out of ${agent} (draft).` : `Added ${name} at the end of ${agent}'s blocks (draft).`);
-    } catch (e) {
-      toast.error(direct ? `${name} can't be taken out of ${agent}` : `${name} can't be added to ${agent}`, { description: issuesOf(e).map((i) => i.text || i.message).join(" ") || (e as Error).message });
-    } finally {
-      setBusy(null);
-    }
-  };
-  return (
-    <Page wide>
-      <PageTitle aside={<AgentsActions view="map" />}>Agents</PageTitle>
-      <Sub>Which agents use which blocks. Click a cell to add a block to an agent (it goes at the end of the agent's list) or take it out. Each click saves a draft.</Sub>
-      <dl className="mb-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        {TERMS.map(([term, text]) => (
-          <div key={term} className="bg-card rounded-lg border px-4 py-2">
-            <dt className="text-sm font-semibold">{term}</dt>
-            <dd className="text-muted-foreground mt-0.5 text-sm">{text}</dd>
-          </div>
-        ))}
-      </dl>
-      {agents.length ? (
-        <UsageGrid
-          columns={agents.map((a) => ({ id: a.id, head: <HrefLink href={href("agent", a.id)}>{a.id}</HrefLink> }))}
-          sections={sections.map(([kind, items]) => ({
-            key: kind,
-            title: KIND[kind].many,
-            rows: items.map((it) => ({
-              id: it.id,
-              head: <HrefLink href={href(kind, it.id)}>{model.itemName(kind, it.id)}</HrefLink>,
-              cell: (agent: string) => {
-                const u = uses.get(agent)!;
-                const direct = u.direct.has(it.id);
-                const via = direct ? undefined : u.via.get(it.id);
-                const nm = model.itemName(kind, it.id);
-                const label = direct ? `${agent} lists ${nm}. Click to take it out.` : via ? `${agent} gets ${nm} through ${via}.` : `Add ${nm} to ${agent}.`;
-                return (
-                  <button
-                    type="button"
-                    aria-label={label}
-                    title={label}
-                    aria-pressed={direct}
-                    disabled={busy === `${agent}/${it.id}`}
-                    onClick={() => toggle(agent, it.id, direct, via)}
-                    className={cn(
-                      "group flex min-h-9 w-full cursor-pointer items-center justify-center gap-1 text-base font-bold text-primary hover:bg-muted disabled:opacity-50",
-                      direct && "bg-brand-soft",
-                      via && "text-muted-foreground text-sm font-semibold",
-                    )}
-                  >
-                    {direct ? "✓" : via ? (
-                      <span>
-                        ✓<small className="ml-1 text-sm font-medium">{via}</small>
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground invisible group-hover:visible">+</span>
-                    )}
-                  </button>
-                );
-              },
-            })),
-          }))}
-        />
-      ) : (
-        <Note>No agents yet.</Note>
       )}
     </Page>
   );

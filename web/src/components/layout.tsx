@@ -28,6 +28,7 @@ import {
   Tag as TagIcon,
   TestTube2,
   SlidersHorizontal,
+  Grid3x3,
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type AuthState, q } from "@/lib/api";
@@ -455,7 +456,7 @@ export function Rail() {
   useJumpKeys(ws);
   const label = legacy ? "Team files" : ws;
   const home = decodeURIComponent(pathname).replace(/\/$/, "") === `/w/${ws}`;
-  const agentsActive = new RegExp(`^/w/${ws}/(agents|overview|import)(/|$)`).test(decodeURIComponent(pathname));
+  const agentsActive = new RegExp(`^/w/${ws}/(agents|import)(/|$)`).test(decodeURIComponent(pathname));
 
   const body = (c: boolean) => {
     // One list of the team's items (agents, procedures): a row with its name and + New, then each item.
@@ -497,6 +498,7 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws, "report")} icon={FileText} label="Review report" />
         </RailGroup>
         <RailGroup label="Instructions" collapsed={c}>
+          <RailItem collapsed={c} href={wsHref(ws, "overview")} icon={Grid3x3} label="Overview" />
           {list("agent", "Agents", cfg.agents.map((a) => ({ id: a.id, label: a.id })), agentsActive)}
           {list("instruction", "Shared instructions", cfg.instructions.map((a) => ({ id: a.id, label: a.id })))}
           {list("procedure", "Procedures", [...cfg.procedures].sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, label: p.name })))}
