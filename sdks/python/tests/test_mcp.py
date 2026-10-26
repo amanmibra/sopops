@@ -2,15 +2,19 @@
 
 import asyncio
 import json
+import socket
+import threading
+import time
 
 import httpx
 import pytest
 import respx
+import uvicorn
 from mcp import Client
 from mcp.server.mcpserver.exceptions import ToolError
 from mcp.types import Implementation
 
-from sopops.mcp import install_skill, main, make_server
+from sopops.mcp import http_app, install_skill, main, make_server
 
 URL = "http://sopops.test"
 ENV = {"SOPOPS_URL": URL, "SOPOPS_TOKEN": "sopops_onb_test"}
@@ -168,3 +172,106 @@ def test_editing_sops_needs_a_workspace():
     respx.get(f"{URL}/v1/onboarding/session").mock(return_value=httpx.Response(401, json={"detail": "invalid token"}))
     with pytest.raises(ToolError, match="SOPOPS_WORKSPACE"):
         asyncio.run(make_server({"SOPOPS_URL": URL, "SOPOPS_TOKEN": "t"}).call_tool("list_sops", {})).raise_on_error()
+
+
+# --- remote: Streamable HTTP, each request with its own credentials ------------------------------------------
+
+
+@pytest.fixture
+def remote():
+    """`sopops-mcp serve` on a free port, in front of a fake sopops that records each request it gets."""
+    seen: list[httpx.Request] = []
+
+    def sopops(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path == "/v1/onboarding/kickoff":
+            return httpx.Response(200, json={"instructions": f"# Onboard ({request.url.params['server_url']})"})
+        if request.url.path == "/v1/onboarding/project":
+            return httpx.Response(200, json={"files": {"sopc.yaml": "variables: {}\n"}, "issues": [], "validation": []})
+        if request.url.path == "/v1/workspaces/prod/config/settings":
+            return httpx.Response(200, json={"variables": {}})
+        return httpx.Response(404, json={"detail": "not here"})
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    env = {"SOPOPS_URL": URL, "SOPOPS_APP_URL": "https://sopops.test/app", "SOPOPS_TOKEN": "a-token-the-server-must-not-use"}
+    app = http_app(env, httpx.MockTransport(sopops), host="127.0.0.1")
+    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+    while not server.started:
+        time.sleep(0.01)
+    yield f"http://127.0.0.1:{port}", seen
+    server.should_exit = True
+    thread.join(5)
+
+
+def rpc(base, method, params=None, token="sopops_cfg", headers=None, id=1):
+    """One JSON-RPC request to /mcp, as an MCP client sends it: the HTTP response and its JSON-RPC message."""
+    h = {"Accept": "application/json, text/event-stream", "MCP-Protocol-Version": "2025-06-18", **(headers or {})}
+    if token:
+        h["Authorization"] = f"Bearer {token}"
+    res = httpx.post(f"{base}/mcp", json={"jsonrpc": "2.0", "id": id, "method": method, "params": params or {}}, headers=h, timeout=10)
+    if res.status_code != 200:
+        return res, None
+    if res.headers["content-type"].startswith("text/event-stream"):
+        data = [line[5:].strip() for line in res.text.splitlines() if line.startswith("data:")]
+        return res, json.loads(data[-1])
+    return res, res.json()
+
+
+INIT = {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "claude-code", "version": "2.1.0"}}
+
+
+def test_remote_initialize_and_list_tools(remote):
+    base, _ = remote
+    res, msg = rpc(base, "initialize", INIT)
+    assert res.status_code == 200 and msg["result"]["serverInfo"]["name"] == "sopops"
+    _, msg = rpc(base, "tools/list", id=2)
+    assert {t["name"] for t in msg["result"]["tools"]} == {t.name for t in asyncio.run(make_server({}).list_tools())}
+
+
+def test_remote_forwards_each_callers_own_token(remote):
+    base, seen = remote
+    for token in ("sopops_alice", "sopops_bob"):
+        _, msg = rpc(base, "tools/call", {"name": "get_kickoff", "arguments": {}}, token=token)
+        assert not msg["result"]["isError"], msg
+    assert [r.headers["authorization"] for r in seen] == ["Bearer sopops_alice", "Bearer sopops_bob"]  # never the env's
+    assert seen[0].url.params["server_url"] == "https://sopops.test/app"
+
+
+def test_remote_needs_a_bearer_token(remote):
+    base, seen = remote
+    for headers in ({}, {"Authorization": "Basic eDp5"}, {"Authorization": "Bearer"}):
+        res, _ = rpc(base, "initialize", INIT, token=None, headers=headers)
+        assert res.status_code == 401 and res.headers["www-authenticate"].startswith("Bearer")
+    assert not seen
+    assert httpx.get(f"{base}/healthz").json() == {"ok": True}
+
+
+def test_remote_workspace_and_platform_keys_come_from_headers(remote):
+    base, seen = remote
+    _, msg = rpc(base, "tools/call", {"name": "get_sop_settings", "arguments": {}}, headers={"X-SopOps-Workspace": "prod"})
+    assert not msg["result"]["isError"] and seen[-1].url.path == "/v1/workspaces/prod/config/settings"
+    _, msg = rpc(base, "tools/call", {"name": "list_platform_agents", "arguments": {"platform": "vapi"}})
+    assert msg["result"]["isError"] and "x-vapi-api-key header" in msg["result"]["content"][0]["text"]  # not the server's env
+
+
+def test_remote_write_sopc_project_returns_the_files(remote, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    base, _ = remote
+    _, msg = rpc(base, "tools/call", {"name": "write_sopc_project", "arguments": {"proposal": {}, "path": "sops"}})
+    assert msg["result"]["structuredContent"]["files"] == {"sops/sopc.yaml": "variables: {}\n"}
+    assert not list(tmp_path.iterdir())  # nothing written on the server
+    _, msg = rpc(base, "tools/call", {"name": "write_sopc_project", "arguments": {"proposal": {}, "path": "../elsewhere"}})
+    assert msg["result"]["isError"]
+
+
+def test_remote_ignores_the_servers_own_credentials():
+    """A direct call, no request: the remote server has no token, even with SOPOPS_TOKEN in its environment."""
+    server = make_server({"SOPOPS_URL": URL, "SOPOPS_TOKEN": "t", "VAPI_API_KEY": "k"}, remote=True)
+    with pytest.raises(ToolError, match="Authorization: Bearer"):
+        call(server, "get_kickoff")
+    with pytest.raises(ToolError, match="x-vapi-api-key"):
+        call(server, "list_platform_agents", platform="vapi")

@@ -116,6 +116,8 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=
 
 It reads ElevenLabs and Vapi agents locally (`ELEVENLABS_API_KEY`, `VAPI_API_KEY`, read-only) and writes the sopc project into the repo; everything else (the kickoff, the extraction guide, compiling, fidelity, pushing) goes to the sopops server's `/v1/onboarding` endpoints with `SOPOPS_URL` and `SOPOPS_TOKEN`. `sopops-mcp install-skill --url URL` copies the server's sopops-onboard skill into the repo (`--claude`, `--codex`). It runs with `uvx`, so it works the same for TypeScript projects, which is why the npm package has no copy of it.
 
+`sopops-mcp serve` runs the same tools over Streamable HTTP at `/mcp` for many users, as hosted sopops does at `https://sopops.dev/mcp`. It holds no credential: each request sends its own `Authorization: Bearer <sopops token>` (and optionally `X-SopOps-Workspace`, `X-ElevenLabs-Api-Key`, `X-Vapi-Api-Key`), which it forwards to the API in `SOPOPS_URL`. There, `write_sopc_project` returns the files instead of writing them. See [Connect with remote MCP](../../docs/import.md#connect-with-remote-mcp).
+
 ## Development
 
 ```sh

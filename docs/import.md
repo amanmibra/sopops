@@ -32,6 +32,35 @@ For Codex, use `codex mcp add` and `codex "…"`. The agent finds the instructio
 - The agent follows [skills/sopops-onboard/SKILL.md](../skills/sopops-onboard/SKILL.md). `sopops-mcp install-skill --url http://127.0.0.1:8484` copies your server's copy into the repo (`--claude`, `--codex`). Start it with `claude "/sopops-onboard"` or `codex '$sopops-onboard'`.
 - `SOPOPS_MCP_SOURCE` on the server changes what `--from` installs, e.g. `/path/to/sopops/sdks/python[mcp]` for a local clone.
 
+## Connect with remote MCP
+
+Hosted sopops also runs the same MCP server at `https://sopops.dev/mcp` (Streamable HTTP), so there's nothing to install. Send your own sopops token with every request:
+
+```sh
+claude mcp add --transport http sopops https://sopops.dev/mcp \
+  --header "Authorization: Bearer sopops_..." \
+  --header "X-SopOps-Workspace: <workspace id>"
+```
+
+For Codex, add it to `~/.codex/config.toml` and export the token as `SOPOPS_TOKEN`:
+
+```toml
+[mcp_servers.sopops]
+url = "https://sopops.dev/mcp"
+bearer_token_env_var = "SOPOPS_TOKEN"
+http_headers = { "X-SopOps-Workspace" = "<workspace id>" }
+```
+
+| Header | Required | What it is |
+|---|---|---|
+| `Authorization: Bearer <token>` | Yes | An onboarding token from the Import page, or a workspace token with the `config` scope (Settings → Tokens) to keep SOPs up to date later. Without it, `/mcp` answers `401`. |
+| `X-SopOps-Workspace` | With a `config` token | The workspace id, the `/w/<id>/` part of its URL. An onboarding token knows its own workspace. |
+| `X-ElevenLabs-Api-Key`, `X-Vapi-Api-Key` | No | Read-only platform keys, for `list_platform_agents` and `get_agent_prompt`. |
+
+The server keeps no credentials. It passes your token to the sopops API on each tool call, and uses the headers for that request only. The tools are the same as with the local server, with one difference: `write_sopc_project` can't reach your repo from there, so it returns the files and your agent writes them. `install-skill` is a local command, so run it with `uvx` as above if you want the skills in the repo.
+
+A self-hosted server can serve the same endpoint with `sopops-mcp serve --host 0.0.0.0 --port 8000`. Set `SOPOPS_URL` to the API it calls, and `SOPOPS_APP_URL` to the address people open sopops at, for links. It answers `GET /healthz` for a load balancer and needs no session affinity.
+
 ## Import an existing sopc project
 
 1. Go to Import → **A sopc project**.
