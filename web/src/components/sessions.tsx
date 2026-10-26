@@ -380,7 +380,7 @@ function SessionDrawer({ id, ids, onOpen, onExpand }: { id: string | null; ids: 
                 </span>
               </SheetDescription>
               <h3 className="mb-2 text-sm font-semibold">Procedures</h3>
-              <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
+              <ChecksPanel sessionId={s.id} checks={s.checks} activeKey={activeKey} onSelect={select} />
               <h3 className="mt-4 mb-1 text-sm font-semibold">Transcript</h3>
               <ol>
                 {s.turns.map((t, i) => (
@@ -531,7 +531,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
         </Panel>
         <div className="min-w-0">
           <Panel title="Procedures">
-            <ChecksPanel checks={s.checks} activeKey={activeKey} onSelect={select} />
+            <ChecksPanel sessionId={s.id} checks={s.checks} activeKey={activeKey} onSelect={select} />
           </Panel>
           <Panel title="Details">
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 text-sm">

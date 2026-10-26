@@ -3,7 +3,7 @@ import { type PatternsSearch, PatternsView } from "@/components/review";
 import { VERDICTS } from "@/lib/review";
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
-const TABS = ["open", "fixing", "fixed", "all"] as const;
+const TABS = ["spot", "open", "fixing", "fixed", "all"] as const;
 const VERDICT_FILTERS = ["none", "has", "any", ...VERDICTS] as const;
 
 export const Route = createFileRoute("/w/$ws/patterns/")({

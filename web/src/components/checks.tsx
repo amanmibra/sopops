@@ -1,7 +1,9 @@
-// SOP check results on a session: each procedure's result and rule statuses, with evidence that points into the transcript.
+// SOP check results on a session: each procedure's result and rule statuses, with evidence that points into the transcript,
+// and the controls to correct a rule's status.
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api";
+import { RULE_STATUS } from "@/lib/review";
 import { sessionsHref } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
@@ -9,6 +11,7 @@ import { Note, RuleText, Tag } from "./bits";
 import { CheckMetadata } from "./check-metadata";
 import { FindingOverrideControl } from "./finding-override";
 import { HrefLink } from "./href-link";
+import { CorrectionNote, RuleCorrectionControls } from "./rule-correction";
 
 export type Result = NonNullable<SessionSummary["result"]>;
 
@@ -33,18 +36,7 @@ export function ResultTag({ result, big }: { result: Result | null | undefined; 
 
 type Status = RuleResultOut["status"];
 
-const STATUS: Record<Status, { label: string; tone: string }> = {
-  done: { label: "done", tone: "text-ok border-transparent bg-transparent" },
-  ok: { label: "ok", tone: "text-ok border-transparent bg-transparent" },
-  absent: { label: "absent", tone: "" },
-  out_of_order: { label: "out of order", tone: "bg-warn-soft text-warn border-transparent" },
-  not_reached: { label: "not reached", tone: "bg-warn-soft text-warn border-transparent" },
-  not_applicable: { label: "n/a", tone: "" },
-  skipped: { label: "skipped", tone: "bg-err-soft text-err border-transparent" },
-  violated: { label: "violated", tone: "bg-err-soft text-err border-transparent" },
-  present: { label: "present", tone: "bg-warn-soft text-warn border-transparent" },
-  unheeded: { label: "unheeded", tone: "bg-warn-soft text-warn border-transparent font-semibold" },
-};
+const STATUS = RULE_STATUS;
 
 const KIND: Record<RuleResultOut["kind"], string> = { step: "Step", never: "Never", warning: "Warning sign" };
 
@@ -99,13 +91,13 @@ export function Highlighted({ text, quotes, strong }: { text: string; quotes: st
   return <>{out}</>;
 }
 
-function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string; rule: RuleResultOut; active: boolean; onSelect: (key: string | null, turn?: number | null) => void }) {
+function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId: string; procedureId: string; rule: RuleResultOut; active: boolean; onSelect: (key: string | null, turn?: number | null) => void }) {
   const s = STATUS[rule.status];
   const key = ruleKey(procedureId, rule);
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
   const { ws } = useWs();
   return (
-    <li className={cn("rounded-md border border-transparent px-2 py-2", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
+    <li className={cn("group rounded-md border border-transparent px-2 py-2", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
       <div className="flex items-start gap-1">
         <button type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
           <span className="pt-px">
@@ -115,11 +107,15 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
             <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
           </span>
         </button>
-        {rule.finding && rule.finding_id && <FindingOverrideControl findingId={rule.finding_id} override={rule.override} />}
+        {rule.finding && rule.finding_id && <FindingOverrideControl findingId={rule.finding_id} override={rule.override} kind={rule.kind} />}
+      </div>
+      <div className="ml-[96px] min-w-0">
+        <CorrectionNote rule={rule} className="mt-1" />
+        <RuleCorrectionControls sessionId={sessionId} procedureId={procedureId} rule={rule} className={cn("-ml-2 mt-0.5", !active && "hidden group-hover:flex")} />
       </div>
       {rule.suppressed && (
         <p className="text-muted-foreground mt-0.5 ml-[96px] text-xs">
-          Suppressed: {rule.override === false ? "a reviewer marked this finding incorrect" : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.
+          Suppressed: {rule.override === false ? (rule.correction && rule.correction.source !== "override" ? "a reviewer corrected its status" : "a reviewer marked this finding incorrect") : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.
         </p>
       )}
       {active && (
@@ -156,7 +152,7 @@ function RuleRow({ procedureId, rule, active, onSelect }: { procedureId: string;
   );
 }
 
-function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOut; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
+function ProcedureCard({ sessionId, check, activeKey, onSelect }: { sessionId: string; check: ProcedureCheckOut; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
   const checked = check.result != null;
   const [open, setOpen] = useState(checked);
   const state = !check.applicable ? "didn't apply" : check.excluded_reason ? "excluded" : checked ? null : "not checked yet";
@@ -192,7 +188,7 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
           {check.rules.length > 0 && (
             <ul className="grid gap-0.5">
               {check.rules.map((r) => (
-                <RuleRow key={r.rule_id} procedureId={check.procedure_id} rule={r} active={activeKey === ruleKey(check.procedure_id, r)} onSelect={onSelect} />
+                <RuleRow key={r.rule_id} sessionId={sessionId} procedureId={check.procedure_id} rule={r} active={activeKey === ruleKey(check.procedure_id, r)} onSelect={onSelect} />
               ))}
             </ul>
           )}
@@ -205,12 +201,12 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
   );
 }
 
-export function ChecksPanel({ checks, activeKey, onSelect }: { checks: ProcedureCheckOut[]; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
+export function ChecksPanel({ sessionId, checks, activeKey, onSelect }: { sessionId: string; checks: ProcedureCheckOut[]; activeKey: string | null; onSelect: (key: string | null, turn?: number | null) => void }) {
   if (!checks.length) return <Note>Not checked against any procedure yet.</Note>;
   return (
     <div>
       {checks.map((c) => (
-        <ProcedureCard key={c.procedure_id} check={c} activeKey={activeKey} onSelect={onSelect} />
+        <ProcedureCard key={c.procedure_id} sessionId={sessionId} check={c} activeKey={activeKey} onSelect={onSelect} />
       ))}
     </div>
   );

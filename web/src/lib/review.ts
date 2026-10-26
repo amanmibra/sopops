@@ -1,6 +1,7 @@
-// Review: verdicts on patterns, overrides on single findings, and the suggestions a verdict leads to.
+// Review: verdicts on patterns, overrides on single findings, labels on any rule (corrections and spot checks), and the
+// suggestions a verdict leads to.
 import { queryOptions } from "@tanstack/react-query";
-import type { AgentPromptChange, CalibrateIn, OverrideIn, ReviewExample, ReviewItem, SuggestionSummary, VerdictIn } from "@/client/types.gen";
+import type { AgentPromptChange, CalibrateIn, OverrideIn, ReviewExample, ReviewItem, RuleLabelIn, RuleResultOut, SuggestionSummary, VerdictIn } from "@/client/types.gen";
 import { call, sdk } from "./api";
 import { apiUrl } from "./paths";
 
@@ -14,6 +15,7 @@ export const VERDICT: Record<Verdict, { label: string; key: string; help: string
   checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged. Closed, hidden, and used to recalibrate. Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
+export type { RuleCorrectionOut, RuleLabelOut, SpotCheckItem, SpotCheckResponse } from "@/client/types.gen";
 export type { CalibrateOut, CalibratedProcedure, CalibratedRule, MergeConflict, OverrideOut as FindingOverride, SinceWritten, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
 export type SuggestionStatus = SuggestionSummary["status"];
 export const SUGGESTION_STATUSES: SuggestionStatus[] = ["proposed", "pr_open", "merged", "applied", "dismissed", "failed"];
@@ -30,9 +32,38 @@ export const REVIEW_STATE: Record<ReviewState, { label: string; help: string; to
   closed: { label: "Closed", help: "Judged acceptable or a checker mistake. Nothing to fix.", tone: "bg-muted text-muted-foreground" },
 };
 
+/** A rule's status, how it reads, and its tone. */
+export type RuleStatus = RuleResultOut["status"];
+export type RuleKind = RuleResultOut["kind"];
+export const RULE_STATUS: Record<RuleStatus, { label: string; tone: string }> = {
+  done: { label: "done", tone: "text-ok border-transparent bg-transparent" },
+  ok: { label: "ok", tone: "text-ok border-transparent bg-transparent" },
+  absent: { label: "absent", tone: "" },
+  out_of_order: { label: "out of order", tone: "bg-warn-soft text-warn border-transparent" },
+  not_reached: { label: "not reached", tone: "bg-warn-soft text-warn border-transparent" },
+  not_applicable: { label: "n/a", tone: "" },
+  skipped: { label: "skipped", tone: "bg-err-soft text-err border-transparent" },
+  violated: { label: "violated", tone: "bg-err-soft text-err border-transparent" },
+  present: { label: "present", tone: "bg-warn-soft text-warn border-transparent" },
+  unheeded: { label: "unheeded", tone: "bg-warn-soft text-warn border-transparent font-semibold" },
+};
+/** The statuses each kind of rule can have, in the order the pickers show them. */
+export const KIND_STATUSES: Record<RuleKind, RuleStatus[]> = {
+  step: ["done", "out_of_order", "skipped", "not_reached", "not_applicable"],
+  never: ["ok", "violated"],
+  warning: ["absent", "present", "unheeded"],
+};
+/** Statuses that are findings: something the agent did wrong. */
+export const FINDING_STATUSES: RuleStatus[] = ["skipped", "violated", "out_of_order", "unheeded"];
+export const isFinding = (s: RuleStatus) => FINDING_STATUSES.includes(s);
+/** What "Checker missed this" offers on a passed rule. */
+export const MISSED_STATUSES: Record<RuleKind, RuleStatus[]> = { step: ["skipped", "out_of_order"], never: ["violated"], warning: ["unheeded"] };
+/** A status mid-sentence ("corrected to not reached"). */
+export const statusPhrase = (s: RuleStatus) => (s === "not_applicable" ? "not applicable" : RULE_STATUS[s].label);
+
 /** The Patterns page's tabs, and the review states each lists. */
-export type PatternsTab = "review" | "open" | "fixing" | "fixed" | "all";
-export const TAB_STATES: Record<Exclude<PatternsTab, "all">, ReviewState[]> = {
+export type PatternsTab = "review" | "spot" | "open" | "fixing" | "fixed" | "all";
+export const TAB_STATES: Record<Exclude<PatternsTab, "all" | "spot">, ReviewState[]> = {
   review: ["needs_review", "regressed"],
   open: ["open"],
   fixing: ["fixing"],
@@ -50,6 +81,8 @@ export const rq = {
   suggestions: (ws: string, status?: SuggestionStatus) =>
     queryOptions({ queryKey: ["ws", ws, "suggestions", status ?? null], queryFn: () => call(sdk.listSuggestions({ path: path(ws), query: { status } })) }),
   suggestion: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "suggestion", id], queryFn: () => call(sdk.getSuggestion({ path: { ...path(ws), suggestion_id: id } })) }),
+  /** Rule results with no finding, sampled for a reviewer to check, close calls first. */
+  spotChecks: (ws: string) => queryOptions({ queryKey: ["ws", ws, "spot-checks"], queryFn: () => call(sdk.spotChecks({ path: path(ws), query: { limit: 100 } })) }),
 };
 
 export const review = {
@@ -57,6 +90,9 @@ export const review = {
   verdict: (ws: string, id: string, body: VerdictIn, keepalive = false) =>
     call(sdk.setVerdict({ path: { ...path(ws), pattern_id: id }, body, ...(keepalive ? { keepalive: true } : {}) })),
   override: (ws: string, findingId: string, body: OverrideIn) => call(sdk.overrideFinding({ path: { ...path(ws), finding_id: findingId }, body })),
+  /** A rule's right status: a correction from the session, or a spot-check answer. */
+  label: (ws: string, sessionId: string, procedureId: string, ruleId: string, body: RuleLabelIn) =>
+    call(sdk.labelRule({ path: { ...path(ws), session_id: sessionId, procedure_id: procedureId, rule_id: ruleId }, body })),
   suggest: (ws: string, id: string) => call(sdk.suggestEdit({ path: { ...path(ws), pattern_id: id } })),
   apply: (ws: string, id: string, reviewer: string | null) => call(sdk.applySuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
   /** A new suggestion against the procedure as it is now; the old one is dismissed. */

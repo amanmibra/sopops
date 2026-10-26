@@ -7834,7 +7834,7 @@
           "review"
         ],
         "summary": "Override Finding",
-        "description": "Say whether the checker got one finding right. A wrong one is suppressed and a negative calibration label;\nit's kept by session and rule, so it outlives a re-check.",
+        "description": "Say whether the checker got one finding right, and optionally what actually happened (`status`). A wrong one\nis suppressed and a negative calibration label; it's kept by session and rule, so it outlives a re-check.",
         "operationId": "override_finding",
         "parameters": [
           {
@@ -7873,6 +7873,234 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/OverrideOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/{session_id}/rules/{procedure_id}/{rule_id}/label": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Label Rule",
+        "description": "Give one rule of a checked session its right status, with or without a finding: a wrong status, or a\nmistake the checker missed. On a rule with a finding it's a call on the finding, like an override (a status\nthat isn't a finding suppresses it). A missed mistake is stored, shown and used to calibrate; it doesn't add a\nfinding, so Insights keeps counting what the checker found. Kept by session and rule; the latest call wins.",
+        "operationId": "label_rule",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "session_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Session Id"
+            }
+          },
+          {
+            "name": "procedure_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Procedure Id"
+            }
+          },
+          {
+            "name": "rule_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rule Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleLabelIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuleLabelOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/spot-checks": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Spot Checks",
+        "description": "Rule results with no finding, sampled for a reviewer to check (the workspace's rate, 2% by default),\nweighted toward close calls: a decision near its threshold, or one the review changed. Answer one with its\nrule's `label` route and `source: spot_check`.",
+        "operationId": "spot_checks",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/spot-checks/settings": {
+      "get": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Get Spot Check Settings",
+        "operationId": "get_spot_check_settings",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotCheckSettings"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Set Spot Check Settings",
+        "description": "The share of rule results with no finding that are spot-checked (0 to 1; null for the default, 0.02).",
+        "operationId": "set_spot_check_settings",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpotCheckSettingsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotCheckSettings"
                 }
               }
             }
@@ -7944,7 +8172,7 @@
           "review"
         ],
         "summary": "Calibrate",
-        "description": "Fit each procedure's check thresholds to the workspace's labels (verdicts and overrides), as a job, and\nreturn per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled\nsessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save.",
+        "description": "Fit each procedure's check thresholds to the workspace's labels (verdicts, overrides, corrections and spot\nchecks), as a job, and\nreturn per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled\nsessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save.",
         "operationId": "calibrate",
         "parameters": [
           {
@@ -20633,6 +20861,30 @@
             "title": "Correct",
             "description": "Whether the checker got this finding right. False suppresses it and makes it a negative calibration label."
           },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "done",
+                  "out_of_order",
+                  "skipped",
+                  "not_reached",
+                  "not_applicable",
+                  "violated",
+                  "ok",
+                  "present",
+                  "unheeded",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status",
+            "description": "What actually happened, if you say: one of the rule kind's statuses. A finding status (skipped, violated, out_of_order, unheeded) when `correct`, another one when not. A calibration label."
+          },
           "note": {
             "anyOf": [
               {
@@ -20688,6 +20940,29 @@
             "type": "boolean",
             "title": "Correct"
           },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "done",
+                  "out_of_order",
+                  "skipped",
+                  "not_reached",
+                  "not_applicable",
+                  "violated",
+                  "ok",
+                  "present",
+                  "unheeded",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
           "note": {
             "anyOf": [
               {
@@ -20736,6 +21011,7 @@
           "procedure_id",
           "rule_id",
           "correct",
+          "status",
           "note",
           "reviewer",
           "created_at",
@@ -25774,6 +26050,97 @@
         ],
         "title": "RolePrice"
       },
+      "RuleCorrectionOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status",
+            "description": "What the reviewer says actually happened."
+          },
+          "checked_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "done",
+                  "out_of_order",
+                  "skipped",
+                  "not_reached",
+                  "not_applicable",
+                  "violated",
+                  "ok",
+                  "present",
+                  "unheeded",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked Status",
+            "description": "What the checker said when they did (null for an override)."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "correction",
+              "spot_check",
+              "override"
+            ],
+            "title": "Source"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "checked_status",
+          "source",
+          "note",
+          "reviewer",
+          "created_at"
+        ],
+        "title": "RuleCorrectionOut"
+      },
       "RuleDot": {
         "properties": {
           "rule_id": {
@@ -25930,6 +26297,195 @@
           "recent_findings"
         ],
         "title": "RuleInsights"
+      },
+      "RuleLabelIn": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status",
+            "description": "What actually happened: one of the rule kind's statuses (steps: done, out_of_order, skipped, not_reached, not_applicable; never rules: violated, ok; warning signs: present, unheeded, absent)."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "correction",
+              "spot_check"
+            ],
+            "title": "Source",
+            "description": "`correction` (from the session) or `spot_check` (an answer in the spot-check queue).",
+            "default": "correction"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "RuleLabelIn"
+      },
+      "RuleLabelOut": {
+        "properties": {
+          "label_id": {
+            "type": "string",
+            "title": "Label Id"
+          },
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "checked_status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Checked Status",
+            "description": "What the checker said."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "correction",
+              "spot_check"
+            ],
+            "title": "Source"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "reviewer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "missed": {
+            "type": "boolean",
+            "title": "Missed",
+            "description": "A failure the checker didn't flag. Stored and shown; it doesn't add a finding."
+          },
+          "suppressed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suppressed",
+            "description": "For a rule with a finding: whether it's suppressed now. Null without one."
+          }
+        },
+        "type": "object",
+        "required": [
+          "label_id",
+          "session_id",
+          "procedure_id",
+          "rule_id",
+          "kind",
+          "checked_status",
+          "status",
+          "source",
+          "note",
+          "reviewer",
+          "created_at",
+          "missed",
+          "suppressed"
+        ],
+        "title": "RuleLabelOut"
       },
       "RuleLineageOut": {
         "properties": {
@@ -26433,6 +26989,17 @@
             ],
             "title": "Override",
             "description": "A reviewer's call on the finding: true (the checker was right), false, or none."
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RuleCorrectionOut"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The status a reviewer gave this rule, if the latest call gave one."
           }
         },
         "type": "object",
@@ -26449,7 +27016,8 @@
           "pattern_name",
           "finding_id",
           "suppressed",
-          "override"
+          "override",
+          "correction"
         ],
         "title": "RuleResultOut"
       },
@@ -28701,6 +29269,290 @@
           "flag"
         ],
         "title": "SplitRow"
+      },
+      "SpotCheckItem": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Started At"
+          },
+          "procedure_id": {
+            "type": "string",
+            "title": "Procedure Id"
+          },
+          "procedure_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procedure Name"
+          },
+          "rule_id": {
+            "type": "string",
+            "title": "Rule Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "step",
+              "never",
+              "warning"
+            ],
+            "title": "Kind"
+          },
+          "index": {
+            "type": "integer",
+            "title": "Index"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status",
+            "description": "What the checker said."
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "decision_p": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision P",
+            "description": "The deciding probability nearest its threshold; null in review mode."
+          },
+          "decision_threshold": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Threshold"
+          },
+          "decided_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "done",
+                  "out_of_order",
+                  "skipped",
+                  "not_reached",
+                  "not_applicable",
+                  "violated",
+                  "ok",
+                  "present",
+                  "unheeded",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided Status",
+            "description": "The decision's status, before any review."
+          },
+          "reviewed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewed",
+            "description": "Whether the reasoning model reviewed the rule."
+          },
+          "weight": {
+            "type": "number",
+            "title": "Weight",
+            "description": "How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more."
+          },
+          "why": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "close_call",
+                "review_changed",
+                "sample"
+              ]
+            },
+            "type": "array",
+            "title": "Why"
+          },
+          "statuses": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "done",
+                "out_of_order",
+                "skipped",
+                "not_reached",
+                "not_applicable",
+                "violated",
+                "ok",
+                "present",
+                "unheeded",
+                "absent"
+              ]
+            },
+            "type": "array",
+            "title": "Statuses",
+            "description": "The statuses this rule can have."
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "started_at",
+          "procedure_id",
+          "procedure_name",
+          "rule_id",
+          "kind",
+          "index",
+          "text",
+          "status",
+          "evidence",
+          "reason",
+          "decision_p",
+          "decision_threshold",
+          "decided_status",
+          "reviewed",
+          "weight",
+          "why",
+          "statuses"
+        ],
+        "title": "SpotCheckItem"
+      },
+      "SpotCheckResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SpotCheckItem"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "Sampled and not answered yet."
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered",
+            "description": "Sampled and answered."
+          },
+          "rate": {
+            "type": "number",
+            "title": "Rate"
+          },
+          "scanned": {
+            "type": "integer",
+            "title": "Scanned",
+            "description": "Rule results sampled from: the most recent 5,000 with no finding."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "answered",
+          "rate",
+          "scanned"
+        ],
+        "title": "SpotCheckResponse"
+      },
+      "SpotCheckSettings": {
+        "properties": {
+          "rate": {
+            "type": "number",
+            "title": "Rate",
+            "description": "Share of rule results with no finding that are spot-checked, before weighting."
+          },
+          "default": {
+            "type": "boolean",
+            "title": "Default",
+            "description": "The rate is sopops' default (0.02)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rate",
+          "default"
+        ],
+        "title": "SpotCheckSettings"
+      },
+      "SpotCheckSettingsIn": {
+        "properties": {
+          "rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate",
+            "description": "Between 0 and 1; null goes back to the default."
+          }
+        },
+        "type": "object",
+        "required": [
+          "rate"
+        ],
+        "title": "SpotCheckSettingsIn"
       },
       "Step-Input": {
         "properties": {

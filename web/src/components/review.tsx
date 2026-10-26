@@ -1,5 +1,6 @@
 // Patterns: every cluster (themes, rule patterns, their failure modes) in tabs by review state (needs review, open,
-// fixing, fixed, all), one pattern's page with where its fix stands, and the "wrong?" control on a single finding.
+// fixing, fixed, all), spot checks on rules the checker passed, one pattern's page with where its fix stands, and the
+// "wrong?" control on a single finding.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, Download, Keyboard, Loader2, RefreshCw, RotateCcw, Sparkles, Undo2, X, Check } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -37,6 +38,7 @@ import { Page } from "./item-shell";
 import { ConflictTag, ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
 import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
+import { SpotChecks } from "./spot-checks";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
@@ -466,6 +468,7 @@ export function useNeedsReview(ws: string) {
 
 const TABS: { tab: PatternsTab; label: string; help: string; badge: string }[] = [
   { tab: "review", label: "Needs review", help: "Patterns nobody has judged yet, and fixes that didn't hold.", badge: "Patterns waiting for a verdict, or that came back after a fix" },
+  { tab: "spot", label: "Spot checks", help: "Rules the checker passed, picked for a second look: close calls and decisions the reviewer model changed come first. Your answers recalibrate the checker.", badge: "Spot checks waiting for an answer" },
   { tab: "open", label: "Open", help: "Real problems with no fix applied yet. Write a fix, or review the one proposed.", badge: "Real problems with no fix applied yet" },
   { tab: "fixing", label: "Fixing", help: "Real mistakes and wrong SOPs with a fix applied or in a pull request, waiting to go live and for 10 sessions on it. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes waiting for a release and 10 sessions on it" },
   { tab: "fixed", label: "Fixed", help: "Real mistakes and wrong SOPs whose fix held: 10 sessions on the new release with no findings. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes that held" },
@@ -477,7 +480,8 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
   const qc = useQueryClient();
   const tab: PatternsTab = search.tab ?? "review";
   const reviewRes = useQuery(rq.review(ws));
-  const stateRes = useQuery({ ...rq.review(ws, tab === "all" || tab === "review" ? undefined : TAB_STATES[tab]), enabled: tab !== "all" && tab !== "review" });
+  const stateRes = useQuery({ ...rq.review(ws, tab === "all" || tab === "review" || tab === "spot" ? undefined : TAB_STATES[tab]), enabled: tab !== "all" && tab !== "review" && tab !== "spot" });
+  const spot = useQuery({ ...rq.spotChecks(ws), retry: false });
   const all = useQuery(q.patterns(ws));
   const [reclustering, setReclustering] = useState(false);
   // Cards shown on this visit stay put (collapsed once decided), even after the queue drops them.
@@ -488,7 +492,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
   const reviewItems = useMemo(() => reviewRes.data?.items ?? [], [reviewRes.data]);
   const counts = reviewRes.data?.counts ?? stateRes.data?.counts;
   const countOf = (t: PatternsTab): number | null =>
-    t === "all" ? (all.data ? all.data.items.reduce((n, p) => n + 1 + p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub").length, 0) : null) : counts ? TAB_STATES[t].reduce((n, st) => n + (counts[st] ?? 0), 0) : null;
+    t === "all" ? (all.data ? all.data.items.reduce((n, p) => n + 1 + p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub").length, 0) : null) : t === "spot" ? (spot.data?.total ?? null) : counts ? TAB_STATES[t].reduce((n, st) => n + (counts[st] ?? 0), 0) : null;
   const procName = (id: string) => cfg.procedures.find((p) => p.id === id)?.name ?? id;
 
   const themes = useMemo(() => {
@@ -561,7 +565,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
                   {t.label}
                   {n != null && n > 0 && (
                     <Hint focusable={false} tip={t.badge}>
-                      <span className={cn("rounded-full px-2 text-xs tabular-nums", t.tab === "review" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
+                      <span className={cn("rounded-full px-2 text-xs tabular-nums", t.tab === "review" || t.tab === "spot" ? "bg-warn-soft text-warn" : "bg-muted text-muted-foreground")}>{n}</span>
                     </Hint>
                   )}
                 </TabsTrigger>
@@ -585,7 +589,16 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
           <p className="text-muted-foreground mt-3 text-sm">A verdict waits {UNDO_MS / 1000} seconds before it's saved, so you can undo it.</p>
         </details>
       )}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      {tab === "spot" && (
+        <div className="mb-4 flex">
+          <Hint tip={<TipBody head="Keyboard">j / k move between cards · 1 says the checker was right · 2 and up pick what actually happened · n adds a note · Esc leaves the note</TipBody>}>
+            <span className="text-muted-foreground ml-auto hidden items-center gap-1 text-xs sm:inline-flex">
+              <Keyboard className="size-3.5" /> j k · 1–5 · n
+            </span>
+          </Hint>
+        </div>
+      )}
+      <div className={cn("mb-4 flex flex-wrap items-center gap-2", tab === "spot" && "hidden")}>
         <FilterSelect label="Procedure" value={search.procedure} options={procedures} onChange={(v) => set({ procedure: v })} />
         <FilterSelect label="Theme" value={search.theme} options={themes.map((t) => [t, t] as [string, string])} onChange={(v) => set({ theme: v })} />
         {withVerdictFilter && (
@@ -604,7 +617,9 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
           </Hint>
         )}
       </div>
-      {tab === "review" ? (
+      {tab === "spot" ? (
+        <SpotChecks />
+      ) : tab === "review" ? (
         <ReviewQueue items={queue} loading={reviewRes.isPending} error={reviewRes.error} onRetry={() => void reviewRes.refetch()} />
       ) : tab === "all" ? (
         <AllPatterns items={all.data?.items} loading={all.isPending} error={all.error} onRetry={() => void all.refetch()} search={{ ...search, verdict: verdictFilter }} procName={procName} />

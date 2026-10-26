@@ -4248,6 +4248,12 @@ export type OverrideIn = {
      */
     correct: boolean;
     /**
+     * Status
+     *
+     * What actually happened, if you say: one of the rule kind's statuses. A finding status (skipped, violated, out_of_order, unheeded) when `correct`, another one when not. A calibration label.
+     */
+    status?: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent' | null;
+    /**
      * Note
      */
     note?: string | null;
@@ -4285,6 +4291,10 @@ export type OverrideOut = {
      * Correct
      */
     correct: boolean;
+    /**
+     * Status
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent' | null;
     /**
      * Note
      */
@@ -7207,6 +7217,40 @@ export type RolePrice = {
 };
 
 /**
+ * RuleCorrectionOut
+ */
+export type RuleCorrectionOut = {
+    /**
+     * Status
+     *
+     * What the reviewer says actually happened.
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Checked Status
+     *
+     * What the checker said when they did (null for an override).
+     */
+    checked_status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent' | null;
+    /**
+     * Source
+     */
+    source: 'correction' | 'spot_check' | 'override';
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
  * RuleDot
  */
 export type RuleDot = {
@@ -7289,6 +7333,96 @@ export type RuleInsights = {
      * Recent Findings
      */
     recent_findings: Array<RecentFinding>;
+};
+
+/**
+ * RuleLabelIn
+ */
+export type RuleLabelIn = {
+    /**
+     * Status
+     *
+     * What actually happened: one of the rule kind's statuses (steps: done, out_of_order, skipped, not_reached, not_applicable; never rules: violated, ok; warning signs: present, unheeded, absent).
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Note
+     */
+    note?: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer?: string | null;
+    /**
+     * Source
+     *
+     * `correction` (from the session) or `spot_check` (an answer in the spot-check queue).
+     */
+    source?: 'correction' | 'spot_check';
+};
+
+/**
+ * RuleLabelOut
+ */
+export type RuleLabelOut = {
+    /**
+     * Label Id
+     */
+    label_id: string;
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Checked Status
+     *
+     * What the checker said.
+     */
+    checked_status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Status
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Source
+     */
+    source: 'correction' | 'spot_check';
+    /**
+     * Note
+     */
+    note: string | null;
+    /**
+     * Reviewer
+     */
+    reviewer: string | null;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Missed
+     *
+     * A failure the checker didn't flag. Stored and shown; it doesn't add a finding.
+     */
+    missed: boolean;
+    /**
+     * Suppressed
+     *
+     * For a rule with a finding: whether it's suppressed now. Null without one.
+     */
+    suppressed: boolean | null;
 };
 
 /**
@@ -7540,6 +7674,10 @@ export type RuleResultOut = {
      * A reviewer's call on the finding: true (the checker was right), false, or none.
      */
     override: boolean | null;
+    /**
+     * The status a reviewer gave this rule, if the latest call gave one.
+     */
+    correction: RuleCorrectionOut | null;
 };
 
 /**
@@ -8769,6 +8907,158 @@ export type SplitRow = {
      * Flag
      */
     flag: 'thin' | 'regressed' | 'improved' | 'steady';
+};
+
+/**
+ * SpotCheckItem
+ */
+export type SpotCheckItem = {
+    /**
+     * Session Id
+     */
+    session_id: string;
+    /**
+     * Started At
+     */
+    started_at: string;
+    /**
+     * Procedure Id
+     */
+    procedure_id: string;
+    /**
+     * Procedure Name
+     */
+    procedure_name: string | null;
+    /**
+     * Rule Id
+     */
+    rule_id: string;
+    /**
+     * Kind
+     */
+    kind: 'step' | 'never' | 'warning';
+    /**
+     * Index
+     */
+    index: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Status
+     *
+     * What the checker said.
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Evidence
+     */
+    evidence: Array<EvidenceOut>;
+    /**
+     * Reason
+     */
+    reason: string | null;
+    /**
+     * Decision P
+     *
+     * The deciding probability nearest its threshold; null in review mode.
+     */
+    decision_p: number | null;
+    /**
+     * Decision Threshold
+     */
+    decision_threshold: number | null;
+    /**
+     * Decided Status
+     *
+     * The decision's status, before any review.
+     */
+    decided_status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent' | null;
+    /**
+     * Reviewed
+     *
+     * Whether the reasoning model reviewed the rule.
+     */
+    reviewed: boolean | null;
+    /**
+     * Weight
+     *
+     * How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more.
+     */
+    weight: number;
+    /**
+     * Why
+     */
+    why: Array<'close_call' | 'review_changed' | 'sample'>;
+    /**
+     * Statuses
+     *
+     * The statuses this rule can have.
+     */
+    statuses: Array<'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent'>;
+};
+
+/**
+ * SpotCheckResponse
+ */
+export type SpotCheckResponse = {
+    /**
+     * Items
+     */
+    items: Array<SpotCheckItem>;
+    /**
+     * Total
+     *
+     * Sampled and not answered yet.
+     */
+    total: number;
+    /**
+     * Answered
+     *
+     * Sampled and answered.
+     */
+    answered: number;
+    /**
+     * Rate
+     */
+    rate: number;
+    /**
+     * Scanned
+     *
+     * Rule results sampled from: the most recent 5,000 with no finding.
+     */
+    scanned: number;
+};
+
+/**
+ * SpotCheckSettings
+ */
+export type SpotCheckSettings = {
+    /**
+     * Rate
+     *
+     * Share of rule results with no finding that are spot-checked, before weighting.
+     */
+    rate: number;
+    /**
+     * Default
+     *
+     * The rate is sopops' default (0.02).
+     */
+    default: boolean;
+};
+
+/**
+ * SpotCheckSettingsIn
+ */
+export type SpotCheckSettingsIn = {
+    /**
+     * Rate
+     *
+     * Between 0 and 1; null goes back to the default.
+     */
+    rate: number | null;
 };
 
 /**
@@ -15302,6 +15592,143 @@ export type OverrideFindingResponses = {
 };
 
 export type OverrideFindingResponse = OverrideFindingResponses[keyof OverrideFindingResponses];
+
+export type LabelRuleData = {
+    body: RuleLabelIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Session Id
+         */
+        session_id: string;
+        /**
+         * Procedure Id
+         */
+        procedure_id: string;
+        /**
+         * Rule Id
+         */
+        rule_id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/{session_id}/rules/{procedure_id}/{rule_id}/label';
+};
+
+export type LabelRuleErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type LabelRuleError = LabelRuleErrors[keyof LabelRuleErrors];
+
+export type LabelRuleResponses = {
+    /**
+     * Successful Response
+     */
+    200: RuleLabelOut;
+};
+
+export type LabelRuleResponse = LabelRuleResponses[keyof LabelRuleResponses];
+
+export type SpotChecksData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/v1/workspaces/{workspace}/spot-checks';
+};
+
+export type SpotChecksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SpotChecksError = SpotChecksErrors[keyof SpotChecksErrors];
+
+export type SpotChecksResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotCheckResponse;
+};
+
+export type SpotChecksResponse = SpotChecksResponses[keyof SpotChecksResponses];
+
+export type GetSpotCheckSettingsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/spot-checks/settings';
+};
+
+export type GetSpotCheckSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetSpotCheckSettingsError = GetSpotCheckSettingsErrors[keyof GetSpotCheckSettingsErrors];
+
+export type GetSpotCheckSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotCheckSettings;
+};
+
+export type GetSpotCheckSettingsResponse = GetSpotCheckSettingsResponses[keyof GetSpotCheckSettingsResponses];
+
+export type SetSpotCheckSettingsData = {
+    body: SpotCheckSettingsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/spot-checks/settings';
+};
+
+export type SetSpotCheckSettingsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetSpotCheckSettingsError = SetSpotCheckSettingsErrors[keyof SetSpotCheckSettingsErrors];
+
+export type SetSpotCheckSettingsResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotCheckSettings;
+};
+
+export type SetSpotCheckSettingsResponse = SetSpotCheckSettingsResponses[keyof SetSpotCheckSettingsResponses];
 
 export type ExportRegressionData = {
     body?: never;
