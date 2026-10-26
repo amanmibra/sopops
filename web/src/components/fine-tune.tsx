@@ -56,7 +56,7 @@ function CheckerSpotChecks() {
 function HostedOnly() {
   const { ws } = useWs();
   return (
-    <section className="bg-card mt-6 max-w-[90ch] rounded-lg border px-6 py-6">
+    <section className="bg-card mt-6 rounded-lg border px-6 py-6">
       <h2 className="text-lg font-semibold">Fine tune comes with hosted sopops</h2>
       <p className="mt-2 text-sm">
         This sopops checks your calls with the models you set up. Hosted sopops also turns what your team tells it into training data, and tunes the checker to your
