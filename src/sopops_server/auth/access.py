@@ -126,7 +126,7 @@ ROUTES: dict[str, str] = {
         "get_spot_check_settings", "set_spot_check_settings", "export_regression", "calibrate",
         "list_suggestions", "get_suggestion", "suggest_edit", "apply_suggestion", "rewrite_suggestion", "dismiss_suggestion", "insights_overview",
         "insights_procedure", "insights_rule", "insights_compare", "insights_versions", "insights_report", "get_rule_lineage", "link_rule", "unlink_rule",
-        "rebuild_lineage", "model_usage", "model_prices", "server_features", "get_repo", "connect_repo", "inspect_repo_project", "disconnect_repo", "pull_repo",
+        "rebuild_lineage", "model_usage", "call_usage", "model_prices", "server_features", "get_repo", "connect_repo", "inspect_repo_project", "disconnect_repo", "pull_repo",
         "sync_repo", "send_repo_drafts", "get_repo_conflict", "resolve_repo_conflict", "get_github_app", "github_install_url", "github_setup",
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",
         "create_import", "import_sopc_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
