@@ -82,7 +82,8 @@ export const rq = {
     queryOptions({ queryKey: ["ws", ws, "suggestions", status ?? null], queryFn: () => call(sdk.listSuggestions({ path: path(ws), query: { status } })) }),
   suggestion: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "suggestion", id], queryFn: () => call(sdk.getSuggestion({ path: { ...path(ws), suggestion_id: id } })) }),
   /** Rule results with no finding, sampled for a reviewer to check, close calls first. */
-  spotChecks: (ws: string) => queryOptions({ queryKey: ["ws", ws, "spot-checks"], queryFn: () => call(sdk.spotChecks({ path: path(ws), query: { limit: 100 } })) }),
+  /** The current spot-check batch (the first is drawn on the first visit). Filtered and grouped on the page. */
+  spotChecks: (ws: string) => queryOptions({ queryKey: ["ws", ws, "spot-checks"], queryFn: () => call(sdk.spotChecks({ path: path(ws) })) }),
 };
 
 export const review = {
@@ -90,6 +91,8 @@ export const review = {
   verdict: (ws: string, id: string, body: VerdictIn, keepalive = false) =>
     call(sdk.setVerdict({ path: { ...path(ws), pattern_id: id }, body, ...(keepalive ? { keepalive: true } : {}) })),
   override: (ws: string, findingId: string, body: OverrideIn) => call(sdk.overrideFinding({ path: { ...path(ws), finding_id: findingId }, body })),
+  /** A new spot-check batch ("give me more"), replacing the current one. */
+  drawSpotChecks: (ws: string, size: number) => call(sdk.drawSpotChecks({ path: path(ws), body: { size } })),
   /** A rule's right status: a correction from the session, or a spot-check answer. */
   label: (ws: string, sessionId: string, procedureId: string, ruleId: string, body: RuleLabelIn) =>
     call(sdk.labelRule({ path: { ...path(ws), session_id: sessionId, procedure_id: procedureId, rule_id: ruleId }, body })),

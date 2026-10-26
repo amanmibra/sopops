@@ -8910,9 +8910,25 @@ export type SplitRow = {
 };
 
 /**
+ * SpotCheckDrawIn
+ */
+export type SpotCheckDrawIn = {
+    /**
+     * Size
+     *
+     * How many to draw; default the workspace's batch size.
+     */
+    size?: number | null;
+};
+
+/**
  * SpotCheckItem
  */
 export type SpotCheckItem = {
+    /**
+     * Spot Check Id
+     */
+    spot_check_id: string;
     /**
      * Session Id
      */
@@ -8921,6 +8937,10 @@ export type SpotCheckItem = {
      * Started At
      */
     started_at: string;
+    /**
+     * Agent Id
+     */
+    agent_id: string | null;
     /**
      * Procedure Id
      */
@@ -8984,7 +9004,7 @@ export type SpotCheckItem = {
     /**
      * Weight
      *
-     * How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more.
+     * Its value when drawn: close calls and changed decisions weigh more.
      */
     weight: number;
     /**
@@ -8997,6 +9017,16 @@ export type SpotCheckItem = {
      * The statuses this rule can have.
      */
     statuses: Array<'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent'>;
+    /**
+     * Answered
+     */
+    answered: boolean;
+    /**
+     * Answer
+     *
+     * The status the answer gave.
+     */
+    answer: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent' | null;
 };
 
 /**
@@ -9004,31 +9034,49 @@ export type SpotCheckItem = {
  */
 export type SpotCheckResponse = {
     /**
-     * Items
-     */
-    items: Array<SpotCheckItem>;
-    /**
-     * Total
+     * Batch Id
      *
-     * Sampled and not answered yet.
+     * The current batch; null before the first is drawn.
      */
-    total: number;
+    batch_id: string | null;
+    /**
+     * Drawn At
+     */
+    drawn_at: string | null;
+    /**
+     * Size
+     *
+     * Items in the batch, less those that expired unanswered (after 7 days).
+     */
+    size: number;
     /**
      * Answered
-     *
-     * Sampled and answered.
      */
     answered: number;
     /**
-     * Rate
-     */
-    rate: number;
-    /**
-     * Scanned
+     * Corrections
      *
-     * Rule results sampled from: the most recent 5,000 with no finding.
+     * Answers that said the checker was wrong.
      */
-    scanned: number;
+    corrections: number;
+    /**
+     * Done
+     *
+     * Every item answered: draw the next batch with `POST …/spot-checks/batches`.
+     */
+    done: boolean;
+    /**
+     * Items
+     *
+     * The batch's items, answered ones too, filtered and sorted as asked.
+     */
+    items: Array<SpotCheckItem>;
+    /**
+     * Default Batch
+     *
+     * The workspace's batch size.
+     */
+    default_batch: number;
 };
 
 /**
@@ -9036,15 +9084,15 @@ export type SpotCheckResponse = {
  */
 export type SpotCheckSettings = {
     /**
-     * Rate
+     * Batch
      *
-     * Share of rule results with no finding that are spot-checked, before weighting.
+     * How many rule results a spot-check batch draws.
      */
-    rate: number;
+    batch: number;
     /**
      * Default
      *
-     * The rate is sopops' default (0.02).
+     * The size is sopops' default (25).
      */
     default: boolean;
 };
@@ -9054,11 +9102,11 @@ export type SpotCheckSettings = {
  */
 export type SpotCheckSettingsIn = {
     /**
-     * Rate
+     * Batch
      *
-     * Between 0 and 1; null goes back to the default.
+     * 1 to 200; null goes back to the default.
      */
-    rate: number | null;
+    batch: number | null;
 };
 
 /**
@@ -15645,9 +15693,37 @@ export type SpotChecksData = {
     };
     query?: {
         /**
-         * Limit
+         * Agent
          */
-        limit?: number;
+        agent?: string | null;
+        /**
+         * Procedure
+         */
+        procedure?: string | null;
+        /**
+         * Rule
+         */
+        rule?: string | null;
+        /**
+         * Since
+         *
+         * Sessions started at or after.
+         */
+        since?: string | null;
+        /**
+         * Until
+         */
+        until?: string | null;
+        /**
+         * Why
+         *
+         * Why it was picked.
+         */
+        why?: 'close_call' | 'review_changed' | 'sample' | null;
+        /**
+         * Sort
+         */
+        sort?: 'value' | 'newest';
     };
     url: '/v1/workspaces/{workspace}/spot-checks';
 };
@@ -15669,6 +15745,39 @@ export type SpotChecksResponses = {
 };
 
 export type SpotChecksResponse = SpotChecksResponses[keyof SpotChecksResponses];
+
+export type DrawSpotChecksData = {
+    /**
+     * Req
+     */
+    body?: SpotCheckDrawIn | null;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/spot-checks/batches';
+};
+
+export type DrawSpotChecksErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DrawSpotChecksError = DrawSpotChecksErrors[keyof DrawSpotChecksErrors];
+
+export type DrawSpotChecksResponses = {
+    /**
+     * Successful Response
+     */
+    200: SpotCheckResponse;
+};
+
+export type DrawSpotChecksResponse = DrawSpotChecksResponses[keyof DrawSpotChecksResponses];
 
 export type GetSpotCheckSettingsData = {
     body?: never;

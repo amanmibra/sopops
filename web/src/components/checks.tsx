@@ -1,7 +1,7 @@
 // SOP check results on a session: each procedure's result and rule statuses, with evidence that points into the transcript,
 // and the controls to correct a rule's status.
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ProcedureCheckOut, RuleResultOut, SessionSummary } from "@/lib/api";
 import { RULE_STATUS } from "@/lib/review";
 import { sessionsHref } from "@/lib/insights";
@@ -9,9 +9,8 @@ import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Note, RuleText, Tag } from "./bits";
 import { CheckMetadata } from "./check-metadata";
-import { FindingOverrideControl } from "./finding-override";
 import { HrefLink } from "./href-link";
-import { CorrectionNote, RuleCorrectionControls } from "./rule-correction";
+import { type CallMode, CorrectionNote, RuleCallButtons, RuleCallDialog } from "./rule-correction";
 
 export type Result = NonNullable<SessionSummary["result"]>;
 
@@ -96,10 +95,12 @@ function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId
   const key = ruleKey(procedureId, rule);
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
   const { ws } = useWs();
+  const [call, setCall] = useState<CallMode | null>(null);
+  const rowRef = useRef<HTMLButtonElement>(null);
   return (
     <li className={cn("group rounded-md border border-transparent px-2 py-2", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
       <div className="flex items-start gap-1">
-        <button type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
+        <button ref={rowRef} type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
           <span className="pt-px">
             <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
           </span>
@@ -107,12 +108,13 @@ function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId
             <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
           </span>
         </button>
-        {rule.finding && rule.finding_id && <FindingOverrideControl findingId={rule.finding_id} override={rule.override} kind={rule.kind} />}
+        <RuleCallButtons rule={rule} onOpen={setCall} part="finding" />
       </div>
       <div className="ml-[96px] min-w-0">
         <CorrectionNote rule={rule} className="mt-1" />
-        <RuleCorrectionControls sessionId={sessionId} procedureId={procedureId} rule={rule} className={cn("-ml-2 mt-0.5", !active && "hidden group-hover:flex")} />
+        <RuleCallButtons rule={rule} onOpen={setCall} part="status" className={cn("-ml-2 mt-0.5", !active && "hidden group-hover:flex group-focus-within:flex")} />
       </div>
+      <RuleCallDialog mode={call} onOpenChange={(open) => !open && setCall(null)} onClosed={() => rowRef.current?.focus()} sessionId={sessionId} procedureId={procedureId} rule={rule} />
       {rule.suppressed && (
         <p className="text-muted-foreground mt-0.5 ml-[96px] text-xs">
           Suppressed: {rule.override === false ? (rule.correction && rule.correction.source !== "override" ? "a reviewer corrected its status" : "a reviewer marked this finding incorrect") : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.

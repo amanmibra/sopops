@@ -7976,7 +7976,7 @@
           "review"
         ],
         "summary": "Spot Checks",
-        "description": "Rule results with no finding, sampled for a reviewer to check (the workspace's rate, 2% by default),\nweighted toward close calls: a decision near its threshold, or one the review changed. Answer one with its\nrule's `label` route and `source: spot_check`.",
+        "description": "The current spot-check batch: rule results with no finding, spread across procedures and agents, close calls\nand changed decisions first. The workspace's first batch is drawn on the first visit; after that only\n`POST \u2026/spot-checks/batches` draws one. Answer an item with its rule's `label` route (`source: spot_check`).\nItems left unanswered for 7 days expire quietly. Filters narrow `items`; the progress counts the whole batch.",
         "operationId": "spot_checks",
         "parameters": [
           {
@@ -7989,18 +7989,187 @@
             }
           },
           {
-            "name": "limit",
+            "name": "agent",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "maximum": 500,
-              "minimum": 1,
-              "default": 50,
-              "title": "Limit"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Agent"
+            }
+          },
+          {
+            "name": "procedure",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Procedure"
+            }
+          },
+          {
+            "name": "rule",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rule"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Sessions started at or after.",
+              "title": "Since"
+            },
+            "description": "Sessions started at or after."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Until"
+            }
+          },
+          {
+            "name": "why",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "close_call",
+                    "review_changed",
+                    "sample"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Why it was picked.",
+              "title": "Why"
+            },
+            "description": "Why it was picked."
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "value",
+                "newest"
+              ],
+              "type": "string",
+              "default": "value",
+              "title": "Sort"
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpotCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/spot-checks/batches": {
+      "post": {
+        "tags": [
+          "review"
+        ],
+        "summary": "Draw Spot Checks",
+        "description": "Draw a new batch (\"give me more\"): it replaces the current one. Nothing already drawn or labeled is drawn again.",
+        "operationId": "draw_spot_checks",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SpotCheckDrawIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -8071,7 +8240,7 @@
           "review"
         ],
         "summary": "Set Spot Check Settings",
-        "description": "The share of rule results with no finding that are spot-checked (0 to 1; null for the default, 0.02).",
+        "description": "How many rule results a batch draws (1 to 200; null for the default, 25).",
         "operationId": "set_spot_check_settings",
         "parameters": [
           {
@@ -29270,8 +29439,32 @@
         ],
         "title": "SplitRow"
       },
+      "SpotCheckDrawIn": {
+        "properties": {
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size",
+            "description": "How many to draw; default the workspace's batch size."
+          }
+        },
+        "type": "object",
+        "title": "SpotCheckDrawIn"
+      },
       "SpotCheckItem": {
         "properties": {
+          "spot_check_id": {
+            "type": "string",
+            "title": "Spot Check Id"
+          },
           "session_id": {
             "type": "string",
             "title": "Session Id"
@@ -29280,6 +29473,17 @@
             "type": "string",
             "format": "date-time",
             "title": "Started At"
+          },
+          "agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agent Id"
           },
           "procedure_id": {
             "type": "string",
@@ -29414,7 +29618,7 @@
           "weight": {
             "type": "number",
             "title": "Weight",
-            "description": "How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more."
+            "description": "Its value when drawn: close calls and changed decisions weigh more."
           },
           "why": {
             "items": {
@@ -29447,12 +29651,42 @@
             "type": "array",
             "title": "Statuses",
             "description": "The statuses this rule can have."
+          },
+          "answered": {
+            "type": "boolean",
+            "title": "Answered"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "done",
+                  "out_of_order",
+                  "skipped",
+                  "not_reached",
+                  "not_applicable",
+                  "violated",
+                  "ok",
+                  "present",
+                  "unheeded",
+                  "absent"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer",
+            "description": "The status the answer gave."
           }
         },
         "type": "object",
         "required": [
+          "spot_check_id",
           "session_id",
           "started_at",
+          "agent_id",
           "procedure_id",
           "procedure_name",
           "rule_id",
@@ -29468,89 +29702,124 @@
           "reviewed",
           "weight",
           "why",
-          "statuses"
+          "statuses",
+          "answered",
+          "answer"
         ],
         "title": "SpotCheckItem"
       },
       "SpotCheckResponse": {
         "properties": {
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id",
+            "description": "The current batch; null before the first is drawn."
+          },
+          "drawn_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drawn At"
+          },
+          "size": {
+            "type": "integer",
+            "title": "Size",
+            "description": "Items in the batch, less those that expired unanswered (after 7 days)."
+          },
+          "answered": {
+            "type": "integer",
+            "title": "Answered"
+          },
+          "corrections": {
+            "type": "integer",
+            "title": "Corrections",
+            "description": "Answers that said the checker was wrong."
+          },
+          "done": {
+            "type": "boolean",
+            "title": "Done",
+            "description": "Every item answered: draw the next batch with `POST \u2026/spot-checks/batches`."
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/SpotCheckItem"
             },
             "type": "array",
-            "title": "Items"
+            "title": "Items",
+            "description": "The batch's items, answered ones too, filtered and sorted as asked."
           },
-          "total": {
+          "default_batch": {
             "type": "integer",
-            "title": "Total",
-            "description": "Sampled and not answered yet."
-          },
-          "answered": {
-            "type": "integer",
-            "title": "Answered",
-            "description": "Sampled and answered."
-          },
-          "rate": {
-            "type": "number",
-            "title": "Rate"
-          },
-          "scanned": {
-            "type": "integer",
-            "title": "Scanned",
-            "description": "Rule results sampled from: the most recent 5,000 with no finding."
+            "title": "Default Batch",
+            "description": "The workspace's batch size."
           }
         },
         "type": "object",
         "required": [
-          "items",
-          "total",
+          "batch_id",
+          "drawn_at",
+          "size",
           "answered",
-          "rate",
-          "scanned"
+          "corrections",
+          "done",
+          "items",
+          "default_batch"
         ],
         "title": "SpotCheckResponse"
       },
       "SpotCheckSettings": {
         "properties": {
-          "rate": {
-            "type": "number",
-            "title": "Rate",
-            "description": "Share of rule results with no finding that are spot-checked, before weighting."
+          "batch": {
+            "type": "integer",
+            "title": "Batch",
+            "description": "How many rule results a spot-check batch draws."
           },
           "default": {
             "type": "boolean",
             "title": "Default",
-            "description": "The rate is sopops' default (0.02)."
+            "description": "The size is sopops' default (25)."
           }
         },
         "type": "object",
         "required": [
-          "rate",
+          "batch",
           "default"
         ],
         "title": "SpotCheckSettings"
       },
       "SpotCheckSettingsIn": {
         "properties": {
-          "rate": {
+          "batch": {
             "anyOf": [
               {
-                "type": "number",
-                "maximum": 1.0,
-                "minimum": 0.0
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Rate",
-            "description": "Between 0 and 1; null goes back to the default."
+            "title": "Batch",
+            "description": "1 to 200; null goes back to the default."
           }
         },
         "type": "object",
         "required": [
-          "rate"
+          "batch"
         ],
         "title": "SpotCheckSettingsIn"
       },

@@ -468,7 +468,7 @@ export function useNeedsReview(ws: string) {
 
 const TABS: { tab: PatternsTab; label: string; help: string; badge: string }[] = [
   { tab: "review", label: "Needs review", help: "Patterns nobody has judged yet, and fixes that didn't hold.", badge: "Patterns waiting for a verdict, or that came back after a fix" },
-  { tab: "spot", label: "Spot checks", help: "Rules the checker passed, picked for a second look: close calls and decisions the reviewer model changed come first. Your answers recalibrate the checker.", badge: "Spot checks waiting for an answer" },
+  { tab: "spot", label: "Spot checks", help: "Rules the checker passed, in batches for a second look: spread across procedures and agents, close calls and decisions the reviewer model changed first. Your answers recalibrate the checker.", badge: "Left in this batch" },
   { tab: "open", label: "Open", help: "Real problems with no fix applied yet. Write a fix, or review the one proposed.", badge: "Real problems with no fix applied yet" },
   { tab: "fixing", label: "Fixing", help: "Real mistakes and wrong SOPs with a fix applied or in a pull request, waiting to go live and for 10 sessions on it. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes waiting for a release and 10 sessions on it" },
   { tab: "fixed", label: "Fixed", help: "Real mistakes and wrong SOPs whose fix held: 10 sessions on the new release with no findings. Acceptable and Checker is wrong close instead, under All patterns.", badge: "Fixes that held" },
@@ -492,7 +492,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
   const reviewItems = useMemo(() => reviewRes.data?.items ?? [], [reviewRes.data]);
   const counts = reviewRes.data?.counts ?? stateRes.data?.counts;
   const countOf = (t: PatternsTab): number | null =>
-    t === "all" ? (all.data ? all.data.items.reduce((n, p) => n + 1 + p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub").length, 0) : null) : t === "spot" ? (spot.data?.total ?? null) : counts ? TAB_STATES[t].reduce((n, st) => n + (counts[st] ?? 0), 0) : null;
+    t === "all" ? (all.data ? all.data.items.reduce((n, p) => n + 1 + p.sub_patterns.filter((s) => s.findings > 0 || s.kind === "sub").length, 0) : null) : t === "spot" ? (spot.data ? spot.data.size - spot.data.answered : null) : counts ? TAB_STATES[t].reduce((n, st) => n + (counts[st] ?? 0), 0) : null;
   const procName = (id: string) => cfg.procedures.find((p) => p.id === id)?.name ?? id;
 
   const themes = useMemo(() => {
@@ -591,9 +591,9 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
       )}
       {tab === "spot" && (
         <div className="mb-4 flex">
-          <Hint tip={<TipBody head="Keyboard">j / k move between cards · 1 says the checker was right · 2 and up pick what actually happened · n adds a note · Esc leaves the note</TipBody>}>
+          <Hint tip={<TipBody head="Keyboard">j / k move between rules · 1 says the checker was right · 2 and up pick what actually happened</TipBody>}>
             <span className="text-muted-foreground ml-auto hidden items-center gap-1 text-xs sm:inline-flex">
-              <Keyboard className="size-3.5" /> j k · 1–5 · n
+              <Keyboard className="size-3.5" /> j k · 1–5
             </span>
           </Hint>
         </div>
