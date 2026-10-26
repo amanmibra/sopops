@@ -1,5 +1,6 @@
 """Reviewer labels on rule results: the right status on an override, corrections and spot checks on any rule
-(`rule_labels`), what the decision said before review on each rule result, and a workspace's spot-check rate.
+(`rule_labels`), spot-check batches (`spot_checks`), what the decision said before review on each rule result, and a
+workspace's spot-check batch size.
 
 Revision ID: 0037
 Revises: 0036
@@ -26,7 +27,7 @@ def upgrade() -> None:
         batch.add_column(sa.Column("decided_status", sa.String(16), nullable=True))
         batch.add_column(sa.Column("reviewed", sa.Boolean(), nullable=True))
     with op.batch_alter_table("workspaces") as batch:
-        batch.add_column(sa.Column("spot_check_rate", sa.Float(), nullable=True))
+        batch.add_column(sa.Column("spot_check_batch", sa.Integer(), nullable=True))
     op.create_table(
         "rule_labels",
         sa.Column("id", sa.String(36), nullable=False),
@@ -48,14 +49,36 @@ def upgrade() -> None:
     )
     op.create_index("ix_rule_labels_session_rule", "rule_labels", ["session_id", "procedure_id", "rule_id"])
     op.create_index("ix_rule_labels_workspace", "rule_labels", ["workspace_id", "created_at"])
+    op.create_table(
+        "spot_checks",
+        sa.Column("id", sa.String(36), nullable=False),
+        sa.Column("workspace_id", sa.String(128), nullable=False),
+        sa.Column("batch_id", sa.String(36), nullable=False),
+        sa.Column("session_id", sa.String(36), nullable=False),
+        sa.Column("procedure_id", sa.String(256), nullable=False),
+        sa.Column("rule_id", sa.String(64), nullable=False),
+        sa.Column("rule_result_id", sa.String(36), nullable=False),
+        sa.Column("weight", sa.Float(), nullable=False),
+        sa.Column("why", sa.String(64), nullable=False),
+        sa.Column("drawn_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("answered_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("label_id", sa.String(36), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+        sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], name="fk_spot_checks_session", ondelete="CASCADE"),
+    )
+    op.create_index("ix_spot_checks_workspace_batch", "spot_checks", ["workspace_id", "batch_id"])
+    op.create_index("ix_spot_checks_session_rule", "spot_checks", ["session_id", "procedure_id", "rule_id"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_spot_checks_session_rule", table_name="spot_checks")
+    op.drop_index("ix_spot_checks_workspace_batch", table_name="spot_checks")
+    op.drop_table("spot_checks")
     op.drop_index("ix_rule_labels_workspace", table_name="rule_labels")
     op.drop_index("ix_rule_labels_session_rule", table_name="rule_labels")
     op.drop_table("rule_labels")
     with op.batch_alter_table("workspaces") as batch:
-        batch.drop_column("spot_check_rate")
+        batch.drop_column("spot_check_batch")
     with op.batch_alter_table("rule_results") as batch:
         batch.drop_column("reviewed")
         batch.drop_column("decided_status")

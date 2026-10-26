@@ -4,12 +4,15 @@ and spot checks), the regression export, and calibrating check thresholds from t
 from __future__ import annotations
 
 import json
+from datetime import datetime
+from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Query, Response
 
 from ..errors import workspace_id
 from ..jobs import Jobs
 from ..pipeline.types import CalibrateRef, SuggestRef
+from ..schemas.verdicts import SpotCheckWhy
 from ..schemas import (
     CalibrateIn,
     CalibrateOut,
@@ -19,6 +22,7 @@ from ..schemas import (
     ReviewState,
     RuleLabelIn,
     RuleLabelOut,
+    SpotCheckDrawIn,
     SpotCheckResponse,
     SpotCheckSettings,
     SpotCheckSettingsIn,
@@ -70,11 +74,19 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         return store.labels.label(workspace_id(workspace), session_id, procedure_id, rule_id, req.status, req.note, req.reviewer, req.source)
 
     @r.get("/v1/workspaces/{workspace}/spot-checks", response_model=SpotCheckResponse, dependencies=OPEN, tags=["review"])
-    def spot_checks(workspace: str, limit: int = Query(50, ge=1, le=500)) -> dict:
-        """Rule results with no finding, sampled for a reviewer to check (the workspace's rate, 2% by default),
-        weighted toward close calls: a decision near its threshold, or one the review changed. Answer one with its
-        rule's `label` route and `source: spot_check`."""
-        return store.labels.spot_checks(workspace_id(workspace), limit)
+    def spot_checks(workspace: str, agent: str | None = None, procedure: str | None = None, rule: str | None = None,
+                    since: datetime | None = Query(None, description="Sessions started at or after."), until: datetime | None = None,
+                    why: SpotCheckWhy | None = Query(None, description="Why it was picked."), sort: Literal["value", "newest"] = "value") -> dict:
+        """The current spot-check batch: rule results with no finding, spread across procedures and agents, close calls
+        and changed decisions first. The workspace's first batch is drawn on the first visit; after that only
+        `POST …/spot-checks/batches` draws one. Answer an item with its rule's `label` route (`source: spot_check`).
+        Items left unanswered for 7 days expire quietly. Filters narrow `items`; the progress counts the whole batch."""
+        return store.labels.spot_checks(workspace_id(workspace), agent=agent, procedure=procedure, rule=rule, since=since, until=until, why_=why, sort=sort)
+
+    @r.post("/v1/workspaces/{workspace}/spot-checks/batches", response_model=SpotCheckResponse, dependencies=OPEN, tags=["review"])
+    def draw_spot_checks(workspace: str, req: SpotCheckDrawIn | None = None) -> dict:
+        """Draw a new batch ("give me more"): it replaces the current one. Nothing already drawn or labeled is drawn again."""
+        return store.labels.draw(workspace_id(workspace), (req or SpotCheckDrawIn()).size)
 
     @r.get("/v1/workspaces/{workspace}/spot-checks/settings", response_model=SpotCheckSettings, dependencies=OPEN, tags=["review"])
     def get_spot_check_settings(workspace: str) -> dict:
@@ -82,8 +94,8 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.put("/v1/workspaces/{workspace}/spot-checks/settings", response_model=SpotCheckSettings, dependencies=OPEN, tags=["review"])
     def set_spot_check_settings(workspace: str, req: SpotCheckSettingsIn) -> dict:
-        """The share of rule results with no finding that are spot-checked (0 to 1; null for the default, 0.02)."""
-        return store.labels.set_rate(workspace_id(workspace), req.rate)
+        """How many rule results a batch draws (1 to 200; null for the default, 25)."""
+        return store.labels.set_batch(workspace_id(workspace), req.batch)
 
     @r.get("/v1/workspaces/{workspace}/patterns/{pattern_id}/regression", dependencies=OPEN, tags=["review"], response_class=Response,
            responses={200: {"content": {"application/x-ndjson": {}}, "description": "One JSON object per line."}})

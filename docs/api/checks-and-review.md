@@ -273,16 +273,17 @@ A reviewer can give any rule of a checked session its right status, finding or n
 
 Every label is a calibration label. It returns `{label_id, session_id, procedure_id, rule_id, kind, checked_status, status, source, note, reviewer, created_at, missed, suppressed}`.
 
-**Spot checks** sample rule results with no finding for a reviewer to check. `GET /v1/workspaces/{ws}/spot-checks?limit=` returns `{items, total, answered, rate, scanned}`, close calls first. Each item has the rule, the checker's `status`, `evidence` and `reason`, the decision before review (`decision_p`, `decision_threshold`, `decided_status`, `reviewed`), its `weight`, `why` (`close_call`, `review_changed` or `sample`) and the `statuses` it can have.
+**Spot checks** come in batches of rule results with no finding, for a reviewer to check. `GET /v1/workspaces/{ws}/spot-checks` returns the current batch, `{batch_id, drawn_at, size, answered, corrections, done, items, default_batch}`; the workspace's first batch is drawn on the first request. Each item has the rule, the checker's `status`, `evidence` and `reason`, the session's `agent_id` and `started_at`, the decision before review (`decision_p`, `decision_threshold`, `decided_status`, `reviewed`), its `weight`, `why` (`close_call`, `review_changed` or `sample`), the `statuses` it can have, and `answered` and `answer`.
 
 | | |
 |---|---|
-| Rate | 2% by default. `GET` or `PUT /v1/workspaces/{ws}/spot-checks/settings` with `{rate}` (0 to 1; null for the default). |
-| Weight | 1, plus up to 4 for a decision within 0.25 of its threshold (the closer, the more), plus 4 when the reviewer model changed the decision. |
-| Which | A stable hash of session, procedure and rule under `rate × weight ÷ mean weight`, over the most recent 5,000 results with no finding. The same results stay in the queue until answered. |
-| Answer | The rule's `label` route with `source: spot_check`. |
-
-Rule results checked in review mode (`SOPOPS_CHECK_MODE=review`) have no decision, so they're sampled at weight 1.
+| Size | 25 by default. `GET` or `PUT /v1/workspaces/{ws}/spot-checks/settings` with `{batch}` (1 to 200; null for the default). |
+| Drawing | `POST /v1/workspaces/{ws}/spot-checks/batches` with `{size?}`: a new batch replaces the current one. Only this draws one after the first. |
+| Which | The most recent 5,000 results with no finding, never drawn or labeled before, grouped by procedure and agent. Each group is sorted by weight; the batch takes one from each group in turn, the group with the most valuable item first. |
+| Weight | 1, plus up to 4 for a decision within 0.25 of its threshold (the closer, the more), plus 4 when the reviewer model changed the decision. Review mode (`SOPOPS_CHECK_MODE=review`) has no decisions, so its results weigh 1. |
+| Answer | The rule's `label` route with `source: spot_check`. Any label on the rule after it was drawn answers it. `corrections` counts answers that differ from the checker. |
+| Expiry | An item unanswered 7 days after it was drawn is dropped from the batch: not shown, not counted, never a label. |
+| Filters | `agent`, `procedure`, `rule`, `since`, `until` (session start), `why`, and `sort` (`value`, the default, or `newest`). They narrow `items`; the progress counts the whole batch. |
 
 ### Review state
 
@@ -379,8 +380,9 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 | `POST /v1/workspaces/{ws}/patterns/{id}/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
 | `POST /v1/workspaces/{ws}/findings/{id}/override` | `{correct, status?, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. `422` for a status the rule can't have, or one that doesn't fit `correct`. |
 | `POST /v1/workspaces/{ws}/sessions/{id}/rules/{procedure}/{rule}/label` | `{status, note?, reviewer?, source?}`: a correction or a spot-check answer. `404` for a rule the session wasn't checked on, `422` for a status its kind doesn't have. |
-| `GET /v1/workspaces/{ws}/spot-checks` | The spot-check queue. `limit` (default 50, at most 500). |
-| `GET`, `PUT /v1/workspaces/{ws}/spot-checks/settings` | `{rate, default}`; `PUT {rate}`. |
+| `GET /v1/workspaces/{ws}/spot-checks` | The current spot-check batch, with filters. |
+| `POST /v1/workspaces/{ws}/spot-checks/batches` | `{size?}`: draw the next batch. |
+| `GET`, `PUT /v1/workspaces/{ws}/spot-checks/settings` | `{batch, default}`; `PUT {batch}`. |
 | `GET /v1/workspaces/{ws}/patterns/{id}/regression` | A regression set for the pattern, as JSON Lines. Fields below. `409` without a verdict. |
 | `POST /v1/workspaces/{ws}/patterns/{id}/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
 | `GET /v1/workspaces/{ws}/suggestions?status=` | Newest first, with each one's `created_at`, `applied_at` (saved as a draft), `pr_opened_at`, `merged_at` (when sopops saw it merged), and `released_in` and `released_at`: the first release whose file has its edit. A proposed one has `freshness`. |

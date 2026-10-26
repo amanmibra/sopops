@@ -90,8 +90,10 @@ class RuleLabelOut(BaseModel):
 
 
 class SpotCheckItem(BaseModel):
+    spot_check_id: str
     session_id: str
     started_at: datetime
+    agent_id: str | None
     procedure_id: str
     procedure_name: str | None
     rule_id: str
@@ -105,23 +107,35 @@ class SpotCheckItem(BaseModel):
     decision_threshold: float | None
     decided_status: RuleStatus | None = Field(description="The decision's status, before any review.")
     reviewed: bool | None = Field(description="Whether the reasoning model reviewed the rule.")
-    weight: float = Field(description="How much more likely than a plain result it was to be picked: close calls and changed decisions weigh more.")
-    why: list[Literal["close_call", "review_changed", "sample"]]
+    weight: float = Field(description="Its value when drawn: close calls and changed decisions weigh more.")
+    why: list[SpotCheckWhy]
     statuses: list[RuleStatus] = Field(description="The statuses this rule can have.")
+    answered: bool
+    answer: RuleStatus | None = Field(description="The status the answer gave.")
+
+
+SpotCheckWhy = Literal["close_call", "review_changed", "sample"]
 
 
 class SpotCheckResponse(BaseModel):
-    items: list[SpotCheckItem]
-    total: int = Field(description="Sampled and not answered yet.")
-    answered: int = Field(description="Sampled and answered.")
-    rate: float
-    scanned: int = Field(description="Rule results sampled from: the most recent 5,000 with no finding.")
+    batch_id: str | None = Field(description="The current batch; null before the first is drawn.")
+    drawn_at: datetime | None
+    size: int = Field(description="Items in the batch, less those that expired unanswered (after 7 days).")
+    answered: int
+    corrections: int = Field(description="Answers that said the checker was wrong.")
+    done: bool = Field(description="Every item answered: draw the next batch with `POST …/spot-checks/batches`.")
+    items: list[SpotCheckItem] = Field(description="The batch's items, answered ones too, filtered and sorted as asked.")
+    default_batch: int = Field(description="The workspace's batch size.")
+
+
+class SpotCheckDrawIn(BaseModel):
+    size: int | None = Field(None, ge=1, le=200, description="How many to draw; default the workspace's batch size.")
 
 
 class SpotCheckSettings(BaseModel):
-    rate: float = Field(description="Share of rule results with no finding that are spot-checked, before weighting.")
-    default: bool = Field(description="The rate is sopops' default (0.02).")
+    batch: int = Field(description="How many rule results a spot-check batch draws.")
+    default: bool = Field(description="The size is sopops' default (25).")
 
 
 class SpotCheckSettingsIn(BaseModel):
-    rate: float | None = Field(description="Between 0 and 1; null goes back to the default.", ge=0, le=1)
+    batch: int | None = Field(description="1 to 200; null goes back to the default.", ge=1, le=200)

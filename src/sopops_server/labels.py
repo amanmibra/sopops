@@ -12,26 +12,28 @@ Insights, as it is for an override; a finding status says it's right. A label ne
 checker missed is stored and shown on the session (and is a calibration label), but the session's result, its
 patterns and Insights stay what the checker found, so a correction never moves an Insights number unseen.
 
-**Spot checks.** A share of rule results with no finding (the workspace's `spot_check_rate`, default
-`SPOT_CHECK_RATE`) is asked about, weighted toward close calls: a decision whose probability was near its threshold,
-and a rule where the reasoning model's review changed the decision (`weight`). Which results are sampled is a stable
-hash of session, procedure and rule, so the queue doesn't reshuffle between visits, and the weights are scaled by
-their mean over the results scanned, so the share asked about stays near the rate.
+**Spot checks** come in batches, so the work doesn't grow with call volume. The queue holds one batch (the
+workspace's `spot_check_batch`, default `SPOT_CHECK_BATCH`), drawn the first time it's asked for; after that a new batch
+is drawn only on request (`draw`). A batch is spread across procedures and agents: the candidates (recent rule results
+with no finding, never drawn or labeled before) are grouped by procedure and agent, each group sorted by value
+(`weight`: close calls, and decisions the reasoning model's review changed, first), and the batch takes one from each
+group in turn, the most valuable group first. An item is answered by any label on its rule after it was drawn; one left
+unanswered for `EXPIRE_DAYS` expires quietly: not shown, not counted, never a label.
 """
 
 from __future__ import annotations
 
-import hashlib
 import uuid
+from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
 
 from .errors import InvalidValue, NotFound
-from .orm import Finding, FindingOverride, ProcedureCheck, RuleLabel, RuleResult, SessionRecord, Workspace
+from .orm import Finding, FindingOverride, ProcedureCheck, RuleLabel, RuleResult, SessionRecord, SpotCheck, Workspace
 from .pipeline.procedures import agent_variables, fill
 from .pipeline.rollup import FINDING_STATUSES, NEVER_STATUSES, WARNING_STATUSES
 
@@ -40,8 +42,11 @@ if TYPE_CHECKING:
 
 STATUSES = {"step": ("done", "out_of_order", "skipped", "not_reached", "not_applicable"), "never": NEVER_STATUSES, "warning": WARNING_STATUSES}
 SOURCES = ("correction", "spot_check")
-SPOT_CHECK_RATE = 0.02
-SCAN = 5000  # the most recent rule results a spot-check queue samples from
+SPOT_CHECK_BATCH = 25
+MAX_BATCH = 200
+EXPIRE_DAYS = 7
+SCAN = 5000  # the most recent rule results a batch is drawn from
+WHY = ("close_call", "review_changed", "sample")
 CLOSE_BAND = 0.25  # a probability within this of its threshold is a close call, the closer the heavier
 CLOSE_WEIGHT = 4.0
 CHANGED_WEIGHT = 4.0  # the review changed the decision
@@ -130,12 +135,6 @@ def why(r: RuleResult) -> list[str]:
     return out or ["sample"]
 
 
-def draw(session_id: str, procedure_id: str, rule_id: str) -> float:
-    """A stable number in [0, 1) for a rule of a session."""
-    digest = hashlib.sha256(f"{session_id}:{procedure_id}:{rule_id}".encode()).digest()
-    return int.from_bytes(digest[:8], "big") / 2**64
-
-
 class Labels:
     def __init__(self, store: Store):
         self.store = store
@@ -159,66 +158,121 @@ class Labels:
             row = RuleLabel(id=str(uuid.uuid4()), workspace_id=ws, session_id=session_id, procedure_id=procedure_id, rule_id=rule_id, rule_result_id=r.id,
                             kind=r.kind, checked_status=r.status, status=status, source=source, note=note or None, reviewer=reviewer or None, created_at=_now())
             db.add(row)
+            for sc in db.exec(select(SpotCheck).where(SpotCheck.session_id == session_id, SpotCheck.procedure_id == procedure_id, SpotCheck.rule_id == rule_id,
+                                                      SpotCheck.answered_at.is_(None))):
+                sc.answered_at, sc.label_id = row.created_at, row.id  # any label answers it
+                db.add(sc)
         self.store.verdicts.refresh(ws, sessions=[session_id])
         with self._db() as db:
             f = db.exec(select(Finding).where(Finding.session_id == session_id, Finding.procedure_id == procedure_id, Finding.rule_id == rule_id)).first()
         return label_out(row, f.suppressed if f else None)
 
-    def set_rate(self, ws: str, rate: float | None) -> dict[str, Any]:
-        """The workspace's spot-check rate (None: back to the default)."""
-        if rate is not None and not 0.0 <= rate <= 1.0:
-            raise InvalidValue("rate is between 0 and 1")
+    def set_batch(self, ws: str, batch: int | None) -> dict[str, Any]:
+        """The workspace's spot-check batch size (None: back to the default)."""
+        if batch is not None and not 1 <= batch <= MAX_BATCH:
+            raise InvalidValue(f"batch is between 1 and {MAX_BATCH}")
         with self._db() as db, db.begin():
             w = db.get(Workspace, ws)
             if w is None:
                 raise NotFound(f"no workspace '{ws}'")
-            w.spot_check_rate = rate
+            w.spot_check_batch = batch
             db.add(w)
         return self.settings(ws)
+
+    def draw(self, ws: str, size: int | None = None) -> dict[str, Any]:
+        """Draw a new batch (see the module docstring) and return the queue with it."""
+        size = size or self.settings(ws)["batch"]
+        if not 1 <= size <= MAX_BATCH:
+            raise InvalidValue(f"size is between 1 and {MAX_BATCH}")
+        R, S, PC = RuleResult, SessionRecord, ProcedureCheck
+        with self._db() as db, db.begin():
+            rows = db.exec(
+                select(R, S.agent_id, S.started_at).join(S, S.id == R.session_id)
+                .join(PC, (PC.session_id == R.session_id) & (PC.procedure_id == R.procedure_id))
+                .where(R.workspace_id == ws, R.status.not_in(FINDING_STATUSES), PC.result.is_not(None))
+                .order_by(S.started_at.desc()).limit(SCAN)
+            ).all()
+            sids = {r.session_id for r, *_ in rows}
+            done = {(x.session_id, x.procedure_id, x.rule_id) for x in db.exec(select(SpotCheck).where(SpotCheck.workspace_id == ws, SpotCheck.session_id.in_(sids)))} if sids else set()
+            done |= {(x.session_id, x.procedure_id, x.rule_id) for x in db.exec(select(RuleLabel).where(RuleLabel.session_id.in_(sids)))} if sids else set()
+            groups: dict[tuple[str, str | None], list[tuple[float, datetime, RuleResult]]] = defaultdict(list)
+            for r, agent, started in rows:
+                if (r.session_id, r.procedure_id, r.rule_id) not in done:
+                    groups[(r.procedure_id, agent)].append((weight(r), _utc(started), r))  # type: ignore[arg-type]
+            for g in groups.values():
+                g.sort(key=lambda x: (-x[0], -x[1].timestamp()))
+            order = sorted(groups.values(), key=lambda g: (-g[0][0], -g[0][1].timestamp()))
+            picked: list[tuple[float, RuleResult]] = []
+            while len(picked) < size and any(order):
+                for g in order:
+                    if g and len(picked) < size:
+                        w, _, r = g.pop(0)
+                        picked.append((w, r))
+            batch, now = str(uuid.uuid4()), _now()
+            for w, r in picked:
+                db.add(SpotCheck(id=str(uuid.uuid4()), workspace_id=ws, batch_id=batch, session_id=r.session_id, procedure_id=r.procedure_id, rule_id=r.rule_id,
+                                 rule_result_id=r.id, weight=round(w, 3), why=",".join(why(r)), drawn_at=now))
+        return self.spot_checks(ws, draw=False)
 
     # --- reads -----------------------------------------------------------------------------------------------------
 
     def settings(self, ws: str) -> dict[str, Any]:
         with self._db() as db:
             w = db.get(Workspace, ws)
-        own = w.spot_check_rate if w else None
-        return {"rate": SPOT_CHECK_RATE if own is None else own, "default": own is None}
+        own = w.spot_check_batch if w else None
+        return {"batch": SPOT_CHECK_BATCH if own is None else own, "default": own is None}
 
     def for_session(self, session_id: str) -> dict[tuple[str, str], Call]:
         """{(procedure id, rule id): the latest call} for one session."""
         with self._db() as db:
             return {(pid, rid): c for (_, pid, rid), c in latest_calls(db, [session_id]).items()}
 
-    def spot_checks(self, ws: str, limit: int = 50) -> dict[str, Any]:
-        """The spot-check queue: sampled rule results with no finding and no label yet, close calls first (see the
-        module docstring). `answered`: sampled ones that have a label."""
-        rate = self.settings(ws)["rate"]
+    def spot_checks(self, ws: str, draw: bool = True, agent: str | None = None, procedure: str | None = None, rule: str | None = None,
+                    since: datetime | None = None, until: datetime | None = None, why_: str | None = None, sort: str = "value") -> dict[str, Any]:
+        """The current batch: its progress over every live item (answered, or drawn less than `EXPIRE_DAYS` ago), and its
+        items, filtered and sorted (`value` or `newest`). The workspace's first batch is drawn when it has none."""
+        with self._db() as db:
+            latest = db.exec(select(SpotCheck.batch_id, SpotCheck.drawn_at).where(SpotCheck.workspace_id == ws).order_by(SpotCheck.drawn_at.desc()).limit(1)).first()
+        if latest is None:
+            return self.draw(ws) if draw else self._empty(ws)
+        batch, drawn_at = latest
+        cutoff = _now() - timedelta(days=EXPIRE_DAYS)
         R, S, PC = RuleResult, SessionRecord, ProcedureCheck
         with self._db() as db:
             rows = db.exec(
-                select(R, S.started_at, S.agent_id, PC.procedure_name, PC.release_id)
-                .join(S, S.id == R.session_id)
-                .join(PC, (PC.session_id == R.session_id) & (PC.procedure_id == R.procedure_id))
-                .where(R.workspace_id == ws, R.status.not_in(FINDING_STATUSES), PC.result.is_not(None))
-                .order_by(S.started_at.desc(), R.session_id, R.procedure_id, R.kind, R.index)
-                .limit(SCAN)
+                select(SpotCheck, R, S.started_at, S.agent_id, PC.procedure_name, PC.release_id).join(S, S.id == SpotCheck.session_id)
+                .join(R, (R.session_id == SpotCheck.session_id) & (R.procedure_id == SpotCheck.procedure_id) & (R.rule_id == SpotCheck.rule_id))
+                .join(PC, (PC.session_id == SpotCheck.session_id) & (PC.procedure_id == SpotCheck.procedure_id))
+                .where(SpotCheck.workspace_id == ws, SpotCheck.batch_id == batch)
             ).all()
-            labeled = {(x.session_id, x.procedure_id, x.rule_id) for x in db.exec(select(RuleLabel).where(RuleLabel.session_id.in_({r.session_id for r, *_ in rows})))} if rows else set()
-        weights = [weight(r) for r, *_ in rows]
-        mean = sum(weights) / len(weights) if weights else 1.0
-        picked = [(row, w) for row, w in zip(rows, weights) if draw(row[0].session_id, row[0].procedure_id, row[0].rule_id) < min(1.0, rate * w / mean)]
-        pending = [(row, w) for row, w in picked if (row[0].session_id, row[0].procedure_id, row[0].rule_id) not in labeled]
-        pending.sort(key=lambda x: (-x[1], -_utc(x[0][1]).timestamp()))  # type: ignore[union-attr]
+            labels = {x.id: x for x in db.exec(select(RuleLabel).where(RuleLabel.id.in_([sc.label_id for sc, *_ in rows if sc.label_id])))}
+        live = [x for x in rows if x[0].answered_at is not None or _utc(x[0].drawn_at) > cutoff]  # type: ignore[operator]
+        answered = [x for x in live if x[0].answered_at is not None]
+        corrections = sum(1 for sc, *_ in answered if (lab := labels.get(sc.label_id or "")) and lab.status != lab.checked_status)
         variables: dict[tuple[int, str | None], dict[str, str]] = {}
         items = []
-        for (r, started, agent, name, release), w in pending[:limit]:
-            if release is not None and (release, agent) not in variables:
-                variables[(release, agent)] = agent_variables(self.store, ws, release, agent)
+        for sc, r, started, agent_id, name, release in live:
+            reasons = sc.why.split(",")
+            if (agent and agent_id != agent) or (procedure and sc.procedure_id != procedure) or (rule and sc.rule_id != rule) or (why_ and why_ not in reasons):
+                continue
+            if (since and _utc(started) < _utc(since)) or (until and _utc(started) > _utc(until)):  # type: ignore[operator]
+                continue
+            if release is not None and (release, agent_id) not in variables:
+                variables[(release, agent_id)] = agent_variables(self.store, ws, release, agent_id)
+            lab = labels.get(sc.label_id or "")
             items.append({
-                "session_id": r.session_id, "started_at": _utc(started), "procedure_id": r.procedure_id, "procedure_name": name, "rule_id": r.rule_id,
-                "kind": r.kind, "index": r.index, "text": fill(r.rule_text, variables.get((release, agent), {})), "status": r.status,
-                "evidence": r.evidence or [], "reason": (r.reason or "").split(LENIENT_MARK)[0] or None, "decision_p": r.decision_p,
-                "decision_threshold": r.decision_threshold, "decided_status": r.decided_status, "reviewed": r.reviewed, "weight": round(w, 3),
-                "why": why(r), "statuses": list(STATUSES[r.kind]),
+                "spot_check_id": sc.id, "session_id": sc.session_id, "started_at": _utc(started), "agent_id": agent_id, "procedure_id": sc.procedure_id,
+                "procedure_name": name, "rule_id": sc.rule_id, "kind": r.kind, "index": r.index, "text": fill(r.rule_text, variables.get((release, agent_id), {})),
+                "status": r.status, "evidence": r.evidence or [], "reason": (r.reason or "").split(LENIENT_MARK)[0] or None, "decision_p": r.decision_p,
+                "decision_threshold": r.decision_threshold, "decided_status": r.decided_status, "reviewed": r.reviewed, "weight": sc.weight, "why": reasons,
+                "statuses": list(STATUSES[r.kind]), "answered": sc.answered_at is not None, "answer": lab.status if lab else None,
             })
-        return {"items": items, "total": len(pending), "answered": len(picked) - len(pending), "rate": rate, "scanned": len(rows)}
+        if sort == "newest":
+            items.sort(key=lambda x: (-x["started_at"].timestamp(), x["session_id"], x["kind"], x["index"]))
+        else:
+            items.sort(key=lambda x: (-x["weight"], -x["started_at"].timestamp(), x["session_id"], x["kind"], x["index"]))
+        return {"batch_id": batch, "drawn_at": _utc(drawn_at), "size": len(live), "answered": len(answered), "corrections": corrections,
+                "done": bool(live) and len(answered) == len(live), "items": items, "default_batch": self.settings(ws)["batch"]}
+
+    def _empty(self, ws: str) -> dict[str, Any]:
+        return {"batch_id": None, "drawn_at": None, "size": 0, "answered": 0, "corrections": 0, "done": False, "items": [], "default_batch": self.settings(ws)["batch"]}

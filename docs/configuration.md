@@ -33,7 +33,7 @@ These variables set the deployment's defaults; see [Models](sessions-and-review.
 | `SOPOPS_MODEL_PRICES` | unset | Prices for spend estimates, JSON in USD per million tokens, e.g. `{"openai/gpt-5-mini": [0.25, 2]}`. Adds to or overrides the built-in table (Jev, current Claude models). |
 | `SOPOPS_DSPY_CACHE_DIR` | unset | Disk cache for model responses (transcripts are written there). In memory otherwise. |
 
-The spot-check rate is set per workspace, not by a variable: 2% of rule results with no finding by default, changed with `PUT /v1/workspaces/{ws}/spot-checks/settings` ([spot checks](api/checks-and-review.md#corrections-and-spot-checks)).
+The spot-check batch size is set per workspace, not by a variable: 25 rule results by default, changed with `PUT /v1/workspaces/{ws}/spot-checks/settings` ([spot checks](api/checks-and-review.md#corrections-and-spot-checks)).
 
 ## Sign-in
 

@@ -57,7 +57,7 @@ You can mark one finding wrong. A judged pattern exports its sessions as regress
 
 A corrected rule shows the status, who gave it and when. A missed mistake doesn't add a finding: the session's result, its patterns and Insights keep what the checker found, so a correction never changes a number without showing it. Every correction is a calibration label. The latest call on a rule wins, and it outlives a re-check.
 
-**Spot checks.** Review → Mistakes → Spot checks asks about rule results the checker passed: 2% of them by default (`PUT /v1/workspaces/{ws}/spot-checks/settings`), weighted toward close calls. A decision near its threshold is up to 5 times as likely to be asked about, and one the reviewer model changed 4 more. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. Answers are labels, like corrections.
+**Spot checks.** Review → Mistakes → Spot checks asks about rules the checker passed, one batch at a time (25 by default, `PUT /v1/workspaces/{ws}/spot-checks/settings`), so the work doesn't grow with call volume. A batch is spread across procedures and agents, and takes close calls and decisions the reviewer model changed first. Items are grouped by call, so one transcript answers all its rules, with filters for agent, procedure, rule, dates and why it was picked. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. A finished batch offers "Give me N more"; nothing is drawn twice, and an item left unanswered for 7 days expires quietly. Answers are labels, like corrections.
 
 | State | When |
 |---|---|

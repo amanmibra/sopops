@@ -12,8 +12,10 @@ from sqlmodel import Session, select
 from test_review import ALLERGEN, WINDOW, env, rule_pattern, session, tiles, verdict  # noqa: F401  (env is a fixture)
 
 from sopops_server.ai import tracing
-from sopops_server.labels import CLOSE_BAND, draw, weight
-from sopops_server.orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleLabel, RuleResult, SessionRecord
+from datetime import datetime, timedelta, timezone
+
+from sopops_server.labels import CLOSE_BAND, weight
+from sopops_server.orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleLabel, RuleResult, SessionRecord, SpotCheck
 from sopops_server.pipeline.rollup import Judged, rollup
 from sopops_server.verdicts import LENIENT_MARK, PASS_STATUS, SUPPRESSING, Verdicts, _published, _utc, effective
 
@@ -95,32 +97,93 @@ def test_a_wrong_status_on_a_finding_suppresses_it_like_an_override(env):
     assert session(env, sid)["result"] == "deviated"
 
 
-def test_spot_checks_sample_rules_without_a_finding_and_take_answers(env):
-    ids = [env.send("A") for _ in range(3)]
-    settings = env.client.get(f"{WS}/spot-checks/settings").json()
-    assert settings == {"rate": 0.02, "default": True}
-    assert env.client.put(f"{WS}/spot-checks/settings", json={"rate": 1.5}).status_code == 422
-    assert env.client.put(f"{WS}/spot-checks/settings", json={"rate": 1}).json() == {"rate": 1.0, "default": False}
-    q = env.client.get(f"{WS}/spot-checks").json()
-    # every rule result with no finding: 3 sessions x (3 steps, the second never rule, the warning sign)
-    assert (q["total"], q["answered"], q["scanned"], q["rate"]) == (15, 0, 15, 1.0)
+def spot(env, **params):
+    r = env.client.get(f"{WS}/spot-checks", params=params)
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def answer(env, item, status=None, **kw):
+    r = env.client.post(f"{WS}/sessions/{item['session_id']}/rules/{ALLERGEN}/{item['rule_id']}/label", json={"status": status or item["status"], "source": "spot_check", **kw})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_spot_checks_come_in_batches(env):
+    ids = [env.send("A") for _ in range(4)]  # 4 sessions x 5 rule results with no finding (3 steps, never 2, the warning sign)
+    assert env.client.get(f"{WS}/spot-checks/settings").json() == {"batch": 25, "default": True}
+    assert env.client.put(f"{WS}/spot-checks/settings", json={"batch": 0}).status_code == 422
+    assert env.client.put(f"{WS}/spot-checks/settings", json={"batch": 6}).json() == {"batch": 6, "default": False}
+    q = spot(env)  # the first batch is drawn on the first visit
+    assert (q["size"], q["answered"], q["corrections"], q["done"], q["default_batch"]) == (6, 0, 0, False, 6) and len(q["items"]) == 6
     item = q["items"][0]
-    assert item["status"] in ("done", "ok", "absent") and item["why"] == ["sample"] and item["procedure_name"]
+    assert item["status"] in ("done", "ok", "absent") and item["why"] == ["sample"] and item["procedure_name"] and item["agent_id"] == "tonys-pizza"
     assert item["statuses"] == {"step": ["done", "out_of_order", "skipped", "not_reached", "not_applicable"], "never": ["violated", "ok"],
                                 "warning": ["present", "unheeded", "absent"]}[item["kind"]]
-    assert "{{" not in item["text"]  # rule text as the check read it
-    r = env.client.post(f"{WS}/sessions/{item['session_id']}/rules/{ALLERGEN}/{item['rule_id']}/label", json={"status": item["status"], "source": "spot_check"})
-    assert r.status_code == 200 and r.json()["source"] == "spot_check" and r.json()["missed"] is False
-    q = env.client.get(f"{WS}/spot-checks").json()
-    assert (q["total"], q["answered"]) == (14, 1)
-    assert all((x["session_id"], x["rule_id"]) != (item["session_id"], item["rule_id"]) for x in q["items"])
-    got = next(x for x in rules_of(env, item["session_id"]) if x["rule_id"] == item["rule_id"])
-    assert got["correction"]["source"] == "spot_check"
-    # the default rate samples a stable share; back to it with null
-    assert env.client.put(f"{WS}/spot-checks/settings", json={"rate": None}).json()["default"] is True
-    a, b = env.client.get(f"{WS}/spot-checks").json(), env.client.get(f"{WS}/spot-checks").json()
-    assert a == b and a["total"] + a["answered"] < 15
+    assert "{{" not in item["text"] and (item["answered"], item["answer"]) == (False, None)
+    assert spot(env)["batch_id"] == q["batch_id"]  # no new batch on its own
+    out = answer(env, item)
+    assert out["source"] == "spot_check" and out["missed"] is False
+    answer(env, q["items"][1], "skipped" if q["items"][1]["kind"] == "step" else {"never": "violated", "warning": "unheeded"}[q["items"][1]["kind"]])
+    q = spot(env)
+    assert (q["size"], q["answered"], q["corrections"], q["done"]) == (6, 2, 1, False)
+    assert next(x for x in q["items"] if x["spot_check_id"] == item["spot_check_id"])["answer"] == item["status"]
+    for x in q["items"]:
+        if not x["answered"]:
+            answer(env, x)
+    q = spot(env)
+    assert (q["answered"], q["done"]) == (6, True)
+    # "give me more": a new batch, nothing drawn twice; only 14 are left
+    r = env.client.post(f"{WS}/spot-checks/batches", json={"size": 25})
+    assert r.status_code == 200, r.text
+    nxt = r.json()
+    assert nxt["batch_id"] != q["batch_id"] and nxt["size"] == 14 and not nxt["done"]
+    assert not {(x["session_id"], x["rule_id"]) for x in nxt["items"]} & {(x["session_id"], x["rule_id"]) for x in q["items"]}
+    assert env.client.post(f"{WS}/spot-checks/batches", json={"size": 500}).status_code == 422
     assert ids
+
+
+def test_spot_check_filters_sort_and_expiry(env):
+    a, b = env.send("A"), env.send("A")
+    q = spot(env)
+    assert {x["session_id"] for x in spot(env, agent="tonys-pizza")["items"]} == {a, b} and spot(env, agent="nobody")["items"] == []
+    assert len(spot(env, procedure=ALLERGEN)["items"]) == 10 and spot(env, procedure="nope")["items"] == []
+    step1 = rule(env, a, "step", 1)["rule_id"]
+    assert {x["rule_id"] for x in spot(env, rule=step1)["items"]} == {step1}
+    assert len(spot(env, why="sample")["items"]) == 10 and spot(env, why="close_call")["items"] == []
+    late = rules_of(env, b) and env.client.get(f"{WS}/sessions/{b}").json()["started_at"]
+    assert {x["session_id"] for x in spot(env, since=late)["items"]} == {b}
+    assert {x["session_id"] for x in spot(env, until=env.client.get(f"{WS}/sessions/{a}").json()["started_at"])["items"]} == {a}
+    newest = spot(env, sort="newest")["items"]
+    assert newest[0]["session_id"] == b and newest[-1]["session_id"] == a
+    assert spot(env, procedure="nope")["size"] == q["size"] == 10  # filters narrow the items, not the progress
+    # unanswered items expire after 7 days; an answered one stays
+    answer(env, q["items"][0])
+    with Session(env.store.engine) as db:
+        for sc in db.exec(select(SpotCheck)):
+            sc.drawn_at = datetime.now(timezone.utc) - timedelta(days=8)
+            db.add(sc)
+        db.commit()
+    q = spot(env)
+    assert (q["size"], q["answered"], q["done"], len(q["items"])) == (1, 1, True, 1)
+
+
+def test_a_batch_is_spread_across_procedures_and_agents_most_valuable_first(env):
+    ids = [env.send("A") for _ in range(4)]
+    with Session(env.store.engine) as db:  # two agents, and a close call and a changed decision to rank first
+        for i, sid in enumerate(ids):
+            db.get(SessionRecord, sid).agent_id = "harbor-lane" if i % 2 else "northwind"
+        rows = list(db.exec(select(RuleResult).where(RuleResult.session_id == ids[0], RuleResult.kind == "step").order_by(RuleResult.index)))
+        rows[0].decision_p, rows[0].decision_threshold = 0.5, 0.5
+        rows[1].decision_p, rows[1].decision_threshold, rows[1].decided_status, rows[1].reviewed = 0.1, 0.5, "skipped", True
+        db.commit()
+    env.client.put(f"{WS}/spot-checks/settings", json={"batch": 4})
+    q = spot(env)
+    assert sorted(x["agent_id"] for x in q["items"]) == ["harbor-lane", "harbor-lane", "northwind", "northwind"]
+    assert q["items"][0]["why"] == ["close_call"] and q["items"][0]["weight"] == 5.0
+    # one from each agent per round, the most valuable first: northwind's close call and changed decision both make it
+    assert {tuple(x["why"]) for x in q["items"] if x["agent_id"] == "northwind"} == {("close_call",), ("review_changed",)}
+    assert spot(env, why="close_call")["items"][0]["session_id"] == ids[0]
 
 
 def test_close_calls_weigh_more():
@@ -132,7 +195,6 @@ def test_close_calls_weigh_more():
     assert weight(edge) == 5.0 and 1.0 < weight(near) < weight(edge)
     assert weight(changed) == 5.0 and weight(rr(0.5 + CLOSE_BAND, 0.5)) == 1.0  # 0.3 from its threshold: only the changed decision counts
     assert weight(rr(0.2, 0.5, "done", True)) == 1.0  # reviewed, same decision
-    assert 0 <= draw("s", "p", "r") < 1 and draw("s", "p", "r") == draw("s", "p", "r") != draw("s", "p", "r2")
 
 
 def test_decisions_are_recorded_and_changed_decisions_are_spot_checked_first(env, monkeypatch):
@@ -145,8 +207,7 @@ def test_decisions_are_recorded_and_changed_decisions_are_spot_checked_first(env
     step, never = rows[("step", 1)], rows[("never", 2)]
     assert (step.status, step.decided_status, step.reviewed, step.decision_p) == ("done", "skipped", True, pytest.approx(0.03))
     assert (step.decision_threshold, never.status, never.decided_status, never.reviewed) == (0.5, "ok", "ok", False)
-    env.client.put(f"{WS}/spot-checks/settings", json={"rate": 1})
-    items = env.client.get(f"{WS}/spot-checks").json()["items"]
+    items = spot(env)["items"]
     assert items[0]["why"] == ["review_changed"] and items[0]["decided_status"] == "skipped" and items[0]["kind"] == "step"
     weights = [x["weight"] for x in items]
     assert weights == sorted(weights, reverse=True) and weights[0] == 5.0
