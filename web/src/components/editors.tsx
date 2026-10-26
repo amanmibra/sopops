@@ -108,7 +108,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
       {banner}
       <div className="grid grid-cols-1 items-start gap-7 xl:grid-cols-2">
         <div className="grid min-w-0 gap-6">
-          <div className="grid gap-3 md:grid-cols-[1fr_160px_1fr] md:items-end">
+          <div className="grid gap-3 md:grid-cols-[1fr_160px_1fr] md:items-start">
             <NameField isNew={isNew} value={m.id} onChange={(v) => set({ id: v })} errors={errors} help="A short id, e.g. the location. Can't be changed later." placeholder="downtown" />
             <Field id="platform" name="Platform" errors={errors}>
               <Select value={m.platform} onValueChange={(v) => set({ platform: v as AgentModel["platform"] })}>
@@ -124,7 +124,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
                 </SelectContent>
               </Select>
             </Field>
-            <Field id="platform_id" name={plat.idLabel} help={plat.idHelp} errors={errors}>
+            <Field id="platform_id" name={plat.idLabel} help={plat.idHelp} helpPosition="tooltip" errors={errors}>
               <Input id="f-platform_id" value={m.platform_id} placeholder={plat.idLabel} onChange={(e) => set({ platform_id: e.target.value })} />
             </Field>
           </div>

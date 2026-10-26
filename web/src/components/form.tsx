@@ -1,7 +1,7 @@
 // Form pieces: a field with its errors, rows of steps or variables, the save bar, and saving and deleting an item.
 import { useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
-import { ArrowDown, ArrowUp, X } from "lucide-react";
+import { ArrowDown, ArrowUp, CircleHelp, X } from "lucide-react";
 import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApiError, type IssueOut, call, localIssue, refresh, sdk } from "@/lib/api";
@@ -19,6 +19,7 @@ import { useGo } from "./href-link";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 
 export type Errors = IssueOut[];
 export const errsFor = (errors: Errors, key: string, index?: number) =>
@@ -40,22 +41,36 @@ export function Field({
   id,
   name,
   help,
+  helpPosition = "before",
   errors,
   children,
 }: {
   id: string;
   name: string;
   help?: ReactNode;
+  helpPosition?: "before" | "tooltip";
   errors: Errors;
   children: ReactNode;
 }) {
   const bad = errsFor(errors, id).some((i) => i.severity !== "warning");
   return (
     <div className={cn("min-w-0", bad && "[&_input]:border-err [&_textarea]:border-err [&_button[role=combobox]]:border-err")} data-field={id}>
-      <label className="mb-0.5 block font-semibold" htmlFor={`f-${id}`}>
-        {name}
-      </label>
-      {help && <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">{help}</p>}
+      <div className="mb-0.5 flex items-center gap-1.5">
+        <label className="font-semibold" htmlFor={`f-${id}`}>{name}</label>
+        {help && helpPosition === "tooltip" && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" aria-label={`Help for ${name}`} className="text-muted-foreground hover:text-foreground focus-visible:outline-ring inline-flex cursor-help focus-visible:outline-2 focus-visible:outline-offset-2">
+                  <CircleHelp className="size-3.5" aria-hidden="true" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-72 text-left" sideOffset={6}>{help}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
+      {help && helpPosition === "before" && <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">{help}</p>}
       {children}
       <ErrNotes errors={errors} field={id} />
     </div>

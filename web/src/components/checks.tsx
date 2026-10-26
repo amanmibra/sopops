@@ -6,6 +6,7 @@ import { sessionsHref } from "@/lib/insights";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Note, RuleText, Tag } from "./bits";
+import { CheckMetadata } from "./check-metadata";
 import { FindingOverrideControl } from "./finding-override";
 import { HrefLink } from "./href-link";
 
@@ -196,10 +197,7 @@ function ProcedureCard({ check, activeKey, onSelect }: { check: ProcedureCheckOu
             </ul>
           )}
           {checked && (
-            <p className="text-muted-foreground mt-2 text-sm">
-              {check.model} · prompt {check.prompt_version}
-              {check.release_id != null ? ` · release #${check.release_id}` : ""}
-            </p>
+            <CheckMetadata model={check.model} promptVersion={check.prompt_version} releaseId={check.release_id} />
           )}
         </div>
       )}

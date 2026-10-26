@@ -21,7 +21,7 @@ export const PLATFORMS = [
     value: "livekit",
     label: "LiveKit",
     idLabel: "Identifier",
-    idHelp: "However your code asks for this agent: a LiveKit agent name, a row id from your own database, whatever you already use. It has to be unique here, and it's what you pass as `agent` when you fetch the instructions.",
+    idHelp: "The unique value your code passes as agent when fetching instructions.",
     legacy: false,
   },
   { value: "elevenlabs", label: "ElevenLabs", idLabel: "Agent ID", idHelp: "The agent's id on ElevenLabs. It has to match, so published instructions and post-call webhooks find it.", legacy: false },
