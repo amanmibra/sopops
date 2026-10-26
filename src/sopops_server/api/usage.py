@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Request
 
 from ..errors import workspace_id
 from ..insights import Filters
-from ..schemas import PricesResponse, UsageResponse
+from ..schemas import FeaturesOut, PricesResponse, UsageResponse
 from ..store import Store
 from ..usage import price_table
 from .deps import OPEN
@@ -28,5 +28,10 @@ def router(store: Store) -> APIRouter:
     def model_prices(workspace: str | None = Query(None, description="The team, whose own models apply over the deployment's.")) -> dict:
         """The price table in use (defaults, and SOPOPS_MODEL_PRICES), and the price each configured model gets."""
         return price_table(store.ai_keys.ai(workspace_id(workspace)) if workspace else None)
+
+    @r.get("/v1/features", response_model=FeaturesOut, tags=["usage"])
+    def server_features(request: Request) -> dict:
+        """Features this server adds beyond open-source sopops, from its extensions (`fine_tune` on hosted sopops)."""
+        return {"features": sorted(getattr(request.app.state, "sopops_features", set()))}
 
     return r

@@ -147,6 +147,8 @@ export const q = {
     const w = insightQuery(f);
     return queryOptions({ queryKey: ["ws", ws, "usage", w.window ?? null, w.start ?? null, w.end ?? null], queryFn: () => call(sdk.modelUsage({ path: { workspace: ws }, query: { window: w.window, start: w.start, end: w.end } })) });
   },
+  /** Features this server adds beyond open-source sopops (`fine_tune` on hosted). */
+  features: () => queryOptions({ queryKey: ["features"], queryFn: () => call(sdk.serverFeatures()), staleTime: Infinity }),
   prices: (ws: string) => queryOptions({ queryKey: ["ws", ws, "model-prices"], queryFn: () => call(sdk.modelPrices({ query: { workspace: ws } })) }),
   ai: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ai"], queryFn: () => call(sdk.getAiSettings({ path: { workspace: ws } })) }),
   insightsReport: (ws: string, f: InsightFilters) =>

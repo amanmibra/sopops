@@ -414,3 +414,14 @@ def test_labels_are_kept_by_session_and_rule(env):
         (row,) = db.exec(select(RuleLabel)).all()
     assert (row.session_id, row.procedure_id, row.kind, row.checked_status, row.status, row.source) == (sid, ALLERGEN, "step", "done", "skipped", "correction")
     assert row.rule_result_id and WINDOW
+
+
+
+def test_features_come_from_extensions(env):
+    """Open-source sopops lists no extra features; an extension turns one on (hosted's Fine tune)."""
+    from sopops_server import extensions
+
+    c = env.client
+    assert c.get("/v1/features").json() == {"features": []}
+    extensions.add_feature(c.app, "fine_tune")
+    assert c.get("/v1/features").json() == {"features": ["fine_tune"]}

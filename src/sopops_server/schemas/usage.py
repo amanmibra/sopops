@@ -62,3 +62,7 @@ class PricesResponse(BaseModel):
     prices: list[ModelPrice]
     roles: list[RolePrice] = Field(description="The models in use, and the price each gets.")
     env: str = Field(description="The variable that overrides or extends the table: JSON, {\"model\": [input, output]}.")
+
+
+class FeaturesOut(BaseModel):
+    features: list[str] = Field(description="Features this server adds beyond open-source sopops, turned on by its extensions: `fine_tune` on hosted sopops.")

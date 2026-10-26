@@ -449,6 +449,7 @@ export function Rail() {
   const go = useGo();
   const { pathname } = useLocation();
   const needsReview = useNeedsReview(ws);
+  const fineTune = useQuery({ ...q.features(), retry: false }).data?.features.includes("fine_tune") ?? true; // no tag until it's known
   const proposed = useQuery({ ...rq.suggestions(ws, "proposed"), retry: false, enabled: !legacy }).data?.items.length ?? null;
   const collapsed = useRailCollapsed();
   useJumpKeys(ws);
@@ -487,7 +488,7 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={CircleAlert} label="Mistakes" count={needsReview} countTitle="Mistakes to review: no verdict yet, or back after a fix" />
           <RailItem collapsed={c} href={wsHref(ws, "suggestions")} icon={Wrench} label="Fixes" count={proposed} countTitle="Fixes waiting for a decision" />
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
-          <RailItem collapsed={c} href={wsHref(ws, "fine-tune")} icon={SlidersHorizontal} label="Fine tune" />
+          <RailItem collapsed={c} href={wsHref(ws, "fine-tune")} icon={SlidersHorizontal} label="Fine tune" extra={fineTune ? undefined : <Tag>Hosted</Tag>} />
         </RailGroup>
         <RailGroup label="Results" collapsed={c}>
           <RailItem collapsed={c} href={wsHref(ws, "results")} icon={ChartLine} label="Overview" />

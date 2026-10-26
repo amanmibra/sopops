@@ -10381,6 +10381,28 @@
         }
       }
     },
+    "/v1/features": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Server Features",
+        "description": "Features this server adds beyond open-source sopops, from its extensions (`fine_tune` on hosted sopops).",
+        "operationId": "server_features",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeaturesOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/workspaces/{workspace}/ai": {
       "get": {
         "tags": [
@@ -17628,6 +17650,23 @@
           "tone"
         ],
         "title": "FailingRule"
+      },
+      "FeaturesOut": {
+        "properties": {
+          "features": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Features",
+            "description": "Features this server adds beyond open-source sopops, turned on by its extensions: `fine_tune` on hosted sopops."
+          }
+        },
+        "type": "object",
+        "required": [
+          "features"
+        ],
+        "title": "FeaturesOut"
       },
       "FetchOut": {
         "properties": {

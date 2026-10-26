@@ -6,6 +6,9 @@ FastAPI app, Store and Jobs objects at startup.  The callable can attach routes
 and listeners (session events, and model calls through `sopops_server.ai.tracing`)
 without the public server importing a private package by name.
 
+An extension turns on a feature the UI shows only where it's available (Fine tune, on hosted sopops) with
+`add_feature(app, "fine_tune")`; `GET /v1/features` lists them.
+
 The Hatchet worker (`sopops worker`), where checks run when Hatchet is on, loads them too (`load_worker`): there the
 app is a bare FastAPI that serves nothing, with `app.state.sopops_worker` set, so an extension can skip its routes and
 keep what matters in a worker, like its model-call listeners.
@@ -36,12 +39,18 @@ def load(app: FastAPI, store: Store, jobs: Jobs) -> None:
     starting.  Hosted deployments should alert on the logged exception.
     """
     app.state.sopops_worker = getattr(app.state, "sopops_worker", False)
+    app.state.sopops_features = getattr(app.state, "sopops_features", set())
     for point in entry_points(group=ENTRY_POINTS):
         try:
             register: Register = point.load()
             register(app, store, jobs)
         except Exception:
             log.exception("couldn't load extension %s", point.name)
+
+
+def add_feature(app: FastAPI, name: str) -> None:
+    """Turn on a feature the open-source server leaves off, e.g. `fine_tune`."""
+    app.state.sopops_features.add(name)
 
 
 def load_worker(store: Store) -> None:

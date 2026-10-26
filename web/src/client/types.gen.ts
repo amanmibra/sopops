@@ -2158,6 +2158,18 @@ export type FailingRule = {
 };
 
 /**
+ * FeaturesOut
+ */
+export type FeaturesOut = {
+    /**
+     * Features
+     *
+     * Features this server adds beyond open-source sopops, turned on by its extensions: `fine_tune` on hosted sopops.
+     */
+    features: Array<string>;
+};
+
+/**
  * FetchOut
  */
 export type FetchOut = {
@@ -16804,6 +16816,22 @@ export type ModelPricesResponses = {
 };
 
 export type ModelPricesResponse = ModelPricesResponses[keyof ModelPricesResponses];
+
+export type ServerFeaturesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/v1/features';
+};
+
+export type ServerFeaturesResponses = {
+    /**
+     * Successful Response
+     */
+    200: FeaturesOut;
+};
+
+export type ServerFeaturesResponse = ServerFeaturesResponses[keyof ServerFeaturesResponses];
 
 export type GetAiSettingsData = {
     body?: never;
