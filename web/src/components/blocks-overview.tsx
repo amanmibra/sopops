@@ -154,8 +154,11 @@ export function OverviewView() {
             </span>
             <Segmented small label="Rows" value={fold} options={[["same", "Same blocks together"], ["each", "Every agent"]]} onChange={setFoldPref} />
           </div>
+          <p className="text-muted-foreground mb-2 text-xs">
+            <span className="bg-brand-soft text-primary rounded px-1 font-bold">✓</span> listed by the agent · <span className="font-medium">✓</span> through a group · the number under a block is how many agents get it
+          </p>
           <div className="bg-card max-h-[75vh] overflow-auto rounded-lg border">
-            <table className="border-separate border-spacing-0">
+            <table className="w-full border-separate border-spacing-0">
               <thead>
                 <tr>
                   <th rowSpan={2} className="bg-card sticky top-0 left-0 z-30 min-w-56 border-r border-b px-3 py-2 text-left align-bottom text-sm font-semibold">
@@ -237,9 +240,6 @@ export function OverviewView() {
               </tbody>
             </table>
           </div>
-          <p className="text-muted-foreground mt-2 text-xs">
-            <span className="bg-brand-soft text-primary rounded px-1 font-bold">✓</span> listed by the agent · <span className="font-medium">✓</span> through a group · the number under a block is how many agents get it
-          </p>
         </>
       ) : (
         <Note>No agents yet.</Note>
