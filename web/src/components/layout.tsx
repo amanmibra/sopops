@@ -381,7 +381,7 @@ function RailList({
   items: { id: string; label: string; href: string; change?: string }[];
 }) {
   const pref = `rail.${ws}.${kind}.collapsed`;
-  const [closed, setClosed] = useState(() => prefs.get(pref) === "1");
+  const [closed, setClosed] = useState(() => prefs.get(pref) !== "0"); // closed until someone opens it
   const [all, setAll] = useState(false);
   const here = decodeURIComponent(useLocation().pathname);
   const isHere = (h: string) => here === decodeURIComponent(h) || here.startsWith(decodeURIComponent(h) + "/");
