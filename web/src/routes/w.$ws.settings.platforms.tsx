@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { ImportCard } from "@/components/onboarding/review";
 import { RuntimePanels } from "@/components/runtime";
 import { SectionHead } from "@/components/settings";
 import { PlatformsYouUse } from "@/components/setup";
@@ -15,7 +14,6 @@ function Platforms() {
       </SectionHead>
       <PlatformsYouUse />
       <RuntimePanels />
-      <ImportCard />
     </>
   );
 }
