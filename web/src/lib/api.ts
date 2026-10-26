@@ -149,6 +149,8 @@ export const q = {
   },
   /** Features this server adds beyond open-source sopops (`fine_tune` on hosted). */
   features: () => queryOptions({ queryKey: ["features"], queryFn: () => call(sdk.serverFeatures()), staleTime: Infinity }),
+  calls: (ws: string, start: string, end: string) =>
+    queryOptions({ queryKey: ["ws", ws, "usage", "calls", start, end], queryFn: () => call(sdk.callUsage({ path: { workspace: ws }, query: { start, end } })) }),
   prices: (ws: string) => queryOptions({ queryKey: ["ws", ws, "model-prices"], queryFn: () => call(sdk.modelPrices({ query: { workspace: ws } })) }),
   ai: (ws: string) => queryOptions({ queryKey: ["ws", ws, "ai"], queryFn: () => call(sdk.getAiSettings({ path: { workspace: ws } })) }),
   insightsReport: (ws: string, f: InsightFilters) =>

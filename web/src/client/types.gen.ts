@@ -1244,6 +1244,34 @@ export type CalloutDrill = {
 };
 
 /**
+ * CallsResponse
+ */
+export type CallsResponse = {
+    /**
+     * Start
+     */
+    start: string;
+    /**
+     * End
+     *
+     * Exclusive.
+     */
+    end: string;
+    /**
+     * Calls
+     *
+     * Sessions received in full (posted whole, or streamed and closed) that started in [start, end).
+     */
+    calls: number;
+    /**
+     * Daily
+     *
+     * Every UTC day of the period, empty ones included.
+     */
+    daily: Array<DayCalls>;
+};
+
+/**
  * Capabilities
  */
 export type Capabilities = {
@@ -1645,6 +1673,22 @@ export type CreateImport = {
      * Author
      */
     author?: string | null;
+};
+
+/**
+ * DayCalls
+ */
+export type DayCalls = {
+    /**
+     * Day
+     *
+     * A UTC day.
+     */
+    day: string;
+    /**
+     * Calls
+     */
+    calls: number;
 };
 
 /**
@@ -16800,6 +16844,49 @@ export type ModelUsageResponses = {
 };
 
 export type ModelUsageResponse = ModelUsageResponses[keyof ModelUsageResponses];
+
+export type CallUsageData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: {
+        /**
+         * Start
+         *
+         * Default: the start of this UTC month.
+         */
+        start?: string | null;
+        /**
+         * End
+         *
+         * Exclusive. Default: the start of the UTC month after `start`'s.
+         */
+        end?: string | null;
+    };
+    url: '/v1/workspaces/{workspace}/usage/calls';
+};
+
+export type CallUsageErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CallUsageError = CallUsageErrors[keyof CallUsageErrors];
+
+export type CallUsageResponses = {
+    /**
+     * Successful Response
+     */
+    200: CallsResponse;
+};
+
+export type CallUsageResponse = CallUsageResponses[keyof CallUsageResponses];
 
 export type ModelPricesData = {
     body?: never;

@@ -53,6 +53,7 @@ import { Route as WWsSettingsMcpRouteImport } from './routes/w.$ws.settings.mcp'
 import { Route as WWsSettingsMembersRouteImport } from './routes/w.$ws.settings.members'
 import { Route as WWsSettingsPlatformsRouteImport } from './routes/w.$ws.settings.platforms'
 import { Route as WWsSettingsSupportRouteImport } from './routes/w.$ws.settings.support'
+import { Route as WWsSettingsUsageRouteImport } from './routes/w.$ws.settings.usage'
 import { Route as WWsSuggestionsIndexRouteImport } from './routes/w.$ws.suggestions.index'
 import { Route as WWsSuggestionsIdRouteImport } from './routes/w.$ws.suggestions.$id'
 import { Route as WWsAgentsIdIndexRouteImport } from './routes/w.$ws.agents.$id.index'
@@ -287,6 +288,11 @@ const WWsSettingsSupportRoute = WWsSettingsSupportRouteImport.update({
   path: '/support',
   getParentRoute: () => WWsSettingsRoute,
 } as any)
+const WWsSettingsUsageRoute = WWsSettingsUsageRouteImport.update({
+  id: '/usage',
+  path: '/usage',
+  getParentRoute: () => WWsSettingsRoute,
+} as any)
 const WWsSuggestionsIndexRoute = WWsSuggestionsIndexRouteImport.update({
   id: '/suggestions/',
   path: '/suggestions/',
@@ -391,6 +397,7 @@ export interface FileRoutesByFullPath {
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
+  '/w/$ws/settings/usage': typeof WWsSettingsUsageRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -448,6 +455,7 @@ export interface FileRoutesByTo {
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
+  '/w/$ws/settings/usage': typeof WWsSettingsUsageRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents': typeof WWsAgentsIndexRoute
   '/w/$ws/groups': typeof WWsGroupsIndexRoute
@@ -508,6 +516,7 @@ export interface FileRoutesById {
   '/w/$ws/settings/members': typeof WWsSettingsMembersRoute
   '/w/$ws/settings/platforms': typeof WWsSettingsPlatformsRoute
   '/w/$ws/settings/support': typeof WWsSettingsSupportRoute
+  '/w/$ws/settings/usage': typeof WWsSettingsUsageRoute
   '/w/$ws/suggestions/$id': typeof WWsSuggestionsIdRoute
   '/w/$ws/agents/': typeof WWsAgentsIndexRoute
   '/w/$ws/groups/': typeof WWsGroupsIndexRoute
@@ -569,6 +578,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
+    | '/w/$ws/settings/usage'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -626,6 +636,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
+    | '/w/$ws/settings/usage'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents'
     | '/w/$ws/groups'
@@ -685,6 +696,7 @@ export interface FileRouteTypes {
     | '/w/$ws/settings/members'
     | '/w/$ws/settings/platforms'
     | '/w/$ws/settings/support'
+    | '/w/$ws/settings/usage'
     | '/w/$ws/suggestions/$id'
     | '/w/$ws/agents/'
     | '/w/$ws/groups/'
@@ -1032,6 +1044,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WWsSettingsSupportRouteImport
       parentRoute: typeof WWsSettingsRoute
     }
+    '/w/$ws/settings/usage': {
+      id: '/w/$ws/settings/usage'
+      path: '/usage'
+      fullPath: '/w/$ws/settings/usage'
+      preLoaderRoute: typeof WWsSettingsUsageRouteImport
+      parentRoute: typeof WWsSettingsRoute
+    }
     '/w/$ws/suggestions/': {
       id: '/w/$ws/suggestions/'
       path: '/suggestions'
@@ -1137,6 +1156,7 @@ interface WWsSettingsRouteChildren {
   WWsSettingsMembersRoute: typeof WWsSettingsMembersRoute
   WWsSettingsPlatformsRoute: typeof WWsSettingsPlatformsRoute
   WWsSettingsSupportRoute: typeof WWsSettingsSupportRoute
+  WWsSettingsUsageRoute: typeof WWsSettingsUsageRoute
   WWsSettingsIndexRoute: typeof WWsSettingsIndexRoute
 }
 
@@ -1151,6 +1171,7 @@ const WWsSettingsRouteChildren: WWsSettingsRouteChildren = {
   WWsSettingsMembersRoute: WWsSettingsMembersRoute,
   WWsSettingsPlatformsRoute: WWsSettingsPlatformsRoute,
   WWsSettingsSupportRoute: WWsSettingsSupportRoute,
+  WWsSettingsUsageRoute: WWsSettingsUsageRoute,
   WWsSettingsIndexRoute: WWsSettingsIndexRoute,
 }
 

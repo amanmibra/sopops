@@ -10342,6 +10342,87 @@
         }
       }
     },
+    "/v1/workspaces/{workspace}/usage/calls": {
+      "get": {
+        "tags": [
+          "usage"
+        ],
+        "summary": "Call Usage",
+        "description": "Calls in a period: sessions received in full (posted whole, or streamed and closed) that started in\n[start, end), in total and per UTC day. At most 366 days.",
+        "operationId": "call_usage",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default: the start of this UTC month.",
+              "title": "Start"
+            },
+            "description": "Default: the start of this UTC month."
+          },
+          {
+            "name": "end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Exclusive. Default: the start of the UTC month after `start`'s.",
+              "title": "End"
+            },
+            "description": "Exclusive. Default: the start of the UTC month after `start`'s."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/model-prices": {
       "get": {
         "tags": [
@@ -16034,6 +16115,42 @@
         "title": "CalloutDrill",
         "description": "Sessions-list filters for the sessions behind a callout."
       },
+      "CallsResponse": {
+        "properties": {
+          "start": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Start"
+          },
+          "end": {
+            "type": "string",
+            "format": "date-time",
+            "title": "End",
+            "description": "Exclusive."
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls",
+            "description": "Sessions received in full (posted whole, or streamed and closed) that started in [start, end)."
+          },
+          "daily": {
+            "items": {
+              "$ref": "#/components/schemas/DayCalls"
+            },
+            "type": "array",
+            "title": "Daily",
+            "description": "Every UTC day of the period, empty ones included."
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "calls",
+          "daily"
+        ],
+        "title": "CallsResponse"
+      },
       "Capabilities": {
         "properties": {
           "llm": {
@@ -16778,6 +16895,26 @@
         },
         "type": "object",
         "title": "CreateImport"
+      },
+      "DayCalls": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day",
+            "description": "A UTC day."
+          },
+          "calls": {
+            "type": "integer",
+            "title": "Calls"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "calls"
+        ],
+        "title": "DayCalls"
       },
       "DaySpend": {
         "properties": {
