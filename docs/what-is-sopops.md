@@ -8,7 +8,8 @@ instructions, and measure the next release.
 
 Store shared instructions and procedures as reusable blocks. An agent combines
 those blocks with its own text into a prompt. When you publish, sopops creates a
-release that records the exact prompt each agent receives.
+release that records the exact prompt each agent receives. [How agent
+instructions are built](instructions-model.md) explains each piece and its fields.
 
 At the start of a call, an agent fetches its instructions and records the
 release it ran, or its platform gets them by webhook. With push delivery,

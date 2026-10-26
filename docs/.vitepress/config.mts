@@ -76,6 +76,7 @@ export default defineConfig({
       ] },
       { text: "Concepts", items: [
         { text: "How sopops improves agents", link: "/what-is-sopops" },
+        { text: "How agent instructions are built", link: "/instructions-model" },
         { text: "Sessions and review", link: "/sessions-and-review" },
       ] },
       { text: "How-to guides", items: [
