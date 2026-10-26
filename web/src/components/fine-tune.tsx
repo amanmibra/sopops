@@ -12,7 +12,7 @@ import { Page } from "./item-shell";
 import { SpotChecks } from "./spot-checks";
 import { Button } from "./ui/button";
 
-export const HOSTED_URL = "https://sopops.dev";
+export const HOSTED_URL = "https://sopops.dev/#pricing";
 
 /** Whether this server has hosted sopops's Fine tune. */
 export function useFineTune() {
