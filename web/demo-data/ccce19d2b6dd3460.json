@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"reservations","rule_id":"b635375f0199","lineage_id":"b635375f0199","previous_rule_id":null,"how":null,"rules":[{"rule_id":"b635375f0199","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Confirm the booking details and the name on the reservation","from_release":1}]}}

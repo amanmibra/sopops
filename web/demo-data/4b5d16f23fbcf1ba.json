@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"allergen-check","rule_id":"f45909944f75","lineage_id":"f45909944f75","previous_rule_id":null,"how":null,"rules":[{"rule_id":"f45909944f75","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Never place the order before allergens are confirmed","from_release":1}]}}

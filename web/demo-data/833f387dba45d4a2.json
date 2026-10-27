@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"allergen-check","rule_id":"be024bdf00d7","lineage_id":"be024bdf00d7","previous_rule_id":null,"how":null,"rules":[{"rule_id":"be024bdf00d7","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"The caller mentions anaphylaxis or an EpiPen; transfer to {{staff_transfer}}","from_release":1}]}}

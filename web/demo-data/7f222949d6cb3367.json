@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"allergen-check","rule_id":"e09a4490b368","lineage_id":"e09a4490b368","previous_rule_id":null,"how":null,"rules":[{"rule_id":"e09a4490b368","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Never say an item is \"allergen-free\" or \"safe\"","from_release":1}]}}

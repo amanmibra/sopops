@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"delivery-orders","rule_id":"8b16f2e70ad8","lineage_id":"8b16f2e70ad8","previous_rule_id":null,"how":null,"rules":[{"rule_id":"8b16f2e70ad8","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Check the address is inside the delivery zone","from_release":1}]}}

@@ -1,0 +1,1 @@
+{"status":200,"data":[{"platform":"elevenlabs","api_key":{"set":false,"hint":null,"created_at":null},"webhook_secret":{"set":false,"hint":null,"created_at":null},"delivery":"pull"},{"platform":"vapi","api_key":{"set":false,"hint":null,"created_at":null},"webhook_secret":{"set":false,"hint":null,"created_at":null},"delivery":"pull"}]}

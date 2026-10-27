@@ -1,0 +1,17 @@
+// The demo as a Cloudflare Worker (Workers Static Assets): the UI built with VITE_SOPOPS_DEMO=1, answering its API calls
+// from the recording in demo-data/ (examples/walkthrough/record_demo.py), under /demo/ on sopops.dev. Like the app's
+// wrangler.jsonc, it names no account, zone or hostname: the route sopops.dev/demo* is managed with the rest of
+// sopops.dev's Cloudflare configuration. Deploy: `npx wrangler deploy -c wrangler.demo.jsonc` from web/.
+{
+  "name": "sopops-demo",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "build": { "command": "pnpm build:cloudflare-demo" },
+  "assets": {
+    "directory": "./dist-demo-cloudflare",
+    "not_found_handling": "single-page-application",
+    // /demo -> /demo/, and /demo/index.html -> /demo/.
+    "html_handling": "auto-trailing-slash"
+  }
+}

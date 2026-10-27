@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"allergen-check","rule_id":"ccc0048aa321","lineage_id":"ccc0048aa321","previous_rule_id":null,"how":null,"rules":[{"rule_id":"ccc0048aa321","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Ask who the allergy is for and what it is","from_release":1}]}}

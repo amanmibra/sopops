@@ -5,13 +5,15 @@
 // dist-cloudflare/app/assets/...), and index.html is copied to the root of the directory as well, because Workers
 // Static Assets answers every page that isn't a file (/app/w/demo) with /index.html.
 //
-// SOPOPS_WEB_BASE (default /app/) and SOPOPS_WEB_API_BASE (default /api) are read by vite.config.ts.
+// SOPOPS_WEB_BASE (default /app/) and SOPOPS_WEB_API_BASE (default /api) are read by vite.config.ts. SOPOPS_WEB_OUT
+// (default dist-cloudflare) is where it goes: `pnpm build:cloudflare-demo` builds the demo (VITE_SOPOPS_DEMO=1) under
+// /demo/ in dist-demo-cloudflare/ for the sopops-demo Worker (wrangler.demo.jsonc), its recording beside it.
 import { copyFileSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { build } from "vite";
 
 const web = fileURLToPath(new URL("..", import.meta.url));
-const out = `${web}dist-cloudflare`;
+const out = `${web}${process.env.SOPOPS_WEB_OUT ?? "dist-cloudflare"}`;
 process.env.SOPOPS_WEB_BASE ??= "/app/";
 process.env.SOPOPS_WEB_API_BASE ??= "/api";
 const base = `/${process.env.SOPOPS_WEB_BASE.replace(/^\/+|\/+$/g, "")}/`.replace(/^\/\/$/, "/");

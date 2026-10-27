@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"reservations","rule_id":"32d19e7be648","lineage_id":"32d19e7be648","previous_rule_id":null,"how":null,"rules":[{"rule_id":"32d19e7be648","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Never confirm a booking for more than 8 guests; {{staff_transfer}} confirms those","from_release":1}]}}

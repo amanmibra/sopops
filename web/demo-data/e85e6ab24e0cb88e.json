@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"delivery-orders","rule_id":"d5d85516ef23","lineage_id":"d5d85516ef23","previous_rule_id":null,"how":null,"rules":[{"rule_id":"d5d85516ef23","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Read back the order and the total","from_release":1}]}}
