@@ -252,47 +252,41 @@ type CreateBody = Parameters<typeof sdk.createImport>[0]["body"];
 
 const GUIDANCE_EXAMPLES = ["Keep each restaurant's menu as its own block", "Everything about refunds is one procedure", "Don't split the greeting out"];
 
-// The import's start button. It first asks how the user wants their instructions organized; the answer goes to the
-// model with the import, and Skip starts it with sopops's default choices.
+// The import's start button, and a link to say first how the user wants their instructions organized; that goes to
+// the model with the import. Without it, sopops makes its default choices.
 function StartImport({ label, busyLabel, disabled, body }: { label: string; busyLabel: string; disabled: boolean; body: () => CreateBody }) {
   const { run, busy, error } = useStart();
-  const [asking, setAsking] = useState(false);
+  const [adding, setAdding] = useState(false);
   const [guidance, setGuidance] = useState("");
-  const start = (text: string | null) => run({ ...body(), guidance: text?.trim() || null });
   return (
     <>
       {error ? <ErrorBanner error={error} lead="The import can't start:" /> : null}
-      {asking ? (
-        <Panel title="How should we organize these instructions?" className="mb-0">
-          <p className="text-muted-foreground mb-2 text-sm">
-            Optional. sopops's model follows this when it splits the instructions into shared instructions, procedures and variables. It never drops or
-            rewrites your text.
-          </p>
+      {adding && (
+        <label className="grid gap-1 text-sm font-medium">
+          How should sopops organize them?
+          <span className="text-muted-foreground text-xs font-normal">
+            It follows this when it splits the instructions into shared instructions, procedures and variables. It never drops or rewrites your text.
+          </span>
           <Textarea
-            aria-label="How to organize the instructions"
-            className="min-h-24"
-            maxLength={2000}
             autoFocus
+            className="min-h-16 font-normal"
+            maxLength={2000}
             placeholder={GUIDANCE_EXAMPLES.map((e) => `e.g. ${e}`).join("\n")}
             value={guidance}
             onChange={(e) => setGuidance(e.target.value)}
           />
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button disabled={busy || disabled} onClick={() => start(guidance)}>
-              {busy ? busyLabel : label}
-            </Button>
-            <Button variant="outline" disabled={busy || disabled} onClick={() => start(null)}>
-              Skip
-            </Button>
-          </div>
-        </Panel>
-      ) : (
-        <div>
-          <Button disabled={disabled} onClick={() => setAsking(true)}>
-            {label}
-          </Button>
-        </div>
+        </label>
       )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button disabled={busy || disabled} onClick={() => run({ ...body(), guidance: (adding && guidance.trim()) || null })}>
+          {busy ? busyLabel : label}
+        </Button>
+        {!adding && (
+          <button type="button" className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2" disabled={busy} onClick={() => setAdding(true)}>
+            Say how to organize them first
+          </button>
+        )}
+      </div>
     </>
   );
 }

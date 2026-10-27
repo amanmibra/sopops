@@ -132,7 +132,7 @@ export function ConflictTag({ freshness, big }: { freshness: SuggestionSummary["
 }
 
 /** After asking for a fix: waits for it, then links to it. */
-/** Before a fix is written: what it should do, in the reviewer's words. Skipping writes it from the verdict alone. */
+/** Before a fix is written: the button, and a link to add what it should do first (optional; empty: the verdict alone). */
 export function FixAsk({ initial = "", busy, label = "Write the fix", onWrite, onCancel }: {
   initial?: string | null;
   busy?: boolean;
@@ -141,28 +141,30 @@ export function FixAsk({ initial = "", busy, label = "Write the fix", onWrite, o
   onCancel?: () => void;
 }) {
   const [text, setText] = useState(initial ?? "");
+  const [adding, setAdding] = useState(Boolean(initial));
+  const write = () => onWrite(adding ? text.trim() || null : null);
   return (
     <div className="grid gap-2">
-      <label className="text-sm font-medium">
-        What should the fix do?{" "}
-        <span className="text-muted-foreground font-normal">Say where and how, or skip and it's written from the verdict.</span>
+      {adding && (
         <Textarea
           autoFocus
           rows={2}
-          className="mt-1"
+          aria-label="What the fix should do"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && onWrite(text.trim() || null)}
-          placeholder="e.g. Add an exception for items already checked with lookup_allergens. Or: make it a step, not guidance."
+          onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && write()}
+          placeholder="What the fix should do, e.g. make it a step, not guidance"
         />
-      </label>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" disabled={busy} onClick={() => onWrite(text.trim() || null)}>
+      )}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Button size="sm" disabled={busy} onClick={write}>
           {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} {label}
         </Button>
-        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onWrite(null)}>
-          Skip
-        </Button>
+        {!adding && (
+          <button type="button" className="text-muted-foreground hover:text-foreground text-sm underline underline-offset-2" disabled={busy} onClick={() => setAdding(true)}>
+            Add something before it writes
+          </button>
+        )}
         {onCancel && (
           <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
             Cancel
