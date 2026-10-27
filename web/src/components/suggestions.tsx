@@ -438,7 +438,7 @@ export function SuggestionView({ id }: { id: string }) {
               {s.rationale && <p className="max-w-[80ch] text-sm whitespace-pre-wrap">{s.rationale}</p>}
             </section>
           )}
-          <section className="bg-card min-w-0 rounded-lg border px-4 py-4">
+          <section className="bg-card min-w-0 rounded-lg border px-4 py-4" data-tour="fix-change">
             <h2 className="text-sm font-semibold">
               The change to {procName}
               {s.path && <span className="text-muted-foreground ml-2 font-mono text-xs font-normal">{s.path}</span>}

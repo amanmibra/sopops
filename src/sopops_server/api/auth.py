@@ -48,7 +48,7 @@ from fastapi import APIRouter, HTTPException, Request, Response
 from fastapi.responses import RedirectResponse
 
 from .. import urls
-from ..auth import access, mode, providers
+from ..auth import access, demo, mode, providers
 from ..auth.service import (INVITE_DAYS, MANAGERS, SESSION_DAYS, Accounts, Current, LinkInvalid, Refused, TooManyTries, WrongPassword,
                              check_role, clean_email)
 from ..orm import Org
@@ -199,7 +199,7 @@ def router(accounts: Accounts) -> APIRouter:
                   "new_team_url": p.new_team_url(login_url(request, p.id)) if p.owns_teams and not p.manages_teams() else None}
                  for p in providers.configured()]
         pw = passwords()
-        extra = {"first_account": pw and not accounts.has_users(), "open_signup": pw and mode.open_signup()}
+        extra = {"first_account": pw and not accounts.has_users(), "open_signup": pw and mode.open_signup(), "demo_workspace": demo.workspace()}
         if cur is None:
             plats = None if mode.required() else accounts.platforms(None)
             return {"required": mode.required(), "providers": found, "user": None, "org": None, "orgs": [], **extra, "platforms": plats}

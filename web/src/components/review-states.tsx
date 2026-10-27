@@ -70,7 +70,7 @@ function StateCard({ item }: { item: ReviewItem }) {
   const proc = item.procedure_name ?? cfg.procedures.find((p) => p.id === item.procedure_id)?.name ?? item.procedure_id;
   const v = item.verdict;
   return (
-    <article className="bg-card min-w-0 rounded-lg border">
+    <article className="bg-card min-w-0 rounded-lg border" data-state-card={item.pattern_id}>
       <div className="px-4 py-3">
         <div className="text-muted-foreground mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className="text-k-procedure font-medium">{proc}</span>

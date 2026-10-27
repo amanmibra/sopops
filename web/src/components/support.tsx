@@ -44,21 +44,7 @@ function Band({ state }: { state: SupportState }) {
   const qc = useQueryClient();
   const left = useCountdown(state.until);
   const [ending, setEnding] = useState(false);
-  const band = useRef<HTMLDivElement>(null);
-
-  // The page sits below the band: the top bar and the rails stick under it, by its height (--band-h).
-  useEffect(() => {
-    const el = band.current;
-    if (!el) return;
-    const measure = () => document.documentElement.style.setProperty("--band-h", `${el.offsetHeight}px`);
-    measure();
-    const watch = new ResizeObserver(measure);
-    watch.observe(el);
-    return () => {
-      watch.disconnect();
-      document.documentElement.style.setProperty("--band-h", "0px");
-    };
-  }, []);
+  const band = useBand();
 
   // The clock has run out: ask the server, so the band goes on its own rather than waiting for the next poll.
   useEffect(() => {
@@ -95,6 +81,25 @@ function Band({ state }: { state: SupportState }) {
       </div>
     </div>
   );
+}
+
+/** A band across the top of every page: the page sits below it, the top bar and the rails sticking under it by its
+ *  height (--band-h). Put the ref on the band. */
+export function useBand() {
+  const band = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = band.current;
+    if (!el) return;
+    const measure = () => document.documentElement.style.setProperty("--band-h", `${el.offsetHeight}px`);
+    measure();
+    const watch = new ResizeObserver(measure);
+    watch.observe(el);
+    return () => {
+      watch.disconnect();
+      document.documentElement.style.setProperty("--band-h", "0px");
+    };
+  }, []);
+  return band;
 }
 
 /** In the user menu, for staff only: the way to the page a support session starts from. */

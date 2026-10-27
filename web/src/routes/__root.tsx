@@ -2,9 +2,12 @@ import type { QueryClient } from "@tanstack/react-query";
 import { Outlet, createRootRouteWithContext, useLocation } from "@tanstack/react-router";
 import { AuthGate } from "@/components/account";
 import { TopBar } from "@/components/layout";
+import { DemoBand, DemoWorkspaceBand } from "@/components/demo-band";
 import { SupportBanner } from "@/components/support";
+import { Tour } from "@/components/tour";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { DEMO } from "@/lib/demo";
 import { appHref } from "@/lib/paths";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
@@ -28,6 +31,7 @@ function Root() {
       <AuthGate>
         {(auth) => (
           <>
+            {DEMO ? <DemoBand /> : <DemoWorkspaceBand auth={auth} />}
             <SupportBanner auth={auth} />
             {!bare && <TopBar auth={auth} />}
             <Outlet />
@@ -35,6 +39,7 @@ function Root() {
         )}
       </AuthGate>
       <Toaster position="bottom-center" richColors={false} closeButton />
+      <Tour />
     </TooltipProvider>
   );
 }

@@ -133,7 +133,7 @@ export function PublishButton({ ws }: { ws: string }) {
   const n = draft.data?.items.length ?? 0;
   return (
     <>
-      <Button variant="outline" size="sm" disabled={!value} onClick={() => setOpen(true)} title={unsaved.length ? `Unsaved edits: ${unsaved.map((u) => u.label).join(", ")}` : undefined}>
+      <Button variant="outline" size="sm" disabled={!value} onClick={() => setOpen(true)} data-tour="publish" title={unsaved.length ? `Unsaved edits: ${unsaved.map((u) => u.label).join(", ")}` : undefined}>
         Publish<span className="max-sm:hidden"> changes</span>
         {n > 0 && (
           <span className="bg-warn text-card rounded-full px-2 text-xs font-semibold" aria-label={`${n} saved draft changes`}>

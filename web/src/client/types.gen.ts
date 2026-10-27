@@ -803,6 +803,12 @@ export type AuthState = {
      */
     open_signup: boolean;
     /**
+     * Demo Workspace
+     *
+     * SOPOPS_DEMO_WORKSPACE: a workspace anyone signed in can look at (and take the tour in), and nobody outside its org can change. None: there's no demo.
+     */
+    demo_workspace: string | null;
+    /**
      * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
      */
     platforms: PlatformsOut | null;
@@ -8860,6 +8866,12 @@ export type SignedIn = {
      * SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.
      */
     open_signup: boolean;
+    /**
+     * Demo Workspace
+     *
+     * SOPOPS_DEMO_WORKSPACE: a workspace anyone signed in can look at (and take the tour in), and nobody outside its org can change. None: there's no demo.
+     */
+    demo_workspace: string | null;
     /**
      * The platforms the org you're working in uses (with sign-in off, the first org's). None when you're not signed in, or in no org.
      */

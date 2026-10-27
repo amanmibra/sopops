@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
@@ -22,10 +23,29 @@ const apiBaseMeta = (): Plugin => ({
   transformIndexHtml: () => (apiBase ? [{ tag: "meta", attrs: { name: "sopops-api-base", content: apiBase }, injectTo: "head" }] : []),
 });
 
+/** The demo build (`pnpm build:demo`) answers the API from a recording: demo-data/, made by
+ * examples/walkthrough/record_demo.py, served next to the UI. */
+const demo = process.env.VITE_SOPOPS_DEMO === "1";
+const demoData = path.resolve(__dirname, "demo-data");
+const demoRecording = (): Plugin => ({
+  name: "sopops-demo-data",
+  configureServer: (server) =>
+    void server.middlewares.use((req, res, next) => {
+      const m = req.url?.match(/^\/demo-data\/([\w.-]+)$/);
+      if (!m || !fs.existsSync(path.join(demoData, m[1]))) return next();
+      res.setHeader("Content-Type", "application/json");
+      fs.createReadStream(path.join(demoData, m[1])).pipe(res);
+    }),
+  writeBundle: (opts) => {
+    if (!fs.existsSync(demoData)) throw new Error("No demo-data/: record it first (just examples/walkthrough/demo).");
+    fs.cpSync(demoData, path.join(opts.dir!, "demo-data"), { recursive: true });
+  },
+});
+
 export default defineConfig({
   base,
   define: { "import.meta.env.VITE_SOPOPS_API_BASE": JSON.stringify(apiBase) },
-  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss(), apiBaseMeta()],
+  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss(), apiBaseMeta(), ...(demo ? [demoRecording()] : [])],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
     host: "127.0.0.1",

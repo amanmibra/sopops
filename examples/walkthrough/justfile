@@ -80,6 +80,21 @@ verify:
 conflicts:
     {{py}} conflicts.py --models {{models}}
 
+# 10. publish release 3 and play 60 calls in which its fixes held; a large-party fix left as a draft
+followup:
+    {{py}} followup.py
+
 # remove out/ (the database, generated calls, tokens)
 clean:
     rm -rf out
+
+# the public demo: step 10 if it hasn't run, then record every page of the running walkthrough (WALKTHROUGH_WORKSPACE=harbor-lane), then build the
+# demo UI into web/dist-demo, a static site with no sopops behind it
+demo:
+    [ -f out/followup.jsonl ] || {{py}} followup.py
+    uv run --project ../.. --with playwright python record_demo.py
+    cd ../../web && pnpm build:demo
+
+# look at the demo build on http://127.0.0.1:4180
+demo-preview:
+    cd ../../web && pnpm exec vite preview --outDir dist-demo --port 4180

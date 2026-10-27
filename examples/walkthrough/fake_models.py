@@ -214,6 +214,8 @@ REWORD = {"Never tell the caller a delivery time": "Never tell the caller a deli
 GUIDANCE = {
     "Allergen check": "If the caller asks whether a dish is safe, tell them what the allergen list shows and that everything is made "
                       "in a shared kitchen. Don't reassure them, and don't describe the kitchen as free of any allergen.",
+    "Reservations": "For a party of more than eight, check availability, then transfer the caller to {{staff_transfer}} to confirm. "
+                    "Don't confirm the booking yourself, even when there's room.",
 }
 
 

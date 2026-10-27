@@ -272,7 +272,7 @@ export function KpiGrid({ children, loading, count, narrow, note }: { children?:
   const n = loading ? (count ?? 6) : Children.toArray(children).filter(Boolean).length;
   const cols = narrow && n === 6 ? "grid-cols-2 md:grid-cols-3" : (COLS[n] ?? "grid-cols-2 md:grid-cols-3");
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-2" data-tour="kpis">
       <div className={cn("bg-border grid gap-px overflow-hidden rounded-lg border", cols)}>
         {loading
           ? Array.from({ length: n }, (_, i) => (

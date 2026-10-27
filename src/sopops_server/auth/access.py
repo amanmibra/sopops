@@ -11,7 +11,8 @@
 | `admin` | the same, as an owner or admin of that org | open |
 
 A route missing from the table needs a login session (fail closed), and `tests/test_auth.py` checks that every route is
-listed. Workspaces in another org answer 404, as if they weren't there.
+listed. Workspaces in another org answer 404, as if they weren't there, except the demo workspace (`auth.demo`), which
+anyone signed in can read and nobody outside its org can change.
 
 **CSRF.** Cookie-authenticated requests that change things (POST, PUT, PATCH, DELETE) must send `X-CSRF-Token` with
 the value of the `sopops_csrf` cookie, which is an HMAC of the session token (`service.csrf_token`): another site can
@@ -45,7 +46,7 @@ from starlette.responses import Response
 
 from ..errors import NotFound
 from ..tokens import Forbidden, Unauthorized
-from . import actor, github, google, mode  # noqa: F401  (these register their providers)
+from . import actor, demo, github, google, mode  # noqa: F401  (these register their providers)
 from . import password  # noqa: F401, I001  (registers its provider after them, so it's listed last)
 from .service import MANAGERS, Accounts, Current, csrf_token
 
@@ -176,6 +177,11 @@ async def guard(request: Request) -> None:
     if ws is not None:
         owner = await run_in_threadpool(accounts.workspace_org, ws)
         if owner is not None and owner not in cur.memberships:
+            if ws == demo.workspace():  # anyone signed in may look at the demo; nobody outside its org changes it
+                if kind == ADMIN or (request.method not in SAFE_METHODS and name not in demo.READS):
+                    raise Forbidden(demo.READ_ONLY)
+                actor.current.set(actor.Actor(user_id=cur.user.id, name=cur.user.name, email=cur.user.email, org_id=owner, role=None))
+                return
             if kind == TOKEN_OR_SESSION:
                 request.state.login = None
                 return

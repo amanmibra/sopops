@@ -131,7 +131,7 @@ def test_github_sign_in_makes_a_user_and_a_session(app, files):
     c = TestClient(app)
     assert c.get("/v1/auth/session").json() == {"required": True, "providers": [offered("github", "GitHub"), offered("google", "Google"),
                                                                               offered("password", "Password", redirects=False)],
-                                                 "user": None, "org": None, "orgs": [], "first_account": True, "open_signup": True,
+                                                 "user": None, "org": None, "orgs": [], "first_account": True, "open_signup": True, "demo_workspace": None,
                                                  "platforms": None}
     with respx.mock(assert_all_called=False) as router:
         gh = GitHub(router, "42", "Ana@Example.com", name="Ana")
@@ -206,6 +206,25 @@ def test_the_first_user_owns_the_existing_org_and_the_next_needs_an_invite(owner
     res = bob.get("/v1/workspaces")
     assert res.status_code == 403 and "Ask an owner to invite you" in res.json()["detail"]
     assert bob.get(f"{WS}/files").status_code == 404  # another org's workspace isn't there for him
+
+
+def test_anyone_signed_in_can_read_the_demo_workspace_and_nobody_outside_its_org_can_change_it(owner, app, monkeypatch):
+    monkeypatch.setenv("SOPOPS_DEMO_WORKSPACE", "demo")
+    assert owner.get("/v1/auth/session").json()["demo_workspace"] == "demo"
+
+    bob = TestClient(app)
+    sign_in(bob, "github", "2", "bob@example.com")  # in no org at all
+    assert bob.get("/v1/auth/session").json()["demo_workspace"] == "demo"
+    assert bob.get(f"{WS}/files").status_code == 200
+    assert bob.get(f"{WS}/draft").status_code == 200
+    assert bob.post(f"{WS}/config/agents/nope/preview", json={}).status_code != 403  # a read, whatever it finds
+    for res in (bob.put(f"{WS}/config/settings", json={}), bob.post(f"{WS}/releases", json={"note": "mine"}), bob.put(f"{WS}/analysis", json={"paused": False})):
+        assert res.status_code == 403 and "demo workspace" in res.json()["detail"], res.text
+    assert bob.get("/v1/workspaces").status_code == 403  # he's still in no team: nothing else opens up
+    assert TestClient(app).get(f"{WS}/files").status_code == 401  # signed out: nothing
+
+    monkeypatch.delenv("SOPOPS_DEMO_WORKSPACE")
+    assert bob.get(f"{WS}/files").status_code == 404 and bob.get("/v1/auth/session").json()["demo_workspace"] is None
 
 
 def test_an_invite_link_joins_the_org(owner, app):
@@ -501,7 +520,7 @@ def test_with_sign_in_on_every_session_route_needs_one(app):
 def test_with_sign_in_off_nothing_needs_one(client, files):
     assert not mode.required()
     assert client.get("/v1/auth/session").json() == {"required": False, "providers": [], "user": None, "org": None, "orgs": [], "first_account": False,
-                                                     "open_signup": False,
+                                                     "open_signup": False, "demo_workspace": None,
                                                      "platforms": {"selected": None, "shown": ["livekit", "elevenlabs", "vapi"]}}
     for name, method, path in routes(client.app):
         if method != "GET" or name in ("stream_sessions", "import_stream") or access.ROUTES[name] == access.TOKEN:

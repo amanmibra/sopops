@@ -3,7 +3,7 @@
 // first account on a fresh install is made on /welcome, and anyone else's on /sign-up (components/new-account.tsx).
 import { useQueryClient } from "@tanstack/react-query";
 import { Navigate, useLocation } from "@tanstack/react-router";
-import { Check, KeyRound, LogOut, Plus } from "lucide-react";
+import { Check, Compass, KeyRound, LogOut, Plus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AuthState, type UserOut, call, sdk } from "@/lib/api";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { Banner, ErrorBanner } from "./bits";
 import { GitHubIcon, GoogleIcon } from "./brand-icon";
 import { SupportMenuLink } from "./support";
+import { startTour } from "./tour";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -363,6 +364,11 @@ export function UserMenu({ auth }: { auth: AuthState }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
+          {auth.demo_workspace && (
+            <DropdownMenuItem onSelect={() => startTour(auth.demo_workspace!)}>
+              <Compass className="size-4" /> Take the tour
+            </DropdownMenuItem>
+          )}
           <SupportMenuLink />
           {user.has_password && (
             <DropdownMenuItem onSelect={() => setChanging(true)}>

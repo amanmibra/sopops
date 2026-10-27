@@ -15,6 +15,7 @@ import { HrefLink } from "./href-link";
 import { OutcomeBar } from "./insights/kit";
 import { Page } from "./item-shell";
 import { useNeedsReview } from "./review";
+import { TourPrompt } from "./tour";
 
 const SHOWN = 2;
 
@@ -49,9 +50,9 @@ function Queue({ label, n, items, href, action, empty }: { label: string; n: num
   );
 }
 
-function Block({ title, aside, children, className }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
+function Block({ title, aside, children, className, tour }: { title: string; aside?: ReactNode; children: ReactNode; className?: string; tour?: string }) {
   return (
-    <section className={cn("bg-card min-w-0 border", className)}>
+    <section className={cn("bg-card min-w-0 border", className)} data-tour={tour}>
       <header className="flex items-baseline justify-between gap-4 border-b bg-[var(--band)] px-4 py-2">
         <h2 className="text-muted-foreground text-sm">{title}</h2>
         {aside}
@@ -130,7 +131,7 @@ function Fixed() {
   const loading = !fixes || compares.some((c) => c.isPending);
 
   return (
-    <Block title="What the fixes did" aside={<HrefLink href={wsHref(ws, "results")} className="t-label text-foreground">Results →</HrefLink>} >
+    <Block title="What the fixes did" tour="fixes-did" aside={<HrefLink href={wsHref(ws, "results")} className="t-label text-foreground">Results →</HrefLink>} >
       <dl className="grid grid-cols-3 border-b">
         {(
           [
@@ -358,7 +359,9 @@ function LatestSessions() {
           ))}
         </ul>
       ) : (
-        <Note className="block px-4 py-4">No sessions yet.</Note>
+        <Note className="block px-4 py-4">
+          No sessions yet. <TourPrompt />
+        </Note>
       )}
     </Block>
   );
@@ -373,7 +376,7 @@ export function HomeView() {
     <Page wide>
       <PageTitle>Home</PageTitle>
       <Sub>What needs you in {ws}, and how the last 7 days went.</Sub>
-      <Block title="What needs you" className="mb-6 grid md:grid-cols-3 md:[&>header]:col-span-3">
+      <Block title="What needs you" tour="needs-you" className="mb-6 grid md:grid-cols-3 md:[&>header]:col-span-3">
         <Queue
           label="Mistakes to review"
           n={needsReview}

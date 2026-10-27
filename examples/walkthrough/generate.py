@@ -87,6 +87,9 @@ RATES = {  # per call that the procedure applies to
                  "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
     "new": {"safe_claim": 0.03, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.14, "emergency": 0.10, "no_transfer": 0.5,
             "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
+    # followup.py, after release 3: the fixed mistakes stop; the large-party one (not fixed yet) carries on
+    "followup": {"safe_claim": 0.0, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.0, "emergency": 0.10, "no_transfer": 0.0,
+                 "no_zone": 0.0, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
 }
 
 

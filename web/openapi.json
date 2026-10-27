@@ -15476,6 +15476,18 @@
             "description": "SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.",
             "default": false
           },
+          "demo_workspace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Workspace",
+            "description": "SOPOPS_DEMO_WORKSPACE: a workspace anyone signed in can look at (and take the tour in), and nobody outside its org can change. None: there's no demo."
+          },
           "platforms": {
             "anyOf": [
               {
@@ -15497,6 +15509,7 @@
           "orgs",
           "first_account",
           "open_signup",
+          "demo_workspace",
           "platforms"
         ],
         "title": "AuthState"
@@ -29564,6 +29577,18 @@
             "description": "SOPOPS_OPEN_SIGNUP is on: anyone can post to `/v1/auth/sign-up` to make an account with a password and a new team they own.",
             "default": false
           },
+          "demo_workspace": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demo Workspace",
+            "description": "SOPOPS_DEMO_WORKSPACE: a workspace anyone signed in can look at (and take the tour in), and nobody outside its org can change. None: there's no demo."
+          },
           "platforms": {
             "anyOf": [
               {
@@ -29590,6 +29615,7 @@
           "orgs",
           "first_account",
           "open_signup",
+          "demo_workspace",
           "platforms",
           "next"
         ],

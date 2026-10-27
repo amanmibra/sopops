@@ -157,7 +157,7 @@ function Bar({ ws, auth, menu, end }: { ws?: string; auth: AuthState; menu?: Rea
   const names = (workspaces.data ?? []).map((w) => w.workspace);
   if (ws && names.length && !names.includes(ws)) names.push(ws);
   return (
-    <header className="bg-card sticky top-[var(--band-h)] z-20 flex flex-wrap items-center gap-x-1 gap-y-2 border-b px-4 py-3 sm:gap-2 md:px-6">
+    <header data-topbar className="bg-card sticky top-[var(--band-h)] z-20 flex flex-wrap items-center gap-x-1 gap-y-2 border-b px-4 py-3 sm:gap-2 md:px-6">
       {menu}
       <HrefLink href="/" className="text-foreground flex items-center gap-2 text-lg sm:mr-2 font-semibold hover:no-underline">
         <Logo />

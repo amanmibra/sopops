@@ -531,7 +531,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
           )}
         </Panel>
         <div className="min-w-0">
-          <Panel title="Procedures">
+          <Panel title="Procedures" tour="session-checks">
             <ChecksPanel sessionId={s.id} checks={s.checks} activeKey={activeKey} onSelect={select} />
           </Panel>
           <Panel title="Details">

@@ -41,6 +41,18 @@ The steps run exactly as above, with sign-in off, because publishing a release a
 
 To go step by step instead, run `just examples/walkthrough/fresh` in one terminal and each step's `just` recipe in another.
 
+## The public demo
+
+The same data, as a demo anyone can open with no account: the real UI built with `VITE_SOPOPS_DEMO=1`, answering every API call from a recording, with a guided tour of the loop that starts on the first visit. Nothing is saved there; an edit says so and points to sign-up.
+
+```sh
+WALKTHROUGH_WORKSPACE=harbor-lane just examples/walkthrough/all   # leave it running
+WALKTHROUGH_WORKSPACE=harbor-lane just examples/walkthrough/demo  # step 10, record every page, build web/dist-demo
+just examples/walkthrough/demo-preview                           # http://127.0.0.1:4180
+```
+
+`record_demo.py` opens every page of the workspace in Chrome (links, tabs and all 300 sessions) and writes each answer to `web/demo-data/`; `web/dist-demo/` is a static site to host anywhere that serves `index.html` for unknown paths. Record again after an API change. The tour (`web/src/components/tour.tsx`) anchors on `data-tour` attributes and form fields, so a step whose target moves shows its card mid-screen rather than breaking.
+
 ## Fake mode and real mode
 
 | | Fake (`MODELS=fake`, the default) | Real (`MODELS=real`) |
@@ -229,6 +241,14 @@ Suggestions are written against the procedure as it is, and nothing stops two be
 - **Allergen check**: guidance for "Answered the allergy question without the allergen list", then for "Didn't transfer an allergy emergency". Both add a paragraph at the same place, so the second shows "This conflicts with changes made since it was written", with the procedure's lines now beside its own, and can't be applied. **Rewrite against the current text** writes it again from the file as it is, told to keep the first edit; the old one is dismissed and links to the new one, which applies cleanly.
 
 Expected in fake mode, all PASS: both pairs current before either is applied, `merges` then applied with `merged_into_version`, `conflict` with one conflicting part and apply refused (409), the rewrite current and the old one dismissed, and the final file with both paragraphs. The edits stay as unpublished drafts in **Instructions → Changes**. In real mode the states are printed rather than checked, since a real model's edits may land elsewhere.
+
+### 10. The fixes hold
+
+```sh
+just examples/walkthrough/followup
+```
+
+Not part of `all`: in real mode it's 60 more calls to check. It publishes step 9's drafts as release 3 (the delivery-zone fix and the allergen-list one), then plays 60 calls through the LiveKit adapter in which those mistakes no longer happen. Ten clean sessions on a procedure after a fix's release make it fixed, so **Mistakes → Fixed** shows "Took a delivery address without checking the zone" fixed in release 3 with no findings in its 27 delivery calls, and Home's "What the fixes did" shows it going from 17% of calls to none. Then sopops writes a fix for the large-party reservations mistake, applied as a draft and left unpublished: the loop mid-turn, as a team would see it on an ordinary day.
 
 ## Running it in CI
 

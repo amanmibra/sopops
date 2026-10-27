@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:demo": "tsc -b && VITE_SOPOPS_DEMO=1 vite build --outDir dist-demo",
     "build:cloudflare": "tsc -b && node cloudflare/build.mjs",
     "typecheck": "tsc -b",
     "preview": "vite preview",
