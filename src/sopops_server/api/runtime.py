@@ -1,7 +1,7 @@
 """Runtime delivery: its routes, CORS for browsers and its error handlers, added to the app by `register`.
 
-Under /v1/workspaces/<ws>: `runtime/delivery` (each agent's mode), `runtime/platforms` (API keys and webhook
-secrets, write-only), `releases/<n>/pushes` (push results, retry), and the platforms' call-start webhooks
+Under /v1/workspaces/<ws>: `runtime/delivery` (each agent's mode, its platform's), `runtime/platforms` (API keys, webhook
+secrets, write-only, and each platform's delivery mode), `releases/<n>/pushes` (push results, retry), and the platforms' call-start webhooks
 `runtime/elevenlabs/conversation-init` and `runtime/vapi/assistant-request`. The Vapi Server URL also takes the
 messages that bring sessions (`capture.vapi_message`), and the ElevenLabs one starts live monitoring when it's on.
 """
@@ -75,13 +75,14 @@ def register(app: FastAPI, store: Store) -> Runtime:
 
     @r.get(f"{WS}/runtime/delivery", response_model=list[AgentDeliveryOut], tags=["runtime"])
     def list_delivery(workspace: str) -> list[dict]:
-        """Every agent at head, with how it gets its instructions: `pull`, `push` or `both`."""
+        """Every agent at head, with how it gets its instructions (its platform's mode): `pull`, `push` or `both`."""
         return runtime.deliveries(workspace)
 
-    @r.put(f"{WS}/runtime/delivery/{{agent}}", response_model=AgentDeliveryOut, tags=["runtime"])
-    def set_delivery(workspace: str, agent: str, req: DeliveryIn) -> dict:
-        """Set an agent's delivery mode. Push needs the platform's API key; LiveKit agents only pull."""
-        return runtime.set_delivery(workspace, agent, req.mode)
+    # before `runtime/platforms/{platform}/{kind}`, which would take `delivery` for a kind and refuse it
+    @r.put(f"{WS}/runtime/platforms/{{platform}}/delivery", response_model=DeliveryIn, tags=["runtime"])
+    def set_platform_delivery(workspace: str, platform: PushPlatform, req: DeliveryIn) -> dict:
+        """Set how every agent on a platform gets its instructions. Push needs the platform's API key; LiveKit agents only pull."""
+        return {"mode": runtime.set_platform_delivery(workspace, platform, req.mode)}
 
     # platform credentials: write-only
 

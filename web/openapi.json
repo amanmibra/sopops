@@ -12,7 +12,7 @@
           "runtime"
         ],
         "summary": "List Delivery",
-        "description": "Every agent at head, with how it gets its instructions: `pull`, `push` or `both`.",
+        "description": "Every agent at head, with how it gets its instructions (its platform's mode): `pull`, `push` or `both`.",
         "operationId": "list_delivery",
         "parameters": [
           {
@@ -53,14 +53,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace}/runtime/delivery/{agent}": {
+    "/v1/workspaces/{workspace}/runtime/platforms/{platform}/delivery": {
       "put": {
         "tags": [
           "runtime"
         ],
-        "summary": "Set Delivery",
-        "description": "Set an agent's delivery mode. Push needs the platform's API key; LiveKit agents only pull.",
-        "operationId": "set_delivery",
+        "summary": "Set Platform Delivery",
+        "description": "Set how every agent on a platform gets its instructions. Push needs the platform's API key; LiveKit agents only pull.",
+        "operationId": "set_platform_delivery",
         "parameters": [
           {
             "name": "workspace",
@@ -72,12 +72,16 @@
             }
           },
           {
-            "name": "agent",
+            "name": "platform",
             "in": "path",
             "required": true,
             "schema": {
+              "enum": [
+                "elevenlabs",
+                "vapi"
+              ],
               "type": "string",
-              "title": "Agent"
+              "title": "Platform"
             }
           }
         ],
@@ -97,7 +101,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AgentDeliveryOut"
+                  "$ref": "#/components/schemas/DeliveryIn"
                 }
               }
             }
@@ -14367,7 +14371,8 @@
               "push",
               "both"
             ],
-            "title": "Mode"
+            "title": "Mode",
+            "description": "Its platform's delivery mode."
           },
           "modes": {
             "items": {
@@ -14380,7 +14385,7 @@
             },
             "type": "array",
             "title": "Modes",
-            "description": "The modes this agent's platform allows (LiveKit: pull only)."
+            "description": "The modes its platform allows (LiveKit: pull only)."
           }
         },
         "type": "object",
@@ -22297,13 +22302,24 @@
           },
           "webhook_secret": {
             "$ref": "#/components/schemas/SecretInfo"
+          },
+          "delivery": {
+            "type": "string",
+            "enum": [
+              "pull",
+              "push",
+              "both"
+            ],
+            "title": "Delivery",
+            "description": "How the platform's agents get their instructions: `pull` at call start, `push` on publish, or `both`."
           }
         },
         "type": "object",
         "required": [
           "platform",
           "api_key",
-          "webhook_secret"
+          "webhook_secret",
+          "delivery"
         ],
         "title": "PlatformCredentials"
       },

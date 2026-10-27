@@ -85,10 +85,28 @@ def test_delivery_modes(client, published):
     rows = {d["agent"]: d for d in client.get(f"{WS}/runtime/delivery").json()}
     assert rows["tonys-pizza"] == {"agent": "tonys-pizza", "platform": "livekit", "platform_id": "tonys-pizza", "mode": "pull", "modes": ["pull"]}
     assert rows["luigis-trattoria"]["modes"] == ["pull", "push", "both"]
-    assert client.put(f"{WS}/runtime/delivery/tonys-pizza", json={"mode": "push"}).status_code == 400
-    assert client.put(f"{WS}/runtime/delivery/nope", json={"mode": "push"}).status_code == 404
-    assert client.put(f"{WS}/runtime/delivery/luigis-trattoria", json={"mode": "both"}).json()["mode"] == "both"
-    assert {d["agent"]: d["mode"] for d in client.get(f"{WS}/runtime/delivery").json()}["luigis-trattoria"] == "both"
+    assert client.put(f"{WS}/runtime/platforms/livekit/delivery", json={"mode": "push"}).status_code == 422
+    assert client.put(f"{WS}/runtime/platforms/elevenlabs/delivery", json={"mode": "sometimes"}).status_code == 422
+    assert client.put(f"{WS}/runtime/platforms/elevenlabs/delivery", json={"mode": "both"}).json() == {"mode": "both"}
+    rows = {d["agent"]: d["mode"] for d in client.get(f"{WS}/runtime/delivery").json()}
+    assert rows["luigis-trattoria"] == "both" and rows["sakura-sushi"] == "pull" and rows["tonys-pizza"] == "pull"
+    assert {p["platform"]: p["delivery"] for p in client.get(f"{WS}/runtime/platforms").json()} == {"elevenlabs": "both", "vapi": "pull"}
+
+
+def test_older_per_agent_delivery_is_read_until_the_platform_has_its_own(client, published):
+    from sqlmodel import Session
+
+    from sopops_server.orm import AgentDelivery
+
+    store = client.app.state.store
+    with Session(store.engine) as db:
+        db.add(AgentDelivery(workspace="demo", agent="sakura-sushi", mode="push"))
+        db.commit()
+    assert {p["platform"]: p["delivery"] for p in client.get(f"{WS}/runtime/platforms").json()}["vapi"] == "push"
+    client.put(f"{WS}/runtime/platforms/vapi/delivery", json={"mode": "pull"})
+    assert {p["platform"]: p["delivery"] for p in client.get(f"{WS}/runtime/platforms").json()}["vapi"] == "pull"
+    with Session(store.engine) as db:
+        assert db.get(AgentDelivery, ("demo", "sakura-sushi")) is None
 
 
 def test_platform_keys_are_write_only_and_encrypted(client, published, monkeypatch):
@@ -146,8 +164,8 @@ def republish(client, files, note):
 @respx.mock
 def test_publish_pushes_to_elevenlabs_and_vapi(client, files, published):
     keys(client)
-    client.put(f"{WS}/runtime/delivery/luigis-trattoria", json={"mode": "push"})
-    client.put(f"{WS}/runtime/delivery/sakura-sushi", json={"mode": "both"})
+    client.put(f"{WS}/runtime/platforms/elevenlabs/delivery", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/vapi/delivery", json={"mode": "both"})
     respx.get(f"{EL}/v1/convai/agents/agent_luigi").mock(return_value=httpx.Response(200, json=el_agent()))
     el_patch = respx.patch(f"{EL}/v1/convai/agents/agent_luigi").mock(return_value=httpx.Response(200, json={"agent_id": "agent_luigi", "version_id": "ver_7"}))
     respx.get(f"{VAPI}/assistant/asst_sakura").mock(return_value=httpx.Response(200, json=vapi_assistant()))
@@ -172,8 +190,8 @@ def test_publish_pushes_to_elevenlabs_and_vapi(client, files, published):
 @respx.mock
 def test_failed_pushes_are_recorded_and_retried(client, files, published):
     keys(client)
-    client.put(f"{WS}/runtime/delivery/luigis-trattoria", json={"mode": "push"})
-    client.put(f"{WS}/runtime/delivery/sakura-sushi", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/elevenlabs/delivery", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/vapi/delivery", json={"mode": "push"})
     respx.get(f"{EL}/v1/convai/agents/agent_luigi").mock(return_value=httpx.Response(500, text="boom el-test-key-123456"))
     respx.get(f"{VAPI}/assistant/asst_sakura").mock(side_effect=httpx.ConnectTimeout("slow"))
 
@@ -201,8 +219,8 @@ def test_failed_pushes_are_recorded_and_retried(client, files, published):
 
 @respx.mock
 def test_push_problems_in_words(client, files, published):
-    client.put(f"{WS}/runtime/delivery/luigis-trattoria", json={"mode": "push"})
-    client.put(f"{WS}/runtime/delivery/sakura-sushi", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/elevenlabs/delivery", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/vapi/delivery", json={"mode": "push"})
     number = republish(client, files, "No keys yet.")
     pushes = {p["agent"]: p["error"] for p in client.get(f"{WS}/releases/{number}/pushes").json()}
     assert pushes == {"luigis-trattoria": "No ElevenLabs API key in Settings.", "sakura-sushi": "No Vapi API key in Settings."}
@@ -221,7 +239,7 @@ def test_push_problems_in_words(client, files, published):
 @respx.mock
 def test_rollback_pushes_the_older_release(client, files, published):
     keys(client)
-    client.put(f"{WS}/runtime/delivery/sakura-sushi", json={"mode": "push"})
+    client.put(f"{WS}/runtime/platforms/vapi/delivery", json={"mode": "push"})
     respx.get(f"{VAPI}/assistant/asst_sakura").mock(return_value=httpx.Response(200, json=vapi_assistant()))
     patch = respx.patch(f"{VAPI}/assistant/asst_sakura").mock(return_value=httpx.Response(200, json={}))
     republish(client, files, "Newer.")

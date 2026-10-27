@@ -33,6 +33,7 @@ from .model_calls import ModelCall
 from .orgs import Org
 from .password_links import PasswordLink
 from .patterns import Pattern
+from .platform_delivery import PlatformDelivery
 from .platform_secrets import PlatformSecret
 from .procedure_checks import ProcedureCheck
 from .prompt_texts import PromptText
@@ -59,4 +60,4 @@ from .workspaces import Workspace
 metadata = SQLModel.metadata
 
 __all__ = [
-    "AgentDelivery", "AISetting", "Backfill", "Calibration", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JoinLink", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformSecret", "ProcedureCheck", "PromptText", "ProviderEvent", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLabel", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "SpotCheck", "Suggestion", "SupportSession", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]
+    "AgentDelivery", "AISetting", "Backfill", "Calibration", "CaptureSetting", "EmailLink", "Fetch", "FileVersion", "Finding", "FindingOverride", "GitHubApp", "GitHubDelivery", "GitHubInstallation", "Identity", "ImportEvent", "ImportRecord", "Invite", "JoinLink", "JSONDoc", "LoginAttempt", "LoginSession", "Membership", "ModelCall", "Org", "PasswordLink", "Pattern", "PlatformDelivery", "PlatformSecret", "ProcedureCheck", "PromptText", "ProviderEvent", "PushResult", "Release", "RepoConnection", "RuleChecks", "RuleLabel", "RuleLineage", "RuleResult", "RuntimeServe", "SessionRecord", "SpotCheck", "Suggestion", "SupportSession", "SyncConflict", "Theme", "Token", "User", "Verdict", "Workspace", "metadata"]

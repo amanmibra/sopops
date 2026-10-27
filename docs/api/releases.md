@@ -88,18 +88,18 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
 
 ## Deliver to platforms
 
-Each agent gets its instructions by **pull** (the agent, or its platform's call-start webhook, fetches them), **push** (sopops writes them into the agent on ElevenLabs or Vapi when a release goes live), or both.
+A platform's agents get their instructions by **pull** (the agent, or its platform's call-start webhook, fetches them), **push** (sopops writes them into the agent on ElevenLabs or Vapi when a release goes live), or both. It's one setting per platform. LiveKit agents always pull.
 
 | Endpoint | What it does |
 |---|---|
-| `GET /v1/workspaces/{ws}/runtime/delivery` | Every agent at head: `[{agent, platform, platform_id, mode, modes}]`. No setting means `pull`. LiveKit agents only pull. |
-| `PUT /v1/workspaces/{ws}/runtime/delivery/{agent}` | `{mode: pull \| push \| both}`. `400` for a mode the platform doesn't allow. |
-| `GET /v1/workspaces/{ws}/runtime/platforms` | For `elevenlabs` and `vapi`: `{api_key, webhook_secret}`, each `{set, hint, created_at}`. Never the values. |
+| `GET /v1/workspaces/{ws}/runtime/delivery` | Every agent at head with its platform's mode: `[{agent, platform, platform_id, mode, modes}]`. |
+| `PUT /v1/workspaces/{ws}/runtime/platforms/{platform}/delivery` | `{mode: pull \| push \| both}` for every agent on `elevenlabs` or `vapi`. No setting means `pull`. Pushing needs the platform's API key. |
+| `GET /v1/workspaces/{ws}/runtime/platforms` | For `elevenlabs` and `vapi`: `{api_key, webhook_secret, delivery}`, the first two `{set, hint, created_at}`. Never the values. |
 | `PUT /v1/workspaces/{ws}/runtime/platforms/{platform}/api-key` | `{value}`: store the platform API key, encrypted with `SOPOPS_SECRET_KEY` (Fernet). `503` if that isn't set. |
 | `PUT /v1/workspaces/{ws}/runtime/platforms/{platform}/webhook-secret` | `{value?}`: store a webhook secret. Without a value, one is made and returned once as `secret`. |
 | `DELETE /v1/workspaces/{ws}/runtime/platforms/{platform}/<api-key \| webhook-secret>` | Remove it. |
 | `POST /v1/workspaces/{ws}/runtime/platforms/{platform}/test` | `{platform_id?}`: read one agent with the stored key (a GET; default: the first agent at head on that platform). Returns `{ok, platform_id, message}`. |
-| `GET /v1/workspaces/{ws}/releases/{n}/pushes` | Each push-mode agent's latest push of the release: `[{release, agent, platform, platform_id, status: ok \| unchanged \| error, version_id, error, attempts, at}]`. |
+| `GET /v1/workspaces/{ws}/releases/{n}/pushes` | The latest push of each agent on a push-mode platform of the release: `[{release, agent, platform, platform_id, status: ok \| unchanged \| error, version_id, error, attempts, at}]`. |
 | `POST /v1/workspaces/{ws}/releases/{n}/pushes/retry` | `{agents?}`: push again (default: the agents whose last push failed). `409` unless the release is live. |
 | `POST /v1/workspaces/{ws}/runtime/served` | `{platform, call_id, agent, release}`, with a runtime-scoped token. A client that fetched the instructions itself reports the call it served, so the session links to the release. |
 | `POST /v1/workspaces/{ws}/runtime/elevenlabs/conversation-init` | ElevenLabs' conversation-initiation webhook. |
@@ -108,12 +108,12 @@ Each agent gets its instructions by **pull** (the agent, or its platform's call-
 ```sh
 curl -s -X PUT -H "Content-Type: application/json" \
   -H "Authorization: Bearer $SOPOPS_TOKEN" \
-  "$SOPOPS_URL/v1/workspaces/harbor-qa/runtime/delivery/support-line" \
+  "$SOPOPS_URL/v1/workspaces/harbor-qa/runtime/platforms/elevenlabs/delivery" \
   -d '{"mode": "both"}'
 ```
 
 ```json
-{"agent": "support-line", "platform": "elevenlabs", "platform_id": "ag_42", "mode": "both", "modes": ["pull", "push", "both"]}
+{"mode": "both"}
 ```
 
 **ElevenLabs conversation-init.** `?agent=` and `?release=` are optional; by default it serves the agent named by `agent_id` in the body, from the live release.

@@ -58,7 +58,7 @@ const sopops = new SopOps({ cache: new FileCache() });  // or new FileCache("/va
 
 ## Choose pull or push
 
-Set this per agent under the gear icon → Delivery.
+Set it once per platform, in that platform's card under the gear icon → Agents and platforms. LiveKit agents always pull, with `attach`.
 
 | Delivery | What happens |
 |---|---|

@@ -16,8 +16,8 @@ class AgentDeliveryOut(BaseModel):
     agent: str
     platform: str
     platform_id: str
-    mode: DeliveryMode
-    modes: list[DeliveryMode] = Field(description="The modes this agent's platform allows (LiveKit: pull only).")
+    mode: DeliveryMode = Field(description="Its platform's delivery mode.")
+    modes: list[DeliveryMode] = Field(description="The modes its platform allows (LiveKit: pull only).")
 
 
 class DeliveryIn(BaseModel):
@@ -34,6 +34,7 @@ class PlatformCredentials(BaseModel):
     platform: PushPlatform
     api_key: SecretInfo
     webhook_secret: SecretInfo
+    delivery: DeliveryMode = Field(description="How the platform's agents get their instructions: `pull` at call start, `push` on publish, or `both`.")
 
 
 class SecretIn(BaseModel):

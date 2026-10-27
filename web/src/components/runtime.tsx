@@ -1,11 +1,11 @@
-// Runtime delivery: each agent's delivery mode and the platform credentials (Settings), and push results (a release).
+// Runtime delivery: each platform's card (delivery mode, credentials, capture) in Settings, and push results (a release).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Cable, Copy, RefreshCw, Send } from "lucide-react";
+import { Cable, Copy, RefreshCw } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { type AgentDeliveryOut, type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
+import { type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
 import { platformName, when } from "@/lib/kinds";
-import { listNames, usePlatforms } from "@/lib/platforms";
+import { usePlatforms } from "@/lib/platforms";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "./bits";
 import { PlatformIcon, PlatformLabel } from "./brand-icon";
@@ -17,7 +17,7 @@ import { Input } from "./ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { apiOrigin } from "@/lib/paths";
 
-type Mode = AgentDeliveryOut["mode"];
+type Mode = PlatformCredentials["delivery"];
 type Platform = PlatformCredentials["platform"];
 type SecretKind = "api-key" | "webhook-secret";
 
@@ -48,7 +48,7 @@ const WEBHOOK: Record<Platform, { path: string; steps: ReactNode[] }> = {
 const msg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const keyOf = (ws: string, what: string) => ["ws", ws, "runtime", what];
 
-// --- Settings: delivery and platforms ---------------------------------------------------------------
+// --- Settings: platforms ---------------------------------------------------------------
 
 export function RuntimePanels() {
   return (
@@ -63,87 +63,7 @@ export function RuntimePanels() {
       >
         <ConnectGuide />
       </Panel>
-      <DeliveryPanel />
     </>
-  );
-}
-
-function DeliveryPanel() {
-  const { ws } = useWs();
-  const plats = usePlatforms();
-  const pushers = plats.shown.filter((p) => p !== "livekit").map(platformName);
-  const qc = useQueryClient();
-  const rows = useQuery({ queryKey: keyOf(ws, "delivery"), queryFn: () => call(sdk.listDelivery({ path: { workspace: ws } })) });
-  // LiveKit agents always pull, so the panel is only worth showing when some agent can be pushed to
-  const choice = rows.data?.some((d) => d.modes.length > 1) ?? false;
-  const set = async (agent: string, mode: Mode) => {
-    try {
-      await call(sdk.setDelivery({ path: { workspace: ws, agent }, body: { mode } }));
-      await qc.invalidateQueries({ queryKey: keyOf(ws, "delivery") });
-      toast.success(mode === "pull" ? `${agent} fetches its instructions at call start.` : `${agent} is updated on its platform at every publish.`);
-    } catch (e) {
-      toast.error(msg(e));
-    }
-  };
-  if (rows.isError) return <ErrorBanner error={rows.error} />;
-  if (!choice) return null;
-  return (
-    <Panel
-      title={
-        <span className="flex items-center gap-2">
-          <Send className="size-4" /> Delivery
-        </span>
-      }
-    >
-      <div className="text-muted-foreground mb-4 grid max-w-prose gap-2 text-sm leading-relaxed">
-        <p>Pick how each agent gets its instructions.</p>
-        <ul className="grid list-disc gap-1 pl-5">
-          <li>
-            <b className="text-foreground">Pull at call start</b>: the agent, or its platform's call-start webhook, fetches the live release when a call
-            starts.{plats.has("livekit") && " LiveKit agents always pull."}
-          </li>
-          {pushers.length > 0 && (
-            <li>
-              <b className="text-foreground">Push on publish</b>: publishing, or making a release live, writes the instructions into the agent on {listNames(pushers)}.
-            </li>
-          )}
-        </ul>
-      </div>
-      {rows.data && (
-          <table className="w-full border-collapse">
-            <tbody>
-              {rows.data.map((d) => (
-                <tr key={d.agent}>
-                  <td className="border-b px-2 py-2">
-                    <b>{d.agent}</b>
-                  </td>
-                  <td className="text-muted-foreground border-b px-2 py-2 text-sm">
-                    <PlatformLabel platform={d.platform} />: {d.platform_id}
-                  </td>
-                  <td className="border-b px-2 py-2 text-right">
-                    {d.modes.length > 1 ? (
-                      <Select value={d.mode} onValueChange={(v) => set(d.agent, v as Mode)}>
-                        <SelectTrigger size="sm" className="ml-auto min-w-44" aria-label={`Delivery for ${d.agent}`}>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {d.modes.map((m) => (
-                            <SelectItem key={m} value={m}>
-                              {MODE[m]}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <span className="text-muted-foreground text-sm">{MODE[d.mode]}</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-      )}
-    </Panel>
   );
 }
 
@@ -161,6 +81,10 @@ function PlatformsPanels() {
       {creds.isError && <ErrorBanner error={creds.error} />}
       {livekit && (
         <PlatformPanel platform="livekit">
+          <div className="text-muted-foreground mb-4 flex flex-wrap items-center gap-2 text-sm opacity-70">
+            <span className="w-48">Delivery</span>
+            <span>Always pulled at call start, by <code>attach</code> in your agent. LiveKit has nothing to push to.</span>
+          </div>
           <LiveKitCapture />
         </PlatformPanel>
       )}
@@ -232,6 +156,15 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
     }
   };
   const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast.success("Copied."));
+  const deliver = async (mode: Mode) => {
+    try {
+      await call(sdk.setPlatformDelivery({ path: { workspace: ws, platform: creds.platform }, body: { mode } }));
+      await refresh();
+      toast.success(mode === "pull" ? `${name} agents fetch their instructions at call start.` : `${name} agents are updated at every publish.`);
+    } catch (e) {
+      toast.error(msg(e));
+    }
+  };
 
   return (
     <div>
@@ -239,6 +172,24 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
         Keys are stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       <div className="grid gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="grid w-48 text-sm">
+            Delivery <span className="text-muted-foreground text-xs">For every {name} agent</span>
+          </span>
+          <Select value={creds.delivery} onValueChange={(v) => void deliver(v as Mode)}>
+            <SelectTrigger size="sm" className="min-w-44" aria-label={`${name} delivery`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(MODE) as Mode[]).map((m) => (
+                <SelectItem key={m} value={m}>
+                  {MODE[m]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {creds.delivery !== "pull" && !creds.api_key.set && <span className="text-err text-sm">Pushing needs the API key below.</span>}
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="grid w-48 text-sm">
             API key <span className="text-muted-foreground text-xs">Pushes instructions on publish</span>

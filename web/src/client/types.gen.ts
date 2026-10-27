@@ -192,12 +192,14 @@ export type AgentDeliveryOut = {
     platform_id: string;
     /**
      * Mode
+     *
+     * Its platform's delivery mode.
      */
     mode: 'pull' | 'push' | 'both';
     /**
      * Modes
      *
-     * The modes this agent's platform allows (LiveKit: pull only).
+     * The modes its platform allows (LiveKit: pull only).
      */
     modes: Array<'pull' | 'push' | 'both'>;
 };
@@ -4871,6 +4873,12 @@ export type PlatformCredentials = {
     platform: 'elevenlabs' | 'vapi';
     api_key: SecretInfo;
     webhook_secret: SecretInfo;
+    /**
+     * Delivery
+     *
+     * How the platform's agents get their instructions: `pull` at call start, `push` on publish, or `both`.
+     */
+    delivery: 'pull' | 'push' | 'both';
 };
 
 /**
@@ -11207,7 +11215,7 @@ export type ListDeliveryResponses = {
 
 export type ListDeliveryResponse = ListDeliveryResponses[keyof ListDeliveryResponses];
 
-export type SetDeliveryData = {
+export type SetPlatformDeliveryData = {
     body: DeliveryIn;
     path: {
         /**
@@ -11215,31 +11223,31 @@ export type SetDeliveryData = {
          */
         workspace: string;
         /**
-         * Agent
+         * Platform
          */
-        agent: string;
+        platform: 'elevenlabs' | 'vapi';
     };
     query?: never;
-    url: '/v1/workspaces/{workspace}/runtime/delivery/{agent}';
+    url: '/v1/workspaces/{workspace}/runtime/platforms/{platform}/delivery';
 };
 
-export type SetDeliveryErrors = {
+export type SetPlatformDeliveryErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type SetDeliveryError = SetDeliveryErrors[keyof SetDeliveryErrors];
+export type SetPlatformDeliveryError = SetPlatformDeliveryErrors[keyof SetPlatformDeliveryErrors];
 
-export type SetDeliveryResponses = {
+export type SetPlatformDeliveryResponses = {
     /**
      * Successful Response
      */
-    200: AgentDeliveryOut;
+    200: DeliveryIn;
 };
 
-export type SetDeliveryResponse = SetDeliveryResponses[keyof SetDeliveryResponses];
+export type SetPlatformDeliveryResponse = SetPlatformDeliveryResponses[keyof SetPlatformDeliveryResponses];
 
 export type ListPlatformsData = {
     body?: never;

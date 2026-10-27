@@ -117,7 +117,7 @@ ROUTES: dict[str, str] = {
    )},
     # everything else in the app: any member
     **{name: SESSION for name in (
-        "draft", "validate", "lint", "list_delivery", "set_delivery", "list_platforms", "set_platform_secret", "delete_platform_secret", "test_platform_key", "list_pushes",
+        "draft", "validate", "lint", "list_delivery", "set_platform_delivery", "list_platforms", "set_platform_secret", "delete_platform_secret", "test_platform_key", "list_pushes",
         "retry_pushes", "render", "migrate_files", "list_workspaces", "list_files", "edit_files", "replace_files", "get_file",
         "file_history",                                         "migrate",         "create_release", "list_releases", "get_release", "activate", "publish", "list_agents",
         "list_fetches", "list_sessions", "stream_sessions", "get_session", "get_capture", "set_livekit", "delete_livekit", "test_livekit",

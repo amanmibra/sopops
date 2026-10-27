@@ -1,4 +1,4 @@
-"""Runtime delivery: how each agent gets its prompt, pushing releases to ElevenLabs and Vapi, serving their
+"""Runtime delivery: how each platform's agents get their prompt, pushing releases to ElevenLabs and Vapi, serving their
 call-start webhooks, and the runtime-scoped tokens that guard prompt fetches.
 
 Credentials are per workspace and encrypted (see `crypto`); they're decrypted only to call the platform or check a
@@ -20,7 +20,7 @@ from sqlmodel import Session, delete, select
 
 from ..auth import mode
 from ..errors import NotFound, same_ref, workspace_id
-from ..orm import AgentDelivery, PlatformSecret, PushResult, RuntimeServe
+from ..orm import AgentDelivery, PlatformDelivery, PlatformSecret, PushResult, RuntimeServe
 from ..tokens import RUNTIME, Forbidden, Unauthorized
 from . import crypto, platforms
 from .platforms import NAMES, PUSHABLE, PlatformError
@@ -70,40 +70,51 @@ class Runtime:
     # --- delivery mode -----------------------------------------------------------------
 
     def deliveries(self, workspace: str) -> list[dict]:
-        """Every agent at head with its platform and delivery mode."""
+        """Every agent at head with its platform and the platform's delivery mode."""
         ws = workspace_id(workspace)
         agents = self.store.items(ws)["agents"]
-        with self._db() as db:
-            modes = {r.agent: r.mode for r in db.exec(select(AgentDelivery).where(AgentDelivery.workspace == ws))}
+        modes = self.platform_modes(ws)
         return [
             {
                 "agent": a["id"],
                 "platform": a["platform"],
                 "platform_id": a["platform_id"],
-                "mode": modes.get(a["id"], "pull"),
+                "mode": modes.get(a["platform"], "pull"),
                 "modes": list(MODES) if a["platform"] in PUSHABLE else ["pull"],
             }
             for a in sorted(agents, key=lambda a: a["id"])
         ]
 
-    def set_delivery(self, workspace: str, agent: str, mode: str) -> dict:
+    def platform_modes(self, workspace: str) -> dict[str, str]:
+        """Each pushable platform's delivery mode. A platform without a setting of its own takes the older per-agent
+        one: the mode most of its agents had, leaning to pushing when tied, so nothing that was pushed stops."""
         ws = workspace_id(workspace)
-        row = next((d for d in self.deliveries(ws) if d["agent"] == agent), None)
-        if row is None:
-            raise NotFound(f"agent '{agent}' not found")
-        if mode not in row["modes"]:
-            raise BadRequest(f"{row['platform']} agents can only pull their instructions; sopops can push to {', '.join(NAMES.values())}")
-        with self._db() as db, db.begin():
-            existing = db.get(AgentDelivery, (ws, agent))
-            if existing:
-                existing.mode = mode
-            else:
-                db.add(AgentDelivery(workspace=ws, agent=agent, mode=mode))
-        return {**row, "mode": mode}
-
-    def _modes(self, ws: str) -> dict[str, str]:
         with self._db() as db:
-            return {r.agent: r.mode for r in db.exec(select(AgentDelivery).where(AgentDelivery.workspace == ws))}
+            own = {r.platform: r.mode for r in db.exec(select(PlatformDelivery).where(PlatformDelivery.workspace == ws))}
+            legacy = {r.agent: r.mode for r in db.exec(select(AgentDelivery).where(AgentDelivery.workspace == ws))}
+        agents = self.store.items(ws)["agents"] if legacy and any(p not in own for p in PUSHABLE) else []
+        out = {}
+        for p in PUSHABLE:
+            had = [legacy[a["id"]] for a in agents if a["platform"] == p and a["id"] in legacy]
+            out[p] = own.get(p) or (max(MODES, key=lambda m: (had.count(m), m != "pull")) if any(m != "pull" for m in had) else "pull")
+        return out
+
+    def set_platform_delivery(self, workspace: str, platform: str, mode: str) -> str:
+        """Set how every agent on a platform gets its instructions. Push needs the platform's API key."""
+        ws = workspace_id(workspace)
+        _check_platform(platform)
+        if mode not in MODES:
+            raise BadRequest(f"mode must be one of {', '.join(MODES)}")
+        on = {a["id"] for a in self.store.items(ws)["agents"] if a["platform"] == platform}
+        with self._db() as db, db.begin():
+            row = db.get(PlatformDelivery, (ws, platform))
+            if row:
+                row.mode = mode
+            else:
+                db.add(PlatformDelivery(workspace=ws, platform=platform, mode=mode))
+            if on:  # the platform's setting replaces its agents' older ones
+                db.exec(delete(AgentDelivery).where(AgentDelivery.workspace == ws, AgentDelivery.agent.in_(on)))  # type: ignore[attr-defined]
+        return mode
 
     # --- credentials ---------------------------------------------------------------------
 
@@ -116,7 +127,8 @@ class Runtime:
             r = rows.get((platform, kind))
             return {"set": r is not None, "hint": r.hint if r else None, "created_at": _utc(r.created_at) if r else None}
 
-        return [{"platform": p, "api_key": info(p, "api_key"), "webhook_secret": info(p, "webhook_secret")} for p in PUSHABLE]
+        modes = self.platform_modes(ws)
+        return [{"platform": p, "api_key": info(p, "api_key"), "webhook_secret": info(p, "webhook_secret"), "delivery": modes[p]} for p in PUSHABLE]
 
     def set_secret(self, workspace: str, platform: str, kind: str, value: str | None) -> dict:
         """Store a credential (encrypted). A webhook secret without a value is generated, and returned this once."""
@@ -174,16 +186,16 @@ class Runtime:
     # --- push ------------------------------------------------------------------------------
 
     def push_release(self, workspace: str, number: int, agents: Iterable[str] | None = None, only_failed: bool = False) -> list[dict]:
-        """Push each push-mode agent's prompt in release `number` to its platform, recording each result.
+        """Push the prompt of each agent on a push-mode platform in release `number`, recording each result.
         `agents` limits it to those; `only_failed` to agents whose last push failed (a retry)."""
         ws = workspace_id(workspace)
         rel = self.store.get_release(ws, number)
-        modes = self._modes(ws)
+        modes = self.platform_modes(ws)
         wanted = set(agents) if agents is not None else None
         previous = {r["agent"]: r for r in self.push_results(ws, number)}
         for agent_id, built in sorted(rel["build"]["agents"].items()):
             platform, pid = split_ref(built["platform_ref"])
-            if platform not in PUSHABLE or modes.get(agent_id, "pull") == "pull":
+            if platform not in PUSHABLE or modes.get(platform, "pull") == "pull":
                 continue
             if wanted is not None and agent_id not in wanted:
                 continue
@@ -223,8 +235,8 @@ class Runtime:
             return [{**r.model_dump(exclude={"workspace"}), "at": _utc(r.at)} for r in rows]
 
     def pushes_pending(self, workspace: str) -> bool:
-        """Whether any agent is set to push (so a publish has something to do)."""
-        return any(m != "pull" for m in self._modes(workspace).values())
+        """Whether any platform is set to push (so a publish has something to do)."""
+        return any(m != "pull" for m in self.platform_modes(workspace).values())
 
     # --- call-start webhooks (pull) --------------------------------------------------------
 
