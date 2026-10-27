@@ -1,6 +1,6 @@
 // The pages that aren't forms: lists, overview, instructions, unpublished changes, releases, convert, home.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useState } from "react";
+import { type ComponentProps, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type Component, type DraftAgent, type DraftItem, type ReleaseDetail, call, q, refresh, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
@@ -396,13 +396,43 @@ export function ChangesView() {
 
 // --- releases ----------------------------------------------------------------------
 
+/** Makes a release live (a rollback when it's older), with the toast and refresh both release pages use. */
+function useActivate() {
+  const { ws } = useWs();
+  const qc = useQueryClient();
+  const [error, setError] = useState<unknown>(null);
+  const activate = async (number: number) => {
+    try {
+      await call(sdk.activate({ path: { workspace: ws, number } }));
+      toast.success(`Release #${number} is live. Agents get it on their next call.`);
+      setError(null);
+      await refresh(qc, ws);
+    } catch (e) {
+      setError(e);
+    }
+  };
+  return { activate, error };
+}
+
+/** The two-click button that makes release `number` live. */
+function ActivateButton({
+  number,
+  onConfirm,
+  ...props
+}: Omit<ComponentProps<typeof ConfirmButton>, "confirm" | "onConfirm"> & { number: number; onConfirm: (number: number) => void }) {
+  return <ConfirmButton {...props} confirm={`Click again: agents get #${number} on their next call`} onConfirm={() => onConfirm(number)} />;
+}
+
 export function ReleasesView() {
   const { ws, releases } = useWs();
   const go = useGo();
+  const { activate, error } = useActivate();
+  const live = releases.find((r) => r.current)?.number;
   return (
     <Page>
       <PageTitle>Releases</PageTitle>
-      <Sub>Each publish makes a release. Agents get the live release when a call starts. Open an older one to make it live again.</Sub>
+      <Sub>Each publish makes a release. Agents get the live release when a call starts. Roll back to an older one from its row, or open it to see what's in it first.</Sub>
+      {error != null && <ErrorBanner error={error} />}
       {releases.length ? (
         <table className="w-full border-collapse">
           <thead>
@@ -425,7 +455,15 @@ export function ReleasesView() {
                   {when(r.created_at)}
                   {r.author ? `, ${r.author}` : ""}
                 </td>
-                <td className="border-b px-2 py-2 text-right">{r.current && <Tag tone="live">live</Tag>}</td>
+                <td className="border-b px-2 py-1 text-right" onClick={(e) => e.stopPropagation()}>
+                  {r.current ? (
+                    <Tag tone="live">live</Tag>
+                  ) : (
+                    <ActivateButton number={r.number} size="xs" variant="outline" onConfirm={(n) => void activate(n)}>
+                      {live != null && r.number < live ? `Roll back to #${r.number}` : `Make #${r.number} live`}
+                    </ActivateButton>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -439,8 +477,7 @@ export function ReleasesView() {
 
 export function ReleaseView({ number }: { number: number }) {
   const { ws, model } = useWs();
-  const qc = useQueryClient();
-  const [error, setError] = useState<unknown>(null);
+  const { activate, error } = useActivate();
   const rel = useQuery(q.release(ws, number));
   // `current` changes on activate, so read it from the release list rather than the cached detail
   const { releases } = useWs();
@@ -452,15 +489,6 @@ export function ReleaseView({ number }: { number: number }) {
     .map(([path, v]) => ({ where: itemOfPath(path), v }))
     .filter((x): x is { where: [Kind, string]; v: number } => !!x.where);
   const group = (kind: Kind) => items.filter((i) => i.where[0] === kind).map((i) => `${model.itemName(kind, i.where[1])} v${i.v}`).join(", ") || "None";
-  const activate = async () => {
-    try {
-      await call(sdk.activate({ path: { workspace: ws, number } }));
-      toast.success(`Release #${number} is live. Agents get it on their next call.`);
-      await refresh(qc, ws);
-    } catch (e) {
-      setError(e);
-    }
-  };
   return (
     <Page>
       <div className="mb-0.5 text-sm">
@@ -476,9 +504,9 @@ export function ReleaseView({ number }: { number: number }) {
       {error != null && <ErrorBanner error={error} />}
       {!current && (
         <div className="mb-[18px]">
-          <ConfirmButton confirm={`Click again: agents get #${number} on their next call`} onConfirm={activate}>
+          <ActivateButton number={number} onConfirm={(n) => void activate(n)}>
             Make this release live
-          </ConfirmButton>
+          </ActivateButton>
         </div>
       )}
       <Panel title="Agents">

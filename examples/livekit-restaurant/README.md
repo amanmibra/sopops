@@ -52,7 +52,7 @@ Say the team wants every agent to use the caller's name.
 3. **Publish.** The next call to each restaurant runs with the new prompt. Nothing is redeployed.
 4. **Watch the sessions.** Each call records the release it ran on, so Insights → Release compare shows whether the change helped, procedure by procedure.
 
-If it made things worse, make the previous release live again; the next call is back on it.
+If it made things worse, make the previous release live again (**Roll back to #N** on its row under Releases); the next call is back on it.
 
 ## Testing a release on some calls
 
