@@ -39,7 +39,7 @@ import jwt
 
 from .. import configs
 from ..schemas import SessionEventIn, SessionOpen
-from . import LIVEKIT_KEY, LIVEKIT_SECRET, Capture, LiveRoomRef
+from . import LIVEKIT_KEY, LIVEKIT_SECRET, RECORDER_SOURCE, Capture, LiveRoomRef
 
 if TYPE_CHECKING:
     from ..pipeline.types import SessionRef
@@ -276,7 +276,7 @@ async def watch_room(store: Store, ref: LiveRoomRef, on_closed: Callable[[Sessio
         agent, release = await asyncio.to_thread(cap.livekit_agent, ws, names[0] if names else None, metadata)
         identities = [ref.agent_identity, *sorted(agents)]
         external_id = next((j for j in map(job_id, identities) if j), None) or ref.room_sid or ref.room
-        meta = {k: v for k, v in {"room": ref.room, "room_sid": ref.room_sid, "agent_name": names[0] if names else None, "source": "livekit-recorder"}.items() if v}
+        meta = {k: v for k, v in {"room": ref.room, "room_sid": ref.room_sid, "agent_name": names[0] if names else None, "source": RECORDER_SOURCE}.items() if v}
         for raw in metadata:  # `sopops_*` keys in job or room metadata count like the agent's attributes
             reported = {**_sopops_keys(raw), **reported}
         await asyncio.to_thread(store.sessions.open, ws, SessionOpen(platform=PLATFORM, external_id=external_id, agent=agent, release=release, metadata={**meta, **reported}))

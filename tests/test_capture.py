@@ -109,6 +109,20 @@ def test_livekit_settings_are_stored_encrypted_and_never_returned(app):
     assert client.get(f"{WS}/capture").json()["livekit"]["connected"] is False
 
 
+def test_livekit_says_when_calls_last_came_from_attach_and_not_the_recorder(app):
+    client, store, _ = app
+    assert client.get(f"{WS}/capture").json()["livekit"]["last_attach_at"] is None
+    from test_sessions import ingest, session
+
+    token = client.post(f"{WS}/tokens", json={"name": "agent", "scopes": ["ingest"]}).json()["token"]
+    recorded = session("job-rec")
+    recorded["metadata"] = {"source": lk.RECORDER_SOURCE}
+    assert ingest(client, token, recorded).status_code in (200, 201)
+    assert client.get(f"{WS}/capture").json()["livekit"]["last_attach_at"] is None  # the recorder's doesn't count
+    assert ingest(client, token, session("job-sdk")).status_code in (200, 201)
+    assert client.get(f"{WS}/capture").json()["livekit"]["last_attach_at"] is not None
+
+
 def test_livekit_webhook_verification(app):
     client, _, jobs = app
     url = f"{WS}/capture/livekit/webhook"

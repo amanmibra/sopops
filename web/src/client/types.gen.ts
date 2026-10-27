@@ -3679,6 +3679,12 @@ export type LiveKitCapture = {
      */
     last_event_at: string | null;
     /**
+     * Last Attach At
+     *
+     * When the last session sent by the agent itself arrived (the SDK's `attach`), not by the recorder.
+     */
+    last_attach_at?: string | null;
+    /**
      * Recorder Installed
      *
      * This server can join rooms (`pip install 'sopops-server[livekit]'`).

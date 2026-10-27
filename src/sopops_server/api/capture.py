@@ -66,7 +66,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         return {
             "connected": bool(row and row.url and key["set"] and secret["set"]), "url": row.url if row else None, "api_key": key, "api_secret": secret,
             "agent_map": row.agent_map if row else {}, "webhook_path": f"/v1/workspaces/{ws}/{LIVEKIT_HOOK}", "last_event_at": row.event_at if row else None,
-            "recorder_installed": _recorder_installed(),
+            "last_attach_at": cap.last_attach_at(ws), "recorder_installed": _recorder_installed(),
         }
 
     def elevenlabs_out(ws: str) -> dict:

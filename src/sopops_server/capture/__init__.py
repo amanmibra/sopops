@@ -36,6 +36,7 @@ log = logging.getLogger("sopops.capture")
 
 # platform_secrets kinds
 LIVEKIT_KEY, LIVEKIT_SECRET = "api_key", "api_secret"
+RECORDER_SOURCE = "livekit-recorder"  # `metadata.source` of the sessions the LiveKit recorder makes
 POSTCALL_SECRET = "postcall_secret"
 
 
@@ -70,6 +71,16 @@ class Capture:
     def setting(self, workspace: str, platform: str) -> CaptureSetting | None:
         with self._db() as db:
             return db.get(CaptureSetting, (workspace_id(workspace), platform))
+
+    def last_attach_at(self, workspace: str) -> datetime | None:
+        """When the newest LiveKit session sent from the agent (the SDK's `attach` or `record_session`) arrived: one
+        the recorder didn't make. Its sessions say `source: livekit-recorder`."""
+        with self._db() as db:
+            rows = db.exec(select(SessionRecord.created_at, SessionRecord.meta)
+                           .where(SessionRecord.workspace_id == workspace_id(workspace), SessionRecord.platform == "livekit")
+                           .order_by(SessionRecord.created_at.desc()).limit(50))  # type: ignore[attr-defined]
+            at = next((t for t, meta in rows if (meta or {}).get("source") != RECORDER_SOURCE), None)
+        return at.replace(tzinfo=timezone.utc) if at is not None and at.tzinfo is None else at
 
     def update(self, workspace: str, platform: str, **fields: Any) -> CaptureSetting:
         ws = workspace_id(workspace)

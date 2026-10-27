@@ -20270,6 +20270,19 @@
             "title": "Last Event At",
             "description": "The last signed webhook from LiveKit."
           },
+          "last_attach_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attach At",
+            "description": "When the last session sent by the agent itself arrived (the SDK's `attach`), not by the recorder."
+          },
           "recorder_installed": {
             "type": "boolean",
             "title": "Recorder Installed",

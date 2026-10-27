@@ -1,13 +1,14 @@
 // How calls come back to sopops with no code in the agent, inside Settings → Platforms: the LiveKit project and its
 // webhook, the ElevenLabs post-call webhook and Enterprise live monitoring, and the Vapi server messages to turn on.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Plus, X } from "lucide-react";
+import { Check, Copy, Plus, X } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { type CaptureOut, call, sdk } from "@/lib/api";
 import { when } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note } from "./bits";
+import { ago } from "./review-bits";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
@@ -113,86 +114,106 @@ export function LiveKitCapture() {
   };
 
   const needKeys = !lk?.connected;
+  const attached = lk?.last_attach_at;
+  // the recorder: for calls from agents that don't use `attach`
+  const recorder = (
+    <>
+        <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+          Connect your LiveKit Cloud project, and sopops joins each call as a hidden participant. It reads what the agent and the caller say as it happens,
+          so your agent needs no changes. Tool calls aren't in the room, so they aren't recorded this way.
+        </p>
+        {q.isError && <ErrorBanner error={q.error} />}
+        {lk && !lk.recorder_installed && (
+          <Banner tone="warn">
+            This server can't join LiveKit calls yet. Install it with <code>pip install 'sopops-server[livekit]'</code> where sopops and its worker run, then
+            restart.
+          </Banner>
+        )}
+        {lk && (
+          <form
+            className="grid gap-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              save();
+            }}
+          >
+            <Field label="Project URL" hint="From your project's settings">
+              <Input className="max-w-80 flex-1" placeholder="wss://my-project.livekit.cloud" aria-label="LiveKit project URL" value={url} onChange={(e) => setUrl(e.target.value)} />
+            </Field>
+            <Field label="API key" hint={lk.api_key.set ? "Leave empty to keep the saved one" : "Settings, then API keys"}>
+              <Input
+                className="max-w-80 flex-1"
+                autoComplete="off"
+                placeholder={lk.api_key.set ? `Saved: ${lk.api_key.hint ?? ""}` : "API key"}
+                aria-label="LiveKit API key"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+              />
+            </Field>
+            <Field label="API secret">
+              <Input
+                type="password"
+                autoComplete="off"
+                className="max-w-80 flex-1"
+                placeholder={lk.api_secret.set ? "Saved" : "API secret"}
+                aria-label="LiveKit API secret"
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+              />
+            </Field>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" type="submit" disabled={busy || !url.trim() || (needKeys && (!key.trim() || !secret.trim()))}>
+                {lk.connected ? "Save" : "Connect"}
+              </Button>
+              {lk.connected && (
+                <>
+                  <Button size="sm" variant="outline" type="button" disabled={busy} onClick={test}>
+                    Test
+                  </Button>
+                  <span className="flex-1" />
+                  <ConfirmButton size="sm" variant="ghost" type="button" className="text-err" confirm="Click again: sopops stops joining calls" onConfirm={disconnect}>
+                    Disconnect
+                  </ConfirmButton>
+                </>
+              )}
+            </div>
+          </form>
+        )}
+        {lk?.connected && (
+          <div className="mt-3 grid gap-3">
+            <HookBox
+              title="LiveKit webhook"
+              path={lk.webhook_path}
+              steps={[
+                <>
+                  In LiveKit Cloud, open <b>Settings</b>, then <b>Webhooks</b>, and add a webhook with this address.
+                </>,
+                <>For its signing key, pick the API key you added here.</>,
+                <>Start a call. sopops joins when your agent does, and the call shows up in Sessions as it happens.</>,
+              ]}
+            >
+              <Received at={lk.last_event_at} />
+            </HookBox>
+            <AgentMap />
+          </div>
+        )}
+    </>
+  );
   return (
     <div>
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
-        Connect your LiveKit Cloud project, and sopops joins each call as a hidden participant. It reads what the agent and the caller say as it happens,
-        so your agent needs no changes. Tool calls aren't in the room, so they aren't recorded this way.
-      </p>
-      {q.isError && <ErrorBanner error={q.error} />}
-      {lk && !lk.recorder_installed && (
-        <Banner tone="warn">
-          This server can't join LiveKit calls yet. Install it with <code>pip install 'sopops-server[livekit]'</code> where sopops and its worker run, then
-          restart.
+      {attached && (
+        <Banner tone="ok" className="mb-3">
+          <Check className="mr-2 inline size-4" />
+          Getting LiveKit calls from <code>attach</code> in your agent. Last one {ago(attached)}. There's nothing else to set up.
         </Banner>
       )}
-      {lk && (
-        <form
-          className="grid gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            save();
-          }}
-        >
-          <Field label="Project URL" hint="From your project's settings">
-            <Input className="max-w-80 flex-1" placeholder="wss://my-project.livekit.cloud" aria-label="LiveKit project URL" value={url} onChange={(e) => setUrl(e.target.value)} />
-          </Field>
-          <Field label="API key" hint={lk.api_key.set ? "Leave empty to keep the saved one" : "Settings, then API keys"}>
-            <Input
-              className="max-w-80 flex-1"
-              autoComplete="off"
-              placeholder={lk.api_key.set ? `Saved: ${lk.api_key.hint ?? ""}` : "API key"}
-              aria-label="LiveKit API key"
-              value={key}
-              onChange={(e) => setKey(e.target.value)}
-            />
-          </Field>
-          <Field label="API secret">
-            <Input
-              type="password"
-              autoComplete="off"
-              className="max-w-80 flex-1"
-              placeholder={lk.api_secret.set ? "Saved" : "API secret"}
-              aria-label="LiveKit API secret"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" type="submit" disabled={busy || !url.trim() || (needKeys && (!key.trim() || !secret.trim()))}>
-              {lk.connected ? "Save" : "Connect"}
-            </Button>
-            {lk.connected && (
-              <>
-                <Button size="sm" variant="outline" type="button" disabled={busy} onClick={test}>
-                  Test
-                </Button>
-                <span className="flex-1" />
-                <ConfirmButton size="sm" variant="ghost" type="button" className="text-err" confirm="Click again: sopops stops joining calls" onConfirm={disconnect}>
-                  Disconnect
-                </ConfirmButton>
-              </>
-            )}
-          </div>
-        </form>
-      )}
-      {lk?.connected && (
-        <div className="mt-3 grid gap-3">
-          <HookBox
-            title="LiveKit webhook"
-            path={lk.webhook_path}
-            steps={[
-              <>
-                In LiveKit Cloud, open <b>Settings</b>, then <b>Webhooks</b>, and add a webhook with this address.
-              </>,
-              <>For its signing key, pick the API key you added here.</>,
-              <>Start a call. sopops joins when your agent does, and the call shows up in Sessions as it happens.</>,
-            ]}
-          >
-            <Received at={lk.last_event_at} />
-          </HookBox>
-          <AgentMap />
-        </div>
+      {attached && !lk?.connected ? (
+        <details>
+          <summary className="text-muted-foreground cursor-pointer text-sm">Optional: also record calls without code, from a LiveKit project</summary>
+          <div className="mt-3">{recorder}</div>
+        </details>
+      ) : (
+        recorder
       )}
     </div>
   );
