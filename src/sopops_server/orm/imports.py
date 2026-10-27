@@ -36,6 +36,7 @@ class ImportRecord(SQLModel, table=True):
     agents: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))  # names, for lists
     proposal: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))
     error: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
+    guidance: str | None = Field(default=None, sa_column=Column(Text, nullable=True))  # llm: how the user wants their instructions organized
     pushes: int = 0
     pr_url: str | None = Field(default=None, max_length=1024, description="The onboarding pull request the coding agent opened.")
     pr_state: str | None = Field(default=None, max_length=16)  # open | merged | closed

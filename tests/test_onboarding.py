@@ -546,3 +546,50 @@ def test_skills_are_served_by_name(client):
     assert onboard["name"] == "sopops-onboard" and "get_ab_test_guide" in onboard["text"]
     assert ab["name"] == "sopops-ab-tests" and ab["text"].startswith("---\nname: sopops-ab-tests") and "sopops_test" in ab["text"]
     assert client.get("/v1/onboarding/skill", params={"name": "../secrets"}).status_code == 404
+
+
+# --- the user's guidance ----------------------------------------------------------------------
+
+
+def rules_fake():
+    """FakeModels answering the onboarding signatures by rule, recording each call's inputs."""
+    from sopops_server.ai.fakes import FakeModels
+
+    rules = RulesModels()
+    return FakeModels(lambda role, sig, inputs: {n: getattr(rules.predict(role, sig, **inputs), n) for n in sig.output_fields})
+
+
+def test_guidance_reaches_the_splitting_and_structuring_calls():
+    fake = rules_fake()
+    guidance = "Keep each restaurant's menu as its own block. Everything about delivery is one procedure."
+    extract(sources(), fake, guidance=f"  {guidance}\n")
+    seen = {sig.__name__: [] for _, sig, _ in fake.calls}
+    for _, sig, inputs in fake.calls:
+        seen[sig.__name__].append(inputs.get("guidance"))
+    assert seen["SegmentPrompt"] == [guidance] * len(sources())
+    assert seen["StructureProcedure"] and set(seen["StructureProcedure"]) == {guidance}
+    assert "guidance" not in SegmentPrompt.output_fields and "guidance" in SegmentPrompt.input_fields and "guidance" in StructureProcedure.input_fields
+
+
+def test_empty_guidance_is_the_default_import(proposal):
+    fake = rules_fake()
+    p = extract(sources(), fake, Sopc(SOPC_BIN), guidance="   ")
+    assert {inputs["guidance"] for _, sig, inputs in fake.calls if sig in (SegmentPrompt, StructureProcedure)} == {""}
+    assert p.model_dump() == proposal.model_dump()
+
+
+def test_import_api_stores_guidance_and_passes_it_to_the_model(client):
+    fake = rules_fake()
+    client.app.state.onboarding.ai = fake
+    created = client.post(IMPORTS, json={**payload(), "guidance": "Don't split the greeting out"})
+    assert created.status_code == 201 and created.json()["guidance"] == "Don't split the greeting out"
+    body = wait_ready(client, created.json()["id"])
+    assert body["status"] == "ready", body["error"]
+    assert body["guidance"] == "Don't split the greeting out"
+    assert {inputs["guidance"] for _, sig, inputs in fake.calls if sig is SegmentPrompt} == {"Don't split the greeting out"}
+    assert any("Don't split the greeting out" in e["message"] for e in client.get(f"{IMPORTS}/{body['id']}/events").json())
+
+    plain = client.post(IMPORTS, json={**payload(), "guidance": ""})
+    assert plain.status_code == 201 and plain.json()["guidance"] is None
+    assert wait_ready(client, plain.json()["id"])["status"] == "ready"
+    assert client.post(IMPORTS, json={**payload(), "guidance": "x" * 2001}).status_code == 422

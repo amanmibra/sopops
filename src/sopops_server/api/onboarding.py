@@ -99,7 +99,8 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.post(base, response_model=ImportOut, status_code=201, responses={400: {"description": "No instructions, or a platform error."}, 503: {"description": "No model configured."}})
     def create_import(workspace: str, req: CreateImport) -> dict:
-        """Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or
+        """Extract blocks and agents from agents' existing instructions with sopops's model, in the background, organized
+        as `guidance` asks when it's given. Poll the import (or
         stream `…/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during
         this request and is never stored."""
         sources = list(req.sources)
@@ -113,7 +114,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             except platforms.PlatformError as e:
                 raise HTTPException(400, str(e)) from None
         try:
-            return onboarding.start(workspace, sources, req.author)
+            return onboarding.start(workspace, sources, req.author, guidance=req.guidance)
         except AIError as e:
             raise HTTPException(503, str(e)) from None
         except ValueError as e:

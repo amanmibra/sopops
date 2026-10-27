@@ -248,6 +248,55 @@ function useStart() {
   return { run, busy, error };
 }
 
+type CreateBody = Parameters<typeof sdk.createImport>[0]["body"];
+
+const GUIDANCE_EXAMPLES = ["Keep each restaurant's menu as its own block", "Everything about refunds is one procedure", "Don't split the greeting out"];
+
+// The import's start button. It first asks how the user wants their instructions organized; the answer goes to the
+// model with the import, and Skip starts it with sopops's default choices.
+function StartImport({ label, busyLabel, disabled, body }: { label: string; busyLabel: string; disabled: boolean; body: () => CreateBody }) {
+  const { run, busy, error } = useStart();
+  const [asking, setAsking] = useState(false);
+  const [guidance, setGuidance] = useState("");
+  const start = (text: string | null) => run({ ...body(), guidance: text?.trim() || null });
+  return (
+    <>
+      {error ? <ErrorBanner error={error} lead="The import can't start:" /> : null}
+      {asking ? (
+        <Panel title="How should we organize these instructions?" className="mb-0">
+          <p className="text-muted-foreground mb-2 text-sm">
+            Optional. sopops's model follows this when it splits the instructions into shared instructions, procedures and variables. It never drops or
+            rewrites your text.
+          </p>
+          <Textarea
+            aria-label="How to organize the instructions"
+            className="min-h-24"
+            maxLength={2000}
+            autoFocus
+            placeholder={GUIDANCE_EXAMPLES.map((e) => `e.g. ${e}`).join("\n")}
+            value={guidance}
+            onChange={(e) => setGuidance(e.target.value)}
+          />
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button disabled={busy || disabled} onClick={() => start(guidance)}>
+              {busy ? busyLabel : label}
+            </Button>
+            <Button variant="outline" disabled={busy || disabled} onClick={() => start(null)}>
+              Skip
+            </Button>
+          </div>
+        </Panel>
+      ) : (
+        <div>
+          <Button disabled={disabled} onClick={() => setAsking(true)}>
+            {label}
+          </Button>
+        </div>
+      )}
+    </>
+  );
+}
+
 // --- paste or upload ---------------------------------------------------------------------
 
 function PasteSource() {
@@ -255,7 +304,6 @@ function PasteSource() {
   const options = IMPORT_PLATFORMS.filter((p) => plats.has(p.value));
   const [rows, setRows] = useState<Row[]>(() => [blank(plats.first)]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const { run, busy, error } = useStart();
   const set = (i: number, r: Partial<Row>) => setRows(rows.map((x, j) => (j === i ? { ...x, ...r } : x)));
   const addFiles = async (files: FileList | null) => {
     if (!files) return;
@@ -327,26 +375,21 @@ function PasteSource() {
           <input ref={fileRef} type="file" multiple accept=".txt,.md,.markdown,text/plain,text/markdown" className="hidden" onChange={(e) => addFiles(e.target.files)} />
           <Note>Or drop files here. Each file is one agent, named after the file.</Note>
         </div>
-        {error ? <ErrorBanner error={error} lead="The import can't start:" /> : null}
-        <div>
-          <Button
-            disabled={busy || !ready.length}
-            onClick={() =>
-              run({
-                author: author(),
-                sources: ready.map((r) => ({
-                  name: r.name.trim(),
-                  platform: r.platform,
-                  platform_id: r.platform_id.trim() || null,
-                  prompt: r.prompt,
-                  tools: r.tools.split(",").map((t) => t.trim()).filter(Boolean),
-                })),
-              })
-            }
-          >
-            {busy ? "Starting…" : `Import ${plural(ready.length, "agent", "agents")}`}
-          </Button>
-        </div>
+        <StartImport
+          label={`Import ${plural(ready.length, "agent", "agents")}`}
+          busyLabel="Starting…"
+          disabled={!ready.length}
+          body={() => ({
+            author: author(),
+            sources: ready.map((r) => ({
+              name: r.name.trim(),
+              platform: r.platform,
+              platform_id: r.platform_id.trim() || null,
+              prompt: r.prompt,
+              tools: r.tools.split(",").map((t) => t.trim()).filter(Boolean),
+            })),
+          })}
+        />
       </div>
     </NeedsModel>
   );
@@ -361,7 +404,6 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [listing, setListing] = useState(false);
   const [listError, setListError] = useState<unknown>(null);
-  const { run, busy, error } = useStart();
   const list = async () => {
     setListing(true);
     setListError(null);
@@ -427,13 +469,13 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
             )}
           </Panel>
         )}
-        {error ? <ErrorBanner error={error} lead="The import can't start:" /> : null}
         {agents && (
-          <div>
-            <Button disabled={busy || !picked.size} onClick={() => run({ author: author(), platform: { platform, api_key: key, agent_ids: [...picked] } })}>
-              {busy ? "Reading instructions…" : `Import ${plural(picked.size, "agent", "agents")}`}
-            </Button>
-          </div>
+          <StartImport
+            label={`Import ${plural(picked.size, "agent", "agents")}`}
+            busyLabel="Reading instructions…"
+            disabled={!picked.size}
+            body={() => ({ author: author(), platform: { platform, api_key: key, agent_ids: [...picked] } })}
+          />
         )}
       </div>
     </NeedsModel>

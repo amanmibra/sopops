@@ -37,8 +37,8 @@ VERSIONS = {
     "name": "name-1",
     "themes": "themes-2",
     "suggest": "suggest-2",
-    "segment": "segment-2",
-    "procedure": "procedure-2",
+    "segment": "segment-3",
+    "procedure": "procedure-3",
     "variables": "variables-2",
 }
 ALL_STATUSES = tuple(dict.fromkeys(JUDGED_STEP_STATUSES + NEVER_STATUSES + WARNING_STATUSES))
@@ -487,12 +487,18 @@ class SegmentPrompt(dspy.Signature):
     - Text said only at the end of the call ("Before hanging up, repeat the total") is an instruction with its own segment.
     - Don't drop units. Every unit number appears in exactly one segment.
     - This import creates reusable blocks. Use consistent topic boundaries and titles for equivalent passages across agents so sopops can store repeated text once. Keep each source's wording, ordering, placeholders and behavior intact. Never merge passages that differ in a rule, condition, tool, limit, timing or exception: label them as the same topic so sopops reports the difference for review instead of silently choosing one.
+
+    The user's guidance:
+    - `guidance` says how the user wants their instructions organized ("Keep each restaurant's menu as its own block", "Everything about refunds is one procedure", "Don't split the greeting out"). When it's given, follow it: it outranks the default choices above about where to split, how to label a passage and what to title it. Use the same titles it uses for the topics it names.
+    - It never changes what's in the prompt: still cover every unit exactly once, in order, never drop, rewrite or invent text, and still keep passages that differ in a rule apart. If it asks for something these rules don't allow, follow it as far as they do.
+    - Empty guidance: use the default choices.
     """
 
     agent: str = dspy.InputField(desc="The agent's name")
     platform: str = dspy.InputField()
     tools: list[str] = dspy.InputField(desc="Tools the agent can call")
     units: list[Unit] = dspy.InputField(desc="The prompt, as numbered units (paragraphs), in order")
+    guidance: str = dspy.InputField(desc="How the user wants their instructions organized; may be empty")
     segments: list[Segment] = dspy.OutputField()
 
 
@@ -512,11 +518,13 @@ class StructureProcedure(dspy.Signature):
     - Preserve wording. Don't improve, shorten, merge or add instructions. The only edits allowed: dropping list numbers and bullets, dropping the heading (it becomes `name`), and dropping "When"/"If" and the colon from the trigger.
     - Every sentence of the passage must land in exactly one field. If you can't place a sentence, put it in `guidance`.
     - Only name tools from the list you're given; never invent a tool name.
+    - `guidance` says how the user wants their instructions organized. When it's given, follow it where it bears on this procedure (its name, what counts as one step, which field a sentence goes in): it outranks the default choices above. It never allows dropping, rewording or inventing text, or a tool not on the list. Empty guidance: use the default choices.
     """
 
     title: str = dspy.InputField(desc="The passage's topic")
     tools: list[str] = dspy.InputField(desc="The tools the agents using it can call")
     passage: str = dspy.InputField()
+    guidance: str = dspy.InputField(desc="How the user wants their instructions organized; may be empty")
     procedure: ProcedureDraft = dspy.OutputField()
 
 

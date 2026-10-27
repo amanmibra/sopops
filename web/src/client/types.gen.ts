@@ -1672,6 +1672,12 @@ export type CreateImport = {
      */
     platform?: PlatformImport | null;
     /**
+     * Guidance
+     *
+     * How the user wants their instructions organized (e.g. "keep each restaurant's menu as its own block"), passed to the model. Empty or missing: sopops's default choices.
+     */
+    guidance?: string | null;
+    /**
      * Author
      */
     author?: string | null;
@@ -2697,6 +2703,12 @@ export type ImportOut = {
      * Agents
      */
     agents: Array<string>;
+    /**
+     * Guidance
+     *
+     * llm: how the user asked for their instructions to be organized.
+     */
+    guidance?: string | null;
     /**
      * Error
      */

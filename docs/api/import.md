@@ -22,7 +22,7 @@ Every way ends in a **proposal** you review and apply as drafts: agents, shared 
 |---|---|
 | `GET /v1/onboarding/capabilities` | `{llm, model, platforms}`: whether sopops can extract with its own model. |
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs \| vapi, api_key}` → `[{id, name}]`: the agents the key can see. The key is used for this request only. |
-| `GET/POST /v1/workspaces/{ws}/imports` | List imports, or start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}}`. `503` if no model is configured. Runs in the background. |
+| `GET/POST /v1/workspaces/{ws}/imports` | List imports, or start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}, guidance?}`. `guidance` (up to 2000 characters) is how the user wants their instructions organized; the model follows it when splitting and structuring, and empty means the default choices. `503` if no model is configured. Runs in the background. |
 | `POST /v1/workspaces/{ws}/imports/agent` | `{mode: hosted \| repo, server_url?}`: start an import by Claude Code or Codex. Fields below. |
 | `POST /v1/workspaces/{ws}/imports/sopc` | `{files?, from_repo?, originals?}`: import an existing sopc project. Fields below. |
 | `PUT /v1/workspaces/{ws}/imports/{id}/originals` | `{originals: {agent: prompt}}`: add or replace agents' original instructions (an empty one removes them) and check fidelity again. |

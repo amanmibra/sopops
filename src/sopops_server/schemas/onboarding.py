@@ -26,6 +26,8 @@ class PlatformImport(BaseModel):
 class CreateImport(BaseModel):
     sources: list[SourcePrompt] = Field(default_factory=list, description="Pasted or uploaded instructions, one per agent.")
     platform: PlatformImport | None = Field(None, description="Agents to read from ElevenLabs or Vapi, with a key used only for this request.")
+    guidance: str | None = Field(None, max_length=2000, description="How the user wants their instructions organized (e.g. \"keep each restaurant's menu as its own block\"), "
+                                 "passed to the model. Empty or missing: sopops's default choices.")
     author: str | None = None
 
 
@@ -86,6 +88,7 @@ class ImportOut(BaseModel):
     pr_state: Literal["open", "merged", "closed"] | None = Field(description="Followed on GitHub. Merged: the folder was pulled into drafts.")
     pr_merged_at: datetime | None
     agents: list[str]
+    guidance: str | None = Field(None, description="llm: how the user asked for their instructions to be organized.")
     error: str | None
     pushes: int
     token: ImportTokenOut | None

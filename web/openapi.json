@@ -12085,7 +12085,7 @@
           "onboarding"
         ],
         "summary": "Create Import",
-        "description": "Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or\nstream `\u2026/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during\nthis request and is never stored.",
+        "description": "Extract blocks and agents from agents' existing instructions with sopops's model, in the background, organized\nas `guidance` asks when it's given. Poll the import (or\nstream `\u2026/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during\nthis request and is never stored.",
         "operationId": "create_import",
         "parameters": [
           {
@@ -16886,6 +16886,19 @@
             ],
             "description": "Agents to read from ElevenLabs or Vapi, with a key used only for this request."
           },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "How the user wants their instructions organized (e.g. \"keep each restaurant's menu as its own block\"), passed to the model. Empty or missing: sopops's default choices."
+          },
           "author": {
             "anyOf": [
               {
@@ -18660,6 +18673,18 @@
             },
             "type": "array",
             "title": "Agents"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "llm: how the user asked for their instructions to be organized."
           },
           "error": {
             "anyOf": [

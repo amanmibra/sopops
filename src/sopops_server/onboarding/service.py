@@ -143,25 +143,29 @@ class Onboarding:
 
     # --- LLM imports ----------------------------------------------------------
 
-    def start(self, workspace: str, sources: list[SourcePrompt], author: str | None = None, run: bool = True) -> dict:
-        """Start extracting in a background thread. Raises LLMError if no model is configured."""
+    def start(self, workspace: str, sources: list[SourcePrompt], author: str | None = None, run: bool = True, guidance: str | None = None) -> dict:
+        """Start extracting in a background thread. Raises LLMError if no model is configured. `guidance`: how the user wants
+        their instructions organized, for the model; empty means sopops's default choices."""
         if self.ai_for(workspace) is None:
             raise AIError("No model is set up for extraction. Add your AI keys in Settings, then Checks, "
                            "or use Claude Code or Codex instead.")
         if not sources:
             raise ValueError("add at least one agent's instructions")
         names = [s.name for s in sources]
+        guidance = (guidance or "").strip() or None
         rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="llm", status="running", agents=names,
-                           created_at=_now(), updated_at=_now(), created_by=author)
+                           guidance=guidance, created_at=_now(), updated_at=_now(), created_by=author)
         with self._db() as db:
             db.add(rec)
             db.commit()
         self.event(rec.id, "start", f"Importing {len(sources)} agent{'s' if len(sources) != 1 else ''}: {', '.join(names[:8])}{f' and {len(names) - 8} more' if len(names) > 8 else ''}")
+        if guidance:
+            self.event(rec.id, "start", f"Organizing them as asked: {guidance}")
         if run:
-            threading.Thread(target=self.run, args=(rec.id, sources), daemon=True, name=f"import-{rec.id[:8]}").start()
+            threading.Thread(target=self.run, args=(rec.id, sources, guidance or ""), daemon=True, name=f"import-{rec.id[:8]}").start()
         return self.get(workspace, rec.id)
 
-    def run(self, id: str, sources: list[SourcePrompt]) -> None:
+    def run(self, id: str, sources: list[SourcePrompt], guidance: str = "") -> None:
         try:
             with self._db() as db:
                 ws = db.get(ImportRecord, id).workspace  # type: ignore[union-attr]
@@ -169,7 +173,7 @@ class Onboarding:
             if ai is None:
                 raise AIError("no model is configured")
             with spend.scope(self.store.engine, ws, "onboarding"):
-                proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg))
+                proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg), guidance=guidance)
             self._save(id, proposal, status="ready")
         except Exception as e:  # report every failure on the import itself
             log.exception("import %s failed", id)
@@ -551,7 +555,7 @@ def out(r: ImportRecord, token: Token | None = None, proposal: bool = True) -> d
     d = {
         "id": r.id, "workspace": r.workspace, "source": r.source, "status": r.status, "mode": r.mode, "repo": r.repo,
         "repo_branch": r.repo_branch, "repo_path": r.repo_path, "repo_project": r.repo_project,
-        "pr_url": r.pr_url, "pr_state": r.pr_state, "pr_merged_at": _utc(r.pr_merged_at) if r.pr_merged_at else None, "agents": r.agents, "error": r.error, "pushes": r.pushes, "token": token,
+        "pr_url": r.pr_url, "pr_state": r.pr_state, "pr_merged_at": _utc(r.pr_merged_at) if r.pr_merged_at else None, "agents": r.agents, "guidance": r.guidance, "error": r.error, "pushes": r.pushes, "token": token,
         "created_at": _utc(r.created_at), "updated_at": _utc(r.updated_at), "created_by": r.created_by,
         "agent_client": {"name": r.agent_client, "version": r.agent_client_version, "label": client_label(r.agent_client),
                          "connected_at": _utc(r.agent_connected_at)} if r.agent_connected_at else None,

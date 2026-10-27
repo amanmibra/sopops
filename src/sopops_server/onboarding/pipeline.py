@@ -119,10 +119,10 @@ def agent_ids(sources: list[SourcePrompt]) -> list[str]:
 # --- 1. split -------------------------------------------------------------------------------------
 
 
-def split(ai: AI, source: SourcePrompt, agent: str, notes: list[str]) -> list[Seg]:
+def split(ai: AI, source: SourcePrompt, agent: str, notes: list[str], guidance: str = "") -> list[Seg]:
     units = tx.split_units(source.prompt)
     result = ai.predict("reasoning", SegmentPrompt, agent=source.name, platform=source.platform, tools=source.tools,
-                        units=[Unit(n=i + 1, text=u) for i, u in enumerate(units)])
+                        units=[Unit(n=i + 1, text=u) for i, u in enumerate(units)], guidance=guidance)
     owner: dict[int, int] = {}
     for si, seg in enumerate(result.segments):
         for n in seg.units:
@@ -371,8 +371,8 @@ NAME_STOPWORDS = {"the", "a", "an", "to", "of", "for", "with", "than", "more", "
 # --- 3. structure -------------------------------------------------------------------------------------
 
 
-def structure(ai: AI, block: Block, tools: list[str]) -> ProcedureDraft:
-    return ai.predict("reasoning", StructureProcedure, title=block.title, tools=tools, passage=block.text).procedure
+def structure(ai: AI, block: Block, tools: list[str], guidance: str = "") -> ProcedureDraft:
+    return ai.predict("reasoning", StructureProcedure, title=block.title, tools=tools, passage=block.text, guidance=guidance).procedure
 
 
 def to_procedure(block: Block, d: ProcedureDraft, tools: list[str], notes: list[str]) -> ProposedProcedure:
@@ -429,13 +429,17 @@ def common_group(agents: list[ProposedAgent], taken: set[str]) -> ProposedGroup 
 # --- the whole thing -------------------------------------------------------------------------------------
 
 
-def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progress: Progress | None = None, workers: int = 4) -> Proposal:
+def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progress: Progress | None = None, workers: int = 4,
+            guidance: str = "") -> Proposal:
+    """`guidance`: how the user wants their instructions organized, passed to the splitting and structuring calls; empty
+    leaves the model's default choices."""
     say = progress or (lambda step, message: None)
+    guidance = (guidance or "").strip()
     ids = agent_ids(sources)
     notes: list[str] = []
     say("split", f"Splitting {len(sources)} agents' instructions into agent context, shared instructions and procedures" if len(sources) != 1 else "Splitting one agent's instructions into agent context, shared instructions and procedures")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        per_agent = list(pool.map(spend.carry(lambda pair: split(ai, pair[0], pair[1], notes)), zip(sources, ids)))
+        per_agent = list(pool.map(spend.carry(lambda pair: split(ai, pair[0], pair[1], notes, guidance)), zip(sources, ids)))
     for agent, segs in zip(ids, per_agent):
         counts = Counter(s.kind for s in segs)
         say("split", f"{agent}: {counts['instruction']} instruction(s), {counts['procedure']} procedure(s), {counts['context']} context passage(s)")
@@ -454,7 +458,7 @@ def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progr
     if procs:
         say("structure", f"Structuring {len(procs)} procedure{'s' if len(procs) != 1 else ''}")
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        drafts = list(pool.map(spend.carry(lambda blk: structure(ai, blk, tools_of[blk.id])), procs))
+        drafts = list(pool.map(spend.carry(lambda blk: structure(ai, blk, tools_of[blk.id], guidance)), procs))
     procedures: list[ProposedProcedure] = []
     demoted: set[str] = set()
     for blk, d in zip(procs, drafts):

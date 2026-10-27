@@ -2089,7 +2089,8 @@ export const listImports = <ThrowOnError extends boolean = false>(options: Optio
 /**
  * Create Import
  *
- * Extract blocks and agents from agents' existing instructions with sopops's model, in the background. Poll the import (or
+ * Extract blocks and agents from agents' existing instructions with sopops's model, in the background, organized
+ * as `guidance` asks when it's given. Poll the import (or
  * stream `…/stream`) until it's `ready`, then review its proposal. A platform key is used to read the agents during
  * this request and is never stored.
  */
