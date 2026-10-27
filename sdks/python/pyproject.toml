@@ -1,6 +1,6 @@
 [project]
 name = "sopops"
-version = "0.5.0"
+version = "0.5.1"
 description = "Fetch your agent's instructions from sopops at call start, and send each finished session back."
 readme = "README.md"
 license = "Apache-2.0"
