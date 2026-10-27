@@ -35,7 +35,12 @@ const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
     },
     after: {
       need: "none",
-      how: <>Add your LiveKit project key and a webhook in LiveKit Cloud. sopops joins each call and records it.</>,
+      how: (
+        <>
+          With <code>attach()</code>, nothing more: it sends each call. Without code: add your LiveKit project key and a webhook in LiveKit Cloud, and sopops
+          joins each call and records it.
+        </>
+      ),
     },
     live: {
       need: "none",

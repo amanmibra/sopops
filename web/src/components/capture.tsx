@@ -119,8 +119,9 @@ export function LiveKitCapture() {
   const recorder = (
     <>
         <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
-          Connect your LiveKit Cloud project, and sopops joins each call as a hidden participant. It reads what the agent and the caller say as it happens,
-          so your agent needs no changes. Tool calls aren't in the room, so they aren't recorded this way.
+          Only for agents that don't use <code>attach()</code>, which sends each call itself. Connect your LiveKit Cloud project, and sopops joins each
+          call as a hidden participant. It reads what the agent and the caller say as it happens, so your agent needs no changes. Tool calls aren't in
+          the room, so they aren't recorded this way.
         </p>
         {q.isError && <ErrorBanner error={q.error} />}
         {lk && !lk.recorder_installed && (
