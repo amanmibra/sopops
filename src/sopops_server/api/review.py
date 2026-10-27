@@ -53,7 +53,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         out = store.verdicts.set(ws, pattern_id, req.verdict, req.note, req.reviewer)
         out["suggestion"] = None
         if req.suggest and req.verdict in SUGGESTIBLE:
-            s = store.suggestions.create(ws, pattern_id)
+            s = store.suggestions.create(ws, pattern_id, guidance=req.guidance)
             jobs.suggest(SuggestRef(workspace_id=ws, suggestion_id=s["suggestion_id"]), background)
             out["suggestion"] = s
         return out

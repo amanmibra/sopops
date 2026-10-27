@@ -96,10 +96,12 @@ export const review = {
   /** A rule's right status: a correction from the session, or a spot-check answer. */
   label: (ws: string, sessionId: string, procedureId: string, ruleId: string, body: RuleLabelIn) =>
     call(sdk.labelRule({ path: { ...path(ws), session_id: sessionId, procedure_id: procedureId, rule_id: ruleId }, body })),
-  suggest: (ws: string, id: string) => call(sdk.suggestEdit({ path: { ...path(ws), pattern_id: id } })),
+  /** `guidance`: what the fix should do, in the reviewer's words (null: the verdict alone). */
+  suggest: (ws: string, id: string, guidance: string | null = null) => call(sdk.suggestEdit({ path: { ...path(ws), pattern_id: id }, body: { guidance } })),
   apply: (ws: string, id: string, reviewer: string | null) => call(sdk.applySuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
   /** A new suggestion against the procedure as it is now; the old one is dismissed. */
-  rewrite: (ws: string, id: string, reviewer: string | null) => call(sdk.rewriteSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer } })),
+  rewrite: (ws: string, id: string, reviewer: string | null, guidance: string | null = null) =>
+    call(sdk.rewriteSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { reviewer, guidance } })),
   calibrate: (ws: string, body: CalibrateIn) => call(sdk.calibrate({ path: path(ws), body })),
   dismiss: (ws: string, id: string, note: string | null, reviewer: string | null) => call(sdk.dismissSuggestion({ path: { ...path(ws), suggestion_id: id }, body: { note, reviewer } })),
 };

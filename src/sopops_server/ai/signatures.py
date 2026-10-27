@@ -36,7 +36,7 @@ VERSIONS = {
     "cluster": "cluster-2",
     "name": "name-1",
     "themes": "themes-2",
-    "suggest": "suggest-2",
+    "suggest": "suggest-3",
     "segment": "segment-3",
     "procedure": "procedure-3",
     "variables": "variables-2",
@@ -433,6 +433,8 @@ class SuggestEdit(dspy.Signature):
     - `acceptable`: what the agent did is fine in this situation. Add the exception to the rule (or to the guidance next to it), naming the situation precisely, so the same behavior in that situation no longer breaks it. Keep the rule for every other situation.
     - `sop_wrong`: the rule itself is wrong or outdated. Edit the rule so it says what the agent should do now; the reviewer's note says why, when there is one.
 
+    If `guidance` isn't empty, it's what the reviewer asked this fix to do, in their words. It comes first: make the edit it asks for, where and how it says, as long as the file still compiles and keeps its format. If it goes against the verdict's usual fix, follow the guidance and say so in the rationale.
+
     Rules:
     - Return the whole file in `new_text`, in the same format (YAML or Markdown) and layout as `procedure_file`. Change only what the verdict needs; keep every other line, every `{{placeholder}}`, and every `tool:` and `required:` exactly as written.
     - Keep the rule at its position in its list, so the other rules keep their numbers. Don't add a list item unless the fix needs one.
@@ -449,6 +451,7 @@ class SuggestEdit(dspy.Signature):
     pattern: str = dspy.InputField(desc="The pattern's name and description")
     verdict: Literal["real", "acceptable", "sop_wrong"] = dspy.InputField()
     note: str = dspy.InputField(desc="The reviewer's note; may be empty")
+    guidance: str = dspy.InputField(desc="What the reviewer asked this fix to do; may be empty")
     examples: list[ExampleIn] = dspy.InputField(desc="Up to 5 conversations in the pattern")
     changes_since: str = dspy.InputField(desc="Edits made to the file since an earlier suggestion for this pattern was written, as a unified diff; else empty")
     previous_text: str = dspy.InputField(desc="Your last proposal, if it didn't compile; else empty")

@@ -1612,10 +1612,17 @@ export const getSuggestion = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Suggest Edit
  *
- * (Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong). It comes back
- * `generating`; the model and sopc run as a job.
+ * (Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the
+ * reviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job.
  */
-export const suggestEdit = <ThrowOnError extends boolean = false>(options: Options<SuggestEditData, ThrowOnError>): RequestResult<SuggestEditResponses, SuggestEditErrors, ThrowOnError> => (options.client ?? client).post<SuggestEditResponses, SuggestEditErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest', ...options });
+export const suggestEdit = <ThrowOnError extends boolean = false>(options: Options<SuggestEditData, ThrowOnError>): RequestResult<SuggestEditResponses, SuggestEditErrors, ThrowOnError> => (options.client ?? client).post<SuggestEditResponses, SuggestEditErrors, ThrowOnError>({
+    url: '/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Apply Suggestion

@@ -21,7 +21,7 @@ import { repoQuery } from "./repo";
 import { Skel } from "./insights/kit";
 import { Page } from "./item-shell";
 import { sessionAt } from "./review";
-import { ConflictTag, ReviewStateChip, SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
+import { ConflictTag, FixAsk, ReviewStateChip, SUGGESTION_STATUS, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Collapsible } from "./views";
@@ -283,7 +283,9 @@ export function SuggestionView({ id }: { id: string }) {
   const since = open ? s.since_written : null;
   const conflict = since?.state === "conflict";
 
-  const act = async (what: "apply" | "dismiss" | "regenerate" | "rewrite") => {
+  const [asking, setAsking] = useState<null | "regenerate" | "rewrite">(null); // what the next one should do, asked first
+  const act = async (what: "apply" | "dismiss" | "regenerate" | "rewrite", guidance: string | null = null) => {
+    setAsking(null);
     setBusy(what);
     setError(null);
     try {
@@ -292,7 +294,7 @@ export function SuggestionView({ id }: { id: string }) {
         const merged = r.merged_into_version != null ? " Merged with the changes made since." : "";
         toast.success(r.status === "pr_open" ? `Pull request opened.${merged}` : `Saved as a draft.${merged} Publish from Unpublished changes to send it to agents.`);
       } else if (what === "rewrite") {
-        const r = await review.rewrite(ws, id, author());
+        const r = await review.rewrite(ws, id, author(), guidance);
         toast.success("Rewriting it against the current text.");
         await refresh(qc, ws);
         return void go(wsHref(ws, "suggestions", r.suggestion_id), { replace: true });
@@ -301,7 +303,7 @@ export function SuggestionView({ id }: { id: string }) {
         toast.success("Dismissed.");
         setDismissing(false);
       } else {
-        const r = await review.suggest(ws, s.pattern_id);
+        const r = await review.suggest(ws, s.pattern_id, guidance);
         toast.success("A new suggestion is being written.");
         await refresh(qc, ws);
         if (r.suggestion_id !== id) return void go(wsHref(ws, "suggestions", r.suggestion_id), { replace: true });
@@ -368,7 +370,20 @@ export function SuggestionView({ id }: { id: string }) {
             {s.note ? `: “${s.note}”` : "."} Regenerate to get a new one.
           </Banner>
         ))}
-      {since && conflict && <ConflictCallout since={since} busy={!!busy} onRewrite={() => void act("rewrite")} />}
+      {since && conflict && <ConflictCallout since={since} busy={!!busy || !!asking} onRewrite={() => setAsking("rewrite")} />}
+      {asking && (
+        <div className="bg-card mb-4 rounded-lg border px-4 py-3">
+          <FixAsk
+            key={asking}
+            initial={s.guidance}
+            busy={!!busy}
+            label={asking === "rewrite" ? "Rewrite it" : "Write a new one"}
+            onWrite={(g) => void act(asking, g)}
+            onCancel={() => setAsking(null)}
+          />
+          {asking === "rewrite" && s.guidance && <Note className="mt-2 block">Left as it is, the rewrite keeps what this one was asked to do.</Note>}
+        </div>
+      )}
       {error != null && <ErrorBanner error={error} lead="This couldn't be done:" />}
 
       {s.status !== "generating" && s.status !== "applied" && s.status !== "pr_open" && (
@@ -396,7 +411,7 @@ export function SuggestionView({ id }: { id: string }) {
               </Button>
             ))}
           {!conflict && (
-            <Button variant="ghost" disabled={!!busy} onClick={() => void act("regenerate")}>
+            <Button variant="ghost" disabled={!!busy || !!asking} onClick={() => setAsking("regenerate")}>
               {busy === "regenerate" ? <Loader2 className="animate-spin" /> : <Sparkles />} Regenerate
             </Button>
           )}
@@ -412,10 +427,15 @@ export function SuggestionView({ id }: { id: string }) {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] content-start gap-4">
-          {s.rationale && (
+          {(s.rationale || s.guidance) && (
             <section className="bg-card rounded-lg border px-4 py-4">
               <h2 className="mb-2 text-sm font-semibold">Why</h2>
-              <p className="max-w-[80ch] text-sm whitespace-pre-wrap">{s.rationale}</p>
+              {s.guidance && (
+                <p className="text-muted-foreground mb-2 max-w-[80ch] text-sm whitespace-pre-wrap">
+                  <span className="text-foreground font-medium">Asked for:</span> “{s.guidance}”
+                </p>
+              )}
+              {s.rationale && <p className="max-w-[80ch] text-sm whitespace-pre-wrap">{s.rationale}</p>}
             </section>
           )}
           <section className="bg-card min-w-0 rounded-lg border px-4 py-4">

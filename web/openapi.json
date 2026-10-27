@@ -8538,7 +8538,7 @@
           "suggestions"
         ],
         "summary": "Suggest Edit",
-        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong). It comes back\n`generating`; the model and sopc run as a job.",
+        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the\nreviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job.",
         "operationId": "suggest_edit",
         "parameters": [
           {
@@ -8560,6 +8560,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/SuggestIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Req"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -26312,6 +26329,19 @@
               }
             ],
             "title": "Reviewer"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "What the rewrite should do; empty keeps the guidance the suggestion was written with."
           }
         },
         "type": "object",
@@ -30150,6 +30180,25 @@
         ],
         "title": "Step"
       },
+      "SuggestIn": {
+        "properties": {
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "What the fix should do, in the reviewer's words. Sent to the model with the verdict; empty: the verdict alone."
+          }
+        },
+        "type": "object",
+        "title": "SuggestIn"
+      },
       "SuggestionDetail": {
         "properties": {
           "suggestion_id": {
@@ -30159,6 +30208,18 @@
           "pattern_id": {
             "type": "string",
             "title": "Pattern Id"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "What the reviewer asked the fix to do, in their words."
           },
           "pattern_name": {
             "anyOf": [
@@ -30502,6 +30563,7 @@
         "required": [
           "suggestion_id",
           "pattern_id",
+          "guidance",
           "pattern_name",
           "procedure_id",
           "rule_id",
@@ -30613,6 +30675,18 @@
           "pattern_id": {
             "type": "string",
             "title": "Pattern Id"
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "What the reviewer asked the fix to do, in their words."
           },
           "pattern_name": {
             "anyOf": [
@@ -30782,6 +30856,7 @@
         "required": [
           "suggestion_id",
           "pattern_id",
+          "guidance",
           "pattern_name",
           "procedure_id",
           "rule_id",
@@ -32401,6 +32476,19 @@
             "title": "Suggest",
             "description": "Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).",
             "default": true
+          },
+          "guidance": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Guidance",
+            "description": "With `suggest`: what the fix should do, in the reviewer's words."
           }
         },
         "type": "object",

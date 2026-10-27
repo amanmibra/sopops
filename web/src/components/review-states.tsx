@@ -1,18 +1,17 @@
 // The Patterns page's Open, Fixing and Fixed tabs (a card per pattern, with what's next for it), and a pattern's
 // "where it stands" timeline: verdict, fix written, applied or sent as a pull request, release, held or came back.
-import { useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, GitPullRequest, Sparkles } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import type { PatternDetail } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
-import { type PatternsTab, REVIEW_STATE, type ReviewItem, type SuggestionSummary, type VerdictOut, review, summaryOf, verdictPhrase } from "@/lib/review";
+import { type PatternsTab, REVIEW_STATE, type ReviewItem, type SuggestionSummary, type VerdictOut, summaryOf, verdictPhrase } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { useWs, wsHref } from "@/lib/workspace";
-import { Banner, ErrorBanner, Note, RuleText } from "./bits";
+import { Banner, Note, RuleText } from "./bits";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
-import { ConflictTag, ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
+import { AskThenWrite, ConflictTag, ReviewStateChip, SuggestionState, SuggestionStatusTag, VerdictChip, ago } from "./review-bits";
 import { Button } from "./ui/button";
 
 /** Sessions so far toward a fix holding (once its release is live). */
@@ -144,27 +143,13 @@ function SuggestionLink({ s }: { s: SuggestionSummary }) {
   );
 }
 
-/** Open: write a fix, or go to the one written. */
+/** Open: write a fix (asking what it should do first), or go to the one written. */
 function OpenNext({ item }: { item: ReviewItem }) {
   const { ws } = useWs();
-  const qc = useQueryClient();
-  const [asked, setAsked] = useState<SuggestionSummary | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<unknown>(null);
+  const [asking, setAsking] = useState(false);
   const s = fixFor(item.suggestion, item.verdict);
-  const write = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setAsked(await review.suggest(ws, item.pattern_id));
-      void qc.invalidateQueries({ queryKey: ["ws", ws, "suggestions"] });
-    } catch (e) {
-      setError(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-  if (asked || s?.status === "generating") return <SuggestionState patternId={item.pattern_id} initial={asked ?? s} />;
+  if (asking) return <AskThenWrite patternId={item.pattern_id} initial={item.verdict?.note} onCancel={() => setAsking(false)} />;
+  if (s?.status === "generating") return <SuggestionState patternId={item.pattern_id} initial={s} />;
   if (s?.status === "proposed")
     return (
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -177,14 +162,11 @@ function OpenNext({ item }: { item: ReviewItem }) {
       </div>
     );
   return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Note>{s?.status === "dismissed" ? "The last fix was turned down." : s?.status === "failed" ? "The last fix couldn't be written." : "No fix written yet."}</Note>
-        <Button size="sm" onClick={() => void write()} disabled={busy} title="Write a change to the SOP from this verdict and its examples">
-          <Sparkles /> {busy ? "Starting…" : "Write a fix"}
-        </Button>
-      </div>
-      {error != null && <ErrorBanner error={error} />}
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <Note>{s?.status === "dismissed" ? "The last fix was turned down." : s?.status === "failed" ? "The last fix couldn't be written." : "No fix written yet."}</Note>
+      <Button size="sm" onClick={() => setAsking(true)} title="Write a change to the SOP from this verdict, its examples and what you ask for">
+        <Sparkles /> Write a fix
+      </Button>
     </div>
   );
 }

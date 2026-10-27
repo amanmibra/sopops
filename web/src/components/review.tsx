@@ -35,7 +35,7 @@ import { author } from "./form";
 import { HrefLink } from "./href-link";
 import { Hint, Skel, TipBody } from "./insights/kit";
 import { Page } from "./item-shell";
-import { ConflictTag, ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
+import { AskThenWrite, ConflictTag, ReviewStateChip, RewordedNote, RuleTag, SuggestionState, SuggestionStatusTag, VerdictChip, ago, usePatternIndex } from "./review-bits";
 import { FixTimeline, StateList } from "./review-states";
 import { FilterSelect } from "./sessions";
 import { Button } from "./ui/button";
@@ -237,8 +237,8 @@ function ReviewCard({
           </div>
         )}
         {decision.phase === "sent" && suggests(decision.verdict) && (
-          <div className="mt-1 pl-7">
-            <SuggestionState patternId={item.pattern_id} initial={decision.suggestion} />
+          <div className="mt-2 pl-7">
+            {decision.suggestion ? <SuggestionState patternId={item.pattern_id} initial={decision.suggestion} /> : <AskThenWrite patternId={item.pattern_id} initial={decision.note} />}
           </div>
         )}
         {decision.phase === "sent" && !suggests(decision.verdict) && <p className="text-muted-foreground mt-1 pl-7 text-sm">Hidden from Insights rates from now on.</p>}
@@ -328,7 +328,8 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
       window.clearTimeout(timers.current[id]);
       setDecided((s) => (s[id] ? { ...s, [id]: { ...s[id], phase: "sending" } } : s));
       try {
-        const r = await review.verdict(ws, id, { verdict: d.verdict, note: d.note || null, reviewer: author(), suggest: suggests(d.verdict) }, keepalive);
+        // the fix isn't written yet: the card asks what it should do first
+        const r = await review.verdict(ws, id, { verdict: d.verdict, note: d.note || null, reviewer: author(), suggest: false }, keepalive);
         setDecided((s) => ({ ...s, [id]: { ...d, phase: "sent", suggestion: r?.suggestion ?? null } }));
         void qc.invalidateQueries({ queryKey: ["ws", ws, "review"] });
         void qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", id] });
@@ -738,6 +739,7 @@ function PatternRow({ p, depth, split, rule }: { p: PatternOut; depth: number; s
 export function PatternView({ id }: { id: string }) {
   const { ws, cfg } = useWs();
   const qc = useQueryClient();
+  const [asking, setAsking] = useState<{ note: string } | null>(null); // asking what the next fix should do
   const res = useQuery({ ...rq.pattern(ws, id), refetchInterval: (query) => (query.state.data?.suggestions.some(writing) ? 2500 : false) });
   const queue = useQuery({ ...rq.review(ws), retry: false });
   const [busy, setBusy] = useState(false);
@@ -770,24 +772,12 @@ export function PatternView({ id }: { id: string }) {
     setBusy(true);
     setError(null);
     try {
-      const r = await review.verdict(ws, id, { verdict: v, note: note || null, reviewer: author(), suggest: suggests(v) });
-      toast.success(`Marked ${verdictPhrase(v)}.${suggests(v) ? " Writing a fix." : ""}`);
-      if (r.suggestion) qc.setQueryData(rq.pattern(ws, id).queryKey, (old) => (old ? { ...old, suggestions: [r.suggestion!, ...old.suggestions] } : old));
+      await review.verdict(ws, id, { verdict: v, note: note || null, reviewer: author(), suggest: false });
+      toast.success(`Marked ${verdictPhrase(v)}.`);
+      setAsking(suggests(v) ? { note } : null);
       await Promise.all([qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", id] }), qc.invalidateQueries({ queryKey: ["ws", ws, "review"] }), qc.invalidateQueries({ queryKey: ["ws", ws, "suggestions"] })]);
     } catch (e) {
       setError(e);
-    } finally {
-      setBusy(false);
-    }
-  };
-  const regenerate = async () => {
-    setBusy(true);
-    try {
-      await review.suggest(ws, id);
-      toast.success("Writing the fix.");
-      await qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", id] });
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -878,11 +868,16 @@ export function PatternView({ id }: { id: string }) {
             <div className="mb-2 flex items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Fixes</h2>
               {verdict && suggests(verdict.verdict) && (
-                <Button size="xs" variant="outline" disabled={busy} onClick={() => void regenerate()}>
+                <Button size="xs" variant="outline" disabled={busy || !!asking} onClick={() => setAsking({ note: "" })}>
                   <Sparkles /> {suggestions.length ? "Write again" : "Write a fix"}
                 </Button>
               )}
             </div>
+            {asking && verdict && suggests(verdict.verdict) && (
+              <div className="mb-3 border-b pb-3">
+                <AskThenWrite key={asking.note} patternId={id} initial={asking.note} onCancel={() => setAsking(null)} />
+              </div>
+            )}
             {suggestions.length ? (
               <ul className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {suggestions.map((s) => (

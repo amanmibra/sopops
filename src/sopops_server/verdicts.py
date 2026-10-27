@@ -110,7 +110,7 @@ def override_out(o: FindingOverride, suppressed: bool | None = None) -> dict[str
 def suggestion_summary(s: Suggestion, pattern_name: str | None = None, released: Release | None = None) -> dict[str, Any]:
     """`released`: the release with its edit (`release_with`), for `released_in` and `released_at`."""
     return {"suggestion_id": s.id, "pattern_id": s.pattern_id, "pattern_name": pattern_name, "procedure_id": s.procedure_id, "rule_id": s.rule_id,
-            "block_id": s.procedure_id, "status": s.status, "rationale": s.rationale, "error": s.error, "pr_url": s.pr_url,
+            "block_id": s.procedure_id, "status": s.status, "guidance": s.guidance, "rationale": s.rationale, "error": s.error, "pr_url": s.pr_url,
             "created_at": _utc(s.created_at), "updated_at": _utc(s.updated_at), "applied_at": _utc(s.applied_at), "pr_opened_at": _utc(s.pr_opened_at),
             "merged_at": _utc(s.merged_at), "released_in": released.number if released else None, "released_at": _utc(released.created_at) if released else None}
 

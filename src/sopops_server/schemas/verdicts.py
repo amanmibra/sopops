@@ -27,6 +27,7 @@ class VerdictIn(BaseModel):
     note: str | None = None
     reviewer: str | None = Field(None, description="Who gave it (free text until there's auth).")
     suggest: bool = Field(True, description="Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).")
+    guidance: str | None = Field(None, max_length=2000, description="With `suggest`: what the fix should do, in the reviewer's words.")
 
 
 class VerdictOut(BaseModel):

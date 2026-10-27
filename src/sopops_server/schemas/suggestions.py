@@ -17,6 +17,7 @@ Freshness = Literal["current", "merges", "conflict"]
 class SuggestionSummary(BaseModel):
     suggestion_id: str
     pattern_id: str
+    guidance: str | None = Field(None, description="What the reviewer asked the fix to do, in their words.")
     pattern_name: str | None
     procedure_id: str
     rule_id: str
@@ -101,8 +102,16 @@ class ApplyIn(BaseModel):
     reviewer: str | None = None
 
 
+GUIDANCE = Field(None, max_length=2000, description="What the fix should do, in the reviewer's words. Sent to the model with the verdict; empty: the verdict alone.")
+
+
+class SuggestIn(BaseModel):
+    guidance: str | None = GUIDANCE
+
+
 class RewriteIn(BaseModel):
     reviewer: str | None = None
+    guidance: str | None = Field(None, max_length=2000, description="What the rewrite should do; empty keeps the guidance the suggestion was written with.")
 
 
 class DismissIn(BaseModel):

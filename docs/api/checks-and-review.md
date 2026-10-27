@@ -377,18 +377,18 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 |---|---|
 | `GET /v1/workspaces/{ws}/review` | The review queue. Fields below. |
 | `POST /v1/workspaces/{ws}/calibrate` | `{procedure?, dry_run?}`: fit the check thresholds to the labels. Returns `{workspace, dry_run, procedures: [{procedure_id, program, labels, negative_labels, saved, skipped, score_before, score, rules: [{rule_id, lineage_id, kind, index, text, field, before, after, skipped}]}]}`. `text` is the rule as it reads now (its lineage's latest wording). |
-| `POST /v1/workspaces/{ws}/patterns/{id}/verdict` | `{verdict, note?, reviewer?, suggest?: true}`. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
+| `POST /v1/workspaces/{ws}/patterns/{id}/verdict` | `{verdict, note?, reviewer?, suggest?: true, guidance?}`. `guidance`: what the fix should do, in the reviewer's words, sent to the model with the verdict. Returns the verdict with `suppressed_count`, and `suggestion` when one was queued (`suggest` and a real, acceptable or sop_wrong verdict). |
 | `POST /v1/workspaces/{ws}/findings/{id}/override` | `{correct, status?, note?, reviewer?}`. Returns the override and whether the finding is now `suppressed`. `422` for a status the rule can't have, or one that doesn't fit `correct`. |
 | `POST /v1/workspaces/{ws}/sessions/{id}/rules/{procedure}/{rule}/label` | `{status, note?, reviewer?, source?}`: a correction or a spot-check answer. `404` for a rule the session wasn't checked on, `422` for a status its kind doesn't have. |
 | `GET /v1/workspaces/{ws}/spot-checks` | The current spot-check batch, with filters. |
 | `POST /v1/workspaces/{ws}/spot-checks/batches` | `{size?}`: draw the next batch. |
 | `GET`, `PUT /v1/workspaces/{ws}/spot-checks/settings` | `{batch, default}`; `PUT {batch}`. |
 | `GET /v1/workspaces/{ws}/patterns/{id}/regression` | A regression set for the pattern, as JSON Lines. Fields below. `409` without a verdict. |
-| `POST /v1/workspaces/{ws}/patterns/{id}/suggest` | (Re)generate a suggestion for the pattern's verdict. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
+| `POST /v1/workspaces/{ws}/patterns/{id}/suggest` | `{guidance?}`. (Re)generate a suggestion for the pattern's verdict, with what it should do. Returns it, `generating`. `409` unless the verdict is real, acceptable or sop_wrong. |
 | `GET /v1/workspaces/{ws}/suggestions?status=` | Newest first, with each one's `created_at`, `applied_at` (saved as a draft), `pr_opened_at`, `merged_at` (when sopops saw it merged), and `released_in` and `released_at`: the first release whose file has its edit. A proposed one has `freshness`. |
 | `GET /v1/workspaces/{ws}/suggestions/{id}` | One suggestion. Fields below. |
 | `POST /v1/workspaces/{ws}/suggestions/{id}/apply` | `{reviewer?}`. A pull request or a draft edit, merged with changes made since when they don't overlap. `409` when it isn't proposed or is in conflict. |
-| `POST /v1/workspaces/{ws}/suggestions/{id}/rewrite` | `{reviewer?}`. A new suggestion against the procedure as it is now. Returns it, `generating`. `409` unless it's proposed. |
+| `POST /v1/workspaces/{ws}/suggestions/{id}/rewrite` | `{reviewer?, guidance?}`. A new suggestion against the procedure as it is now; without `guidance` it keeps the old one's. Returns it, `generating`. `409` unless it's proposed. |
 | `POST /v1/workspaces/{ws}/suggestions/{id}/dismiss` | `{note?, reviewer?}`. |
 
 **`GET /review`** returns `{items, total, counts, clustered_at}`: active leaf patterns (a rule pattern that isn't split, else its failure modes and `other`) in the review states asked for, most sessions first, with `counts` per state. Query: `state` (repeatable; default `needs_review` and `regressed`) and `limit` (default 50, at most 500).

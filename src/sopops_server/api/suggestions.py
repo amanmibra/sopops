@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks
 from ..errors import workspace_id
 from ..jobs import Jobs
 from ..pipeline.types import SuggestRef
-from ..schemas import ApplyIn, DismissIn, RewriteIn, SuggestionDetail, SuggestionsResponse, SuggestionStatus
+from ..schemas import ApplyIn, DismissIn, RewriteIn, SuggestIn, SuggestionDetail, SuggestionsResponse, SuggestionStatus
 from ..store import Store
 from .deps import OPEN
 
@@ -26,11 +26,11 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         return store.suggestions.get(workspace_id(workspace), suggestion_id)
 
     @r.post("/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest", response_model=SuggestionDetail, dependencies=OPEN, tags=["suggestions"])
-    def suggest_edit(workspace: str, pattern_id: str, background: BackgroundTasks) -> dict:
-        """(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong). It comes back
-        `generating`; the model and sopc run as a job."""
+    def suggest_edit(workspace: str, pattern_id: str, background: BackgroundTasks, req: SuggestIn | None = None) -> dict:
+        """(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the
+        reviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job."""
         ws = workspace_id(workspace)
-        s = store.suggestions.create(ws, pattern_id)
+        s = store.suggestions.create(ws, pattern_id, guidance=(req or SuggestIn()).guidance)
         if jobs.suggest(SuggestRef(workspace_id=ws, suggestion_id=s["suggestion_id"]), background) == "inline":
             return store.suggestions.get(ws, s["suggestion_id"])
         return s
@@ -48,7 +48,8 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         written. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);
         this one is dismissed. 409 unless it's proposed."""
         ws = workspace_id(workspace)
-        s = store.suggestions.rewrite(ws, suggestion_id, (req or RewriteIn()).reviewer)
+        req = req or RewriteIn()
+        s = store.suggestions.rewrite(ws, suggestion_id, req.reviewer, req.guidance)
         if jobs.suggest(SuggestRef(workspace_id=ws, suggestion_id=s["suggestion_id"]), background) == "inline":
             return store.suggestions.get(ws, s["suggestion_id"])
         return s

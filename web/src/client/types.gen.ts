@@ -7231,6 +7231,12 @@ export type RewriteIn = {
      * Reviewer
      */
     reviewer?: string | null;
+    /**
+     * Guidance
+     *
+     * What the rewrite should do; empty keeps the guidance the suggestion was written with.
+     */
+    guidance?: string | null;
 };
 
 /**
@@ -9251,6 +9257,18 @@ export type StepOutput = {
 };
 
 /**
+ * SuggestIn
+ */
+export type SuggestIn = {
+    /**
+     * Guidance
+     *
+     * What the fix should do, in the reviewer's words. Sent to the model with the verdict; empty: the verdict alone.
+     */
+    guidance?: string | null;
+};
+
+/**
  * SuggestionDetail
  */
 export type SuggestionDetail = {
@@ -9262,6 +9280,12 @@ export type SuggestionDetail = {
      * Pattern Id
      */
     pattern_id: string;
+    /**
+     * Guidance
+     *
+     * What the reviewer asked the fix to do, in their words.
+     */
+    guidance: string | null;
     /**
      * Pattern Name
      */
@@ -9472,6 +9496,12 @@ export type SuggestionSummary = {
      * Pattern Id
      */
     pattern_id: string;
+    /**
+     * Guidance
+     *
+     * What the reviewer asked the fix to do, in their words.
+     */
+    guidance: string | null;
     /**
      * Pattern Name
      */
@@ -10587,6 +10617,12 @@ export type VerdictIn = {
      * Generate a suggested edit when the verdict calls for one (real, acceptable, sop_wrong).
      */
     suggest?: boolean;
+    /**
+     * Guidance
+     *
+     * With `suggest`: what the fix should do, in the reviewer's words.
+     */
+    guidance?: string | null;
 };
 
 /**
@@ -16078,7 +16114,10 @@ export type GetSuggestionResponses = {
 export type GetSuggestionResponse = GetSuggestionResponses[keyof GetSuggestionResponses];
 
 export type SuggestEditData = {
-    body?: never;
+    /**
+     * Req
+     */
+    body?: SuggestIn | null;
     path: {
         /**
          * Workspace

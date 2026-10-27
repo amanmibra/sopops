@@ -540,7 +540,7 @@ def test_conflicting_suggestions_are_refused_and_rewritten_against_the_current_t
     r = env.client.post(f"{WS}/suggestions/{d['suggestion_id']}/rewrite", json={"reviewer": "qa"})
     assert r.status_code == 200 and r.json()["status"] == "generating" and r.json()["rewrite_of"] == d["suggestion_id"]
     new = env.client.get(f"{WS}/suggestions/{r.json()['suggestion_id']}").json()
-    assert new["status"] == "proposed" and new["freshness"] == "current" and new["old_text"] == current and new["prompt_version"] == "suggest-2"
+    assert new["status"] == "proposed" and new["freshness"] == "current" and new["old_text"] == current and new["prompt_version"] == "suggest-3"
     asked = env.model.suggest_inputs[-1]
     assert asked["procedure_file"] == current and "+  - " + SAFE + ", unless you have just checked" in asked["changes_since"]
     assert env.model.suggest_inputs[-2]["changes_since"] == ""  # a suggestion that isn't a rewrite gets none
@@ -572,6 +572,25 @@ def test_a_merge_that_doesnt_compile_is_a_conflict(env):
     assert got["freshness"] == "conflict" and got["since_written"]["conflicts"] == [] and "guidance" in got["since_written"]["issues"]
     refused = env.client.post(f"{WS}/suggestions/{s['suggestion_id']}/apply")
     assert refused.status_code == 409 and "doesn't compile" in refused.json()["detail"]
+
+
+def test_what_the_reviewer_asks_for_goes_to_the_model_and_carries_into_a_rewrite(env):
+    for _ in range(3):
+        env.send("A")
+    never = rule_pattern(env)
+    old = env.files[PATH]
+    env.model.edits = [old.replace(f"  - {SAFE}\n", f"  - {SAFE}, unless you have just checked the item with lookup_allergens\n")]
+    ask = "Make it an exception for items checked with lookup_allergens"
+    r = env.client.post(f"{WS}/patterns/{never['pattern_id']}/verdict", json={"verdict": "acceptable", "guidance": ask})
+    s = r.json()["suggestion"]
+    assert s["guidance"] == ask and env.model.suggest_inputs[-1]["guidance"] == ask
+
+    # asked again with nothing: the verdict alone; a rewrite keeps the guidance unless given a new one
+    r = env.client.post(f"{WS}/patterns/{never['pattern_id']}/suggest", json={"guidance": "  "})
+    assert r.json()["guidance"] is None and env.model.suggest_inputs[-1]["guidance"] == ""
+    rewritten = env.client.post(f"{WS}/suggestions/{s['suggestion_id']}/rewrite", json={}).json()
+    assert rewritten["guidance"] == ask
+    assert env.client.post(f"{WS}/patterns/{never['pattern_id']}/suggest").status_code == 200  # no body: still fine
 
 
 def test_suggestions_fail_and_need_a_verdict_that_calls_for_one(env):

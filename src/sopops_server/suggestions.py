@@ -230,27 +230,29 @@ class Suggestions:
 
     # --- writes --------------------------------------------------------------------------------------------------
 
-    def create(self, ws: str, pattern_id: str, rewrite_of: str | None = None) -> dict[str, Any]:
-        """A suggestion waiting to be generated (`generate`), for the pattern's current verdict."""
+    def create(self, ws: str, pattern_id: str, rewrite_of: str | None = None, guidance: str | None = None) -> dict[str, Any]:
+        """A suggestion waiting to be generated (`generate`), for the pattern's current verdict and what the reviewer
+        asked the fix to do (`guidance`)."""
         p, v = self.store.verdicts.effective_verdict(ws, pattern_id)
         if v is None or v.verdict not in SUGGESTIBLE:
             raise Conflict("a suggestion needs a verdict of real, acceptable or sop_wrong")
         now = _now()
         with self._db() as db, db.begin():
             s = Suggestion(id=str(uuid.uuid4()), workspace_id=ws, pattern_id=p.id, verdict_id=v.id, procedure_id=p.procedure_id, rule_id=p.rule_id,
-                           status="generating", rewrite_of=rewrite_of, created_at=now, updated_at=now)
+                           status="generating", rewrite_of=rewrite_of, guidance=(guidance or "").strip() or None, created_at=now, updated_at=now)
             db.add(s)
         with self._db() as db:
             return self._out(db, s)
 
-    def rewrite(self, ws: str, suggestion_id: str, reviewer: str | None = None) -> dict[str, Any]:
+    def rewrite(self, ws: str, suggestion_id: str, reviewer: str | None = None, guidance: str | None = None) -> dict[str, Any]:
         """A new suggestion for the same pattern, to be generated (`generate`) against the procedure's file as it is
-        now, keeping the edits made since this one was written. This one is dismissed, pointing to it."""
+        now, keeping the edits made since this one was written. This one is dismissed, pointing to it. `guidance`
+        replaces what this one was asked to do; empty keeps it."""
         with self._db() as db:
             old = self._row(db, ws, suggestion_id)
         if old.status != "proposed":
             raise Conflict(f"only a proposed suggestion can be rewritten; this one is {old.status}")
-        new = self.create(ws, old.pattern_id, rewrite_of=old.id)
+        new = self.create(ws, old.pattern_id, rewrite_of=old.id, guidance=(guidance or "").strip() or old.guidance)
         self._save(old, status="dismissed", note=REWRITTEN, reviewer=reviewer or old.reviewer)
         return new
 
@@ -309,6 +311,7 @@ class Suggestions:
         got = SuggestEdits(ai, validate)(
             procedure_id=s.procedure_id, procedure_file=old, rule=f"{KIND_LABEL.get(rule['kind'], rule['kind'])} {rule['index']}: {rule['text']}",
             pattern=p.name if p.kind == "rule" else f"{p.name}. {p.description or ''}".strip(), verdict=v.verdict, note=v.note or "",
+            guidance=s.guidance or "",
             examples=[ExampleIn(status=e["status"], reason=e["reason"] or "", quotes=[str(x.get("quote")) for x in e["evidence"] if x.get("quote")][:3])
                       for e in examples],
             changes_since=since,

@@ -1,17 +1,19 @@
 // Small pieces every page that shows patterns shares: verdict and review-state chips, suggestion status tags, the
-// "suggestion being written" line, and one lookup of every pattern's verdict and state from GET …/patterns.
-import { useQuery } from "@tanstack/react-query";
+// "suggestion being written" line, the "what should the fix do?" ask before one is written, and one lookup of every pattern's verdict and state from GET …/patterns.
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, PencilLine, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { type PatternOut, type RuleRef, q } from "@/lib/api";
 import { ruleName } from "@/lib/insights";
 import { when } from "@/lib/kinds";
-import { REVIEW_STATE, type ReviewState, type SuggestionSummary, VERDICT, type VerdictOut, rq, writing } from "@/lib/review";
+import { REVIEW_STATE, type ReviewState, type SuggestionSummary, VERDICT, type VerdictOut, review, rq, writing } from "@/lib/review";
 import { cn } from "@/lib/utils";
 import { wsHref, useWs } from "@/lib/workspace";
-import { Note, RuleText, Tag } from "./bits";
+import { ErrorBanner, Note, RuleText, Tag } from "./bits";
 import { HrefLink } from "./href-link";
 import { Hint, TipBody } from "./insights/kit";
+import { Button } from "./ui/button";
+import { Textarea } from "./ui/textarea";
 
 export function ago(t: string | null | undefined): string {
   if (!t) return "—";
@@ -130,6 +132,77 @@ export function ConflictTag({ freshness, big }: { freshness: SuggestionSummary["
 }
 
 /** After asking for a fix: waits for it, then links to it. */
+/** Before a fix is written: what it should do, in the reviewer's words. Skipping writes it from the verdict alone. */
+export function FixAsk({ initial = "", busy, label = "Write the fix", onWrite, onCancel }: {
+  initial?: string | null;
+  busy?: boolean;
+  label?: string;
+  onWrite: (guidance: string | null) => void;
+  onCancel?: () => void;
+}) {
+  const [text, setText] = useState(initial ?? "");
+  return (
+    <div className="grid gap-2">
+      <label className="text-sm font-medium">
+        What should the fix do?{" "}
+        <span className="text-muted-foreground font-normal">Say where and how, or skip and it's written from the verdict.</span>
+        <Textarea
+          autoFocus
+          rows={2}
+          className="mt-1"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && onWrite(text.trim() || null)}
+          placeholder="e.g. Add an exception for items already checked with lookup_allergens. Or: make it a step, not guidance."
+        />
+      </label>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" disabled={busy} onClick={() => onWrite(text.trim() || null)}>
+          {busy ? <Loader2 className="animate-spin" /> : <Sparkles />} {label}
+        </Button>
+        <Button size="sm" variant="ghost" disabled={busy} onClick={() => onWrite(null)}>
+          Skip
+        </Button>
+        {onCancel && (
+          <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Ask what the fix should do, then write it and follow it until it's ready. */
+export function AskThenWrite({ patternId, initial, onCancel }: { patternId: string; initial?: string | null; onCancel?: () => void }) {
+  const { ws } = useWs();
+  const qc = useQueryClient();
+  const [asked, setAsked] = useState<SuggestionSummary | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  if (asked) return <SuggestionState patternId={patternId} initial={asked} />;
+  const write = async (guidance: string | null) => {
+    setBusy(true);
+    setError(null);
+    try {
+      setAsked(await review.suggest(ws, patternId, guidance));
+      void qc.invalidateQueries({ queryKey: ["ws", ws, "pattern", patternId] });
+      void qc.invalidateQueries({ queryKey: ["ws", ws, "suggestions"] });
+      void qc.invalidateQueries({ queryKey: ["ws", ws, "review"] });
+    } catch (e) {
+      setError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="grid gap-2">
+      {error != null && <ErrorBanner error={error} />}
+      <FixAsk initial={initial} busy={busy} onWrite={(g) => void write(g)} onCancel={onCancel} />
+    </div>
+  );
+}
+
 export function SuggestionState({ patternId, initial }: { patternId: string; initial: SuggestionSummary | null | undefined }) {
   const { ws } = useWs();
   const [waiting, setWaiting] = useState(true);
