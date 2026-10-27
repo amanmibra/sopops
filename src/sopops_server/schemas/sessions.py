@@ -63,7 +63,7 @@ class SessionIn(_BaseModel):
     platform: Platform
     external_id: str = Field(min_length=1, max_length=256, description="The platform's id for the session (room or job id, conversation id, call id). With `platform`, the session's unique key.")
     channel: Channel = "voice"
-    agent: str | None = Field(None, max_length=256, description="The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`).")
+    agent: str | None = Field(None, max_length=256, description="The sopc agent id, or the agent's platform id (`tonys-pizza`).")
     release: int | None = Field(None, description="The sopops release the agent ran on, as returned at session start.")
     version_ref: str | None = Field(None, max_length=256, description="The platform's own version of the agent (ElevenLabs `version_id`, Vapi `assistantVersion`).")
     started_at: datetime | None = Field(None, description="Default: the first turn's `at`, else when sopops received it.")

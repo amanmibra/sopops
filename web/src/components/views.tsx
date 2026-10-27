@@ -4,7 +4,7 @@ import { type ComponentProps, type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type Component, type DraftAgent, type DraftItem, type ReleaseDetail, call, q, refresh, sdk } from "@/lib/api";
 import { textCount } from "@/lib/diff";
-import { KIND, type Kind, type ListKind, itemOfPath, kindOfComponent, platformName, plural, when } from "@/lib/kinds";
+import { KIND, type Kind, type ListKind, itemOfPath, kindOfComponent, platformName, platformRefName, plural, when } from "@/lib/kinds";
 import type { Item } from "@/lib/model";
 import { useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, IssueList, LintList, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
@@ -317,7 +317,7 @@ export function ChangedAgent({ a, open }: { a: DraftAgent; open: boolean }) {
         <>
           <Tag tone={a.status}>{{ added: "New agent", changed: "Instructions change", removed: "Removed", unchanged: "Unchanged" }[a.status]}</Tag>
           <b>{a.agent}</b>
-          <span className="text-muted-foreground">{a.platform_ref}</span>
+          <span className="text-muted-foreground">{platformRefName(a.platform_ref)}</span>
           <Counts {...textCount(a.released_prompt, a.prompt)} />
           <span className="flex-1" />
           {a.status !== "removed" && (
@@ -517,7 +517,7 @@ export function ReleaseView({ number }: { number: number }) {
                 <td className="border-b px-2 py-2">
                   <b>{id}</b>
                 </td>
-                <td className="text-muted-foreground border-b px-2 py-2">{a.platform_ref}</td>
+                <td className="text-muted-foreground border-b px-2 py-2">{platformRefName(a.platform_ref)}</td>
                 <td className="border-b px-2 py-2">
                   <Note>hash {a.hash.slice(0, 10)}</Note>
                 </td>

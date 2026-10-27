@@ -8225,7 +8225,7 @@ export type SessionIn = {
     /**
      * Agent
      *
-     * The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`).
+     * The sopc agent id, or the agent's platform id (`tonys-pizza`).
      */
     agent?: string | null;
     /**

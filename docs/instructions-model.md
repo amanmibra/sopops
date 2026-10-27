@@ -295,7 +295,7 @@ agent, it records exactly what the agent receives:
 | Field | Meaning |
 |---|---|
 | `release` | The release number. |
-| `agent`, `platform_ref` | Which agent, e.g. `copper-wok-eastside` and `livekit:copper-wok-eastside`. |
+| `agent`, `platform_ref` | Which agent, e.g. `copper-wok-eastside`, and its platform id, stored with the platform in front as `<platform>:<id>` (`livekit:copper-wok-eastside`). |
 | `prompt` | The full compiled instructions, placeholders filled. |
 | `hash` | A hash of the prompt, to tell versions apart at a glance. |
 | `tools` | Every tool its procedures name. |

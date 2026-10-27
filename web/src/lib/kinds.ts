@@ -29,6 +29,12 @@ export const PLATFORMS = [
   { value: "retell", label: "Retell", idLabel: "Agent ID", idHelp: "The agent's id on Retell.", legacy: true },
 ] as const;
 export const platformName = (p: string) => PLATFORMS.find((x) => x.value === p)?.label ?? p;
+/** A stored `platform_ref` (`livekit:tonys-pizza`) shown like the Agents list: "LiveKit: tonys-pizza". Empty for none. */
+export function platformRefName(ref?: string | null): string {
+  if (!ref) return "";
+  const i = ref.indexOf(":");
+  return i < 0 ? ref : `${platformName(ref.slice(0, i))}: ${ref.slice(i + 1)}`;
+}
 
 export const DELIVERY = [
   { value: "prompt", label: "Whole procedure in the instructions", help: "Everything goes in the agent's instructions. Use this unless the agent has a get_sop tool." },

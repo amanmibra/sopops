@@ -28237,7 +28237,7 @@
               }
             ],
             "title": "Agent",
-            "description": "The sopc agent id, or the agent's platform id (`tonys-pizza`, `livekit:tonys-pizza`)."
+            "description": "The sopc agent id, or the agent's platform id (`tonys-pizza`)."
           },
           "release": {
             "anyOf": [
