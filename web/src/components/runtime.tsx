@@ -1,6 +1,6 @@
 // Runtime delivery: each agent's delivery mode and the platform credentials (Settings), and push results (a release).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Cable, Copy, PlugZap, RefreshCw, Send } from "lucide-react";
+import { Cable, Copy, RefreshCw, Send } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { toast } from "sonner";
 import { type AgentDeliveryOut, type PlatformCredentials, type PushResultOut, call, sdk } from "@/lib/api";
@@ -53,6 +53,7 @@ const keyOf = (ws: string, what: string) => ["ws", ws, "runtime", what];
 export function RuntimePanels() {
   return (
     <>
+      <PlatformsPanels />
       <Panel
         title={
           <span className="flex items-center gap-2">
@@ -63,7 +64,6 @@ export function RuntimePanels() {
         <ConnectGuide />
       </Panel>
       <DeliveryPanel />
-      <PlatformsPanel />
     </>
   );
 }
@@ -74,6 +74,8 @@ function DeliveryPanel() {
   const pushers = plats.shown.filter((p) => p !== "livekit").map(platformName);
   const qc = useQueryClient();
   const rows = useQuery({ queryKey: keyOf(ws, "delivery"), queryFn: () => call(sdk.listDelivery({ path: { workspace: ws } })) });
+  // LiveKit agents always pull, so the panel is only worth showing when some agent can be pushed to
+  const choice = rows.data?.some((d) => d.modes.length > 1) ?? false;
   const set = async (agent: string, mode: Mode) => {
     try {
       await call(sdk.setDelivery({ path: { workspace: ws, agent }, body: { mode } }));
@@ -83,6 +85,8 @@ function DeliveryPanel() {
       toast.error(msg(e));
     }
   };
+  if (rows.isError) return <ErrorBanner error={rows.error} />;
+  if (!choice) return null;
   return (
     <Panel
       title={
@@ -105,9 +109,7 @@ function DeliveryPanel() {
           )}
         </ul>
       </div>
-      {rows.isError && <ErrorBanner error={rows.error} />}
-      {rows.data &&
-        (rows.data.length ? (
+      {rows.data && (
           <table className="w-full border-collapse">
             <tbody>
               {rows.data.map((d) => (
@@ -140,15 +142,13 @@ function DeliveryPanel() {
               ))}
             </tbody>
           </table>
-        ) : (
-          <Note>No agents yet.</Note>
-        ))}
+      )}
     </Panel>
   );
 }
 
-/** Keys and capture for the platforms the team uses, and for any other platform that has something saved already. */
-function PlatformsPanel() {
+/** One card per platform the team uses, and per other platform that has something saved already: its keys and capture. */
+function PlatformsPanels() {
   const { ws } = useWs();
   const plats = usePlatforms();
   const creds = useQuery({ queryKey: keyOf(ws, "platforms"), queryFn: () => call(sdk.listPlatforms({ path: { workspace: ws } })) });
@@ -157,21 +157,32 @@ function PlatformsPanel() {
   const saved = (p: Platform) => (p === "elevenlabs" ? Boolean(capture.data?.elevenlabs.post_call_secret.set || capture.data?.elevenlabs.last_post_call_at) : false);
   const rows = (creds.data ?? []).filter((c) => plats.has(c.platform) || c.api_key.set || c.webhook_secret.set || saved(c.platform));
   return (
+    <>
+      {creds.isError && <ErrorBanner error={creds.error} />}
+      {livekit && (
+        <PlatformPanel platform="livekit">
+          <LiveKitCapture />
+        </PlatformPanel>
+      )}
+      {rows.map((c) => (
+        <PlatformPanel key={c.platform} platform={c.platform}>
+          <PlatformRow creds={c} />
+        </PlatformPanel>
+      ))}
+    </>
+  );
+}
+
+function PlatformPanel({ platform, children }: { platform: Platform | "livekit"; children: ReactNode }) {
+  return (
     <Panel
       title={
         <span className="flex items-center gap-2">
-          <PlugZap className="size-4" /> Platforms
+          <PlatformIcon platform={platform} size={16} /> {platformName(platform)}
         </span>
       }
     >
-      <p className="text-muted-foreground mb-2 max-w-prose text-sm leading-relaxed">
-        API keys and webhook secrets for each platform. They're stored encrypted, and a webhook secret is shown only once, when it's made.
-      </p>
-      {creds.isError && <ErrorBanner error={creds.error} />}
-      {livekit && <LiveKitCapture />}
-      {rows.map((c) => (
-        <PlatformRow key={c.platform} creds={c} />
-      ))}
+      {children}
     </Panel>
   );
 }
@@ -223,10 +234,10 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
   const copy = (text: string) => navigator.clipboard.writeText(text).then(() => toast.success("Copied."));
 
   return (
-    <div className="border-t py-4 first-of-type:border-t-0">
-      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-        <PlatformIcon platform={creds.platform} size={16} /> {name}
-      </h3>
+    <div>
+      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+        Keys are stored encrypted, and a webhook secret is shown only once, when it's made.
+      </p>
       <div className="grid gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <span className="grid w-48 text-sm">

@@ -8,7 +8,6 @@ import { type CaptureOut, call, sdk } from "@/lib/api";
 import { when } from "@/lib/kinds";
 import { useWs } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note } from "./bits";
-import { PlatformIcon } from "./brand-icon";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
@@ -115,10 +114,7 @@ export function LiveKitCapture() {
 
   const needKeys = !lk?.connected;
   return (
-    <div className="border-t py-4 first-of-type:border-t-0">
-      <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold">
-        <PlatformIcon platform="livekit" size={16} /> LiveKit
-      </h3>
+    <div>
       <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
         Connect your LiveKit Cloud project, and sopops joins each call as a hidden participant. It reads what the agent and the caller say as it happens,
         so your agent needs no changes. Tool calls aren't in the room, so they aren't recorded this way.
