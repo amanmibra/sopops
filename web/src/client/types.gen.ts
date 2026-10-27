@@ -671,6 +671,42 @@ export type AgentsResponse = {
 };
 
 /**
+ * AnalysisIn
+ */
+export type AnalysisIn = {
+    /**
+     * Paused
+     */
+    paused: boolean;
+};
+
+/**
+ * AnalysisState
+ */
+export type AnalysisState = {
+    /**
+     * Paused
+     *
+     * Sessions still come in; nothing is checked, clustered or suggested.
+     */
+    paused: boolean;
+    /**
+     * Paused At
+     */
+    paused_at: string | null;
+    /**
+     * Paused By
+     */
+    paused_by: string | null;
+    /**
+     * Queued
+     *
+     * Sessions held while paused, queued to be checked by this resume.
+     */
+    queued: number;
+};
+
+/**
  * ApplyIn
  */
 export type ApplyIn = {
@@ -17225,6 +17261,66 @@ export type ResetAiSettingResponses = {
 };
 
 export type ResetAiSettingResponse = ResetAiSettingResponses[keyof ResetAiSettingResponses];
+
+export type GetAnalysisData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/analysis';
+};
+
+export type GetAnalysisErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetAnalysisError = GetAnalysisErrors[keyof GetAnalysisErrors];
+
+export type GetAnalysisResponses = {
+    /**
+     * Successful Response
+     */
+    200: AnalysisState;
+};
+
+export type GetAnalysisResponse = GetAnalysisResponses[keyof GetAnalysisResponses];
+
+export type SetAnalysisData = {
+    body: AnalysisIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/analysis';
+};
+
+export type SetAnalysisErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetAnalysisError = SetAnalysisErrors[keyof SetAnalysisErrors];
+
+export type SetAnalysisResponses = {
+    /**
+     * Successful Response
+     */
+    200: AnalysisState;
+};
+
+export type SetAnalysisResponse = SetAnalysisResponses[keyof SetAnalysisResponses];
 
 export type DisconnectRepoData = {
     body?: never;

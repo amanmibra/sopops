@@ -7645,7 +7645,7 @@
           "patterns"
         ],
         "summary": "Recluster Patterns",
-        "description": "Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.\nRuns here and now (it calls the models); the daily cron does the same for every workspace.",
+        "description": "Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.\nRuns here and now (it calls the models); the daily cron does the same for every workspace. 409 while the\nworkspace's analysis is paused.",
         "operationId": "recluster_patterns",
         "parameters": [
           {
@@ -8358,7 +8358,7 @@
           "review"
         ],
         "summary": "Calibrate",
-        "description": "Fit each procedure's check thresholds to the workspace's labels (verdicts, overrides, corrections and spot\nchecks), as a job, and\nreturn per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled\nsessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save.",
+        "description": "Fit each procedure's check thresholds to the workspace's labels (verdicts, overrides, corrections and spot\nchecks), as a job, and\nreturn per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled\nsessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save. 409 while the\nworkspace's analysis is paused.",
         "operationId": "calibrate",
         "parameters": [
           {
@@ -8538,7 +8538,7 @@
           "suggestions"
         ],
         "summary": "Suggest Edit",
-        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the\nreviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job.",
+        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the\nreviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job. 409 while the\nworkspace's analysis is paused.",
         "operationId": "suggest_edit",
         "parameters": [
           {
@@ -8676,7 +8676,7 @@
           "suggestions"
         ],
         "summary": "Rewrite Suggestion",
-        "description": "Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was\nwritten. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);\nthis one is dismissed. 409 unless it's proposed.",
+        "description": "Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was\nwritten. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);\nthis one is dismissed. 409 unless it's proposed, and while the workspace's analysis is paused.",
         "operationId": "rewrite_suggestion",
         "parameters": [
           {
@@ -10848,6 +10848,100 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AISettingsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/analysis": {
+      "get": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Get Analysis",
+        "description": "Whether the workspace's analysis is paused, since when and by whom.",
+        "operationId": "get_analysis",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisState"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "summary": "Set Analysis",
+        "description": "Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing\nis reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked\n(`queued`).",
+        "operationId": "set_analysis",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalysisIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnalysisState"
                 }
               }
             }
@@ -15173,6 +15267,65 @@
           "agents"
         ],
         "title": "AgentsResponse"
+      },
+      "AnalysisIn": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused"
+          }
+        },
+        "type": "object",
+        "required": [
+          "paused"
+        ],
+        "title": "AnalysisIn"
+      },
+      "AnalysisState": {
+        "properties": {
+          "paused": {
+            "type": "boolean",
+            "title": "Paused",
+            "description": "Sessions still come in; nothing is checked, clustered or suggested."
+          },
+          "paused_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused At"
+          },
+          "paused_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused By"
+          },
+          "queued": {
+            "type": "integer",
+            "title": "Queued",
+            "description": "Sessions held while paused, queued to be checked by this resume.",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "paused",
+          "paused_at",
+          "paused_by",
+          "queued"
+        ],
+        "title": "AnalysisState"
       },
       "ApplyIn": {
         "properties": {

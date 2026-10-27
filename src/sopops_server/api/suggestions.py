@@ -28,8 +28,10 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     @r.post("/v1/workspaces/{workspace}/patterns/{pattern_id}/suggest", response_model=SuggestionDetail, dependencies=OPEN, tags=["suggestions"])
     def suggest_edit(workspace: str, pattern_id: str, background: BackgroundTasks, req: SuggestIn | None = None) -> dict:
         """(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the
-        reviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job."""
+        reviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job. 409 while the
+        workspace's analysis is paused."""
         ws = workspace_id(workspace)
+        store.analysis.require_running(ws)
         s = store.suggestions.create(ws, pattern_id, guidance=(req or SuggestIn()).guidance)
         if jobs.suggest(SuggestRef(workspace_id=ws, suggestion_id=s["suggestion_id"]), background) == "inline":
             return store.suggestions.get(ws, s["suggestion_id"])
@@ -46,8 +48,9 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     def rewrite_suggestion(workspace: str, suggestion_id: str, background: BackgroundTasks, req: RewriteIn | None = None) -> dict:
         """Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was
         written. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);
-        this one is dismissed. 409 unless it's proposed."""
+        this one is dismissed. 409 unless it's proposed, and while the workspace's analysis is paused."""
         ws = workspace_id(workspace)
+        store.analysis.require_running(ws)
         req = req or RewriteIn()
         s = store.suggestions.rewrite(ws, suggestion_id, req.reviewer, req.guidance)
         if jobs.suggest(SuggestRef(workspace_id=ws, suggestion_id=s["suggestion_id"]), background) == "inline":

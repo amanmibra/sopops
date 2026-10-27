@@ -16,6 +16,7 @@ from fastapi.routing import APIRoute
 from . import __version__
 from .api import (
     ai,
+    analysis,
     auth,
     capture,
     config,
@@ -113,6 +114,7 @@ def create_app(store: Store, jobs: Jobs | None = None) -> FastAPI:
         lineage.router(store),
         usage.router(store),
         ai.router(store),
+        analysis.router(store, jobs),
         repo.router(store),
         github.router(store),
         provider_webhooks.router(store),

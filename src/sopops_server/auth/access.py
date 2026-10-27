@@ -100,6 +100,8 @@ ROUTES: dict[str, str] = {
     "create_join_link": ADMIN, "delete_join_link": ADMIN,
     # a team's AI keys and models: they spend money, so owners and admins change them
     "set_typesafe_key": ADMIN, "set_ai_provider": ADMIN, "set_ai_models": ADMIN, "reset_ai_setting": ADMIN,
+    # pausing analysis stops the checks a team pays for, and resuming starts them again: owners and admins too
+    "set_analysis": ADMIN,
     # bringing past calls in reads the platform with the stored key, and checking them spends money
     "backfill_preview": ADMIN, "start_backfill": ADMIN, "get_backfill": ADMIN,
     # the GitHub App is one per sopops: made by an owner or admin
@@ -131,7 +133,7 @@ ROUTES: dict[str, str] = {
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",
         "create_import", "import_sopc_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
         "update_import_proposal", "resolve_import_finding", "get_import_review", "decide_import_group", "edit_import_variable", "apply_import",
-        "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models", "estimate_ai_cost",
+        "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models", "estimate_ai_cost", "get_analysis",
     )},
 }
 

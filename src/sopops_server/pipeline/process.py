@@ -1,7 +1,7 @@
 """`process_session`: what runs after a session is ingested.
 
 1. normalize: canonical turns and tool calls; status received (or incomplete, or failed).
-2. route (decisions, see `sopops_server.ai.decide`): which procedures applied, and which are excluded because the session
+2. route (decisions, see `sopops_server.ai.decide`); not while the workspace's analysis is paused (`sopops_server.analysis`): which procedures applied, and which are excluded because the session
    ended before the procedure started or finished. Status routed, or excluded when there's nothing to check.
 3. check (per applicable procedure): every rule's status from decisions, the reasoning model's review of what they
    flag, the goal, and the rollup.
@@ -21,6 +21,7 @@ import threading
 from typing import TYPE_CHECKING
 
 from ..ai import decide, spend, tracing
+from ..analysis import PAUSED
 from ..ai import lm as ai_lm
 from ..ai.signatures import VERSIONS
 from ..errors import NotFound
@@ -114,6 +115,9 @@ def route_session(store: Store, ref: SessionRef, ai: AI | None = None) -> RouteR
         return RouteResult(session_id=ref.session_id, go=False, status=s.status, reason=s.status_reason)
     incomplete = _incomplete(s)
     base = "incomplete" if incomplete else "received"
+    if store.analysis.paused(ref.workspace_id):  # held until it's resumed, which queues it again
+        store.checks.reset(ref, base, s.status_reason if incomplete else PAUSED)
+        return RouteResult(session_id=ref.session_id, go=False, status=base, reason=PAUSED)
     if not ai_lm.configured(ai):
         store.checks.reset(ref, base, s.status_reason if incomplete else NO_MODEL)
         return RouteResult(session_id=ref.session_id, go=False, status=base, reason=NO_MODEL)

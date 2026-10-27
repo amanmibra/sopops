@@ -1,7 +1,9 @@
-"""A team's AI keys and models, over the deployment's defaults. Keys go in and never come back out."""
+"""A team's AI keys and models, over the deployment's defaults. Keys go in and never come back out. And whether its
+analysis is paused."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import Field
@@ -95,3 +97,14 @@ class CostEstimate(BaseModel):
 
 
 ResetWhat = Literal["typesafe", "provider", "models"]
+
+
+class AnalysisState(BaseModel):
+    paused: bool = Field(description="Sessions still come in; nothing is checked, clustered or suggested.")
+    paused_at: datetime | None = None
+    paused_by: str | None = None
+    queued: int = Field(0, description="Sessions held while paused, queued to be checked by this resume.")
+
+
+class AnalysisIn(BaseModel):
+    paused: bool

@@ -373,13 +373,15 @@ class Patterns:
 
     def recluster_due(self, workspace: str | None = None, ai: AI | None = None) -> Outcome:
         """The daily pass: every rule whose triggers fire, or that gained findings since it was last clustered and has
-        enough to split; then themes for procedures that changed."""
+        enough to split; then themes for procedures that changed. Workspaces whose analysis is paused are skipped."""
         out = Outcome()
         with self._db() as db:
             q = select(Pattern).where(Pattern.kind == "rule")
             if workspace:
                 q = q.where(Pattern.workspace_id == workspace)
             rule_pats = list(db.exec(q))
+        paused = {ws for ws in {rp.workspace_id for rp in rule_pats} if self.store.analysis.paused(ws)}
+        rule_pats = [rp for rp in rule_pats if rp.workspace_id not in paused]
         for ws in sorted({rp.workspace_id for rp in rule_pats}):  # rule patterns named without a model get the model's name
             self.name(ws, ai=ai or self.store.ai_keys.ai(ws))
         touched: set[tuple[str, str]] = set()

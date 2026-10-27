@@ -114,8 +114,10 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         """Fit each procedure's check thresholds to the workspace's labels (verdicts, overrides, corrections and spot
         checks), as a job, and
         return per rule the threshold before and after, and the labels used. A procedure below the minimums (5 labeled
-        sessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save."""
+        sessions, a rule with 3 labeled failures) is refused, with the reason. `dry_run` doesn't save. 409 while the
+        workspace's analysis is paused."""
         req = req or CalibrateIn()
+        store.analysis.require_running(workspace_id(workspace))
         return jobs.calibrate(CalibrateRef(workspace_id=workspace_id(workspace), procedure_id=req.procedure, dry_run=req.dry_run))
 
     return r

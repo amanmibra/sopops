@@ -18,6 +18,7 @@ from sqlmodel import Session, and_, func, select, update
 
 from . import forms
 from .ai.keys import AIKeys
+from .analysis import Analysis
 from .auth import actor
 from .calibrate import Calibrate
 from .capture.agent_config import AgentSettings
@@ -58,6 +59,7 @@ class Store:
         self.insights = Insights(self)
         self.usage = Usage(self)
         self.ai_keys = AIKeys(self)
+        self.analysis = Analysis(self)
         self.agent_settings = AgentSettings(self)
         if migrate:
             upgrade(self.engine, self.sopc)

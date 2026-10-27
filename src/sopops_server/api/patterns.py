@@ -47,9 +47,11 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     @r.post("/v1/workspaces/{workspace}/patterns/recluster", response_model=ReclusterResponse, dependencies=OPEN, tags=["patterns"])
     def recluster_patterns(workspace: str, req: ReclusterRequest | None = None) -> dict:
         """Assign any unassigned findings, then recluster rules (those due, or all with `force`) and regroup themes.
-        Runs here and now (it calls the models); the daily cron does the same for every workspace."""
+        Runs here and now (it calls the models); the daily cron does the same for every workspace. 409 while the
+        workspace's analysis is paused."""
         req = req or ReclusterRequest()
         ws = workspace_id(workspace)
+        store.analysis.require_running(ws)
         pats = store.patterns
         out = pats.assign_pending(ws, jobs.ai)
         if req.rule and req.procedure:

@@ -2,7 +2,7 @@
 database-only fields never reach the API, and the OpenAPI spec (and the TypeScript client generated from it) stays
 stable. Everything is re-exported here."""
 
-from .ai import AISettingsOut, CostEstimate, CostRange, KeyState, RoleCost, ModelChoices, ModelsIn, ModelState, ProviderIn, ProviderOption, ProviderState, ResetWhat, TypeSafeKeyIn
+from .ai import AISettingsOut, AnalysisIn, AnalysisState, CostEstimate, CostRange, KeyState, RoleCost, ModelChoices, ModelsIn, ModelState, ProviderIn, ProviderOption, ProviderState, ResetWhat, TypeSafeKeyIn
 from .base import BaseModel, Files
 from .calibration import (
     CalibratedProcedure,
@@ -258,7 +258,7 @@ from .verdicts import (
 )
 
 __all__ = [
-    "AISettingsOut", "CostEstimate", "CostRange", "KeyState", "RoleCost", "ModelChoices", "ModelsIn", "ModelState", "ProviderIn", "ProviderOption", "ProviderState", "ResetWhat", "TypeSafeKeyIn",
+    "AISettingsOut", "AnalysisIn", "AnalysisState", "CostEstimate", "CostRange", "KeyState", "RoleCost", "ModelChoices", "ModelsIn", "ModelState", "ProviderIn", "ProviderOption", "ProviderState", "ResetWhat", "TypeSafeKeyIn",
     "AgentConfig",
     "AgentDeliveryOut",
     "AgentFields",

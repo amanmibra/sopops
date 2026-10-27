@@ -471,7 +471,7 @@ EXPECTED = {
                      "provider_webhook"},
     access.ADMIN: {"update_org", "add_members", "set_member_role", "remove_member", "list_invites", "create_invite", "resend_invite", "revoke_invite",
                    "create_password_link", "github_app_manifest", "github_app_manifest_callback", "set_up_org", "get_join_link", "create_join_link",
-                   "delete_join_link", "set_typesafe_key", "set_ai_provider", "set_ai_models", "reset_ai_setting",
+                   "delete_join_link", "set_typesafe_key", "set_ai_provider", "set_ai_models", "reset_ai_setting", "set_analysis",
                    "backfill_preview", "start_backfill", "get_backfill", "set_org_support"},
 }
 

@@ -35,6 +35,8 @@ These variables set the deployment's defaults; see [Models](sessions-and-review.
 
 The spot-check batch size is set per workspace, not by a variable: 25 rule results by default, changed with `PUT /v1/workspaces/{ws}/spot-checks/settings` ([spot checks](api/checks-and-review.md#corrections-and-spot-checks)).
 
+Analysis can be paused per workspace, by an owner or admin (Settings → Checks, or `PUT /v1/workspaces/{ws}/analysis` with `{"paused": true}`). Sessions still come in and show their transcripts, but no model runs on them: nothing is routed, checked, clustered, suggested or calibrated, and the daily recluster skips the workspace. Resuming queues the sessions that came in meanwhile to be checked.
+
 ## Sign-in
 
 See [Sign in](sign-in.md). sopops sends no email: invites, join links and password resets are links to copy. For single sign-on on a self-hosted sopops, [put it behind Cloudflare Zero Trust](sign-in.md#put-sopops-behind-cloudflare-zero-trust).
