@@ -259,6 +259,7 @@ export function SuggestionView({ id }: { id: string }) {
   const [note, setNote] = useState("");
   const [dismissing, setDismissing] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [asking, setAsking] = useState<null | "regenerate" | "rewrite">(null); // what the next one should do, asked first
   if (res.isPending)
     return (
       <Page wide>
@@ -283,7 +284,6 @@ export function SuggestionView({ id }: { id: string }) {
   const since = open ? s.since_written : null;
   const conflict = since?.state === "conflict";
 
-  const [asking, setAsking] = useState<null | "regenerate" | "rewrite">(null); // what the next one should do, asked first
   const act = async (what: "apply" | "dismiss" | "regenerate" | "rewrite", guidance: string | null = null) => {
     setAsking(null);
     setBusy(what);
