@@ -93,7 +93,7 @@ Then open http://127.0.0.1:8484 (`open` on a Mac, `xdg-open` on Linux) and stay 
 
 Every call has to come back to sopops to be checked. Send them to the right part of `docs/connect.md` for their platform:
 
-- **LiveKit:** `attach()` from the Python SDK, set up in a few lines in their agent. Set `SOPOPS_URL=http://127.0.0.1:8484` and `SOPOPS_TOKEN` to a token from **Settings → Access**, which they make and paste themselves. Offer to make the change in their agent's code, in their repo, if they want.
+- **LiveKit:** `attach()` from the Python SDK, set up in a few lines in their agent. Set `SOPOPS_URL=http://127.0.0.1:8484` and `SOPOPS_TOKEN` to a token from **Settings → Access**, which they make and paste themselves. On LiveKit Cloud those two go in the agent's secrets, not a local `.env`. Offer to make the change in their agent's code, in their repo, if they want.
 - **ElevenLabs or Vapi:** these platforms send calls to sopops by webhook, so the platform has to reach their machine. Locally that needs a tunnel (for example `cloudflared tunnel --url http://127.0.0.1:8484`), with `SOPOPS_PUBLIC_URL` set to the tunnel's address. Explain that the tunnel opens sopops to the internet for as long as it runs, and that sign-in must stay on. Leave this for later if they'd rather not.
 - **Anything else:** `POST /v1/workspaces/{ws}/sessions` (see `docs/api/sessions.md`).
 

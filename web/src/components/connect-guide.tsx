@@ -4,8 +4,10 @@
 
 import type { ReactNode } from "react";
 
+import { apiOrigin } from "@/lib/paths";
 import { usePlatforms } from "@/lib/platforms";
 import { cn } from "@/lib/utils";
+import { settingsHref, useWs } from "@/lib/workspace";
 import { PlatformLabel } from "./brand-icon";
 import { HrefLink } from "./href-link";
 
@@ -22,7 +24,15 @@ type Cell = { need: Need; how: ReactNode; next?: ReactNode };
 const ROWS: { platform: string; prompt: Cell; after: Cell; live: Cell }[] = [
   {
     platform: "livekit",
-    prompt: { need: "sdk", how: <>Add <code>attach()</code> where your agent starts a call, and it loads its instructions from sopops.</> },
+    prompt: {
+      need: "sdk",
+      how: (
+        <>
+          Add <code>attach()</code> where your agent starts a call, and it loads its instructions from sopops and sends the call back. It needs two
+          settings where the agent runs (below).
+        </>
+      ),
+    },
     after: {
       need: "none",
       how: <>Add your LiveKit project key and a webhook in LiveKit Cloud. sopops joins each call and records it.</>,
@@ -86,6 +96,8 @@ function CellView({ cell }: { cell: Cell }) {
 /** Per platform the team uses: what it takes to get instructions from sopops, and to send sessions back after a call and in real time. */
 export function ConnectGuide({ className }: { className?: string }) {
   const plats = usePlatforms();
+  const { ws } = useWs();
+  const url = `${apiOrigin()}/v1/workspaces/${encodeURIComponent(ws)}`;
   return (
     <div className={cn("overflow-x-auto", className)}>
       <table className="w-full min-w-[720px] border-collapse text-left">
@@ -110,6 +122,20 @@ export function ConnectGuide({ className }: { className?: string }) {
           ))}
         </tbody>
       </table>
+      {plats.has("livekit") && (
+        <div className="bg-muted/40 mt-3 grid gap-2 rounded-md border px-3 py-2 text-sm">
+          <div className="font-medium">
+            Settings for <code>attach()</code>
+          </div>
+          <p className="text-muted-foreground max-w-prose leading-relaxed">
+            Set these where your agent runs. On LiveKit Cloud, add them as the agent's secrets (Agents, then your agent, then Secrets) and deploy again;
+            running it yourself, put them in its environment. The token comes from{" "}
+            <HrefLink href={settingsHref(ws, "access")}>Settings → Access</HrefLink>, with the <b>runtime</b> and <b>ingest</b> scopes.
+          </p>
+          <pre className="bg-card overflow-x-auto rounded-md border px-2 py-1 text-xs">{`SOPOPS_URL=${url}\nSOPOPS_TOKEN=<your token>`}</pre>
+          <p className="text-muted-foreground text-xs">With these, you don't need the LiveKit webhook: that's only for recording calls without code.</p>
+        </div>
+      )}
       <p className="text-muted-foreground mt-2 text-xs">
         Code samples are in the README, under <HrefLink href="https://github.com/amanmibra/sopops#connect-your-agent">Connect your agent</HrefLink>.
       </p>

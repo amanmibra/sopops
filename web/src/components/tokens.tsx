@@ -99,6 +99,7 @@ export function TokensPanel() {
             </Button>
           </div>
           <pre className="mt-2 overflow-x-auto text-xs">{`export SOPOPS_URL=${url}\nexport SOPOPS_TOKEN=${shown}`}</pre>
+          <p className="mt-2 text-sm">For an agent on LiveKit Cloud, add these two as the agent's secrets instead (Agents, then your agent, then Secrets), and deploy it again.</p>
         </Banner>
       )}
       {tokens.length ? (

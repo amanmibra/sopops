@@ -84,7 +84,8 @@ and tool calls while the call runs.
 the session and posts the full call at shutdown. If sopops is unavailable, it
 uses a saved instruction, then `FALLBACK`. A real agent also needs
 `pip install "sopops[livekit]"`, `SOPOPS_URL`, and a token with the `runtime`
-and `ingest` scopes. If neither a saved instruction nor `FALLBACK` exists,
+and `ingest` scopes, set where the agent runs: on LiveKit Cloud, as the agent's
+secrets. If neither a saved instruction nor `FALLBACK` exists,
 `attach` raises `SopOpsUnavailable`.
 
 The walkthrough drives the same adapter with LiveKit stand-ins. Its output

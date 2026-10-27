@@ -23,9 +23,11 @@ Both SDKs read these variables. This page's REST calls need none of them and wor
 
 | Variable | Value |
 |---|---|
-| `SOPOPS_URL` | The workspace's API URL, `https://app.sopops.dev/v1/workspaces/<id>`. |
-| `SOPOPS_TOKEN` | Settings → Tokens: `runtime` to fetch instructions, `ingest` to send sessions. |
+| `SOPOPS_URL` | The workspace's API URL, `https://sopops.dev/api/v1/workspaces/<id>`. |
+| `SOPOPS_TOKEN` | Settings → Access: `runtime` to fetch instructions, `ingest` to send sessions. |
 | `SOPOPS_CACHE_DIR` | Where the last good instructions are kept on disk. Default `~/.cache/sopops`. |
+
+Set them wherever the agent runs. On LiveKit Cloud, add `SOPOPS_URL` and `SOPOPS_TOKEN` as the agent's secrets (Agents → your agent → Secrets, or the `lk` CLI's secrets options) and deploy again; the SDK can't reach sopops without them.
 
 Python caches on disk already. TypeScript caches in memory, so pass `FileCache` from `sopops/node` to keep the copy on disk, and a restarted process still has one when sopops is unreachable.
 
@@ -69,7 +71,7 @@ Session capture without code sits under the gear icon → Agents and platforms �
 
 ## Connect LiveKit
 
-**Instructions:** the LiveKit adapter's `attach`, in either SDK. LiveKit has no call-start webhook, so instructions need `attach`. The token needs the `runtime` and `ingest` scopes. To only record calls, skip to **Sessions with no code** below.
+**Instructions:** the LiveKit adapter's `attach`, in either SDK. LiveKit has no call-start webhook, so instructions need `attach`. The token needs the `runtime` and `ingest` scopes, and on LiveKit Cloud both variables go in the agent's secrets (above). With `attach`, the LiveKit webhook below isn't needed: it's for recording calls without code. To only record calls, skip to **Sessions with no code** below.
 
 ```python
 from sopops.livekit import attach
