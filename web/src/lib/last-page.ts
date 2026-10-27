@@ -2,7 +2,8 @@
 import { wsHref } from "./workspace";
 
 const key = (ws: string) => `sopops.nav.${ws}.last`;
-const outside = (pathname: string) => !/^\/w\/[^/]+\/(settings|setup)(\/|$)/.test(pathname);
+// `import` pages redirect into Settings, so going "back" to one would land in Settings again
+const outside = (pathname: string) => !/^\/w\/[^/]+\/(settings|setup|import)(\/|$)/.test(pathname);
 
 export function rememberPage(ws: string, pathname: string, searchStr: string) {
   if (!outside(pathname) || pathname.endsWith("/new")) return;
@@ -16,7 +17,7 @@ export function rememberPage(ws: string, pathname: string, searchStr: string) {
 export function lastPageHref(ws: string): string {
   try {
     const last = sessionStorage.getItem(key(ws));
-    if (last && decodeURIComponent(last).startsWith(`/w/${ws}/`)) return last;
+    if (last && decodeURIComponent(last).startsWith(`/w/${ws}/`) && outside(last.split("?")[0])) return last;
   } catch {
     /* private mode */
   }
