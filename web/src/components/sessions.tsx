@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type SessionDetail, type SessionFilters, type SessionSummary, type SessionTurn, q } from "@/lib/api";
 import { STATUS_MARK, ruleName } from "@/lib/insights";
 import { plural, when } from "@/lib/kinds";
+import { RULE_STATUS } from "@/lib/review";
 import { useSessionStream } from "@/lib/live";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
@@ -425,7 +426,7 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
         {clock(turn.offset_s)}
       </span>
       <span className={cn("text-sm", r.className)}>{r.label}</span>
-      <span className={cn("whitespace-pre-wrap", turn.role === "tool" && "font-mono text-muted-foreground", turn.role === "system" && "italic text-muted-foreground")}>
+      <span className={cn("min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]", turn.role === "tool" && "font-mono text-muted-foreground", turn.role === "system" && "italic text-muted-foreground")}>
         {turn.text ? <Highlighted text={turn.text} quotes={quotes} strong={!!active} /> : extra.name ? extra.name : <span className="text-muted-foreground">(no text)</span>}
         {extra.interrupted && <Tag className="ml-2 align-middle">interrupted</Tag>}
         {marks && marks.length > 0 && (
@@ -433,7 +434,7 @@ function Turn({ turn, index, marks, activeKey, onSelect }: { turn: SessionTurn; 
             {marks.map((m) => (
               <button key={m.key} type="button" className="min-w-0 max-w-full" onClick={() => onSelect(m.key === activeKey ? null : m.key)} title="Show this rule">
                 <Tag className={cn("cursor-pointer", m.finding ? "bg-err-soft text-err border-transparent" : "", m.key === activeKey && "ring-ring ring-1")}>
-                  {m.label} · {m.status.replace("_", " ")}
+                  {m.label} · {RULE_STATUS[m.status].label}
                 </Tag>
               </button>
             ))}
@@ -517,7 +518,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
         .
       </Sub>
       {s.status_reason && <Banner tone={s.status === "failed" ? "err" : "warn"}>{s.status_reason}</Banner>}
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(380px,2fr)]">
         <Panel title="Transcript" className="min-w-0">
           {s.turns.length ? (
             <ol>

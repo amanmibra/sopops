@@ -90,6 +90,17 @@ export function Highlighted({ text, quotes, strong }: { text: string; quotes: st
   return <>{out}</>;
 }
 
+/** A tool call quoted as `name({...json})`, its arguments indented so it wraps at keys rather than mid-value; anything else as it came. */
+function toolCall(quote: string): string {
+  const m = /^([\w.-]+)\(([\s\S]*)\)$/.exec(quote.trim());
+  if (!m) return quote;
+  try {
+    return `${m[1]}(${JSON.stringify(JSON.parse(m[2]), null, 2)})`;
+  } catch {
+    return quote;
+  }
+}
+
 function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId: string; procedureId: string; rule: RuleResultOut; active: boolean; onSelect: (key: string | null, turn?: number | null) => void }) {
   const s = STATUS[rule.status];
   const key = ruleKey(procedureId, rule);
@@ -97,59 +108,68 @@ function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId
   const { ws } = useWs();
   const [call, setCall] = useState<CallMode | null>(null);
   const rowRef = useRef<HTMLButtonElement>(null);
+  const finding = rule.finding && !rule.suppressed;
+  // A row of the list's two columns (status, then everything else): the status column is as wide as the longest
+  // status, so "out of order" never truncates, and the text, evidence and controls all wrap inside the second.
+  // In a narrow panel the list is one column and the status sits above the text.
   return (
-    <li className={cn("group rounded-md border border-transparent px-2 py-2", active && "border-border bg-muted", rule.finding && !rule.suppressed && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
-      <div className="flex items-start gap-1">
-        <button ref={rowRef} type="button" className="grid min-w-0 flex-1 grid-cols-[88px_minmax(0,1fr)] gap-2 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
-          <span className="pt-px">
-            <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
-          </span>
-          <span className="text-sm">
-            <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
-          </span>
-        </button>
-        <RuleCallButtons rule={rule} onOpen={setCall} part="finding" />
-      </div>
-      <div className="ml-[96px] min-w-0">
+    <li className={cn("group col-span-full grid grid-cols-subgrid rounded-md px-2 py-1.5", active && "bg-muted", finding && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
+      <button ref={rowRef} type="button" className="col-span-full grid grid-cols-subgrid gap-y-1 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
+        <span className="pt-px">
+          <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
+        </span>
+        <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
+          <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
+        </span>
+      </button>
+      <div className="min-w-0 text-sm @sm:col-start-2">
         <CorrectionNote rule={rule} className="mt-1" />
-        <RuleCallButtons rule={rule} onOpen={setCall} part="status" className={cn("-ml-2 mt-0.5", !active && "hidden group-hover:flex group-focus-within:flex")} />
+        {rule.suppressed && (
+          <p className="text-muted-foreground mt-1 text-xs">
+            Suppressed: {rule.override === false ? (rule.correction && rule.correction.source !== "override" ? "a reviewer corrected its status" : "a reviewer marked this finding incorrect") : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.
+          </p>
+        )}
+        {active && (
+          <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-2">
+            {rule.reason && <p className="text-muted-foreground">{rule.reason}</p>}
+            {rule.evidence.map((e, i) => (
+              <button
+                type="button"
+                key={i}
+                className="hover:bg-card bg-background/60 min-w-0 rounded-md border px-2 py-1.5 text-left"
+                onClick={() => e.turn != null && onSelect(key, e.turn)}
+                disabled={e.turn == null}
+                title={e.turn != null ? `Show turn ${e.turn} in the transcript` : undefined}
+              >
+                <span className="text-muted-foreground block text-xs">{e.source === "tool_calls" ? "Tool call" : `Turn ${e.turn}`}</span>
+                {e.source === "tool_calls" ? (
+                  <code className="block max-h-48 overflow-auto font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]">{toolCall(e.quote)}</code>
+                ) : (
+                  <span className="[overflow-wrap:anywhere]">“{e.quote}”</span>
+                )}
+              </button>
+            ))}
+            {rule.pattern_id && (
+              <span className="[overflow-wrap:anywhere]">
+                Pattern:{" "}
+                <HrefLink href={wsHref(ws, "patterns", rule.pattern_id)} title="This pattern: its verdict, examples and suggestions">
+                  {rule.pattern_name ?? "this pattern"}
+                </HrefLink>{" "}
+                ·{" "}
+                <HrefLink href={sessionsHref(ws, { pattern: rule.pattern_id })} title="Every session in this pattern">
+                  sessions
+                </HrefLink>
+              </span>
+            )}
+            <span className="text-muted-foreground font-mono text-xs">rule {rule.rule_id}</span>
+          </div>
+        )}
+        <span className={cn("-ml-2 mt-1 flex flex-wrap items-center", !finding && !active && "hidden group-hover:flex group-focus-within:flex")}>
+          <RuleCallButtons rule={rule} onOpen={setCall} part="finding" />
+          <RuleCallButtons rule={rule} onOpen={setCall} part="status" className={cn(!active && "hidden group-hover:flex group-focus-within:flex")} />
+        </span>
       </div>
       <RuleCallDialog mode={call} onOpenChange={(open) => !open && setCall(null)} onClosed={() => rowRef.current?.focus()} sessionId={sessionId} procedureId={procedureId} rule={rule} />
-      {rule.suppressed && (
-        <p className="text-muted-foreground mt-0.5 ml-[96px] text-xs">
-          Suppressed: {rule.override === false ? (rule.correction && rule.correction.source !== "override" ? "a reviewer corrected its status" : "a reviewer marked this finding incorrect") : "a verdict on its pattern hides it (acceptable here, or the checker was wrong)"}. Left out of the result and of Insights.
-        </p>
-      )}
-      {active && (
-        <div className="mt-2 ml-[96px] grid gap-2 text-sm">
-          {rule.reason && <p className="text-muted-foreground">{rule.reason}</p>}
-          {rule.evidence.map((e, i) => (
-            <button
-              type="button"
-              key={i}
-              className="hover:bg-card rounded-md border px-2 py-1 text-left"
-              onClick={() => e.turn != null && onSelect(key, e.turn)}
-              disabled={e.turn == null}
-              title={e.turn != null ? `Show turn ${e.turn} in the transcript` : undefined}
-            >
-              <span className="text-muted-foreground mr-2 font-mono text-xs">{e.source === "tool_calls" ? "tool call" : `#${e.turn}`}</span>“{e.quote}”
-            </button>
-          ))}
-          {rule.pattern_id && (
-            <span className="text-sm">
-              Pattern:{" "}
-              <HrefLink href={wsHref(ws, "patterns", rule.pattern_id)} title="This pattern: its verdict, examples and suggestions">
-                {rule.pattern_name ?? "this pattern"}
-              </HrefLink>{" "}
-              ·{" "}
-              <HrefLink href={sessionsHref(ws, { pattern: rule.pattern_id })} title="Every session in this pattern">
-                sessions
-              </HrefLink>
-            </span>
-          )}
-          <span className="text-muted-foreground font-mono text-sm">rule {rule.rule_id}</span>
-        </div>
-      )}
     </li>
   );
 }
@@ -162,7 +182,7 @@ function ProcedureCard({ sessionId, check, activeKey, onSelect }: { sessionId: s
     <section className="border-b py-2 last:border-b-0">
       <button type="button" className="flex w-full items-center gap-2 text-left" onClick={() => setOpen(!open)} aria-expanded={open}>
         {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
-        <span className="flex-1 font-semibold">{check.procedure_name ?? check.procedure_id}</span>
+        <span className="min-w-0 flex-1 font-semibold [overflow-wrap:anywhere]">{check.procedure_name ?? check.procedure_id}</span>
         {state ? (
           <Tag>{state}</Tag>
         ) : (
@@ -178,7 +198,7 @@ function ProcedureCard({ sessionId, check, activeKey, onSelect }: { sessionId: s
         )}
       </button>
       {open && (
-        <div className="mt-2 pl-6">
+        <div className="@container mt-2 min-w-0 pl-6">
           {(check.excluded_reason || check.route_reason) && <p className="text-muted-foreground mb-2 text-sm">{check.excluded_reason ?? check.route_reason}</p>}
           {checked && (
             <p className="mb-2 text-sm">
@@ -188,7 +208,7 @@ function ProcedureCard({ sessionId, check, activeKey, onSelect }: { sessionId: s
             </p>
           )}
           {check.rules.length > 0 && (
-            <ul className="grid gap-0.5">
+            <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-3 gap-y-0.5 @sm:grid-cols-[max-content_minmax(0,1fr)]">
               {check.rules.map((r) => (
                 <RuleRow key={r.rule_id} sessionId={sessionId} procedureId={check.procedure_id} rule={r} active={activeKey === ruleKey(check.procedure_id, r)} onSelect={onSelect} />
               ))}
