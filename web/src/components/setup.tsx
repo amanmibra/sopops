@@ -491,12 +491,12 @@ function AgentsStep({ flow }: { flow: Flow }) {
       back={s.back}
       exit={s.exit}
       aside={!n && s.skip()}
-      primary={n ? { label: "Continue", run: s.next } : { label: "Import agents", run: () => s.leave(wsHref(s.ws, "import")) }}
+      primary={n ? { label: "Continue", run: s.next } : { label: "Import agents", run: () => s.leave(settingsHref(s.ws, "import")) }}
     >
       {n > 0 && (
         <Banner tone="ok" className="mb-0">
           <Check className="mr-2 inline size-4" />
-          {plural(n, "agent is", "agents are")} in. <button type="button" className="font-semibold underline underline-offset-2" onClick={() => s.leave(wsHref(s.ws, "import"))}>Import more</button>
+          {plural(n, "agent is", "agents are")} in. <button type="button" className="font-semibold underline underline-offset-2" onClick={() => s.leave(settingsHref(s.ws, "import"))}>Import more</button>
         </Banner>
       )}
     </StepShell>

@@ -6,7 +6,7 @@ import { type Component, type DraftAgent, type DraftItem, type ReleaseDetail, ca
 import { textCount } from "@/lib/diff";
 import { KIND, type Kind, type ListKind, itemOfPath, kindOfComponent, platformName, platformRefName, plural, when } from "@/lib/kinds";
 import type { Item } from "@/lib/model";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, Counts, ErrorBanner, IssueList, LintList, Note, PageTitle, Panel, Segmented, Sub, Tag } from "./bits";
 import { ChangeList, useFieldChanges } from "./change-list";
 import { DiffView } from "./diff-view";
@@ -26,7 +26,7 @@ function AgentsActions() {
   return (
     <>
       <span className="flex-1" />
-      <Button variant="outline" onClick={() => go(wsHref(ws, "import"))}>
+      <Button variant="outline" onClick={() => go(settingsHref(ws, "import"))}>
         Add agents
       </Button>
       <Button onClick={() => go(href("agent", "new"))}>New agent</Button>
@@ -618,7 +618,7 @@ export function EmptyWorkspace() {
         blocks, in the order its instructions should have them.
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button onClick={() => go(wsHref(ws, "import"))}>Import agents</Button>
+        <Button onClick={() => go(settingsHref(ws, "import"))}>Import agents</Button>
         <Button variant="outline" onClick={() => go(href("instruction", "new"))}>
           New shared instruction
         </Button>

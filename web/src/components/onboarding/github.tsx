@@ -151,7 +151,7 @@ function ImportFromRepo({ label, variant }: { label: string; variant?: "outline"
     try {
       const created = await call(sdk.importSopcProject({ path: { workspace: ws }, body: { from_repo: true, author: author() } }));
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
-      go(wsHref(ws, "import", created.id));
+      go(wsHref(ws, "settings", "import", created.id));
     } catch (e) {
       setError(e);
       setBusy(false);

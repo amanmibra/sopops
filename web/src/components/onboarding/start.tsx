@@ -99,7 +99,7 @@ export function ImportStart() {
           <ul className="grid gap-1">
             {open.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2">
-                <HrefLink href={wsHref(ws, "import", i.id)}>
+                <HrefLink href={wsHref(ws, "settings", "import", i.id)}>
                   {i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sopc" ? "sopc project" : "Import"}
                 </HrefLink>
                 <Tag>{i.status}</Tag>
@@ -238,7 +238,7 @@ function useStart() {
     try {
       const created = await call(sdk.createImport({ path: { workspace: ws }, body }));
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
-      go(wsHref(ws, "import", created.id));
+      go(wsHref(ws, "settings", "import", created.id));
     } catch (e) {
       setError(e);
     } finally {
@@ -497,7 +497,7 @@ function AgentSource({ mode }: { mode: "hosted" | "repo" }) {
       const k = await call(sdk.startAgentImport({ path: { workspace: ws }, body: { mode, server_url: apiOrigin(), author: author() } }));
       rememberKickoff(k);
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
-      go(wsHref(ws, "import", k.import.id));
+      go(wsHref(ws, "settings", "import", k.import.id));
     } catch (e) {
       setError(e);
     } finally {

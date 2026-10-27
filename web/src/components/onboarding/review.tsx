@@ -60,7 +60,7 @@ export function ImportView({ id }: { id: string }) {
       </Folded>
       {d.status === "failed" && (
         <Banner tone="err">
-          {d.error || "The import failed."} <HrefLink href={wsHref(ws, "import")}>Start again</HrefLink>
+          {d.error || "The import failed."} <HrefLink href={settingsHref(ws, "import")}>Start again</HrefLink>
         </Banner>
       )}
       {d.status === "applied" && d.pr_state !== "merged" && (
@@ -231,7 +231,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
       <Panel title="Onboarding token">
         <Note>
           The token {t.revoked_at ? "was ended" : "expired"}. Your agent can't send more. {imp.proposal ? "Review what it sent below." : ""}{" "}
-          <HrefLink href={wsHref(ws, "import")}>Start a new one</HrefLink>
+          <HrefLink href={settingsHref(ws, "import")}>Start a new one</HrefLink>
         </Note>
       </Panel>
     );
@@ -283,7 +283,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
         </details>
       ) : (
         <Note>
-          The commands and token were shown when the token was created. Lost them? <HrefLink href={wsHref(ws, "import")}>Create a new token</HrefLink> (end this one with Finish).
+          The commands and token were shown when the token was created. Lost them? <HrefLink href={settingsHref(ws, "import")}>Create a new token</HrefLink> (end this one with Finish).
         </Note>
       )}
     </Panel>
@@ -300,7 +300,7 @@ export function ImportCard({ children }: { children?: ReactNode }) {
         Bring in the instructions your agents run today: from {listNames(from)}. You review the result before it's saved as drafts.
       </p>
       {children}
-      <HrefLink href={wsHref(ws, "import")}>Import agents</HrefLink>
+      <HrefLink href={settingsHref(ws, "import")}>Import agents</HrefLink>
     </Panel>
   );
 }

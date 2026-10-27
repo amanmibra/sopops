@@ -9,7 +9,7 @@ import { call, refresh, sdk } from "@/lib/api";
 import { plural } from "@/lib/kinds";
 import { pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
-import { useWs, wsHref } from "@/lib/workspace";
+import { settingsHref, useWs, wsHref } from "@/lib/workspace";
 import { Banner, ConfirmButton, ErrorBanner, Note, Panel, Tag } from "../bits";
 import { author } from "../form";
 import { HrefLink, useGo } from "../href-link";
@@ -51,7 +51,7 @@ export function SopcSource() {
     try {
       const created = await call(sdk.importSopcProject({ path: { workspace: ws }, body: { ...body, author: author() } }));
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
-      go(wsHref(ws, "import", created.id));
+      go(wsHref(ws, "settings", "import", created.id));
     } catch (e) {
       setError(e);
     } finally {
@@ -344,7 +344,7 @@ export function SopcIntro({ imp }: { imp: ImportOut }) {
   return (
     <>
       An existing sopc project{imp.repo ? `, read from ${imp.repo}` : ""}. It's applied exactly as its files; to change it, edit the project and{" "}
-      <HrefLink href={wsHref(ws, "import")}>import it again</HrefLink>.
+      <HrefLink href={settingsHref(ws, "import")}>import it again</HrefLink>.
     </>
   );
 }

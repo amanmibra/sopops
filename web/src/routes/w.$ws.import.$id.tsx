@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { ImportView } from "@/components/onboarding/review";
+import { Navigate, createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/w/$ws/import/$id")({ component: Page });
-
-function Page() {
-  const { id } = Route.useParams();
-  return <ImportView key={id} id={id} />;
-}
+/** An import's page moved under settings, where its rail lives. Old links (the MCP server's review link) still work. */
+export const Route = createFileRoute("/w/$ws/import/$id")({
+  component: function ImportMoved() {
+    const { ws, id } = Route.useParams();
+    return <Navigate to="/w/$ws/settings/import/$id" params={{ ws, id }} replace />;
+  },
+});
