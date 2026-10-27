@@ -53,7 +53,7 @@ class Instructions:
     """Each file the prompt was built from, in prompt order: {kind, id, path, version}."""
     hash: str | None = None
     platform_ref: str | None = None
-    """`livekit:tonys-pizza`, `elevenlabs:<agent id>`, `vapi:<assistant id>`."""
+    """Where the agent runs, as the server stores it (`livekit:tonys-pizza`). Read-only: never build it to pass as `agent`."""
     tools: list[str] = field(default_factory=list)
     tool_sops: list[str] = field(default_factory=list)
     source: Source = "live"
@@ -178,8 +178,8 @@ def fetch(
 ) -> Instructions:
     """The agent's instructions, blocking: one call for code that isn't async.
 
-    `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). `platform` scopes a raw platform id,
-    such as `tonys-pizza` with `platform="livekit"`. `release` pins one; without it you get the live release. `url`
+    `agent` is the agent's id on its platform or its sopc id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it
+    to one platform when two agents share an id. `release` pins one; without it you get the live release. `url`
     and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
 
     Falls back the same way `SopOps.fetch_instructions` does: the last good copy on disk, then `fallback`, else
@@ -239,9 +239,9 @@ class SopOps:
 
     async def fetch_instructions(self, agent: str, release: int | None = None, *, platform: str | None = None, fallback: str | None = None,
                                  variables: Mapping[str, Any] | None = None) -> Instructions:
-        """The agent's instructions in the live release, or in `release` if pinned. `agent` is the sopc agent id
-        or its platform ref (`livekit:tonys-pizza`). `platform` scopes a raw platform id, such as `tonys-pizza`
-        with `platform="livekit"`.
+        """The agent's instructions in the live release, or in `release` if pinned. `agent` is the agent's id
+        on its platform or its sopc id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it to one platform when two
+        agents share an id.
 
         `variables` fills `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything your
         code works out per call. It happens here, in your process, so those values never reach sopops. A placeholder

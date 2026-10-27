@@ -23,7 +23,7 @@ export interface Instructions {
   agent: string;
   blocks: Block[];
   hash: string | null;
-  /** `livekit:tonys-pizza`, `elevenlabs:<agent id>`, `vapi:<assistant id>`. */
+  /** Where the agent runs, as the server stores it (`livekit:tonys-pizza`). Read-only: never build it to pass as `agent`. */
   platformRef: string | null;
   tools: string[];
   toolSops: string[];
@@ -240,8 +240,8 @@ export class SopOps {
   }
 
   /**
-   * The agent's instructions in the live release, or a pinned one. `agent` is the sopc agent id or its platform
-   * ref (`elevenlabs:<agent id>`). `options.platform` scopes a raw platform id. Never waits longer than
+   * The agent's instructions in the live release, or a pinned one. `agent` is the agent's id on its platform or its
+   * sopc id, e.g. `tonys-pizza`. `options.platform` (`"livekit"`) scopes it when two agents share an id. Never waits longer than
    * `timeoutMs`: on any failure it returns the last good copy (`source: "cache"`), else `fallback`, else throws
    * SopOpsUnavailable.
    */
@@ -379,8 +379,8 @@ export class SopOps {
  */
 /** The agent's instructions in one call, for code that doesn't keep a client around.
  *
- * `agent` is the sopc agent id or its platform ref (`livekit:tonys-pizza`). Set `platform` to scope a raw platform
- * id. `release` pins one; leave it out for the live release. `url` and `token` default to `SOPOPS_URL` and
+ * `agent` is the agent's id on its platform or its sopc id, e.g. `tonys-pizza`. Set `platform` (`"livekit"`) to
+ * scope it when two agents share an id. `release` pins one; leave it out for the live release. `url` and `token` default to `SOPOPS_URL` and
  * `SOPOPS_TOKEN`, as `SopOps` reads them.
  * Falls back the same way the method does: the cache, then `fallback`, else `SopOpsUnavailable`.
  *

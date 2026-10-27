@@ -74,9 +74,9 @@ to `agent`; the helper scopes it to the platform.
 
 | Argument | What it does |
 |---|---|
-| `agent` | The sopc agent id (`tonys-pizza`), its platform ref (`livekit:tonys-pizza`), or a raw platform identifier. |
+| `agent` | The agent's id on its platform, or its sopc id: `tonys-pizza`. No platform prefix. |
 | `release` | Pins one release, for an arm of an [A/B test](ab-tests.md). Without it you get the live release. |
-| `platform` | Scopes a raw platform identifier, such as `tonys-pizza` with `platform="livekit"`. |
+| `platform` | Scopes `agent` to one platform (`"livekit"`), for when two agents share an id. |
 | `fallback` | Text to serve when sopops is down and nothing is cached. |
 | `variables` | Values for the <code v-pre>{{placeholders}}</code> only this call knows. See below. |
 
@@ -106,7 +106,7 @@ A frozen dataclass in Python, an interface in TypeScript.
 | `agent` | `agent` | string | The sopc agent id, as sopops resolved it. Pass this one back when you post the session. |
 | `blocks` | `blocks` | list | Each file the prompt was built from, in prompt order: `kind`, `id`, `path`, `version`. |
 | `hash` | `hash` | string or null | The compiled prompt's hash. |
-| `platform_ref` | `platformRef` | string or null | `livekit:tonys-pizza`, `elevenlabs:<agent id>`, `vapi:<assistant id>`. |
+| `platform_ref` | `platformRef` | string or null | Where the agent runs, as the server stores it (`livekit:tonys-pizza`). Read-only: pass the bare id as `agent`. |
 | `tools` | `tools` | list of strings | The tools the agent's procedures call, by name. |
 | `tool_sops` | `toolSops` | list of strings | Procedures delivered on demand rather than written into the prompt: their ids, fetched with the `get_sop` tool ([Releases](api/releases.md)). |
 | `source` | `source` | `live`, `cache` or `fallback` | Where the text came from. Worth logging. |
