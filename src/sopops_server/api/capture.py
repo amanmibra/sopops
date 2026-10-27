@@ -62,11 +62,12 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     def livekit_out(ws: str) -> dict:
         row = cap.setting(ws, "livekit")
+        attached, recorded = cap.last_livekit_sessions(ws)
         key, secret = cap.secret_info(ws, "livekit", LIVEKIT_KEY), {**cap.secret_info(ws, "livekit", LIVEKIT_SECRET), "hint": None}
         return {
             "connected": bool(row and row.url and key["set"] and secret["set"]), "url": row.url if row else None, "api_key": key, "api_secret": secret,
             "agent_map": row.agent_map if row else {}, "webhook_path": f"/v1/workspaces/{ws}/{LIVEKIT_HOOK}", "last_event_at": row.event_at if row else None,
-            "last_attach_at": cap.last_attach_at(ws), "recorder_installed": _recorder_installed(),
+            "last_attach_at": attached, "last_recorded_at": recorded, "recorder_installed": _recorder_installed(),
         }
 
     def elevenlabs_out(ws: str) -> dict:

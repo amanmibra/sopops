@@ -3685,6 +3685,12 @@ export type LiveKitCapture = {
      */
     last_attach_at?: string | null;
     /**
+     * Last Recorded At
+     *
+     * When the last session the recorder made arrived (the webhook path).
+     */
+    last_recorded_at?: string | null;
+    /**
      * Recorder Installed
      *
      * This server can join rooms (`pip install 'sopops-server[livekit]'`).

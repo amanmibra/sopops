@@ -39,6 +39,7 @@ class LiveKitCapture(BaseModel):
     webhook_path: str = Field(description="Where LiveKit Cloud sends webhooks, under this server's address.")
     last_event_at: datetime | None = Field(description="The last signed webhook from LiveKit.")
     last_attach_at: datetime | None = Field(None, description="When the last session sent by the agent itself arrived (the SDK's `attach`), not by the recorder.")
+    last_recorded_at: datetime | None = Field(None, description="When the last session the recorder made arrived (the webhook path).")
     recorder_installed: bool = Field(description="This server can join rooms (`pip install 'sopops-server[livekit]'`).")
 
 

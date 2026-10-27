@@ -20283,6 +20283,19 @@
             "title": "Last Attach At",
             "description": "When the last session sent by the agent itself arrived (the SDK's `attach`), not by the recorder."
           },
+          "last_recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Recorded At",
+            "description": "When the last session the recorder made arrived (the webhook path)."
+          },
           "recorder_installed": {
             "type": "boolean",
             "title": "Recorder Installed",

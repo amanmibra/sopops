@@ -208,6 +208,12 @@ export function LiveKitCapture() {
           Getting LiveKit calls from <code>attach</code> in your agent. Last one {ago(attached)}. There's nothing else to set up.
         </Banner>
       )}
+      {lk?.connected && lk.last_recorded_at && (
+        <Banner tone="ok" className="mb-3">
+          <Check className="mr-2 inline size-4" />
+          Getting LiveKit calls from the webhook: sopops joins and records them. Last one {ago(lk.last_recorded_at)}.
+        </Banner>
+      )}
       {attached && !lk?.connected ? (
         <details>
           <summary className="text-muted-foreground cursor-pointer text-sm">Optional: also record calls without code, from a LiveKit project</summary>

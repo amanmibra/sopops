@@ -118,7 +118,8 @@ def test_livekit_says_when_calls_last_came_from_attach_and_not_the_recorder(app)
     recorded = session("job-rec")
     recorded["metadata"] = {"source": lk.RECORDER_SOURCE}
     assert ingest(client, token, recorded).status_code in (200, 201)
-    assert client.get(f"{WS}/capture").json()["livekit"]["last_attach_at"] is None  # the recorder's doesn't count
+    out = client.get(f"{WS}/capture").json()["livekit"]
+    assert out["last_attach_at"] is None and out["last_recorded_at"] is not None  # the recorder's counts as the webhook's
     assert ingest(client, token, session("job-sdk")).status_code in (200, 201)
     assert client.get(f"{WS}/capture").json()["livekit"]["last_attach_at"] is not None
 
