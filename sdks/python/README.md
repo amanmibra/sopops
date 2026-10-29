@@ -111,7 +111,7 @@ The session format is in [API reference](../../docs/api/sessions.md#the-canonica
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python' sopops-mcp
 ```
 
 It reads ElevenLabs and Vapi agents locally (`ELEVENLABS_API_KEY`, `VAPI_API_KEY`, read-only) and writes the sop project into the repo; everything else (the kickoff, the extraction guide, compiling, fidelity, pushing) goes to the sopops server's `/v1/onboarding` endpoints with `SOPOPS_URL` and `SOPOPS_TOKEN`. `sopops-mcp install-skill --url URL` copies the server's sopops-onboard skill into the repo (`--claude`, `--codex`). It runs with `uvx`, so it works the same for TypeScript projects, which is why the npm package has no copy of it.

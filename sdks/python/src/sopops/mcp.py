@@ -5,7 +5,7 @@ into a proposal (agent context, shared instructions, procedures, variables), che
 sopops for review. Optionally it writes the same proposal as a sop project into the repo. sopops does the compiling and
 checking over its HTTP API (`/v1/onboarding`); this server only reads platforms and writes files locally.
 
-Install with the `mcp` extra: `uvx --from "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python" sopops-mcp`.
+Install with the `mcp` extra: `uvx --from "sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python" sopops-mcp`.
 
 It runs two ways:
 

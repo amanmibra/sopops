@@ -36,7 +36,7 @@ docker info >/dev/null 2>&1 && echo "docker is running"
 If the current folder is already the sopops repo (it has `docker-compose.yml` and `skills/sopops-local-setup`), skip this. Otherwise:
 
 ```sh
-git clone https://github.com/amanmibra/sopops && cd sopops
+git clone https://github.com/sopops-dev/sopops && cd sopops
 ```
 
 ## 4. Write .env

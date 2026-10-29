@@ -429,7 +429,7 @@ def test_onboarding_connects_before_there_is_a_project(client, bare):
     started = start_repo_onboarding(client)
     imp = started["import"]
     assert (imp["repo"], imp["repo_branch"], imp["repo_path"], imp["repo_project"], imp["pr_url"]) == ("acme/agents", "main", "sops", "missing", None)
-    assert "uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp" in started["kickoff"]["claude_code"]
+    assert "uvx --from 'sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python' sopops-mcp" in started["kickoff"]["claude_code"]
     events = client.get(f"{WS}/imports/{imp['id']}/events").json()
     assert "propose a pull request adding a sop project at sops/ on main. Nothing merges without you." in events[-1]["message"]
     session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()

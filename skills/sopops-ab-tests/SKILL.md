@@ -7,7 +7,7 @@ description: Set up an A/B test of a voice agent's settings (LLM, voice, speech 
 
 sopops compares versions of an agent on the team's procedures (Insights → A/B tests). A version is the calls with the same agent, release and settings. Your job is to make the agent run two or more versions and make each call report which one it ran. You change code in this repo only; the user deploys.
 
-Full reference: https://github.com/amanmibra/sopops/blob/main/docs/ab-tests.md
+Full reference: https://github.com/sopops-dev/sopops/blob/main/docs/ab-tests.md
 
 ## 1. Find how the agent is built
 

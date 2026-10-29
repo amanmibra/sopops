@@ -29,7 +29,7 @@ fresh server on `http://127.0.0.1:8585`, uses a new database, and leaves it
 running when it finishes.
 
 ```sh
-git clone https://github.com/amanmibra/sopops
+git clone https://github.com/sopops-dev/sopops
 cd sopops
 pnpm -C web install && pnpm -C web build
 just examples/walkthrough/all

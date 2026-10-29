@@ -1,7 +1,7 @@
 import { posix } from "node:path";
 import { defineConfig } from "vitepress";
 
-const REPO = "https://github.com/amanmibra/sopops";
+const REPO = "https://github.com/sopops-dev/sopops";
 
 // Where the site lives: "/" by default (pnpm build), "/docs/" on sopops.dev (pnpm build:cloudflare). The build goes
 // under the same path in .vitepress/dist, so the Worker serving that folder (wrangler.jsonc) answers /docs/... itself,

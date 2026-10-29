@@ -10,8 +10,8 @@ name: publish-sdk-release
 # Both registries trust this file by name, through OIDC with no stored token. The publish steps are jobs
 # here, not calls into another workflow, because npm checks the calling workflow's name and PyPI the called
 # one's; one file keeps both on the same, supported identity. Register it once on each (CONTRIBUTING.md):
-#   pypi.org: project sopops > Manage > Publishing: GitHub, amanmibra/sopops, publish-sdk-release.yml, env pypi
-#   npmjs.com: package sopops > Settings > Trusted publisher: GitHub Actions, amanmibra/sopops,
+#   pypi.org: project sopops > Manage > Publishing: GitHub, sopops-dev/sopops, publish-sdk-release.yml, env pypi
+#   npmjs.com: package sopops > Settings > Trusted publisher: GitHub Actions, sopops-dev/sopops,
 #              publish-sdk-release.yml, env npm
 #
 # Safe to re-run: an existing tag on the same commit is reused, and a version already on PyPI or npm is skipped.

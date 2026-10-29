@@ -17,7 +17,7 @@ from pathlib import Path
 
 # sopops-mcp ships in the client SDK (sdks/python, its `mcp` extra), not the server. Until it's on PyPI, uvx installs it
 # from the repo's subdirectory. SOPOPS_MCP_SOURCE overrides it (e.g. `/path/to/sopops/sdks/python[mcp]` for a clone).
-DEFAULT_SOURCE = "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python"
+DEFAULT_SOURCE = "sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python"
 SKILL_NAME = "sopops-onboard"
 AB_SKILL = "sopops-ab-tests"
 SKILLS = (SKILL_NAME, AB_SKILL)

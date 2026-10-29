@@ -78,7 +78,7 @@ Already running agents? On the **Import** page, sopops gives you one command to 
 
 ```sh
 claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp \
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python' sopops-mcp \
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 

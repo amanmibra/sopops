@@ -181,7 +181,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
         <HrefLink href={settingsHref(ws, "platforms")}>Settings, under Platforms</HrefLink>). You can also send them from{" "}
         {plats.has("livekit") && (
           <>
-            the <HrefLink href="https://github.com/amanmibra/sopops/blob/main/docs/connect.md#connect-livekit">LiveKit helper</HrefLink>,{" "}
+            the <HrefLink href="https://github.com/sopops-dev/sopops/blob/main/docs/connect.md#connect-livekit">LiveKit helper</HrefLink>,{" "}
           </>
         )}
         the API or <code className="text-sm">sopops import</code>, with a token from <HrefLink href={settingsHref(ws, "access")}>Settings, under Access</HrefLink>{" "}

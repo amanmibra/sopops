@@ -76,7 +76,7 @@ that serves it from there; nothing in self-hosting uses it.
 | `SOPOPS_SESSION_IDLE_MINUTES` | `30` | A streamed session with no events this long closes as incomplete. |
 | `SOPOPS_POSTCALL_GRACE_SECONDS` | `120` | After ElevenLabs' monitor socket ends, how long to wait for the post-call webhook (if set up) before closing and checking. |
 | `SOPOPS_LIVEKIT_ANY_HOST` | `false` | Allow a self-hosted LiveKit URL, not only LiveKit Cloud. |
-| `SOPOPS_MCP_SOURCE` | `sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python` | What the onboarding command's `uvx --from` installs: the client SDK with its `mcp` extra. From a clone: `/path/to/sopops/sdks/python[mcp]`. |
+| `SOPOPS_MCP_SOURCE` | `sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python` | What the onboarding command's `uvx --from` installs: the client SDK with its `mcp` extra. From a clone: `/path/to/sopops/sdks/python[mcp]`. |
 
 ## GitHub
 

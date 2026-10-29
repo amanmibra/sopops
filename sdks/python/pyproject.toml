@@ -12,7 +12,7 @@ classifiers = ["Typing :: Typed"]
 [project.urls]
 Homepage = "https://sopops.dev"
 Documentation = "https://docs.sopops.dev"
-Repository = "https://github.com/amanmibra/sopops"
+Repository = "https://github.com/sopops-dev/sopops"
 
 [project.optional-dependencies]
 livekit = ["livekit-agents>=1.0"]

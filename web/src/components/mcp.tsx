@@ -13,7 +13,7 @@ import { apiOrigin } from "@/lib/paths";
 
 // sopops-mcp ships in the Python SDK's `mcp` extra; uvx installs it from the repo until it's on PyPI (see
 // sdks/python/src/sopops/mcp.py and the server's kickoff).
-const SOURCE = "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python";
+const SOURCE = "sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python";
 const PLACEHOLDER = "<your token>";
 
 function command(url: string, token: string, ws: string): string {

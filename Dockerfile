@@ -11,7 +11,7 @@ RUN pnpm build
 FROM python:3.12-slim
 
 # sop compiles the prompts; pinned so served prompts don't change under a rebuild.
-ARG SOP_REF=v0.1.0
+ARG SOP_REF=v0.1.1
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=$SOP_REF SOP_INSTALL_DIR=/usr/local/bin sh \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*

@@ -21,7 +21,7 @@ import { LIVE } from "./overview";
 import { FlagTag } from "./procedure";
 import { AsOf, InsightsShell, Pick } from "./scope";
 
-export const AB_DOCS = "https://github.com/amanmibra/sopops/blob/main/docs/ab-tests.md";
+export const AB_DOCS = "https://github.com/sopops-dev/sopops/blob/main/docs/ab-tests.md";
 
 const th = "text-muted-foreground border-b px-3 py-2 text-left text-xs font-medium whitespace-nowrap";
 const td = "border-b px-3 py-2 align-top";

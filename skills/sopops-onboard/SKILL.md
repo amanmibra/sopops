@@ -16,16 +16,16 @@ The sopops **Import agents** page (Use Claude Code / Codex) gives you one comman
 ```sh
 # Claude Code
 claude mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python' sopops-mcp
 # Codex
 codex mcp add sopops --env SOPOPS_URL=https://sopops.example --env SOPOPS_TOKEN=sopops_onb_... \
-  -- uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp
+  -- uvx --from 'sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python' sopops-mcp
 ```
 
 Cursor (`.cursor/mcp.json`):
 
 ```json
-{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python", "sopops-mcp"],
+{"mcpServers": {"sopops": {"command": "uvx", "args": ["--from", "sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python", "sopops-mcp"],
   "env": {"SOPOPS_URL": "https://sopops.example", "SOPOPS_TOKEN": "sopops_onb_..."}}}}
 ```
 

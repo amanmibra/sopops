@@ -67,7 +67,7 @@ curl -s -X POST -H "Content-Type: application/json" \
     "prompt": "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it.",
     "settings_claude_code": "Use the strongest model you have (for example /model opus) and accept edits automatically (Shift+Tab).",
     "settings_codex": "Use high reasoning effort and auto mode (codex -c model_reasoning_effort=high, then /approvals: Auto).",
-    "mcp_source": "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python"
+    "mcp_source": "sopops[mcp] @ git+https://github.com/sopops-dev/sopops@main#subdirectory=sdks/python"
   }
 }
 ```
