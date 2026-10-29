@@ -83,6 +83,8 @@ function HelpTip({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const iconBtn = "text-muted-foreground hover:text-foreground";
+// On an OR block's shading (muted, the same tone as a ghost button's hover), a hover that still shows.
+const onShade = "hover:bg-background dark:hover:bg-background";
 const STEP_COLS = "grid-cols-[26px_1fr_170px_104px_96px]";
 const OR_COLS = "grid-cols-[26px_1fr_170px_104px_150px]"; // room for "+ OR" before the move and remove buttons
 
@@ -164,6 +166,7 @@ export function StepRows({
           const bad = errsFor(errors, id, i).length > 0;
           const opts = options ? (s.or ?? []) : [];
           const name = `${noun} ${i + 1}`;
+          const btn = cn(iconBtn, opts.length > 0 && onShade);
           const notes = (
             <div className={cn("col-span-full", steps && "col-start-2")}>
               <ErrNotes errors={errors} field={id} index={i} />
@@ -187,13 +190,13 @@ export function StepRows({
                     + OR
                   </Button>
                 )}
-                <Button variant="ghost" size="icon-sm" className={iconBtn} type="button" disabled={i === 0} aria-label={`Move ${lower} ${i + 1} up`} onClick={() => move(i, -1)}>
+                <Button variant="ghost" size="icon-sm" className={btn} type="button" disabled={i === 0} aria-label={`Move ${lower} ${i + 1} up`} onClick={() => move(i, -1)}>
                   <ArrowUp />
                 </Button>
-                <Button variant="ghost" size="icon-sm" className={iconBtn} type="button" disabled={i === value.length - 1} aria-label={`Move ${lower} ${i + 1} down`} onClick={() => move(i, 1)}>
+                <Button variant="ghost" size="icon-sm" className={btn} type="button" disabled={i === value.length - 1} aria-label={`Move ${lower} ${i + 1} down`} onClick={() => move(i, 1)}>
                   <ArrowDown />
                 </Button>
-                <Button variant="ghost" size="icon-sm" className={iconBtn} type="button" aria-label={`Remove ${lower} ${i + 1}`} onClick={() => onChange(value.filter((_, j) => j !== i))}>
+                <Button variant="ghost" size="icon-sm" className={btn} type="button" aria-label={`Remove ${lower} ${i + 1}`} onClick={() => onChange(value.filter((_, j) => j !== i))}>
                   <X />
                 </Button>
               </span>
@@ -221,7 +224,7 @@ export function StepRows({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className={iconBtn}
+                        className={btn}
                         type="button"
                         aria-label={`Remove option ${n + 2} of ${lower} ${i + 1}`}
                         onClick={() => set(i, { or: opts.filter((_, k) => k !== n) })}
