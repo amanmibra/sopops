@@ -366,8 +366,8 @@ export function SuggestionView({ id }: { id: string }) {
           </Banner>
         ) : (
           <Banner>
-            Dismissed{s.reviewer ? ` by ${s.reviewer}` : ""}
-            {s.note ? `: “${s.note}”` : "."} Regenerate to get a new one.
+            Dismissed{s.reviewer ? ` by ${s.reviewer}` : ""}. Regenerate to get a new one.
+            {s.note && <span className="mt-1 block break-words whitespace-pre-line">“{s.note}”</span>}
           </Banner>
         ))}
       {since && conflict && <ConflictCallout since={since} busy={!!busy || !!asking} onRewrite={() => setAsking("rewrite")} />}

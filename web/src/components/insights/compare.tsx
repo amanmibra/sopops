@@ -115,7 +115,7 @@ function SidePanel({ side, release, sessions, options, onPick, filters }: { side
       </div>
       <div className="mt-2 text-lg font-semibold" style={{ color: SIDES[side].color }}>
         {SIDES[side].letter} · release #{release ?? "?"}
-        {r?.note && <span className="text-foreground font-normal"> {r.note}</span>}
+        {r?.note && <span className="text-foreground block text-sm font-normal break-words">{r.note}</span>}
       </div>
       <dl className="text-muted-foreground mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
         <dt>Sessions</dt>

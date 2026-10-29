@@ -481,7 +481,10 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
   const config = Object.entries(s.config ?? {}); // what it ran with: scalars inline, objects and arrays as JSON
   const facts: [string, React.ReactNode][] = [
     ["Agent", s.agent_id ? <HrefLink href={wsHref(ws, "agents", s.agent_id)}>{s.agent_id}</HrefLink> : (s.agent_ref ?? "—")],
-    ["Release", s.release_id != null ? <HrefLink href={wsHref(ws, "releases", s.release_id)}>#{s.release_id}{release?.note ? `: ${release.note}` : ""}</HrefLink> : "—"],
+    ["Release", s.release_id != null ? <>
+          <HrefLink href={wsHref(ws, "releases", s.release_id)}>#{s.release_id}</HrefLink>
+          {release?.note && <span className="text-muted-foreground block text-sm break-words">{release.note}</span>}
+        </> : "—"],
     ["Platform version", s.version_ref ?? "—"],
     ["Platform", `${s.platform} (${s.channel})`],
     ["Platform id", <code className="text-sm break-all">{s.external_id}</code>],

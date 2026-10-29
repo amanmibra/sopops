@@ -66,8 +66,11 @@ export function VerdictChip({ v, className }: { v: VerdictOut | null | undefined
           {m.help}
           {v.inherited ? " Given on the rule pattern; this failure mode has none of its own." : ""}
           {v.carried_from ? " Carried over from a pattern a recluster retired." : ""}
-          {v.note ? ` “${v.note}”` : ""} {v.reviewer ? `${v.reviewer}, ` : ""}
-          {when(v.created_at)}
+          {v.note && <span className="mt-1 block break-words whitespace-pre-line">“{v.note}”</span>}
+          <span className="mt-1 block">
+            {v.reviewer ? `${v.reviewer}, ` : ""}
+            {when(v.created_at)}
+          </span>
         </TipBody>
       }
     >

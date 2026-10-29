@@ -498,8 +498,11 @@ export function ReleaseView({ number }: { number: number }) {
       </div>
       <PageTitle aside={current && <Tag tone="live">live</Tag>}>Release #{r.number}</PageTitle>
       <Sub>
-        {r.note || "No note"}. Published {when(r.created_at)}
-        {r.author ? ` by ${r.author}` : ""}.
+        <span className="block break-words whitespace-pre-line">{r.note || "No note"}</span>
+        <span className="mt-1 block text-sm">
+          Published {when(r.created_at)}
+          {r.author ? ` by ${r.author}` : ""}
+        </span>
       </Sub>
       {error != null && <ErrorBanner error={error} />}
       {!current && (

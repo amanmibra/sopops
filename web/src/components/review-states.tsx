@@ -232,7 +232,13 @@ export function FixTimeline({ d }: { d: PatternDetail }) {
     {
       key: "verdict",
       label: v ? `Marked ${verdictPhrase(v.verdict)}` : "Waiting for a verdict",
-      detail: v ? [v.reviewer, v.note && `“${v.note}”`].filter(Boolean).join(" · ") || undefined : undefined,
+      detail:
+        v && (v.reviewer || v.note) ? (
+          <>
+            {v.reviewer && <span className="block">{v.reviewer}</span>}
+            {v.note && <span className="block break-words whitespace-pre-line">“{v.note}”</span>}
+          </>
+        ) : undefined,
       at: v?.created_at,
       done: !!v,
     },
