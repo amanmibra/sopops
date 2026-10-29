@@ -37,9 +37,9 @@ type Status = RuleResultOut["status"];
 
 const STATUS = RULE_STATUS;
 
-const KIND: Record<RuleResultOut["kind"], string> = { step: "Step", never: "Never", warning: "Warning sign" };
+const KIND: Record<RuleResultOut["kind"], string> = { step: "Step", option: "Step", never: "Never", warning: "Warning sign" };
 
-export const ruleLabel = (r: RuleResultOut) => `${KIND[r.kind]} ${r.index}`;
+export const ruleLabel = (r: RuleResultOut) => `${KIND[r.kind]} ${r.index}${r.option ? `, option ${r.option}` : ""}`;
 export const ruleKey = (procedureId: string, r: RuleResultOut) => `${procedureId}/${r.rule_id}`;
 
 /** Turn index → the rules whose evidence cites it. */
@@ -101,8 +101,31 @@ function toolCall(quote: string): string {
   }
 }
 
-function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId: string; procedureId: string; rule: RuleResultOut; active: boolean; onSelect: (key: string | null, turn?: number | null) => void }) {
-  const s = STATUS[rule.status];
+/** A step with OR options: how many it has, and whether the agent did another option's action instead of the one that
+ * applied (the step is skipped, and an option that didn't apply has a tool call as evidence). */
+function optionsOf(rules: RuleResultOut[], step: RuleResultOut) {
+  const opts = rules.filter((o) => o.option_of === step.rule_id);
+  const wrong = step.status === "skipped" && opts.some((o) => o.status === "not_applicable" && o.evidence.some((e) => e.source === "tool_calls"));
+  return { count: opts.length, wrong };
+}
+
+function RuleRow({
+  sessionId,
+  procedureId,
+  rule,
+  options,
+  active,
+  onSelect,
+}: {
+  sessionId: string;
+  procedureId: string;
+  rule: RuleResultOut;
+  options?: { count: number; wrong: boolean };
+  active: boolean;
+  onSelect: (key: string | null, turn?: number | null) => void;
+}) {
+  const s = options?.wrong ? { ...STATUS[rule.status], label: "wrong option" } : STATUS[rule.status];
+  const option = rule.kind === "option";
   const key = ruleKey(procedureId, rule);
   const first = rule.evidence.find((e) => e.turn != null)?.turn;
   const { ws } = useWs();
@@ -113,13 +136,14 @@ function RuleRow({ sessionId, procedureId, rule, active, onSelect }: { sessionId
   // status, so "out of order" never truncates, and the text, evidence and controls all wrap inside the second.
   // In a narrow panel the list is one column and the status sits above the text.
   return (
-    <li className={cn("group col-span-full grid grid-cols-subgrid rounded-md px-2 py-1.5", active && "bg-muted", finding && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
+    <li className={cn("group col-span-full grid grid-cols-subgrid rounded-md px-2 py-1.5", (options || option) && "bg-muted/50", option && "pl-6", active && "bg-muted", finding && !active && "bg-err-soft/40", rule.suppressed && "opacity-70")}>
       <button ref={rowRef} type="button" className="col-span-full grid grid-cols-subgrid gap-y-1 text-left" onClick={() => onSelect(active ? null : key, first)} aria-expanded={active}>
         <span className="pt-px">
           <Tag className={rule.suppressed ? "line-through" : s.tone}>{s.label}</Tag>
         </span>
         <span className="min-w-0 text-sm [overflow-wrap:anywhere]">
-          <span className="text-muted-foreground">{ruleLabel(rule)}.</span> <RuleText text={rule.text} />
+          {option && (rule.option ?? 1) > 1 && <span className="bg-muted-foreground text-background mr-1.5 px-1.5 py-px text-xs font-semibold">OR</span>}
+          <span className="text-muted-foreground">{ruleLabel(rule)}.</span> {options ? `One of ${options.count} options:` : <RuleText text={rule.text} />}
         </span>
       </button>
       <div className="min-w-0 text-sm @sm:col-start-2">
@@ -210,7 +234,15 @@ function ProcedureCard({ sessionId, check, activeKey, onSelect }: { sessionId: s
           {check.rules.length > 0 && (
             <ul className="grid grid-cols-[minmax(0,1fr)] gap-x-3 gap-y-0.5 @sm:grid-cols-[max-content_minmax(0,1fr)]">
               {check.rules.map((r) => (
-                <RuleRow key={r.rule_id} sessionId={sessionId} procedureId={check.procedure_id} rule={r} active={activeKey === ruleKey(check.procedure_id, r)} onSelect={onSelect} />
+                <RuleRow
+                  key={r.rule_id}
+                  sessionId={sessionId}
+                  procedureId={check.procedure_id}
+                  rule={r}
+                  options={r.kind === "step" && check.rules.some((o) => o.option_of === r.rule_id) ? optionsOf(check.rules, r) : undefined}
+                  active={activeKey === ruleKey(check.procedure_id, r)}
+                  onSelect={onSelect}
+                />
               ))}
             </ul>
           )}

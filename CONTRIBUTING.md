@@ -2,7 +2,7 @@
 
 ## Set up
 
-You need [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io) and the [sopc](https://github.com/amanmibra/sopc) binary, v0.0.17 or later.
+You need [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io) and the [sopc](https://github.com/amanmibra/sopc) binary, v0.0.18 or later.
 
 ```sh
 uv sync --all-extras

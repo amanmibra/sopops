@@ -36,7 +36,7 @@ export function FlagTag({ flag, minN = 10, points = 5 }: { flag: string; minN?: 
   );
 }
 
-const SHORT = { step: "S", never: "N", warning: "W" } as const;
+const SHORT = { step: "S", option: "OR", never: "N", warning: "W" } as const;
 
 /** One row per rule: what happened to it on every session, how far sessions got, how often it failed. */
 function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightFilters; scope: Scope }) {
@@ -75,9 +75,9 @@ function Ladder({ d, filters, scope }: { d: ProcedureInsights; filters: InsightF
         const s = split.get(r.rule_id);
         return (
           <div key={r.rule_id} role="link" tabIndex={0} onClick={() => go(rulePage(r))} onKeyDown={(e) => e.key === "Enter" && go(rulePage(r))} className={cn(cols, "hover:bg-muted/60 cursor-pointer border-b py-2 last:border-b-0")}>
-            <span className={cn("flex size-7 items-center justify-center rounded-md text-xs font-semibold", r.kind === "step" ? "bg-brand-soft text-primary" : r.kind === "never" ? "bg-err-soft text-err" : "bg-warn-soft text-warn")}>
+            <span className={cn("flex size-7 items-center justify-center rounded-md text-xs font-semibold", r.kind === "step" || r.kind === "option" ? "bg-brand-soft text-primary" : r.kind === "never" ? "bg-err-soft text-err" : "bg-warn-soft text-warn", r.kind === "option" && "ml-4")}>
               {SHORT[r.kind]}
-              {r.index}
+              {r.kind === "option" ? "" : r.index}
             </span>
             <span className="min-w-0">
               <span className="line-clamp-2"><RuleText text={r.text} /></span>

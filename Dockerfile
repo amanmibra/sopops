@@ -11,7 +11,7 @@ RUN pnpm build
 FROM python:3.12-slim
 
 # sopc compiles the prompts; pinned so served prompts don't change under a rebuild.
-ARG SOPC_REF=v0.0.17
+ARG SOPC_REF=v0.0.18
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
     && curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=$SOPC_REF SOPC_INSTALL_DIR=/usr/local/bin sh \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*

@@ -5,7 +5,7 @@
 | Variable | Default | What it does |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///sopops.db` | Postgres (`postgresql://`, needs `pip install 'sopops-server[postgres]'`) or SQLite. Alembic migrates on startup. |
-| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary, v0.0.17 or later. |
+| `SOPC_BIN` | `sopc` on `PATH` | The sopc binary, v0.0.18 or later. |
 | `HOST`, `PORT` | `127.0.0.1`, `8484` | Also `--host`, `--port`. |
 | `SOPOPS_SECRET_KEY` | unset | Fernet key that encrypts platform keys, webhook secrets and GitHub tokens. Required to store them. |
 | `SOPOPS_CORS_ORIGINS` | unset | Comma-separated browser origins allowed to call sopops. |

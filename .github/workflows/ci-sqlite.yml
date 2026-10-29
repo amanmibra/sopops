@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Install sopc
-        run: curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=v0.0.17 SOPC_INSTALL_DIR=/usr/local/bin sudo -E sh
+        run: curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=v0.0.18 SOPC_INSTALL_DIR=/usr/local/bin sudo -E sh
       - run: uv sync --all-extras --python 3.12
       # Spread across the runner's cores; each worker gets its own database (tests/conftest.py).
       - run: uv run pytest -q -n auto

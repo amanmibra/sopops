@@ -321,7 +321,7 @@ export type AgentGap = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */
@@ -1187,7 +1187,7 @@ export type CalibratedRule = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */
@@ -1508,7 +1508,7 @@ export type CompareRule = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */
@@ -2233,7 +2233,7 @@ export type FailingRule = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */
@@ -3441,11 +3441,23 @@ export type LadderRow = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Index
      */
     index: number;
+    /**
+     * Option
+     *
+     * An OR option: its 1-based place among its step's options.
+     */
+    option: number | null;
+    /**
+     * Option Of
+     *
+     * An OR option: its step's rule id.
+     */
+    option_of: string | null;
     /**
      * Text
      */
@@ -5114,7 +5126,7 @@ export type Problem = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Statuses
      *
@@ -7440,7 +7452,7 @@ export type RuleInsights = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Index
      */
@@ -7529,7 +7541,7 @@ export type RuleLabelOut = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Checked Status
      *
@@ -7738,7 +7750,7 @@ export type RuleRef = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */
@@ -7762,13 +7774,25 @@ export type RuleResultOut = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Index
      *
-     * 1-based position within its kind.
+     * 1-based position within its kind; an option has its step's.
      */
     index: number;
+    /**
+     * Option
+     *
+     * An option: its 1-based place among its step's OR options.
+     */
+    option: number | null;
+    /**
+     * Option Of
+     *
+     * An option: its step's rule id.
+     */
+    option_of: string | null;
     /**
      * Text
      */
@@ -9107,7 +9131,7 @@ export type SpotCheckItem = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning';
+    kind: 'step' | 'option' | 'never' | 'warning';
     /**
      * Index
      */
@@ -11033,7 +11057,7 @@ export type VersionRule = {
     /**
      * Kind
      */
-    kind: 'step' | 'never' | 'warning' | null;
+    kind: 'step' | 'option' | 'never' | 'warning' | null;
     /**
      * Index
      */

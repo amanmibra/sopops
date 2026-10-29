@@ -14665,6 +14665,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]
@@ -16089,6 +16090,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]
@@ -16664,6 +16666,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]
@@ -17929,6 +17932,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]
@@ -19955,6 +19959,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -19963,6 +19968,30 @@
           "index": {
             "type": "integer",
             "title": "Index"
+          },
+          "option": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option",
+            "description": "An OR option: its 1-based place among its step's options."
+          },
+          "option_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Of",
+            "description": "An OR option: its step's rule id."
           },
           "text": {
             "type": "string",
@@ -20176,6 +20205,8 @@
           "lineage_id",
           "kind",
           "index",
+          "option",
+          "option_of",
           "text",
           "wordings",
           "wording_history",
@@ -22849,6 +22880,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -26827,6 +26859,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -27006,6 +27039,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -27460,6 +27494,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]
@@ -27512,6 +27547,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -27520,7 +27556,31 @@
           "index": {
             "type": "integer",
             "title": "Index",
-            "description": "1-based position within its kind."
+            "description": "1-based position within its kind; an option has its step's."
+          },
+          "option": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option",
+            "description": "An option: its 1-based place among its step's OR options."
+          },
+          "option_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Option Of",
+            "description": "An option: its step's rule id."
           },
           "text": {
             "type": "string",
@@ -27635,6 +27695,8 @@
           "rule_id",
           "kind",
           "index",
+          "option",
+          "option_of",
           "text",
           "status",
           "evidence",
@@ -29980,6 +30042,7 @@
             "type": "string",
             "enum": [
               "step",
+              "option",
               "never",
               "warning"
             ],
@@ -33275,6 +33338,7 @@
                 "type": "string",
                 "enum": [
                   "step",
+                  "option",
                   "never",
                   "warning"
                 ]

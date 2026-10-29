@@ -50,6 +50,7 @@ export const RULE_STATUS: Record<RuleStatus, { label: string; tone: string }> = 
 /** The statuses each kind of rule can have, in the order the pickers show them. */
 export const KIND_STATUSES: Record<RuleKind, RuleStatus[]> = {
   step: ["done", "out_of_order", "skipped", "not_reached", "not_applicable"],
+  option: ["done", "skipped", "not_reached", "not_applicable"], // order is judged on the step
   never: ["ok", "violated"],
   warning: ["absent", "present", "unheeded"],
 };
@@ -57,7 +58,7 @@ export const KIND_STATUSES: Record<RuleKind, RuleStatus[]> = {
 export const FINDING_STATUSES: RuleStatus[] = ["skipped", "violated", "out_of_order", "unheeded"];
 export const isFinding = (s: RuleStatus) => FINDING_STATUSES.includes(s);
 /** What "Checker missed this" offers on a passed rule. */
-export const MISSED_STATUSES: Record<RuleKind, RuleStatus[]> = { step: ["skipped", "out_of_order"], never: ["violated"], warning: ["unheeded"] };
+export const MISSED_STATUSES: Record<RuleKind, RuleStatus[]> = { step: ["skipped", "out_of_order"], option: ["skipped"], never: ["violated"], warning: ["unheeded"] };
 /** A status mid-sentence ("corrected to not reached"). */
 export const statusPhrase = (s: RuleStatus) => (s === "not_applicable" ? "not applicable" : RULE_STATUS[s].label);
 

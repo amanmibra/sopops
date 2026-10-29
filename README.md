@@ -49,7 +49,7 @@ docker compose up --build   # sopops and Postgres on http://127.0.0.1:8484
 
 Open http://127.0.0.1:8484 and follow the setup steps. To check calls, set a model ([Models](docs/sessions-and-review.md#models)).
 
-Without Docker, with [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later:
+Without Docker, with [sopc](https://github.com/amanmibra/sopc) v0.0.18 or later:
 
 ```sh
 uv sync && pnpm -C web install && pnpm -C web build
