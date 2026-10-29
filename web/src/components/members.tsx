@@ -233,7 +233,7 @@ function ShareJoinLink({ orgName }: { orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         Anyone who opens the link can make an account, or sign in, and join {orgName}. Send it however your team talks.
       </p>
       {current.isError && <ErrorBanner error={current.error} lead="The join link didn't load:" />}
@@ -301,7 +301,7 @@ function InviteSomeone({ orgName }: { orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         They get an email with a link to join {orgName}. Once they've used it and signed in, they're here too, with the role you pick.
       </p>
       <form
@@ -311,7 +311,7 @@ function InviteSomeone({ orgName }: { orgName: string }) {
           void invite();
         }}
       >
-        <div className="grid max-w-[320px] flex-1 gap-1">
+        <div className="grid flex-1 gap-1">
           <Label htmlFor="invite-email" className="text-sm">
             Email
           </Label>
@@ -371,7 +371,7 @@ function AddPeople({ orgName }: { orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         Anyone who already has an account joins {orgName} right away. Everyone else gets an invite link. They open it and set a password, or sign in another way
         with that email, and they're in. sopops doesn't send email: you get the link to send them yourself.
       </p>
@@ -382,7 +382,7 @@ function AddPeople({ orgName }: { orgName: string }) {
           void add();
         }}
       >
-        <div className="grid max-w-[480px] gap-1">
+        <div className="grid gap-1">
           <Label htmlFor="add-emails" className="text-sm">
             Emails, separated by commas or new lines
           </Label>
@@ -551,7 +551,7 @@ function Domains({ domains, orgName }: { domains: string[]; orgName: string }) {
         </span>
       }
     >
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         Anyone who signs in with a verified email at one of these domains joins {orgName} as a member, with no invite. Leave it empty to let people in by invite
         only.
       </p>
@@ -560,7 +560,7 @@ function Domains({ domains, orgName }: { domains: string[]; orgName: string }) {
       </Label>
       <Textarea
         id="org-domains"
-        className="mb-3 max-w-[360px] font-mono text-sm"
+        className="mb-3 font-mono text-sm"
         rows={3}
         placeholder="example.com"
         value={text}

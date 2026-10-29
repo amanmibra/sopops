@@ -41,7 +41,7 @@ function HookBox({ title, path, steps, children }: { title: string; path: string
           <Copy />
         </Button>
       </div>
-      <ol className="text-muted-foreground grid max-w-prose list-decimal gap-1 pl-5 leading-relaxed">
+      <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 leading-relaxed">
         {steps.map((step, i) => (
           <li key={i}>{step}</li>
         ))}
@@ -118,7 +118,7 @@ export function LiveKitCapture() {
   // the recorder: for calls from agents that don't use `attach`
   const recorder = (
     <>
-        <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+        <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
           Only for agents that don't use <code>attach()</code>, which sends each call itself. Connect your LiveKit Cloud project, and sopops joins each
           call as a hidden participant. It reads what the agent and the caller say as it happens, so your agent needs no changes. Tool calls aren't in
           the room, so they aren't recorded this way.
@@ -276,7 +276,7 @@ function AgentMap() {
   return (
     <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">Which agent each call belongs to</div>
-      <ul className="text-muted-foreground grid max-w-prose list-disc gap-1 pl-5 leading-relaxed">
+      <ul className="text-muted-foreground grid list-disc gap-1 pl-5 leading-relaxed">
         <li>sopops looks for the agent name your LiveKit agent was dispatched with. If it matches a sopops agent, that's the one.</li>
         <li>
           If not, it reads <code>{'{"sopops": {"agent": "<id>"}}'}</code> from the job or room metadata.
@@ -412,7 +412,7 @@ function ElevenLabsBack() {
           <Checkbox checked={el.live} onCheckedChange={(v) => setLive(v === true)} aria-label="Enterprise live monitoring" />
           Listen to calls as they happen (ElevenLabs Enterprise)
         </label>
-        <p className="text-muted-foreground max-w-prose leading-relaxed">
+        <p className="text-muted-foreground leading-relaxed">
           When the call-start webhook above serves a call, sopops listens to it live with your API key. Turn on <b>Monitoring</b> in the agent's
           Advanced settings on ElevenLabs. If live listening isn't available, calls still arrive from the post-call webhook when they end.
         </p>
@@ -444,10 +444,10 @@ function VapiBack() {
   return (
     <div className="grid gap-2 rounded-md border px-3 py-2 text-sm">
       <div className="font-medium">Calls back to sopops</div>
-      <p className="text-muted-foreground max-w-prose leading-relaxed">
+      <p className="text-muted-foreground leading-relaxed">
         Vapi sends calls to the same Server URL. On Vapi, under the assistant's <b>Server Messages</b>, turn these on:
       </p>
-      <ul className="text-muted-foreground grid max-w-prose list-disc gap-1 pl-5 leading-relaxed">
+      <ul className="text-muted-foreground grid list-disc gap-1 pl-5 leading-relaxed">
         {v.server_messages.map((m) => (
           <li key={m}>
             <code>{m}</code>: {why[m] ?? ""}

@@ -70,7 +70,7 @@ export function ImportView({ id }: { id: string }) {
       )}
       {(d.status === "applied" || d.pr_state === "merged") && (
         <Panel title="Connect your agents">
-          <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+          <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
             After you publish, each agent needs two things: its instructions from sopops, and a way to send its sessions back for checks. They are set up
             separately, and sessions can come back with no code even while the instructions stay in the agent's code. Here's what each platform needs.
           </p>
@@ -253,7 +253,7 @@ function TokenPanel({ imp, kickoff, token }: { imp: ImportOut; kickoff?: Kickoff
       {kickoff && token ? (
         <details open={!imp.proposal}>
           <summary className="text-muted-foreground mb-2 cursor-pointer text-sm">{imp.proposal ? "Commands and instructions" : "How to start"}</summary>
-          <p className="mb-3 max-w-[80ch] text-sm">
+          <p className="mb-3 text-sm">
             In a terminal at the root of your agents' repo, run this. It adds the sopops tools to your coding agent and starts it on the onboarding instructions. The token in it is shown only now.
           </p>
           <div className="mb-3">

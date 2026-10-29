@@ -25,7 +25,7 @@ export function FineTuneView() {
   return (
     <Page wide>
       <PageTitle>Fine tune</PageTitle>
-      <Sub className="max-w-[90ch]">
+      <Sub>
         Answers you give here train sopops on your calls. Everything on this page is about the checker's calls, not the agent's mistakes: those are on Mistakes.
       </Sub>
       {loading ? <Skel className="mt-6 h-40" /> : on ? <CheckerSpotChecks /> : <HostedOnly />}
@@ -44,7 +44,7 @@ function CheckerSpotChecks() {
           </span>
         </Hint>
       </h2>
-      <p className="text-muted-foreground mt-1 mb-3 max-w-[90ch] text-sm">
+      <p className="text-muted-foreground mt-1 mb-3 text-sm">
         Was the checker right? Batches of rules it passed, spread across procedures and agents, close calls and decisions the reviewer model changed first. Patterns you marked Checker is wrong on Mistakes are listed here too.
       </p>
       <SpotChecks />

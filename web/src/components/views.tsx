@@ -613,7 +613,7 @@ export function EmptyWorkspace() {
   const { ws, href } = useWs();
   const go = useGo();
   return (
-    <div className="max-w-[60ch] py-10">
+    <div className="py-10">
       <h1 className="mb-2 text-2xl font-semibold">Your team has no agents yet</h1>
       <p className="mb-4">
         Already have agents running? Import them: sopops splits each agent's instructions into shared instructions and procedures and shows where they differ. Or write the text several

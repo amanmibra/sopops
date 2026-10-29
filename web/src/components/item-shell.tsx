@@ -2,7 +2,6 @@
 import { useState, type ReactNode } from "react";
 import { KIND, type Kind, plural } from "@/lib/kinds";
 import type { Use } from "@/lib/api";
-import { useRailCollapsed } from "@/lib/rail";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { Banner, KindBadge, PageTitle, Tag } from "./bits";
@@ -123,9 +122,7 @@ export function Missing({ kind, id }: { kind: Kind; id: string }) {
   );
 }
 
-export function Page({ wide, children }: { wide?: boolean; children: ReactNode }) {
-  // Wide pages (lists, tables, the import review) take the whole canvas. A reading page keeps its measure, and
-  // centres when the rail is collapsed instead of leaving a gap on the right.
-  const collapsed = useRailCollapsed();
-  return <div className={cn("min-w-0", wide ? "w-full" : "max-w-[860px]", !wide && collapsed && "mx-auto")}>{children}</div>;
+export function Page({ children }: { wide?: boolean; children: ReactNode }) {
+  // Every page fills the content column. `wide` is accepted for older callers and changes nothing.
+  return <div className="w-full min-w-0">{children}</div>;
 }

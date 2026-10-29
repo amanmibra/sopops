@@ -432,7 +432,7 @@ function ReviewQueue({ items, loading, error, onRetry }: { items: ReviewItem[]; 
       <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-2 rounded-lg border px-4 py-10 text-center text-sm">
         <Check className="text-ok size-6" />
         <div className="text-foreground font-semibold">Nothing to review</div>
-        <p className="max-w-[56ch]">Every pattern here has a verdict. New ones show up as sessions are checked and grouped.</p>
+        <p>Every pattern here has a verdict. New ones show up as sessions are checked and grouped.</p>
       </div>
     );
   return (
@@ -552,7 +552,7 @@ export function PatternsView({ search, onSearch }: { search: PatternsSearch; onS
       >
         Mistakes
       </PageTitle>
-      <Sub className="max-w-[90ch]">Mistakes the agent made, grouped by rule and by failure mode. Say what each one is. Real mistakes and wrong SOPs get a fix, and you can follow the fix until it holds.</Sub>
+      <Sub>Mistakes the agent made, grouped by rule and by failure mode. Say what each one is. Real mistakes and wrong SOPs get a fix, and you can follow the fix until it holds.</Sub>
       <Tabs value={tab} onValueChange={(t) => onSearch({ procedure: search.procedure, theme: search.theme, verdict: t === "review" || t === "all" ? search.verdict : undefined, tab: t === "review" ? undefined : (t as PatternsSearch["tab"]) })} className="mb-1 gap-0">
         <div className="-mx-1 overflow-x-auto border-b px-1">
           <TabsList variant="line" aria-label="Pattern views" className="h-10 gap-0">
@@ -659,7 +659,7 @@ function AllPatterns({
     return (
       <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-sm">
         <div className="text-foreground font-semibold">No patterns {items?.length ? "match these filters" : "yet"}</div>
-        <p className="mx-auto mt-1 max-w-[60ch]">{items?.length ? "Try another procedure, theme or verdict." : "Patterns appear once checked sessions have findings. Each rule with findings gets one; past eight findings it's split into named failure modes."}</p>
+        <p className="mx-auto mt-1">{items?.length ? "Try another procedure, theme or verdict." : "Patterns appear once checked sessions have findings. Each rule with findings gets one; past eight findings it's split into named failure modes."}</p>
       </div>
     );
   // procedure → theme → rule pattern → failure modes
@@ -816,9 +816,9 @@ export function PatternView({ id }: { id: string }) {
         {d.name}
       </PageTitle>
       {d.kind !== "rule" && d.description && <Sub>{d.description}</Sub>}
-      <RewordedNote reason={d.review_reason} className="mb-3 max-w-[90ch]" />
+      <RewordedNote reason={d.review_reason} className="mb-3" />
       {d.rule.text && (
-        <blockquote className="border-k-procedure/50 mb-4 max-w-[90ch] border-l-2 pl-3 text-sm">
+        <blockquote className="border-k-procedure/50 mb-4 border-l-2 pl-3 text-sm">
           <span className="text-muted-foreground">{ruleName(d.rule.kind, d.rule.index)}:</span> <RuleText text={d.rule.text} />
         </blockquote>
       )}

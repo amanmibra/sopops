@@ -323,7 +323,7 @@ export function SpotChecks() {
             <div className="text-lg font-semibold">
               Batch done: {d.answered}/{d.size}
             </div>
-            <p className="text-muted-foreground max-w-[60ch] text-sm">
+            <p className="text-muted-foreground text-sm">
               {d.corrections ? `You found ${plural(d.corrections, "wrong call", "wrong calls")} by the checker. Each one is training data for your checker.` : "The checker got every one right. Confirmations are training data too."}
             </p>
           </>
@@ -331,7 +331,7 @@ export function SpotChecks() {
           <>
             <Check className="text-ok size-6" />
             <div className="font-semibold">No spot checks waiting</div>
-            <p className="text-muted-foreground max-w-[60ch] text-sm">Draw a batch of rules the checker passed, picked across procedures and agents, close calls first.</p>
+            <p className="text-muted-foreground text-sm">Draw a batch of rules the checker passed, picked across procedures and agents, close calls first.</p>
           </>
         )}
         <MoreButton initial={d.default_batch} onDraw={(n) => void draw(n)} busy={drawing} />

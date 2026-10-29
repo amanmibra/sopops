@@ -92,8 +92,8 @@ function CellView({ cell }: { cell: Cell }) {
         <NeedTag need={cell.need} />
         {cell.next && <span className="text-muted-foreground rounded-full border border-dashed px-2 py-0.5 text-sm">Coming next</span>}
       </span>
-      <div className="text-muted-foreground mt-1 max-w-[32ch] text-sm leading-relaxed">{cell.how}</div>
-      {cell.next && <div className="text-muted-foreground mt-1 max-w-[32ch] text-xs italic">{cell.next}</div>}
+      <div className="text-muted-foreground mt-1 text-sm leading-relaxed">{cell.how}</div>
+      {cell.next && <div className="text-muted-foreground mt-1 text-xs italic">{cell.next}</div>}
     </td>
   );
 }
@@ -132,7 +132,7 @@ export function ConnectGuide({ className }: { className?: string }) {
           <div className="font-medium">
             Settings for <code>attach()</code>
           </div>
-          <p className="text-muted-foreground max-w-prose leading-relaxed">
+          <p className="text-muted-foreground leading-relaxed">
             Set these where your agent runs. On LiveKit Cloud, add them as the agent's secrets (Agents, then your agent, then Secrets) and deploy again;
             running it yourself, put them in its environment. The token comes from{" "}
             <HrefLink href={settingsHref(ws, "access")}>Settings → Access</HrefLink>, with the <b>runtime</b> and <b>ingest</b> scopes.

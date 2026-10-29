@@ -154,7 +154,7 @@ export function InsightsShell({
       <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">{title}</h1>
-          <p className="text-muted-foreground mt-1 max-w-[80ch] text-sm">{subtitle}</p>
+          <p className="text-muted-foreground mt-1 text-sm">{subtitle}</p>
         </div>
         {status}
       </div>

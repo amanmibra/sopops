@@ -168,7 +168,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
 
   return (
     <div>
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         Keys are stored encrypted, and a webhook secret is shown only once, when it's made.
       </p>
       <div className="grid gap-3">
@@ -269,7 +269,7 @@ function PlatformRow({ creds }: { creds: PlatformCredentials }) {
               <Copy />
             </Button>
           </div>
-          <ol className="text-muted-foreground grid max-w-prose list-decimal gap-1 pl-5 leading-relaxed">
+          <ol className="text-muted-foreground grid list-decimal gap-1 pl-5 leading-relaxed">
             {WEBHOOK[creds.platform].steps.map((step, i) => (
               <li key={i}>{step}</li>
             ))}

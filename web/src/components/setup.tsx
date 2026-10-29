@@ -213,7 +213,7 @@ export function PlatformsYouUse() {
   return (
     <section className="bg-card mb-4 rounded-xl border px-4 py-4">
       <h2 className="mb-1 text-base font-semibold">Platforms you use</h2>
-      <p className="text-muted-foreground mb-3 max-w-prose text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-3 text-sm leading-relaxed">
         sopops shows only these. Taking one away hides it and keeps everything already set up for it.
       </p>
       {canChange ? (

@@ -49,7 +49,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
   return (
     <Page wide>
       <PageTitle>Fixes</PageTitle>
-      <Sub className="max-w-[90ch]">
+      <Sub>
         SOP changes written from a pattern's verdict. Review the diff and how each agent's instructions change, then apply it as a draft (or a pull request, with a connected repo) or dismiss it.
       </Sub>
       <nav className="mb-4 flex gap-0.5 overflow-x-auto border-b" aria-label="Suggestion status">
@@ -83,7 +83,7 @@ export function SuggestionsView({ status, onStatus }: { status?: Tab; onStatus: 
         <div role="status" className="bg-card text-muted-foreground rounded-lg border px-4 py-10 text-center text-sm">
           <Sparkles className="text-muted-foreground mx-auto mb-2 size-5" />
           <div className="text-foreground font-semibold">{tab === "proposed" ? "No suggestions waiting" : `Nothing ${tab === "all" ? "yet" : SUGGESTION_STATUS[tab].label.toLowerCase()}`}</div>
-          <p className="mx-auto mt-1 max-w-[60ch]">
+          <p className="mx-auto mt-1">
             A verdict of “real mistake” or “SOP is wrong” on a pattern gets a suggested fix. <HrefLink href={wsHref(ws, "patterns")}>Review patterns</HrefLink>
           </p>
         </div>
@@ -431,11 +431,11 @@ export function SuggestionView({ id }: { id: string }) {
             <section className="bg-card rounded-lg border px-4 py-4">
               <h2 className="mb-2 text-sm font-semibold">Why</h2>
               {s.guidance && (
-                <p className="text-muted-foreground mb-2 max-w-[80ch] text-sm whitespace-pre-wrap">
+                <p className="text-muted-foreground mb-2 text-sm whitespace-pre-wrap">
                   <span className="text-foreground font-medium">Asked for:</span> “{s.guidance}”
                 </p>
               )}
-              {s.rationale && <p className="max-w-[80ch] text-sm whitespace-pre-wrap">{s.rationale}</p>}
+              {s.rationale && <p className="text-sm whitespace-pre-wrap">{s.rationale}</p>}
             </section>
           )}
           <section className="bg-card min-w-0 rounded-lg border px-4 py-4" data-tour="fix-change">

@@ -73,7 +73,7 @@ export function TokensPanel() {
         </span>
       }
     >
-      <div className="text-muted-foreground mb-4 grid max-w-prose gap-2 text-sm leading-relaxed">
+      <div className="text-muted-foreground mb-4 grid gap-2 text-sm leading-relaxed">
         <p>
           Send a token as <code>Authorization: Bearer &lt;token&gt;</code>. Its scopes decide what it can do.
         </p>

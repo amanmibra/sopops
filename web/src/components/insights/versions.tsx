@@ -458,7 +458,7 @@ function SetUp({ d }: { d: VersionsResponse | undefined }) {
     <section className="bg-card rounded-lg border px-5 py-5">
       <div className="flex items-start gap-3">
         <FlaskConical className="text-primary mt-0.5 size-5 shrink-0" />
-        <div className="grid max-w-[72ch] gap-2 text-sm">
+        <div className="grid gap-2 text-sm">
           <h2 className="text-lg font-semibold">{one ? "Only one version so far" : "No versions to compare yet"}</h2>
           <p>
             An A/B test compares calls that ran with different settings, like a different LLM, voice or speech model, or a different release of your instructions. sopops groups calls
@@ -495,7 +495,7 @@ function HowToRead({ minN, points }: { minN: number; points: number }) {
   return (
     <details className="text-muted-foreground text-sm">
       <summary className="hover:text-foreground cursor-pointer select-none">How to read this</summary>
-      <ul className="mt-2 grid max-w-[90ch] list-disc gap-1 pl-5">
+      <ul className="mt-2 grid list-disc gap-1 pl-5">
         <li>
           <b className="text-foreground font-medium">Version:</b> calls that ran with the same agent, release and settings, named by a hash of them. Hover a letter for its full id.
         </li>

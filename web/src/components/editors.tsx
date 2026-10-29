@@ -300,7 +300,7 @@ function ProcedureForm({ id, item }: { id: string; item?: ProcedureConfig }) {
         <Field id="guidance" name="Guidance" help="Anything else the agent should know that isn't a step." errors={errors}>
           <Textarea id="f-guidance" className="min-h-28" value={m.guidance} onChange={(e) => set({ guidance: e.target.value })} />
         </Field>
-        <Field id="steps" name="Steps" help="In order. Name a tool to have the agent use it, and mark it required if the call must happen." errors={errors}>
+        <Field id="steps" name="Steps" help="In order. Name a tool if the step uses one. Mark a step required if skipping the step or its tool call should fail the check, even when the goal was reached." errors={errors}>
           <StepRows id="steps" steps value={m.steps} onChange={(steps) => set({ steps })} errors={errors} placeholder="What the agent does" noun="Step" />
         </Field>
         <Field id="never" name="Never" help="Things the agent must never do." errors={errors}>

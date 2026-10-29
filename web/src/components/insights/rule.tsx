@@ -56,7 +56,7 @@ export function RuleInsightsView({ procedureId, ruleId, filters, onFilters }: { 
               />
             )}
           </div>
-          {d?.text && <p className="mt-1 max-w-[90ch] text-sm">“<RuleText text={d.text} />”</p>}
+          {d?.text && <p className="mt-1 text-sm">“<RuleText text={d.text} />”</p>}
           <p className="text-muted-foreground mt-1 text-xs">Over {windowPhrase(filters)}. A reworded rule keeps its earlier results.</p>
         </section>
         {d && scope ? (

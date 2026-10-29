@@ -61,7 +61,7 @@ export function Backfill({ platform }: { platform: Platform }) {
       <div className="flex items-center gap-2 font-medium">
         <History className="size-4" /> Backfill the last {DAYS} days
       </div>
-      <p className="text-muted-foreground max-w-prose leading-relaxed">
+      <p className="text-muted-foreground leading-relaxed">
         Bring in the calls your agents had on {name} in the last {DAYS} days, so there are sessions to check right away. sopops reads them with the API key
         above. Calls already in sopops are skipped, so you can run it again.
       </p>

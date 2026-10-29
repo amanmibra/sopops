@@ -248,7 +248,7 @@ export function PageTitle({ children, aside }: { children: ReactNode; aside?: Re
 }
 
 export function Sub({ children, className }: { children: ReactNode; className?: string }) {
-  return <p className={cn("text-muted-foreground mt-0 mb-6 max-w-[75ch]", className)}>{children}</p>;
+  return <p className={cn("text-muted-foreground mt-0 mb-6", className)}>{children}</p>;
 }
 
 export function Note({ children, className }: { children: ReactNode; className?: string }) {

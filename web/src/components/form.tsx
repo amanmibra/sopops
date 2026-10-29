@@ -57,29 +57,35 @@ export function Field({
     <div className={cn("min-w-0", bad && "[&_input]:border-err [&_textarea]:border-err [&_button[role=combobox]]:border-err")} data-field={id}>
       <div className="mb-0.5 flex items-center gap-1.5">
         <label className="font-semibold" htmlFor={`f-${id}`}>{name}</label>
-        {help && helpPosition === "tooltip" && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button type="button" aria-label={`Help for ${name}`} className="text-muted-foreground hover:text-foreground focus-visible:outline-ring inline-flex cursor-help focus-visible:outline-2 focus-visible:outline-offset-2">
-                  <CircleHelp className="size-3.5" aria-hidden="true" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-72 text-left" sideOffset={6}>{help}</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        {help && helpPosition === "tooltip" && <HelpTip label={`Help for ${name}`}>{help}</HelpTip>}
       </div>
-      {help && helpPosition === "before" && <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">{help}</p>}
+      {help && helpPosition === "before" && <p className="text-muted-foreground mb-2 text-sm">{help}</p>}
       {children}
       <ErrNotes errors={errors} field={id} />
     </div>
   );
 }
 
-const iconBtn = "text-muted-foreground hover:text-foreground";
+/** A help icon that shows `children` on hover or focus. */
+function HelpTip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button type="button" aria-label={label} className="text-muted-foreground hover:text-foreground focus-visible:outline-ring inline-flex cursor-help focus-visible:outline-2 focus-visible:outline-offset-2">
+            <CircleHelp className="size-3.5" aria-hidden="true" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-72 text-left" sideOffset={6}>{children}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
-/** Ordered rows of text with an optional tool, and "required" for steps. */
+const iconBtn = "text-muted-foreground hover:text-foreground";
+const STEP_COLS = "grid-cols-[26px_1fr_170px_104px_96px]";
+
+/** Ordered rows of text with an optional tool, and "required" for steps. The column headers name Tool and Required once. */
 export function StepRows({
   id,
   value,
@@ -107,10 +113,24 @@ export function StepRows({
   return (
     <div id={`f-${id}`}>
       <div className="grid gap-2">
+        {steps && value.length > 0 && (
+          <div className={cn("text-muted-foreground grid items-center gap-2 text-sm max-md:hidden", STEP_COLS)}>
+            <span />
+            <span />
+            <span className="px-2">Tool</span>
+            <span className="inline-flex items-center justify-center gap-1.5">
+              Required
+              <HelpTip label="What required means">
+                Skipping this step or its tool call fails the check, even if the goal was reached. With a tool, the call must appear in the tool-call logs.
+              </HelpTip>
+            </span>
+            <span />
+          </div>
+        )}
         {value.map((s, i) => {
           const bad = errsFor(errors, id, i).length > 0;
           return (
-            <div key={i} className={cn("grid items-center gap-2", steps ? "grid-cols-[26px_1fr_170px_auto_auto] max-md:grid-cols-[22px_1fr_auto]" : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]", bad && "[&_input]:border-err")}>
+            <div key={i} className={cn("grid items-center gap-2", steps ? `${STEP_COLS} max-md:grid-cols-[22px_1fr_auto]` : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]", bad && "[&_input]:border-err")}>
               {steps && <span className="text-muted-foreground text-right tabular-nums">{i + 1}.</span>}
               <Input value={s.text} placeholder={placeholder} aria-label={`${noun} ${i + 1}`} onChange={(e) => set(i, { text: e.target.value })} data-step-text />
               <Input
@@ -121,9 +141,9 @@ export function StepRows({
                 onChange={(e) => set(i, { tool: e.target.value.trim() ? e.target.value : null })}
               />
               {steps && (
-                <label className="inline-flex cursor-pointer items-center gap-2" title="The agent must call the tool">
-                  <Checkbox checked={!!s.required} onCheckedChange={(c) => set(i, { required: c === true })} />
-                  Required
+                <label className="inline-flex cursor-pointer items-center gap-2 md:justify-center">
+                  <Checkbox checked={!!s.required} aria-label={`${noun} ${i + 1} required`} onCheckedChange={(c) => set(i, { required: c === true })} />
+                  <span className="md:hidden">Required</span>
                 </label>
               )}
               <span className="flex">

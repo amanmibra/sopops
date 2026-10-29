@@ -418,7 +418,7 @@ function PlatformSource({ platform }: { platform: "elevenlabs" | "vapi" }) {
           <label htmlFor="f-key" className="mb-0.5 block font-semibold">
             {label} API key
           </label>
-          <p className="text-muted-foreground mb-2 max-w-[72ch] text-sm">
+          <p className="text-muted-foreground mb-2 text-sm">
             sopops reads your agents' instructions and tool names with this key, then forgets it. It isn't stored or logged, and a read-only key is enough.
           </p>
           <div className="flex flex-wrap gap-2">
@@ -506,7 +506,7 @@ function AgentSource({ mode }: { mode: "hosted" | "repo" }) {
   };
   return (
     <div className="grid gap-4">
-      <p className="max-w-[75ch]">
+      <p>
         You run one command in your agents' repository. Claude Code or Codex finds every agent's instructions, extracts them with the sopops tools, checks nothing was
         lost, and sends them here, where you watch it work and review the result.
       </p>

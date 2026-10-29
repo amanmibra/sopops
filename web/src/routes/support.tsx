@@ -8,7 +8,7 @@ export const Route = createFileRoute("/support")({ component: Support });
 function Support() {
   return (
     <main className="px-4 pt-6 pb-10 md:px-8">
-      <div className="max-w-[860px]">
+      <div>
         <PageTitle>Support session</PageTitle>
         <Sub>Pick a team and how long you need.</Sub>
         <StartSupportSession />

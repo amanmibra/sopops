@@ -149,7 +149,7 @@ export function StartSupportSession() {
 
   return (
     <form
-      className="grid max-w-[420px] gap-5"
+      className="grid gap-5"
       onSubmit={(e) => {
         e.preventDefault();
         void start();

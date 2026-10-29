@@ -132,7 +132,7 @@ function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "
     return (
       <div role="alert" className="flex flex-col items-center gap-2 px-4 py-6 text-center">
         <div className="text-sm font-semibold">These numbers didn't load</div>
-        <p className="text-muted-foreground max-w-[52ch] text-xs">
+        <p className="text-muted-foreground text-xs">
           The card stays empty until they do, so a failed load never reads as zero.{" "}
           {error instanceof ApiError || error instanceof Error ? <span className="font-mono">{error.message}</span> : null}
         </p>
@@ -147,7 +147,7 @@ function CardBody({ loading, error, onRetry, empty, emptyTitle, emptyMessage = "
     return (
       <div role="status" className="text-muted-foreground flex min-h-28 flex-col items-center justify-center gap-2 px-4 py-5 text-center text-xs">
         {emptyTitle && <div className="text-foreground text-sm font-semibold">{emptyTitle}</div>}
-        <div className="max-w-[60ch]">{emptyMessage}</div>
+        <div>{emptyMessage}</div>
         {emptyAction}
       </div>
     );

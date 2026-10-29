@@ -53,7 +53,7 @@ export function StateList({ tab, items, loading, error, onRetry }: { tab: Exclud
     return (
       <div role="status" className="bg-card text-muted-foreground flex flex-col items-center gap-2 rounded-lg border px-4 py-10 text-center text-sm">
         <div className="text-foreground font-semibold">{EMPTY[tab].head}</div>
-        <p className="max-w-[56ch]">{EMPTY[tab].body}</p>
+        <p>{EMPTY[tab].body}</p>
       </div>
     );
   return (

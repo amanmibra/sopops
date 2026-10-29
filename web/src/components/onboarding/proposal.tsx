@@ -270,7 +270,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
 }
 
 function Intro({ children }: { children: ReactNode }) {
-  return <p className="text-muted-foreground mb-3 max-w-[75ch] text-sm leading-relaxed">{children}</p>;
+  return <p className="text-muted-foreground mb-3 text-sm leading-relaxed">{children}</p>;
 }
 
 /** The review's steps by name: earlier ones (and any already reached) can be picked, later ones can't yet. */
