@@ -12,10 +12,17 @@ from .base import BaseModel, Files
 from .files import IssueOut, WrittenFile
 
 
-class Step(BaseModel):
+class StepOption(BaseModel):
     text: str
     tool: str | None = Field(None, description="Exact name of a tool the agent has.")
     required: bool = Field(False, description="Steps only: the tool call must happen.")
+
+
+class Step(StepOption):
+    # `or` is a Python keyword: the field is `or_`, read and written as `or`.
+    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
+
+    or_: list[StepOption] = Field([], alias="or", description="Steps only: alternatives; on a call only one of the step and its options applies.")
 
 
 class Saved(BaseModel):

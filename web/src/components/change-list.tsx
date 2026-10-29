@@ -2,7 +2,7 @@
 import type { ReactNode } from "react";
 import { diffCount, diffLines, diffRows, splitLines } from "@/lib/diff";
 import { type Kind, deliveryName, platformName } from "@/lib/kinds";
-import { type Step, stepLine } from "@/lib/model";
+import { type Step, stepWithOptions } from "@/lib/model";
 import { cn } from "@/lib/utils";
 import { useWs } from "@/lib/workspace";
 import { DiffView } from "./diff-view";
@@ -62,8 +62,8 @@ export function useFieldChanges() {
           detail: () => <DiffView before={a} after={b} toggle={false} context={2} />,
         });
       } else if (STEP_FIELDS.includes(field)) {
-        const la = (a as Step[]).map(stepLine),
-          lb = (b as Step[]).map(stepLine);
+        const la = (a as Step[]).map(stepWithOptions),
+          lb = (b as Step[]).map(stepWithOptions);
         let added = 0,
           removed = 0,
           edited = 0;

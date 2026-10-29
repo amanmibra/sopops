@@ -2,7 +2,9 @@
 import type { AgentConfig, ConfigResponse, GroupConfig, InstructionConfig, ProcedureConfig, SettingsConfig, StepOutput } from "./api";
 import { BLOCK_KINDS, type BlockKind, KIND, type Kind, deliveryName, platformName } from "./kinds";
 
-export type Step = { text: string; tool?: string | null; required?: boolean };
+export type StepOption = { text: string; tool?: string | null; required?: boolean };
+/** A step, never or warning sign; `or` holds a step's options (on a call only one of the step and its options applies). */
+export type Step = StepOption & { or?: StepOption[] };
 export type Item = AgentConfig | InstructionConfig | ProcedureConfig | GroupConfig;
 
 const LISTS = { agent: "agents", instruction: "instructions", procedure: "procedures", group: "groups" } as const;
@@ -54,7 +56,7 @@ export class Model {
     if (k === "instruction") return (this.find(k, id) as InstructionConfig).text;
     if (k === "procedure") {
       const p = this.find(k, id) as ProcedureConfig;
-      return [p.name, p.goal, p.when, p.guidance, ...[...p.steps, ...p.never, ...p.warning_signs].map((s) => s.text)].join("\n");
+      return [p.name, p.goal, p.when, p.guidance, ...[...p.steps, ...p.never, ...p.warning_signs].flatMap((s) => [s, ...(s.or ?? [])]).map((s) => s.text)].join("\n");
     }
     return "";
   }
@@ -77,7 +79,7 @@ export class Model {
     if (!it || it.deleted) return ["(deleted)"];
     if (it.legacy) return ["(saved in the format of sopc v0.0.8 and earlier)", ...String(it.content ?? "").replace(/\n+$/, "").split("\n")];
     const list = (title: string, items: Step[], numbered = false) =>
-      items.length ? [title, ...items.map((s, i) => `  ${numbered ? `${i + 1}.` : "-"} ${stepLine(s)}`)] : [];
+      items.length ? [title, ...items.flatMap((s, i) => [`  ${numbered ? `${i + 1}.` : "-"} ${stepLine(s)}`, ...(s.or ?? []).map((o) => `     OR ${stepLine(o)}`)])] : [];
     const blocks = (ids: string[]) =>
       ids.length
         ? ["Blocks:", ...ids.map((b, i) => `  ${i + 1}. ${this.blockName(b)}${this.blockKind(b) ? ` (${KIND[this.blockKind(b)!].badge})` : ""}`)]
@@ -106,5 +108,8 @@ export class Model {
 }
 
 export const placeholders = (t: string | null | undefined) => [...String(t ?? "").matchAll(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g)].map((m) => m[1]);
-export const stepLine = (s: Step | StepOutput) => `${s.text}${s.tool ? `  [tool: ${s.tool}${s.required ? ", required" : ""}]` : ""}`;
-export const cleanStep = (s: Step) => ({ text: s.text, tool: s.tool && s.tool.trim() ? s.tool.trim() : null, required: !!s.required });
+export const stepLine = (s: StepOption | StepOutput) => `${s.text}${s.tool ? `  [tool: ${s.tool}${s.required ? ", required" : ""}]` : ""}`;
+/** A step on one line, its options joined with OR. */
+export const stepWithOptions = (s: Step) => [s, ...(s.or ?? [])].map(stepLine).join("  OR ");
+const cleanOption = (s: StepOption) => ({ text: s.text, tool: s.tool && s.tool.trim() ? s.tool.trim() : null, required: !!s.required });
+export const cleanStep = (s: Step) => ({ ...cleanOption(s), or: (s.or ?? []).map(cleanOption) });
