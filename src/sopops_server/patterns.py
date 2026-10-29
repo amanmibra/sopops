@@ -70,7 +70,7 @@ CLUSTER_SAMPLE = 150  # most recent findings shown to the model; older ones are 
 ASSIGN_BATCH = 25
 MAX_THEMES = 6
 
-KIND_LABEL = {"step": "Step", "never": "Never", "warning": "Warning sign"}
+KIND_LABEL = {"step": "Step", "option": "Step", "never": "Never", "warning": "Warning sign"}  # an OR option is part of its step
 INDEX_NAME = re.compile(r"^(Step \d+ missed|Never rule \d+ broken|Warning sign \d+ not acted on|Rule \d+)$")  # before names came from the rule
 
 

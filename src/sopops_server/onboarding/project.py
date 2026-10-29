@@ -31,7 +31,10 @@ def clean(files: Files) -> Files:
 
 
 def steps(rows: list[dict]) -> list[ProposedStep]:
-    return [ProposedStep(text=r["text"], tool=r.get("tool"), required=bool(r.get("required"))) for r in rows]
+    def one(r: dict | str) -> dict:
+        return {"text": r, "tool": None, "required": False} if isinstance(r, str) else {"text": r["text"], "tool": r.get("tool"), "required": bool(r.get("required"))}
+
+    return [ProposedStep(**one(r), or_=[one(o) for o in (r.get("or") or [])] if isinstance(r, dict) else []) for r in rows]
 
 
 def proposal_of(files: Files, sopc: Sopc, originals: dict[str, str] | None = None) -> Proposal:

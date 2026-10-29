@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 Platform = Literal["livekit", "elevenlabs", "vapi", "retell"]
 SegmentKind = Literal["context", "instruction", "procedure", "heading"]
@@ -58,10 +58,17 @@ class ProcedureDraft(BaseModel):
 # --- the proposal ---------------------------------------------------------------------------
 
 
-class ProposedStep(BaseModel):
+class ProposedOption(BaseModel):
     text: str
     tool: str | None = None
     required: bool = False
+
+
+class ProposedStep(ProposedOption):
+    # `or` is a Python keyword: the field is `or_`, read and written as `or` (as `schemas.config.Step`).
+    model_config = ConfigDict(validate_by_name=True, serialize_by_alias=True)
+
+    or_: list[ProposedOption] = Field([], alias="or")  # steps only: OR options
 
 
 class ProposedInstruction(BaseModel):

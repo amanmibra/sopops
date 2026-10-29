@@ -74,6 +74,7 @@ class Calibrate:
         if p is None:
             row["skipped"] = refusal("not_in_release", f"The procedure isn't in release {cand.release}, the one its latest reviewed session ran.")
             return row
+        p = p.judged()  # as checks judge it: each OR option as a step
         wording = {lins.get((pid, r.id), r.id): r.id for r in p.rules}
         examples = _relabel(examples, lambda r: wording.get(r, r))  # then on the rule as this release words it
         cfg = decide.DecisionConfig.from_env()
