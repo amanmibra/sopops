@@ -44,11 +44,11 @@
   "homepage": "https://sopops.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amanmibra/sopops.git",
+    "url": "git+https://github.com/sopops-dev/sopops.git",
     "directory": "sdks/node"
   },
   "bugs": {
-    "url": "https://github.com/amanmibra/sopops/issues"
+    "url": "https://github.com/sopops-dev/sopops/issues"
   },
   "keywords": [
     "sopops",

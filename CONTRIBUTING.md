@@ -96,8 +96,8 @@ A monthly workflow (`sdk-release-reminder.yml`) opens an issue when either SDK h
 **One-time setup.**
 
 - Settings > Actions > General: turn on "Allow GitHub Actions to create and approve pull requests", so `release-sdk.yml` can open the pull request.
-- PyPI trusts `publish-sdk-release.yml`, with no token. On pypi.org, open the `sopops` project, then Manage > Publishing > Add a new publisher > GitHub: owner `amanmibra`, repository `sopops`, workflow `publish-sdk-release.yml`, environment `pypi`. Remove the old `release-sdk-python.yml` publisher afterwards.
-- npm trusts the same file. On npmjs.com, open the `sopops` package, then Settings > Trusted publisher > GitHub Actions: organization or user `amanmibra`, repository `sopops`, workflow `publish-sdk-release.yml`, environment `npm`. Then delete the `NPM_TOKEN` repository secret, and under Publishing access choose to require two-factor authentication and disallow tokens.
+- PyPI trusts `publish-sdk-release.yml`, with no token. On pypi.org, open the `sopops` project, then Manage > Publishing > Add a new publisher > GitHub: owner `sopops-dev`, repository `sopops`, workflow `publish-sdk-release.yml`, environment `pypi`. Remove the old `release-sdk-python.yml` publisher afterwards.
+- npm trusts the same file. On npmjs.com, open the `sopops` package, then Settings > Trusted publisher > GitHub Actions: organization or user `sopops-dev`, repository `sopops`, workflow `publish-sdk-release.yml`, environment `npm`. Then delete the `NPM_TOKEN` repository secret, and under Publishing access choose to require two-factor authentication and disallow tokens.
 - Optional: under Settings > Environments, limit `pypi` and `npm` to the `main` branch.
 
 **If publishing fails,** fix the cause and re-run the failed jobs of that `publish-sdk-release` run. It reuses the tag and skips a version already on PyPI or npm. Once a run can no longer be re-run, `gh workflow run publish-sdk-release.yml -f tag=sdk-v0.6.0` does the same.

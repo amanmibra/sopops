@@ -11,7 +11,7 @@ set -euo pipefail
 
 version=${1:?version, like 0.6.0}
 ref=${2:?git ref the release ends at}
-repo=${GITHUB_REPOSITORY:-amanmibra/sopops}
+repo=${GITHUB_REPOSITORY:-sopops-dev/sopops}
 
 # Newest first by date: versions only go up, and the prefixes don't sort against each other by name.
 previous() { git tag -l "$@" --sort=-creatordate | grep -vx "sdk-v$version" | head -n1; }

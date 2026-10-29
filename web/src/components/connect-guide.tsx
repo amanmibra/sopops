@@ -142,7 +142,7 @@ export function ConnectGuide({ className }: { className?: string }) {
         </div>
       )}
       <p className="text-muted-foreground mt-2 text-xs">
-        Code samples are in the README, under <HrefLink href="https://github.com/amanmibra/sopops#connect-your-agent">Connect your agent</HrefLink>.
+        Code samples are in the README, under <HrefLink href="https://github.com/sopops-dev/sopops#connect-your-agent">Connect your agent</HrefLink>.
       </p>
     </div>
   );

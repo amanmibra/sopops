@@ -9,7 +9,7 @@ Before you begin, install Git and Docker with Docker Compose. Make sure that
 port `8484` is free.
 
 ```sh
-git clone https://github.com/amanmibra/sopops
+git clone https://github.com/sopops-dev/sopops
 cd sopops
 cp .env.example .env
 docker compose up --build -d
