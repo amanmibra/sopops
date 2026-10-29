@@ -4,7 +4,7 @@
 import { useLocation } from "@tanstack/react-router";
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import { DEMO, DEMO_WS, SIGN_UP_URL } from "@/lib/demo";
+import { DEMO, DEMO_URL, DEMO_WS, SIGN_UP_URL } from "@/lib/demo";
 import { appPath } from "@/lib/paths";
 import { cn } from "@/lib/utils";
 import { wsHref } from "@/lib/workspace";
@@ -170,23 +170,30 @@ function set(s: State) {
 
 export const startTour = (ws: string) => set({ ws, step: 0 });
 
-/** Where the tour runs: the recording's workspace in the demo build, else the server's demo workspace, which only
- *  someone signed in can open (signed out, there's no tour to offer: the sign-in and sign-up pages say nothing of it). */
-export function useTourWorkspace(): string | null {
+/** Where someone takes the tour: the recording's workspace in the demo build; signed in, the server's demo workspace
+ *  (SOPOPS_DEMO_WORKSPACE), else the public demo (DEMO_URL) in a new tab with the tour running. Signed out, nowhere:
+ *  the sign-in and sign-up pages say nothing of it. */
+export type TourWay = { ws: string } | { href: string };
+
+export function useTourWay(): TourWay | null {
   const auth = useAuth().data;
-  if (DEMO) return DEMO_WS;
-  return auth?.user ? (auth.demo_workspace ?? null) : null;
+  if (DEMO) return { ws: DEMO_WS };
+  if (!auth?.user) return null;
+  if (auth.demo_workspace) return { ws: auth.demo_workspace };
+  return DEMO_URL ? { href: `${DEMO_URL}?tour` } : null;
 }
+
+export const takeTour = (way: TourWay) => ("ws" in way ? startTour(way.ws) : void window.open(way.href, "_blank", "noopener"));
 
 /** A line for a workspace with nothing in it yet: the tour shows the loop on the demo's calls. */
 export function TourPrompt() {
-  const demo = useTourWorkspace();
+  const way = useTourWay();
   const here = useLocation().pathname;
-  if (!demo || here.startsWith(wsHref(demo))) return null;
+  if (!way || ("ws" in way && here.startsWith(wsHref(way.ws)))) return null;
   return (
     <>
       See how sopops works on sample calls first:{" "}
-      <button type="button" onClick={() => startTour(demo)} className="text-primary cursor-pointer hover:underline">
+      <button type="button" onClick={() => takeTour(way)} className="text-primary cursor-pointer hover:underline">
         take the tour
       </button>
       .

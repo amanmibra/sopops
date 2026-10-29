@@ -7,4 +7,6 @@ interface ImportMetaEnv {
   readonly VITE_SOPOPS_DEMO?: string;
   readonly VITE_SOPOPS_DEMO_WS?: string;
   readonly VITE_SOPOPS_DEMO_SIGN_UP?: string;
+  /** The public demo's address, for the app's tour links when the server has no demo workspace (lib/demo.ts). */
+  readonly VITE_SOPOPS_DEMO_URL?: string;
 }

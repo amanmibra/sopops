@@ -21,6 +21,10 @@ export const TOUR_ASKED = (() => {
   return true;
 })();
 
+/** The public demo (the demo build) on the site that serves this app: sopops.dev's app is built with "/demo/". The app
+ *  opens it for someone signed in when the server has no demo workspace of its own. Unset: no public demo. */
+export const DEMO_URL = import.meta.env.VITE_SOPOPS_DEMO_URL || null;
+
 /** Where people go to try sopops on their own agents. */
 export const SIGN_UP_URL = import.meta.env.VITE_SOPOPS_DEMO_SIGN_UP ?? "https://app.sopops.dev/sign-up";
 

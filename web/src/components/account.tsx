@@ -12,7 +12,7 @@ import { cn } from "@/lib/utils";
 import { Banner, ErrorBanner } from "./bits";
 import { GitHubIcon, GoogleIcon } from "./brand-icon";
 import { SupportMenuLink } from "./support";
-import { startTour } from "./tour";
+import { takeTour, useTourWay } from "./tour";
 import { Logo } from "./logo";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./ui/dialog";
@@ -322,6 +322,7 @@ export function UserMenu({ auth }: { auth: AuthState }) {
   const signOut = useSignOut();
   const [changing, setChanging] = useState(false);
   const [creating, setCreating] = useState(false);
+  const tour = useTourWay();
   const user = auth.user;
   if (!user) return null;
   const switchTo = async (orgId: string) => {
@@ -364,8 +365,8 @@ export function UserMenu({ auth }: { auth: AuthState }) {
             </DropdownMenuItem>
           )}
           <DropdownMenuSeparator />
-          {auth.demo_workspace && (
-            <DropdownMenuItem onSelect={() => startTour(auth.demo_workspace!)}>
+          {tour && (
+            <DropdownMenuItem onSelect={() => takeTour(tour)}>
               <Compass className="size-4" /> Take the tour
             </DropdownMenuItem>
           )}

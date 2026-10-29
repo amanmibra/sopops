@@ -12,7 +12,8 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "build": { "command": "pnpm build:cloudflare" },
+  // VITE_SOPOPS_DEMO_URL: the demo (wrangler.demo.jsonc) is at sopops.dev/demo/, so the app's tour links open it.
+  "build": { "command": "VITE_SOPOPS_DEMO_URL=/demo/ pnpm build:cloudflare" },
   "assets": {
     "directory": "./dist-cloudflare",
     "not_found_handling": "single-page-application",
