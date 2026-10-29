@@ -71,7 +71,7 @@ from .orm import (
     Verdict,
     Workspace,
 )
-from .pipeline.rollup import FINDING_STATUSES, Judged, rollup, worst
+from .pipeline.rollup import FINDING_STATUSES, Judged, combine_options, rollup, worst
 
 if TYPE_CHECKING:
     from .store import Store
@@ -187,8 +187,14 @@ def reviewed_result(pc: ProcedureCheck, rules: list[RuleResult], passed: set[str
         return pc.checked_result
     judged = []
     for r in rules:
-        status = corrected.get(r.id) or (PASS_STATUS.get(r.kind, r.status) if r.id in passed else r.status)
-        judged.append(Judged(r.rule_id, r.kind, r.index, status, [], "", r.kind == "step" and status == "skipped" and (r.id in corrected or LENIENT_MARK not in (r.reason or ""))))
+        status = corrected.get(r.id) or (PASS_STATUS.get("step" if r.kind == "option" else r.kind, r.status) if r.id in passed else r.status)
+        judged.append(Judged(r.rule_id, r.kind, r.index, status, r.evidence, "", r.kind == "step" and status == "skipped" and (r.id in corrected or LENIENT_MARK not in (r.reason or ""))))
+    # a step whose OR option a reviewer read differently takes its status from its options again
+    touched = {r.option_of for r in rules if r.option_of and (r.id in passed or r.id in corrected)}
+    options = {g: [j for r, j in sorted(zip(rules, judged), key=lambda x: x[0].option or 0) if r.option_of == g] for g in touched}
+    for r, j in zip(rules, judged):
+        if r.rule_id in touched and r.kind == "step" and r.id not in passed and r.id not in corrected:
+            j.status = combine_options(r.rule_id, options[r.rule_id]).status
     return rollup(judged, pc.goal_reached).result
 
 

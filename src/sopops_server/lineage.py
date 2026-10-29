@@ -226,6 +226,8 @@ class Wording:
     index: int
     text: str
     text_hash: str
+    option: int | None  # an OR option: its place among its step's options, and the step's rule id
+    option_of: str | None
     first_seen: datetime | None
     last_seen: datetime | None
     results: int
@@ -237,25 +239,26 @@ class Wording:
 
 def wordings(db: Session, ws: str, procedure_id: str | None = None) -> dict[tuple[str, str], list[Wording]]:
     """{(procedure id, lineage id): its wordings seen in sessions, oldest first}. One per rule id: its text (sopc's id
-    follows it), its kind and index at the last session that ran it, and `from_release`: the release that published
+    follows it), its kind and index (and an option's place and step) at the last session that ran it, and `from_release`: the release that published
     it (its lineage row's), else the first release a session ran it on."""
     R, S, L = RuleResult, SessionRecord, RuleLineage
-    q = (select(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash, func.min(S.started_at), func.max(S.started_at), func.count(R.id), func.min(S.release_id))
+    q = (select(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash, R.option, R.option_of, func.min(S.started_at), func.max(S.started_at), func.count(R.id),
+                func.min(S.release_id))
          .join(S, S.id == R.session_id).where(R.workspace_id == ws))
     if procedure_id:
         q = q.where(R.procedure_id == procedure_id)
-    rows = db.exec(q.group_by(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash)).all()
+    rows = db.exec(q.group_by(R.procedure_id, R.rule_id, R.kind, R.index, R.rule_text, R.rule_text_hash, R.option, R.option_of)).all()
     lq = select(L.procedure_id, L.rule_id, L.lineage_id, L.release_id).where(L.workspace_id == ws)
     links = {(p, r): (lin, rel) for p, r, lin, rel in db.exec(lq.where(L.procedure_id == procedure_id) if procedure_id else lq).all()}
     by_rule: dict[tuple[str, str], Wording] = {}
-    for pid, rid, kind, index, text, h, first, last, n, rel in rows:
+    for pid, rid, kind, index, text, h, option, option_of, first, last, n, rel in rows:
         first, last = _utc(first), _utc(last)
         w = by_rule.get((pid, rid))
         if w is None:
-            by_rule[(pid, rid)] = Wording(rid, kind, index, text, h, first, last, n, links.get((pid, rid), (None, None))[1] or rel)
+            by_rule[(pid, rid)] = Wording(rid, kind, index, text, h, option, option_of, first, last, n, links.get((pid, rid), (None, None))[1] or rel)
             continue
         if last and (w.last_seen is None or last > w.last_seen):
-            w.kind, w.index, w.text, w.text_hash, w.last_seen = kind, index, text, h, last
+            w.kind, w.index, w.text, w.text_hash, w.option, w.option_of, w.last_seen = kind, index, text, h, option, option_of, last
         w.first_seen = min(x for x in (w.first_seen, first) if x) if (w.first_seen or first) else None
         w.results += n
         if links.get((pid, rid), (None, None))[1] is None and rel is not None:

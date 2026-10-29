@@ -42,7 +42,7 @@ Each entry of `rules` is `{rule_id, kind, index, text, status, evidence, reason,
   "steps_done": 2,
   "nevers_violated": 1,
   "model": "jev-1.13.0+anthropic/claude-sonnet-5-5",
-  "prompt_version": "decide-1+check-5",
+  "prompt_version": "decide-1+check-6",
   "checked_at": "2026-10-20T22:09:47.557395Z",
   "rules": [
     {
@@ -118,8 +118,8 @@ The `reasoning` model reviews rules the decisions flag (`skipped`, `violated`, `
 | Run | `model` | `prompt_version` |
 |---|---|---|
 | Decision only | the decision model | `decide-1` |
-| Decision, then review | `<decision model>+<reasoning model>` | `decide-1+check-5` |
-| `SOPOPS_CHECK_MODE=review` (the reasoning model judges every rule) | the reasoning model | `check-5` |
+| Decision, then review | `<decision model>+<reasoning model>` | `decide-1+check-6` |
+| `SOPOPS_CHECK_MODE=review` (the reasoning model judges every rule) | the reasoning model | `check-6` |
 
 | Setting | |
 |---|---|

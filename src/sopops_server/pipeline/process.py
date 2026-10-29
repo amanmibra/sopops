@@ -27,7 +27,7 @@ from ..ai.signatures import VERSIONS
 from ..errors import NotFound
 from .normalize import normalize_tool_calls, normalize_turns
 from .procedures import Procedure, candidates
-from .rollup import apply_tool_calls, mark_out_of_order, rollup
+from .rollup import Judged, apply_tool_calls, combine_options, mark_out_of_order, rollup
 from .types import (
     INCOMPLETE_REASONS,
     CheckRef,
@@ -160,19 +160,36 @@ def check_procedure(store: Store, ref: CheckRef, ai: AI | None = None) -> CheckR
         return CheckResult(session_id=ref.session_id, procedure_id=ref.procedure_id, result=None, stored=False)
     try:
         with spend.scope(store.engine, ref.workspace_id, "check", ref.session_id), tracing.context(check_run_id=tracing.run_id(ref.session_id, ref.revision)):
-            got = decide.check(ai, store.engine, ref.workspace_id, p, cand.variables, s.turns, s.tool_calls, decide.DecisionConfig.from_env())
+            got = decide.check(ai, store.engine, ref.workspace_id, p.judged(), cand.variables, s.turns, s.tool_calls, decide.DecisionConfig.from_env())
     except Exception as e:
         store.checks.fail(ref, f"check {p.id}: {e}")
         raise
     checked = got.checked
-    steps = [r for r in checked.rules if r.kind == "step"]
-    tools = {r.id: r.tool for r in p.rules if r.kind == "step" and r.tool and r.required}
-    apply_tool_calls(steps, tools, s.tool_calls, s.turns)
-    mark_out_of_order(steps)
+    tools = {r.id: r.tool for r in p.rules if r.kind in ("step", "option") and r.tool and r.required}
+    others = {r.id: r.tool for r in p.rules if r.kind == "option" and r.tool and not r.required}  # a wrong option shows by its call
+    apply_tool_calls([r for r in checked.rules if r.kind == "step"], tools, s.tool_calls, s.turns, others)  # options are judged as steps
+    rules = with_options(p, checked.rules)
+    mark_out_of_order([r for r in rules if r.kind == "step"])
     agent_spoke = any(t.get("role") == "agent" and t.get("text") for t in s.turns)
-    roll = rollup(checked.rules, checked.goal_reached, agent_spoke)
-    stored = store.checks.save(ref, p, checked.rules, checked.goal_reached, checked.goal_reason, roll, got.model, got.prompt_version)
+    roll = rollup(rules, checked.goal_reached, agent_spoke)
+    stored = store.checks.save(ref, p, rules, checked.goal_reached, checked.goal_reason, roll, got.model, got.prompt_version)
     return CheckResult(session_id=ref.session_id, procedure_id=p.id, result=roll.result, stored=stored)
+
+
+def with_options(p: Procedure, judged: list[Judged]) -> list[Judged]:
+    """The judged rules in the procedure's order, options marked as options and each step with OR options combined
+    from them (`pipeline.rollup.combine_options`)."""
+    by_id = {j.rule_id: j for j in judged}
+    out = []
+    for r in p.rules:
+        if r.kind == "option":
+            by_id[r.id].kind = "option"
+            out.append(by_id[r.id])
+        elif r.kind == "step" and p.has_options(r.id):
+            out.append(combine_options(r.id, [by_id[o.id] for o in p.rules if o.of == r.id]))
+        else:
+            out.append(by_id[r.id])
+    return out
 
 
 def finish_session(store: Store, ref: SessionRef, turn_count: int | None = None) -> ProcessResult:

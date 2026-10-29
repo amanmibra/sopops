@@ -51,7 +51,8 @@ def render_procedure(p: Procedure, variables: dict[str, str], with_rule_keys: bo
         for r in rules:
             tool = f" (tool: {r.tool}{', required' if r.required else ''})" if r.tool else ""
             label = f"{r.key}: " if with_rule_keys else f"{r.index}. "
-            out.append(f"- {label}{fill(r.text, variables)}{tool}")
+            alt = "OR " if (r.option or 0) > 1 else ""  # an alternative to the option above it
+            out.append(f"- {label}{alt}{fill(r.text, variables)}{tool}")
     out.append("</procedure>")
     return "\n".join(out)
 

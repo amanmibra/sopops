@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import re
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
@@ -27,15 +27,19 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class Rule:
     id: str
-    kind: str  # step | never | warning
-    index: int  # 1-based within its kind
-    text: str  # as written, with {{placeholders}}
+    kind: str  # step | option | never | warning
+    index: int  # 1-based within its kind; an option has its step's
+    text: str  # as written, with {{placeholders}}; a step with OR options: theirs, joined with " OR "
     tool: str | None = None
     required: bool = False
+    option: int | None = None  # an option: its 1-based place among its step's options
+    of: str | None = None  # an option: its step's rule id
 
     @property
     def key(self) -> str:
-        """The field name a check reply uses for this rule: step_1, never_2, warning_1."""
+        """The field name a check reply uses for this rule: step_1, never_2, warning_1, step_3_or_2 (an option)."""
+        if self.option is not None:
+            return f"step_{self.index}_or_{self.option}"
         return f"{self.kind}_{self.index}"
 
     @property
@@ -56,6 +60,15 @@ class Procedure:
 
     def steps(self) -> list[Rule]:
         return [r for r in self.rules if r.kind == "step"]
+
+    def has_options(self, step_id: str) -> bool:
+        return any(r.of == step_id for r in self.rules)
+
+    def judged(self) -> Procedure:
+        """The procedure as the checker judges it: a step with OR options isn't judged itself (its result comes from
+        its options, `pipeline.rollup.combine_options`); each option is judged as a step."""
+        rules = tuple(replace(r, kind="step") if r.kind == "option" else r for r in self.rules if not (r.kind == "step" and self.has_options(r.id)))
+        return replace(self, rules=rules)
 
 
 @dataclass
@@ -138,9 +151,17 @@ def _procedure(sop: dict[str, Any], versions: dict[str, int], release: int) -> P
     rules = []
     for r in sop.get("rules") or []:
         tool, required = None, False
-        if r["kind"] == "step" and 0 < r["index"] <= len(steps) and isinstance(steps[r["index"] - 1], dict):
-            tool, required = steps[r["index"] - 1].get("tool"), bool(steps[r["index"] - 1].get("required"))
-        rules.append(Rule(r["id"], r["kind"], int(r["index"]), r["text"], tool, required))
+        step = steps[r["index"] - 1] if r["kind"] in ("step", "option") and 0 < r["index"] <= len(steps) else None
+        if isinstance(step, dict):
+            # option 1 is the step's own text, tool and required, the rest its `or` list; a step with options has no tool
+            others = step.get("or") or []
+            if r["kind"] == "option":
+                source = step if r["option"] == 1 else others[r["option"] - 2] if r["option"] - 2 < len(others) else None
+            else:
+                source = None if others else step
+            if isinstance(source, dict):
+                tool, required = source.get("tool"), bool(source.get("required"))
+        rules.append(Rule(r["id"], r["kind"], int(r["index"]), r["text"], tool, required, r.get("option"), r.get("of")))
     return Procedure(
         id=sop["id"],
         name=sop.get("name") or sop["id"],

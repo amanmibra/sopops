@@ -29,7 +29,7 @@ from ..pipeline.rollup import JUDGED_STEP_STATUSES, NEVER_STATUSES, WARNING_STAT
 VERSIONS = {
     "route": "route-4",
     "decide": "decide-1",
-    "check": "check-5",
+    "check": "check-6",
     "split": "split-1",
     "locate": "locate-1",
     "assign": "assign-2",
@@ -268,6 +268,8 @@ class CheckRules(dspy.Signature):
     - `skipped`: the conversation went past the point where this step belonged, and the agent didn't do it, or did it in a way that clearly misses one of the step's explicit parts. That covers a required piece left out (a step that says to state the total, and the total was never stated) and an explicit limit clearly broken (several sentences where the step says one short sentence, several questions at once where it says one at a time); the reason says which part. Different wording, politeness, or a small extra detail don't make a step skipped.
     - `not_reached`: the conversation ended (the user hung up, the line dropped, the agent transferred the call, the transcript stops) before the point where this step would come. Use this for steps after the point where the conversation stopped.
     - `not_applicable`: the step's condition never arose (a step for "if the customer asks for X" when they didn't), or the step doesn't apply to this conversation's situation. When a step starts with a condition ("If ...", "When ..."), first decide whether the condition held. If it didn't, the step is `not_applicable`, even if the agent did the step's action anyway: doing something the procedure says not to do is judged under the never rules, not here.
+
+    Some steps are alternatives, with keys like `step_3_or_1`, `step_3_or_2` (the later ones start with "OR"): on a call, only the one whose condition held applies. Judge each as its own step. The ones whose condition didn't hold are `not_applicable`, even if the agent did their action instead of the right one; the one that applied is `done` or `skipped`.
 
     ## Never rules
 

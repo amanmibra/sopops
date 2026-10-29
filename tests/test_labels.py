@@ -348,7 +348,7 @@ def test_model_call_listeners_see_each_call_and_never_break_a_check(env):
     assert len(review) == 1
     call, result = review[0]
     assert (call.workspace, call.session_id, call.purpose, call.role, call.model, call.prompt_version, call.decision) == (
-        "demo", sid, "review", "reasoning", "fake/reasoning", "check-5", False)
+        "demo", sid, "review", "reasoning", "fake/reasoning", "check-6", False)
     assert call.procedure_id == ALLERGEN and set(call.context["rules"]) == set(call.inputs["rules_to_check"])
     assert call.context["rules"]["never_1"] == rule(env, sid, "never", 1)["rule_id"] and rule(env, sid, "never", 1)["rule_id"] in call.rule_ids
     assert "MODE:A" in call.inputs["transcript"] and result.outputs["goal_reached"] == "yes" and result.error is None

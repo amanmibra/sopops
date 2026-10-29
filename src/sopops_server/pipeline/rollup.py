@@ -12,8 +12,14 @@ non-decreasing run of turns) are out of order.
 
 Required tool steps (`tool: x` + `required`) are checked against the session's tool calls when it has any: called
 means done (out of order if the turns say so), not called means skipped, unless the model found the step
-not_reached or not_applicable. A session without tool calls falls back to the model's reading of the transcript,
-and the evidence says which source it came from.
+not_reached or not_applicable. A step that didn't apply stays not_applicable even when its tool was called; the call
+is kept as its evidence. A session without tool calls falls back to the model's reading of the transcript, and the
+evidence says which source it came from.
+
+A step with OR options (alternatives: only one applies on a call) isn't judged itself. Each option is judged as a step
+(kind `option`), and the step takes its status from them (`combine_options`): done if an option was done, skipped if
+one applied and wasn't done (also when the agent did another option instead: the wrong option), else not_reached or
+not_applicable. Order, the rollup and the result count the step once; its options don't count as steps.
 
 Procedure result:
 - `deviated`: a never rule was violated, a required step was skipped, or a step was skipped and the goal wasn't
@@ -100,9 +106,11 @@ def mark_out_of_order(steps: list[Judged]) -> None:
             steps[i].reason = f"Done out of order (after a later step). {steps[i].reason}".strip()
 
 
-def apply_tool_calls(steps: list[Judged], tools: dict[str, str | None], tool_calls: list[dict[str, Any]], turns: list[dict[str, Any]]) -> None:
-    """Required tool steps against the tool-call log. `tools` maps rule_id to its tool name (required steps only).
-    Does nothing when the session has no tool calls."""
+def apply_tool_calls(steps: list[Judged], tools: dict[str, str | None], tool_calls: list[dict[str, Any]], turns: list[dict[str, Any]],
+                     anyway: dict[str, str | None] | None = None) -> None:
+    """Required tool steps against the tool-call log. `tools` maps rule_id to its tool name (required steps only);
+    `anyway`, other tool steps to theirs: only a call made for one that didn't apply is kept, as its evidence (an OR
+    option's tool called instead of the right one's). Does nothing when the session has no tool calls."""
     if not tool_calls:
         for s in steps:
             if s.rule_id in tools:
@@ -110,14 +118,19 @@ def apply_tool_calls(steps: list[Judged], tools: dict[str, str | None], tool_cal
                     e.setdefault("source", "transcript")
         return
     for s in steps:
-        name = tools.get(s.rule_id)
+        name = tools.get(s.rule_id) or (anyway or {}).get(s.rule_id)
         if not name:
             continue
         calls = [c for c in tool_calls if c.get("name") == name]
-        if calls:
+        if s.rule_id not in tools and not (calls and s.status == "not_applicable"):
+            continue
+        if calls and s.status == "not_applicable":
             c = calls[0]
-            turn = next((i for i, t in enumerate(turns) if t.get("role") == "tool" and (t.get("name") == name or t.get("text") == name)), None)
-            s.evidence = [{"turn": turn, "quote": f"{name}({_short(c.get('arguments'))})", "source": "tool_calls"}]
+            s.evidence = [{"turn": _tool_turn(turns, name), "quote": f"{name}({_short(c.get('arguments'))})", "source": "tool_calls"}]
+            s.reason = f"{s.reason} (Called {name} anyway.)".strip()
+        elif calls:
+            c = calls[0]
+            s.evidence = [{"turn": _tool_turn(turns, name), "quote": f"{name}({_short(c.get('arguments'))})", "source": "tool_calls"}]
             errored = all(bool(x.get("is_error")) for x in calls)
             s.status = "done"
             s.reason = f"Called {name}{' (every call returned an error)' if errored else ''}."
@@ -125,6 +138,37 @@ def apply_tool_calls(steps: list[Judged], tools: dict[str, str | None], tool_cal
             s.status = "skipped"
             s.evidence = []
             s.reason = f"{s.reason} ({name} was never called; required.)".strip()  # the checker's reading stays: clustering needs it
+
+
+def _tool_turn(turns: list[dict[str, Any]], name: str) -> int | None:
+    return next((i for i, t in enumerate(turns) if t.get("role") == "tool" and (t.get("name") == name or t.get("text") == name)), None)
+
+
+def combine_options(step_id: str, options: list[Judged]) -> Judged:
+    """A step with OR options, from its options' statuses (in option order; kind `option`). An option that applied but
+    wasn't done while another one's tool was called anyway is the wrong option: skipped, even if the model read the
+    session as ending first."""
+    num = {o.rule_id: n for n, o in enumerate(options, 1)}
+    done = [o for o in options if o.status == "done"]
+    instead = [o for o in options if o.status == "not_applicable" and any(e.get("source") == "tool_calls" for e in o.evidence)]
+    missed = [o for o in options if o.status == "skipped"] or ([o for o in options if o.status == "not_reached"] if instead else [])
+    first = options[0]
+    if done:
+        o = done[0]
+        also = f" Options {', '.join(str(num[d.rule_id]) for d in done)} were all done; only one should be." if len(done) > 1 else ""
+        return Judged(step_id, "step", first.index, "done", o.evidence, f"Option {num[o.rule_id]}: {o.reason}{also}", o.required)
+    if missed:
+        for o in missed:
+            o.status = "skipped"
+        o = missed[0]
+        reason = f"Option {num[o.rule_id]} applied and wasn't done: {o.reason}"
+        if instead:
+            w = instead[0]
+            reason += f" The agent did option {num[w.rule_id]} instead: {w.evidence[0]['quote']}."
+        return Judged(step_id, "step", first.index, "skipped", o.evidence + [e for w in instead for e in w.evidence], reason, any(m.required for m in missed))
+    if any(o.status == "not_reached" for o in options):
+        return Judged(step_id, "step", first.index, "not_reached", [], "The session ended before this step.")
+    return Judged(step_id, "step", first.index, "not_applicable", [], "None of its options applied.")
 
 
 def rollup(rules: list[Judged], goal_reached: bool | None, agent_spoke: bool = True) -> Rollup:

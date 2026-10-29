@@ -111,11 +111,12 @@ class Checks:
                     reason = f"{reason} (Lenient: the goal was reached and this step isn't required, so it doesn't make the procedure deviated.)".strip()
                 rr = RuleResult(
                     id=str(uuid.uuid4()), workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
-                    kind=j.kind, index=j.index, rule_text=rule.text, rule_text_hash=rule.text_hash, status=j.status, evidence=j.evidence, reason=reason,
+                    kind=j.kind, index=j.index, option=rule.option, option_of=rule.of, rule_text=rule.text, rule_text_hash=rule.text_hash, status=j.status, evidence=j.evidence, reason=reason,
                     decision_p=j.decision_p, decision_threshold=j.decision_threshold, decided_status=j.decided_status, reviewed=j.reviewed,
                 )
                 db.add(rr)
-                if j.status in FINDING_STATUSES:
+                # a step with OR options: its options carry the findings, except for its place in the order
+                if j.status in FINDING_STATUSES and not (p.has_options(j.rule_id) and j.status != "out_of_order"):
                     fid, first = before.get(j.rule_id, (str(uuid.uuid4()), now))
                     findings.append(Finding(id=fid, workspace_id=row.workspace_id, session_id=row.id, procedure_id=p.id, rule_id=j.rule_id,
                                             rule_result_id=rr.id, status=j.status, created_at=first))
@@ -153,10 +154,11 @@ class Checks:
     # --- reads -----------------------------------------------------------------------
 
     def for_session(self, session: SessionRecord) -> list[dict[str, Any]]:
-        """Each procedure the router considered, with its rule results (in procedure order: steps, nevers, warnings).
+        """Each procedure the router considered, with its rule results (in procedure order: steps, each step with OR options
+        followed by its options, then nevers, then warnings).
         Rule text reads as the check read it: with the session's agent's values for its release's placeholders."""
         session_id = session.id
-        order = {"step": 0, "never": 1, "warning": 2}
+        order = {"step": 0, "option": 0, "never": 1, "warning": 2}
         with self._db() as db:
             checks = list(db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id == session_id)))
             rules = list(db.exec(select(RuleResult).where(RuleResult.session_id == session_id)))
@@ -174,7 +176,8 @@ class Checks:
             by_proc.setdefault(r.procedure_id, []).append(r)
         out = []
         for c in checks:
-            rr = sorted(by_proc.get(c.procedure_id, []), key=lambda r: (order.get(r.kind, 9), r.index))
+            rr = sorted(by_proc.get(c.procedure_id, []), key=lambda r: (order.get(r.kind, 9), r.index, r.option or 0))
+            with_options = {r.option_of for r in rr if r.option_of}  # their options carry the findings
             out.append({
                 "procedure_id": c.procedure_id, "procedure_name": c.procedure_name, "procedure_version": c.procedure_version,
                 "release_id": c.release_id, "applicable": c.applicable, "excluded_reason": c.excluded_reason, "route_reason": c.route_reason,
@@ -182,8 +185,9 @@ class Checks:
                 "steps_done": c.steps_done, "nevers_violated": c.nevers_violated, "model": c.model, "prompt_version": c.prompt_version,
                 "checked_at": _utc(c.checked_at),
                 "rules": [
-                    {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "text": fill(r.rule_text, variables.get(c.release_id, {})), "status": r.status, "evidence": r.evidence,
-                     "reason": r.reason, "finding": r.status in FINDING_STATUSES, "pattern_id": pats.get(r.id, (None, None))[0],
+                    {"rule_id": r.rule_id, "kind": r.kind, "index": r.index, "option": r.option, "option_of": r.option_of,
+                     "text": fill(r.rule_text, variables.get(c.release_id, {})), "status": r.status, "evidence": r.evidence, "reason": r.reason,
+                     "finding": r.status in FINDING_STATUSES and (r.rule_id not in with_options or r.status == "out_of_order"), "pattern_id": pats.get(r.id, (None, None))[0],
                      "pattern_name": pats.get(r.id, (None, None))[1], "finding_id": findings[r.id].id if r.id in findings else None,
                      "suppressed": findings[r.id].suppressed if r.id in findings else False,
                      "override": call.correct if (call := calls.get((r.procedure_id, r.rule_id))) and r.id in findings else None,

@@ -141,7 +141,7 @@ def test_route_and_check_statuses_and_rollup(env):
 
     allergen = checks[ALLERGEN]
     assert allergen["result"] == "deviated" and allergen["goal_reached"] is True
-    assert allergen["prompt_version"] == "check-5" and allergen["model"] == "fake/reasoning"
+    assert allergen["prompt_version"] == "check-6" and allergen["model"] == "fake/reasoning"
     r = rules_by_key(allergen)
     assert [r[k]["status"] for k in ("step_1", "step_2", "step_3", "never_1", "never_2", "warning_1")] == ["done", "done", "done", "violated", "ok", "absent"]
     assert r["step_3"]["evidence"][0]["source"] == "tool_calls" and r["step_3"]["evidence"][0]["quote"].startswith("lookup_allergens(")
@@ -309,3 +309,162 @@ def test_evidence_is_checked_against_the_transcript():
     turns = [{"role": "agent", "text": "Hello there."}, {"role": "agent", "text": "Your total is $12, ready at six."}]
     got = verify_evidence([{"turn": 0, "quote": "your total is $12"}, {"turn": 1, "quote": "I never said this"}, {"turn": 9, "quote": "Hello"}], turns)
     assert got == [{"turn": 1, "quote": "your total is $12", "source": "transcript"}, {"turn": 0, "quote": "Hello", "source": "transcript"}]
+
+
+# --- OR options ---------------------------------------------------------------------------------------------------
+
+def _or_procedure():
+    from sopops_server.pipeline.procedures import _procedure
+
+    sop = {
+        "id": "booking", "name": "Booking",
+        "procedureSteps": [
+            "Collect the details",
+            {"text": "If they want to cancel, cancel it", "tool": "cancel_booking", "required": True,
+             "or": [{"text": "If they want to change it, change it", "tool": "change_booking", "required": False}, "If they're late, tell the store"]},
+            "Close the call",
+        ],
+        "rules": [
+            {"id": "s1", "kind": "step", "index": 1, "text": "Collect the details"},
+            {"id": "s2", "kind": "step", "index": 2, "text": "If they want to cancel, cancel it OR If they want to change it, change it OR If they're late, tell the store"},
+            {"id": "o1", "kind": "option", "index": 2, "text": "If they want to cancel, cancel it", "option": 1, "of": "s2"},
+            {"id": "o2", "kind": "option", "index": 2, "text": "If they want to change it, change it", "option": 2, "of": "s2"},
+            {"id": "o3", "kind": "option", "index": 2, "text": "If they're late, tell the store", "option": 3, "of": "s2"},
+            {"id": "s3", "kind": "step", "index": 3, "text": "Close the call"},
+        ],
+    }
+    return _procedure(sop, {}, 1)
+
+
+def test_or_options_load_with_their_own_tools_and_are_judged_as_steps():
+    from sopops_server.pipeline.transcript import render_procedure
+
+    p = _or_procedure()
+    by = {r.id: r for r in p.rules}
+    assert (by["s2"].tool, by["s2"].required) == (None, False)  # a step with options has no tool of its own
+    assert [(by[o].tool, by[o].required, by[o].option, by[o].of) for o in ("o1", "o2", "o3")] == [
+        ("cancel_booking", True, 1, "s2"), ("change_booking", False, 2, "s2"), (None, False, 3, "s2")]
+    judged = p.judged()
+    assert [(r.id, r.kind, r.key) for r in judged.rules] == [
+        ("s1", "step", "step_1"), ("o1", "step", "step_2_or_1"), ("o2", "step", "step_2_or_2"), ("o3", "step", "step_2_or_3"), ("s3", "step", "step_3")]
+    text = render_procedure(judged, {})
+    assert "- step_2_or_1: If they want to cancel, cancel it (tool: cancel_booking, required)\n- step_2_or_2: OR If they want to change it" in text
+
+
+def test_or_step_takes_its_status_from_its_options():
+    from sopops_server.pipeline.rollup import combine_options
+
+    def O(n, status, evidence=None, required=False):
+        return Judged(f"o{n}", "option", 2, status, evidence or [], f"r{n}", required)
+
+    g = combine_options("s2", [O(1, "not_applicable"), O(2, "done", [{"turn": 4, "quote": "q"}]), O(3, "not_applicable")])
+    assert (g.kind, g.index, g.status, g.evidence[0]["turn"]) == ("step", 2, "done", 4) and g.reason.startswith("Option 2:")
+    assert combine_options("s2", [O(1, "done"), O(2, "done"), O(3, "not_applicable")]).reason.endswith("Options 1, 2 were all done; only one should be.")
+    g = combine_options("s2", [O(1, "skipped", required=True), O(2, "not_applicable"), O(3, "not_applicable")])
+    assert (g.status, g.required) == ("skipped", True)
+    # the wrong option: the agent called another option's tool instead, even where the model read the session as ending
+    opts = [O(1, "not_reached", required=True), O(2, "not_applicable", [{"turn": 6, "quote": "change_booking(id=1)", "source": "tool_calls"}]), O(3, "not_applicable")]
+    g = combine_options("s2", opts)
+    assert g.status == "skipped" and opts[0].status == "skipped" and "The agent did option 2 instead: change_booking(id=1)." in g.reason
+    assert combine_options("s2", [O(1, "not_reached"), O(2, "not_applicable"), O(3, "not_reached")]).status == "not_reached"
+    assert combine_options("s2", [O(1, "not_applicable"), O(2, "not_applicable"), O(3, "not_applicable")]).status == "not_applicable"
+
+
+def test_a_tool_called_for_a_step_that_didnt_apply_keeps_it_not_applicable():
+    from sopops_server.pipeline.rollup import apply_tool_calls
+
+    steps = [J("step", 1, "not_applicable"), J("step", 2, "skipped")]
+    calls = [{"name": "change_booking", "arguments": {"id": 1}}, {"name": "cancel_booking", "arguments": {"id": 1}}]
+    apply_tool_calls(steps, {"step1": "change_booking", "step2": "cancel_booking"}, calls, [])
+    assert steps[0].status == "not_applicable" and steps[0].evidence[0]["source"] == "tool_calls" and "Called change_booking anyway." in steps[0].reason
+    assert steps[1].status == "done"
+
+
+def test_or_options_order_and_rollup_count_the_step_once():
+    from sopops_server.pipeline.process import with_options
+
+    p = _or_procedure()
+    judged = [J("step", 1, "done", 1), Judged("o1", "step", 2, "not_applicable", [], "r"), Judged("o2", "step", 2, "done", [{"turn": 3, "quote": "q"}], "r"),
+              Judged("o3", "step", 2, "not_applicable", [], "r"), J("step", 3, "done", 2)]
+    judged[0].rule_id, judged[4].rule_id = "s1", "s3"
+    rules = with_options(p, judged)
+    assert [(r.rule_id, r.kind, r.status) for r in rules] == [
+        ("s1", "step", "done"), ("s2", "step", "done"), ("o1", "option", "not_applicable"), ("o2", "option", "done"), ("o3", "option", "not_applicable"), ("s3", "step", "done")]
+    mark_out_of_order([r for r in rules if r.kind == "step"])
+    # step 2 (turn 3) and step 3 (turn 2) are out of order with each other: one of them is flagged, the options aren't
+    assert [r.status for r in rules if r.kind == "step"].count("out_of_order") == 1
+    assert [r.status for r in rules if r.kind == "option"] == ["not_applicable", "done", "not_applicable"]
+    roll = rollup(rules, True)
+    assert (roll.result, roll.steps_applicable, roll.steps_done) == ("partial", 3, 3)
+
+
+OR_STEP = """  - text: Check each item the customer ordered against {{menu_allergen_link}}
+    tool: lookup_allergens
+    required: true
+    or:
+      - text: If they only ordered drinks, check the drinks list
+        tool: drinks_lookup
+"""
+
+
+@pytest.fixture
+def or_env(tmp_path, files, monkeypatch):
+    """The allergen check with its tool step as the first of two OR options."""
+    monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
+    path = "procedures/allergen-check.yaml"
+    old = "  - text: Check each item the customer ordered against {{menu_allergen_link}}\n    tool: lookup_allergens\n    required: true\n"
+    assert old in files[path]
+    files = {**files, path: files[path].replace(old, OR_STEP)}
+    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    fake = fake_models(BASE)
+    client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
+    r = client.put(f"{WS}/files", json={"files": files})
+    if r.status_code != 200:
+        pytest.skip(f"needs a sopc with OR options (v0.0.18+): {r.text[:200]}")
+    client.post(f"{WS}/releases", json={})
+    token = client.post(f"{WS}/tokens").json()["token"]
+
+    def send(body):
+        r = client.post(f"{WS}/sessions", json=body, headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code in (200, 201), r.text
+        return client.get(f"{WS}/sessions/{r.json()['id']}").json()
+
+    return SimpleNamespace(fake=fake, send=send)
+
+
+def or_rules(s):
+    return {(r["kind"], r["index"], r["option"]): r for r in checks_by_id(s)[ALLERGEN]["rules"]}
+
+
+def test_or_step_end_to_end(or_env):
+    or_env.fake.responder = Scenario(BASE.route, {**BASE.checks, ALLERGEN: {
+        "step_1": ("done", [(2, "Does anyone else in the order have a food allergy?")]),
+        "step_2": ("done", [(3, "Got it, a peanut allergy.")]),
+        "step_3_or_1": ("skipped", []),  # the model missed it; the tool-call log says it happened
+        "step_3_or_2": ("not_applicable", []),
+    }})
+    s = or_env.send(session())
+    rules = or_rules(s)
+    step, first, second = rules[("step", 3, None)], rules[("option", 3, 1)], rules[("option", 3, 2)]
+    assert (step["status"], first["status"], second["status"]) == ("done", "done", "not_applicable")
+    assert first["option_of"] == second["option_of"] == step["rule_id"] and not step["finding"]
+    assert [(r["kind"], r["option"]) for r in checks_by_id(s)[ALLERGEN]["rules"]][:5] == [("step", None), ("step", None), ("step", None), ("option", 1), ("option", 2)]
+    check = checks_by_id(s)[ALLERGEN]
+    assert (check["steps_applicable"], check["steps_done"]) == (3, 3)  # the OR step counts once
+
+
+def test_or_step_wrong_option(or_env):
+    or_env.fake.responder = Scenario(BASE.route, {**BASE.checks, ALLERGEN: {
+        "step_1": ("done", [(2, "Does anyone else in the order have a food allergy?")]),
+        "step_2": ("done", [(3, "Got it, a peanut allergy.")]),
+        "step_3_or_1": ("skipped", []),
+        "step_3_or_2": ("not_applicable", []),
+        "never_1": ("ok", []),
+    }})
+    s = or_env.send(session(tool_calls=[{"name": "drinks_lookup", "arguments": {"item": "cola"}, "offset_s": 7}]))
+    rules = or_rules(s)
+    step, first, second = rules[("step", 3, None)], rules[("option", 3, 1)], rules[("option", 3, 2)]
+    assert (step["status"], first["status"], second["status"]) == ("skipped", "skipped", "not_applicable")
+    assert "The agent did option 2 instead: drinks_lookup(" in step["reason"]
+    assert first["finding"] and not step["finding"] and not second["finding"]
+    assert checks_by_id(s)[ALLERGEN]["result"] == "deviated"  # option 1 is required

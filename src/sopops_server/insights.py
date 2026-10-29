@@ -342,7 +342,7 @@ class Insights:
         c = Counter()
         kind = None
         for k, status, n in rows:
-            kind = k
+            kind = "step" if k == "option" else k  # an OR option is rated as a step
             c[status] += n
         total = sum(c.values())
         if kind == "warning":
@@ -365,7 +365,8 @@ class Insights:
         out: dict[tuple[str, str], dict[str, Any]] = {}
         for key, group in lineage.wordings(db, f.workspace, procedure_id).items():
             cur = lineage.current(group)
-            out[key] = {"rule_id": cur.rule_id, "kind": cur.kind, "index": cur.index, "text": fill(cur.text, values), "text_hash": cur.text_hash, "wordings": len(group),
+            out[key] = {"rule_id": cur.rule_id, "kind": cur.kind, "index": cur.index, "option": cur.option, "option_of": cur.option_of, "text": fill(cur.text, values),
+                        "text_hash": cur.text_hash, "wordings": len(group),
                         "history": [{**w.out(), "text": fill(w.text, values)} for w in group], "reworded_in": cur.from_release if len(group) > 1 else None}
         return out
 
@@ -493,7 +494,8 @@ class Insights:
                 prior_by[a]["followed"] += result == "followed"
         rules: dict[tuple[Any, str, str], list[tuple]] = defaultdict(list)
         for pid, rid, kind, _i, status, a, n in self._rule_rows(db, f, by="agent"):
-            rules[(a, pid, rid)].append((kind, status, n))
+            if kind != "option":  # a step with OR options counts once, as the step
+                rules[(a, pid, rid)].append((kind, status, n))
         texts = self._rule_texts(db, f, f.procedure)
         out = []
         for a, rows in by.items():
@@ -636,7 +638,8 @@ class Insights:
         rules = self._rule_rows(db, f)
         per_rule: dict[tuple[str, str], list[tuple]] = defaultdict(list)
         for pid, rid, kind, index, status, n in rules:
-            per_rule[(pid, rid)].append((kind, status, n))
+            if kind != "option":  # a step with OR options counts once, as the step
+                per_rule[(pid, rid)].append((kind, status, n))
         texts = self._rule_texts(db, f, f.procedure)
         counts = self._pattern_window_counts(db, f)
         hidden = self._pattern_window_counts(db, f, suppressed=True)
@@ -703,7 +706,7 @@ class Insights:
         hidden = self._pattern_window_counts(db, f, procedure_id, suppressed=True)
         pats = list(db.exec(select(Pattern).where(Pattern.workspace_id == f.workspace, Pattern.procedure_id == procedure_id)))
         rows = []
-        order = {"step": 0, "never": 1, "warning": 2}
+        order = {"step": 0, "option": 0, "never": 1, "warning": 2}  # an OR option right after its step
         for (pid, rid), t in texts.items():
             st = self._rule_stats(per.get(rid, []))
             mine = [p for p in pats if p.rule_id == rid]
@@ -713,13 +716,14 @@ class Insights:
             suppressed = sum(hidden.get(p.id, (0, 0))[0] for p in mine)
             c = st["counts"]
             judged = st["total"] - c.get("not_applicable", 0)
-            rows.append({"rule_id": t["rule_id"], "lineage_id": rid, "kind": t["kind"], "index": t["index"], "text": t["text"], "wordings": t["wordings"],
+            rows.append({"rule_id": t["rule_id"], "lineage_id": rid, "kind": t["kind"], "index": t["index"], "option": t["option"], "option_of": t["option_of"],
+                         "text": t["text"], "wordings": t["wordings"],
                          "wording_history": t["history"], "reworded_in": t["reworded_in"], **st,
                          "findings": findings, "suppressed": suppressed, "pattern_id": rule_pat.id if rule_pat else None, "patterns": n_pat,
-                         "reached_pct": pct(judged - c.get("not_reached", 0), judged) if t["kind"] == "step" else None,
+                         "reached_pct": pct(judged - c.get("not_reached", 0), judged) if t["kind"] in ("step", "option") else None,
                          "tone": fail_tone(st["fail_rate"], st["n"]), "most_failed": False})
-        rows.sort(key=lambda r: (order.get(r["kind"], 3), r["index"]))
-        rated = [r for r in rows if r["kind"] != "warning" and r["n"] >= MIN_N and r["fails"]]
+        rows.sort(key=lambda r: (order.get(r["kind"], 3), r["index"], r["option"] or 0))
+        rated = [r for r in rows if r["kind"] in ("step", "never") and r["n"] >= MIN_N and r["fails"]]
         if rated:
             max(rated, key=lambda r: (r["fail_rate"], r["n"]))["most_failed"] = True
         return rows

@@ -18,7 +18,7 @@ from .columns import JSONDoc
 
 
 class RuleResult(SQLModel, table=True):
-    """One session x one rule (step, never or warning sign) of a checked procedure."""
+    """One session x one rule (step, OR option, never or warning sign) of a checked procedure."""
 
     __tablename__ = "rule_results"
     __table_args__ = (
@@ -32,8 +32,10 @@ class RuleResult(SQLModel, table=True):
     session_id: str = Field(max_length=36)
     procedure_id: str = Field(max_length=256)
     rule_id: str = Field(max_length=64, description="sopc's stable rule id (lock.json, `sopc export`).")
-    kind: str = Field(max_length=16)  # step | never | warning
-    index: int = Field(description="1-based position within its kind.")
+    kind: str = Field(max_length=16)  # step | option | never | warning
+    index: int = Field(description="1-based position within its kind; an option has its step's.")
+    option: int | None = Field(default=None, description="An option: its 1-based place among its step's OR options.")
+    option_of: str | None = Field(default=None, max_length=64, description="An option: its step's rule id.")
     rule_text: str = Field(sa_column=Column(Text, nullable=False))
     rule_text_hash: str = Field(max_length=64)
     status: str = Field(max_length=16)  # step: done|out_of_order|skipped|not_reached|not_applicable; never: violated|ok; warning: present|unheeded|absent

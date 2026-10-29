@@ -190,6 +190,8 @@ class LadderRow(BaseModel):
     lineage_id: str = Field(description="The id of the rule's first wording (rule patterns are keyed by it).")
     kind: RuleKind
     index: int
+    option: int | None = Field(None, description="An OR option: its 1-based place among its step's options.")
+    option_of: str | None = Field(None, description="An OR option: its step's rule id.")
     text: str
     wordings: int = Field(description="How many wordings the rule has had; more than 1: it was reworded.")
     wording_history: list[WordingRef] = Field(description="Every wording, oldest first, with the release that published it.")

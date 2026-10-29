@@ -13,7 +13,7 @@ from .base import BaseModel
 CheckResultValue = Literal["deviated", "partial", "followed", "not_measurable"]
 
 
-RuleKind = Literal["step", "never", "warning"]
+RuleKind = Literal["step", "option", "never", "warning"]  # option: one of a step's OR options
 
 
 RuleStatus = Literal["done", "out_of_order", "skipped", "not_reached", "not_applicable", "violated", "ok", "present", "unheeded", "absent"]
@@ -39,7 +39,9 @@ class RuleCorrectionOut(BaseModel):
 class RuleResultOut(BaseModel):
     rule_id: str = Field(description="sopc's stable rule id.")
     kind: RuleKind
-    index: int = Field(description="1-based position within its kind.")
+    index: int = Field(description="1-based position within its kind; an option has its step's.")
+    option: int | None = Field(None, description="An option: its 1-based place among its step's OR options.")
+    option_of: str | None = Field(None, description="An option: its step's rule id.")
     text: str
     status: RuleStatus
     evidence: list[EvidenceOut]
