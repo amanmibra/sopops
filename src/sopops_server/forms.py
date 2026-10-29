@@ -62,10 +62,16 @@ def paths_of(kind: str, id: str) -> list[str]:
     return [f"{FOLDERS[kind]}/{id}.{'md' if kind == 'instruction' else 'yaml'}"]
 
 
-def _step(raw: Any) -> dict:
+def _option(raw: Any) -> dict:
     if isinstance(raw, str):
         return {"text": raw, "tool": None, "required": False}
     return {"text": raw.get("text", ""), "tool": raw.get("tool") or None, "required": bool(raw.get("required"))}
+
+
+def _step(raw: Any) -> dict:
+    """A step as the forms edit it; `or` holds its options (only procedure steps have any)."""
+    options = [] if isinstance(raw, str) else raw.get("or") or []
+    return {**_option(raw), "or": [_option(o) for o in options]}
 
 
 def from_export(exported: dict) -> dict:
@@ -180,6 +186,9 @@ FIELDS = {
 
 def same(kind: str, a: Item, b: Item) -> bool:
     """Whether two items have the same values (variable and group order count too)."""
+    def line(s: dict) -> tuple:
+        return (s["text"], s.get("tool") or None, bool(s.get("required")))
+
     def norm(item: Item) -> list:
         out = []
         for f in FIELDS[kind]:
@@ -187,7 +196,7 @@ def same(kind: str, a: Item, b: Item) -> bool:
             if f in ("variables", "groups"):
                 v = list((v or {}).items())
             elif f in ("steps", "never", "warning_signs"):
-                v = [(s["text"], s.get("tool") or None, bool(s.get("required"))) for s in v or []]
+                v = [(line(s), [line(o) for o in s.get("or") or []]) for s in v or []]
             out.append(v)
         return out
 
@@ -229,9 +238,13 @@ def check(kind: str, id: str, item: Item) -> list[Issue]:
             bad("steps", "Add at least one step.")
         for field in ("steps", "never", "warning_signs"):
             for i, s in enumerate(item[field]):
-                if not s["text"].strip():
-                    bad(field, "This line is empty.", i)
-                if s.get("tool") and not TOOL_RE.match(s["tool"]):
+                options = s.get("or") or []
+                if options and field != "steps":
+                    bad(field, "Only steps can have OR options.", i)
+                # An option's problems are shown on its step.
+                if any(not x["text"].strip() for x in [s, *options]):
+                    bad(field, "This line is empty." if not options else "A step or one of its OR options is empty.", i)
+                if any(x.get("tool") and not TOOL_RE.match(x["tool"]) for x in [s, *options]):
                     bad(field, "A tool name is one word, exactly as the agent's code names it.", i)
     return issues
 
@@ -356,15 +369,25 @@ def procedure_yaml(item: Item, y: Yaml) -> str:
             continue
         lines.append(f"{key}:")
         for s in item[field]:
-            if not s.get("tool") and not s.get("required"):
-                lines.append(y.kv("  -", s["text"], 2))
-                continue
-            lines.append(y.kv("  - text:", s["text"], 4))
-            if s.get("tool"):
-                lines.append(f"    tool: {y.scalar(s['tool'])}")
-            if s.get("required"):
-                lines.append("    required: true")
+            lines += _yaml_step(s, y, 2)
+            if s.get("or"):
+                lines.append("    or:")
+            for o in s.get("or") or []:
+                lines += _yaml_step(o, y, 6)
     return "\n".join(lines) + "\n"
+
+
+def _yaml_step(s: Item, y: Yaml, indent: int) -> list[str]:
+    """A step or OR option as a list entry at `indent`: plain text, or text with its tool and required."""
+    pad = " " * indent
+    if not s.get("tool") and not s.get("required") and not s.get("or"):
+        return [y.kv(f"{pad}-", s["text"], indent)]
+    lines = [y.kv(f"{pad}- text:", s["text"], indent + 2)]
+    if s.get("tool"):
+        lines.append(f"{pad}  tool: {y.scalar(s['tool'])}")
+    if s.get("required"):
+        lines.append(f"{pad}  required: true")
+    return lines
 
 
 def procedure_md(item: Item, y: Yaml) -> str:
@@ -381,14 +404,19 @@ def procedure_md(item: Item, y: Yaml) -> str:
             continue
         rows = []
         for i, s in enumerate(item[field]):
-            text = s["text"]
-            if s.get("tool"):
-                text += f" `tool: {s['tool']}`"
-            if s.get("required"):
-                text += " `required`"
-            rows.append(f"{f'{i + 1}.' if k == 0 else '-'} {text}")
+            options = "".join(f"\n   OR {_md_line(o)}" for o in s.get("or") or [])
+            rows.append(f"{f'{i + 1}.' if k == 0 else '-'} {_md_line(s)}{options}")
         blocks.append(f"## {heading}\n" + "\n".join(rows))
     return "\n\n".join(blocks) + "\n"
+
+
+def _md_line(s: Item) -> str:
+    text = s["text"]
+    if s.get("tool"):
+        text += f" `tool: {s['tool']}`"
+    if s.get("required"):
+        text += " `required`"
+    return text
 
 
 def md_normalized(item: Item) -> Item:
@@ -396,7 +424,8 @@ def md_normalized(item: Item) -> Item:
     one = lambda s: " ".join(s.split())  # noqa: E731
     paras = [p for p in re.split(r"\n[ \t]*\n", item["guidance"].strip("\n")) if p.strip()]
     guidance = "\n\n".join("\n".join(line.rstrip() for line in p.split("\n")) for p in paras)
-    step = lambda s: {"text": one(s["text"]), "tool": s.get("tool") or None, "required": bool(s.get("required"))}  # noqa: E731
+    option = lambda s: {"text": one(s["text"]), "tool": s.get("tool") or None, "required": bool(s.get("required"))}  # noqa: E731
+    step = lambda s: {**option(s), "or": [option(o) for o in s.get("or") or []]}  # noqa: E731
     return {
         **item,
         "name": one(item["name"]),
@@ -467,7 +496,7 @@ _FIELD_NAMES = {
     "sops_heading": "procedures_heading",
     **{p: "platform_id" for p in PLATFORMS},
 }
-_LOC = re.compile(r"^([A-Za-z_]+)(?:[.\[](\d+)\]?)?(?:\.[A-Za-z_]+)?:\s*(.*)$")
+_LOC = re.compile(r"^([A-Za-z_]+)(?:[.\[](\d+)\]?)?(?:\.or[.\[]\d+\]?)?(?:\.[A-Za-z_]+)?:\s*(.*)$")  # an OR option's issue is its step's
 _LINE = re.compile(r"^line \d+:\s*")
 _QUOTED = re.compile(r"'([^']*)'")
 _GROUP = re.compile(r"^group '([^']*)'")

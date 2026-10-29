@@ -1,9 +1,10 @@
 """The /config endpoints: agents compose shared instructions, procedures and groups; settings."""
 
+import subprocess
 from datetime import datetime, timezone
 
 import pytest
-from conftest import FIXTURE, WS, expected, read_files
+from conftest import FIXTURE, SOPC_BIN, WS, expected, read_files
 from sqlalchemy import insert, select
 
 from sopops_server.orm import FileVersion, Org, Release, Workspace
@@ -76,7 +77,7 @@ def test_config_reads_every_item(seeded):
 
     large = seeded.get(f"{CFG}/procedures/large-orders").json()
     assert large["delivery"] == "auto" and "agents" not in large and "exclude" not in large
-    assert large["steps"][1] == {"text": "Check kitchen capacity for the requested time", "tool": "check_capacity", "required": False}
+    assert large["steps"][1] == {"text": "Check kitchen capacity for the requested time", "tool": "check_capacity", "required": False, "or": []}
     assert large["used_by"] == [{"agent": "luigis-trattoria", "via": "delivery-orders"}, {"agent": "tonys-pizza", "via": "delivery-orders"}]
     assert seeded.get(f"{CFG}/procedures/reservations").json()["used_by"] == [{"agent": "luigis-trattoria", "via": None}, {"agent": "sakura-sushi", "via": None}]
     assert seeded.get(f"{CFG}/procedures/nope").status_code == 404
@@ -356,7 +357,7 @@ def test_procedures(seeded):
     assert res.json()["changed"] == [{"path": "procedures/takeout.md", "version": 1, "deleted": False}]  # new ones are Markdown
     got = seeded.get(f"{CFG}/procedures/takeout").json()
     assert got["format"] == "markdown" and got["guidance"] == proc["guidance"] and got["used_by"] == []
-    assert got["steps"] == [{"text": "Take the order", "tool": "place_order", "required": True}, {"text": "Give the pickup time: about 20 minutes", "tool": None, "required": False}]
+    assert got["steps"] == [{"text": "Take the order", "tool": "place_order", "required": True, "or": []}, {"text": "Give the pickup time: about 20 minutes", "tool": None, "required": False, "or": []}]
     content = seeded.get(f"{WS}/files/procedures/takeout.md").json()["content"]
     assert content.startswith("# Takeout\n") and "1. Take the order `tool: place_order` `required`" in content
 
@@ -399,7 +400,7 @@ def test_markdown_procedure_from_git_round_trips(client, files):
 
     proc = client.get(f"{CFG}/procedures/allergen-check").json()
     assert proc["format"] == "markdown" and "locked" not in proc
-    assert proc["steps"][2] == {"text": "Check each item the customer ordered against {{menu_allergen_link}}", "tool": "lookup_allergens", "required": True}
+    assert proc["steps"][2] == {"text": "Check each item the customer ordered against {{menu_allergen_link}}", "tool": "lookup_allergens", "required": True, "or": []}
     assert client.put(f"{CFG}/procedures/allergen-check", json=proc).json()["changed"] == []
 
     # Editing through the form rewrites the file in canonical Markdown; only the edited text changes.
@@ -422,6 +423,95 @@ def test_markdown_procedure_from_git_round_trips(client, files):
     [item] = client.get(f"{WS}/draft").json()["items"]
     assert (item["kind"], item["change"]) == ("procedure", "edited")
     assert item["before"]["guidance"].startswith("Parents often ask") and item["after"]["guidance"] == "## Not a section\nJust guidance."
+
+
+BOOKING_STEPS = [
+    {"text": "Collect name, date, time and party size"},
+    {
+        "text": "If the caller wants to cancel, cancel the booking",
+        "tool": "cancel_booking",
+        "required": True,
+        "or": [{"text": "If they want to change it, change the booking", "tool": "change_booking", "required": True}, {"text": "If they're running late, tell the store"}],
+    },
+    {"text": "Close the call", "or": [{"text": "Or transfer to {{staff_transfer}}", "tool": "transfer_to_staff"}]},
+]
+BOOKING_MD = """# Booking changes
+
+**Goal:** The booking is cancelled, changed or the store knows they're late.
+
+## Steps
+1. Collect name, date, time and party size
+2. If the caller wants to cancel, cancel the booking `tool: cancel_booking` `required`
+   OR If they want to change it, change the booking `tool: change_booking` `required`
+   OR If they're running late, tell the store
+3. Close the call
+   OR Or transfer to {{staff_transfer}} `tool: transfer_to_staff`
+"""
+BOOKING_YAML = """name: Booking changes
+description: The booking is cancelled, changed or the store knows they're late.
+guidance: |-
+  ## Not a section
+  Just guidance.
+procedureSteps:
+  - Collect name, date, time and party size
+  - text: If the caller wants to cancel, cancel the booking
+    tool: cancel_booking
+    required: true
+    or:
+      - text: If they want to change it, change the booking
+        tool: change_booking
+        required: true
+      - If they're running late, tell the store
+  - text: Close the call
+    or:
+      - text: Or transfer to {{staff_transfer}}
+        tool: transfer_to_staff
+"""
+
+
+def sopc_fmt_keeps(files: dict[str, str], tmp_path) -> None:
+    """`sopc fmt` (YAML too) leaves the files as they are: they're in sopc's canonical style."""
+    for path, content in files.items():
+        (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / path).write_text(content)
+    res = subprocess.run([SOPC_BIN, "fmt", "--check", "--yaml", "-C", str(tmp_path)], capture_output=True, text=True)
+    assert res.returncode == 0, res.stdout + res.stderr
+
+
+def test_or_options(seeded, tmp_path):
+    proc = {"id": "booking-changes", "name": "Booking changes", "goal": "The booking is cancelled, changed or the store knows they're late.", "steps": BOOKING_STEPS}
+    res = seeded.post(f"{CFG}/procedures", json=proc)
+    assert res.status_code == 201, res.json()
+    content = seeded.get(f"{WS}/files/procedures/booking-changes.md").json()["content"]
+    assert content == BOOKING_MD
+    sopc_fmt_keeps({"sopc.yaml": "version: 1\n", "procedures/booking-changes.md": content}, tmp_path / "md")
+    got = seeded.get(f"{CFG}/procedures/booking-changes").json()
+    assert got["steps"][0] == {"text": "Collect name, date, time and party size", "tool": None, "required": False, "or": []}
+    assert got["steps"][1]["or"] == [
+        {"text": "If they want to change it, change the booking", "tool": "change_booking", "required": True},
+        {"text": "If they're running late, tell the store", "tool": None, "required": False},
+    ]
+    assert seeded.put(f"{CFG}/procedures/booking-changes", json=got).json()["changed"] == []
+
+    # The same options in YAML.
+    res = seeded.put(f"{CFG}/procedures/booking-changes", json={**got, "guidance": "## Not a section\nJust guidance."})
+    assert res.status_code == 200, res.json()
+    content = seeded.get(f"{WS}/files/procedures/booking-changes.yaml").json()["content"]
+    assert content == BOOKING_YAML
+    sopc_fmt_keeps({"sopc.yaml": "version: 1\n", "procedures/booking-changes.yaml": content}, tmp_path / "yaml")
+    assert seeded.get(f"{CFG}/procedures/booking-changes").json()["steps"] == got["steps"]
+
+    # Removing the last option makes it a plain step again.
+    steps = [*got["steps"][:2], {**got["steps"][2], "or": []}]
+    assert seeded.put(f"{CFG}/procedures/booking-changes", json={**got, "guidance": "", "steps": steps}).status_code == 200
+    assert seeded.get(f"{WS}/files/procedures/booking-changes.yaml").json()["content"].endswith("        required: true\n      - If they're running late, tell the store\n  - Close the call\n")
+
+    # An option's problems are shown on its step; only steps have options.
+    one = lambda **o: [{"text": "Ask", "or": [{"text": "Or not", **o}]}]  # noqa: E731
+    assert issue(seeded.put(f"{CFG}/procedures/booking-changes", json={**got, "steps": one(text=" ")}), "steps")["index"] == 0
+    assert issue(seeded.put(f"{CFG}/procedures/booking-changes", json={**got, "steps": one(tool="two words")}), "steps")["index"] == 0
+    bad = issue(seeded.put(f"{CFG}/procedures/booking-changes", json={**got, "never": one()}), "never")
+    assert bad["index"] == 0 and bad["text"] == "Only steps can have OR options."
 
 
 TRICKY = [

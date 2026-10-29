@@ -9280,12 +9280,68 @@ export type StepInput = {
      * Steps only: the tool call must happen.
      */
     required?: boolean;
+    /**
+     * Or
+     *
+     * Steps only: alternatives; on a call only one of the step and its options applies.
+     */
+    or?: Array<StepOptionInput>;
 };
 
 /**
  * Step
  */
 export type StepOutput = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Tool
+     *
+     * Exact name of a tool the agent has.
+     */
+    tool: string | null;
+    /**
+     * Required
+     *
+     * Steps only: the tool call must happen.
+     */
+    required: boolean;
+    /**
+     * Or
+     *
+     * Steps only: alternatives; on a call only one of the step and its options applies.
+     */
+    or: Array<StepOptionOutput>;
+};
+
+/**
+ * StepOption
+ */
+export type StepOptionInput = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Tool
+     *
+     * Exact name of a tool the agent has.
+     */
+    tool?: string | null;
+    /**
+     * Required
+     *
+     * Steps only: the tool call must happen.
+     */
+    required?: boolean;
+};
+
+/**
+ * StepOption
+ */
+export type StepOptionOutput = {
     /**
      * Text
      */

@@ -2,14 +2,14 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useBlocker } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, CircleHelp, X } from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
+import { Fragment, type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ApiError, type IssueOut, call, localIssue, refresh, sdk } from "@/lib/api";
 import { signedIn } from "@/lib/auth";
 
 type Saving = Promise<{ data?: { changed: unknown[] }; error?: unknown; response?: Response }>;
 import { ITEM_ID, KIND, type Kind, type ListKind, plural } from "@/lib/kinds";
-import type { Step } from "@/lib/model";
+import type { Step, StepOption } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
 import { cn } from "@/lib/utils";
 import { useUnsaved } from "@/lib/unsaved";
@@ -84,14 +84,17 @@ function HelpTip({ label, children }: { label: string; children: ReactNode }) {
 
 const iconBtn = "text-muted-foreground hover:text-foreground";
 const STEP_COLS = "grid-cols-[26px_1fr_170px_104px_96px]";
+const OR_COLS = "grid-cols-[26px_1fr_170px_104px_150px]"; // room for "+ OR" before the move and remove buttons
 
-/** Ordered rows of text with an optional tool, and "required" for steps. The column headers name Tool and Required once. */
+/** Ordered rows of text with an optional tool, and "required" for steps. The column headers name Tool and Required once.
+ * With `options`, a step can have OR options: one shaded block, the step and each option on its own row. */
 export function StepRows({
   id,
   value,
   onChange,
   errors,
   steps = false,
+  options = false,
   placeholder,
   noun,
 }: {
@@ -100,21 +103,51 @@ export function StepRows({
   onChange: (v: Step[]) => void;
   errors: Errors;
   steps?: boolean;
+  options?: boolean;
   placeholder: string;
   noun: string;
 }) {
+  const box = useRef<HTMLDivElement>(null);
   const set = (i: number, s: Partial<Step>) => onChange(value.map((x, j) => (j === i ? { ...x, ...s } : x)));
+  const setOption = (i: number, n: number, o: Partial<StepOption>) => set(i, { or: (value[i].or ?? []).map((x, k) => (k === n ? { ...x, ...o } : x)) });
   const move = (i: number, d: number) => {
     const list = [...value];
     list.splice(i + d, 0, list.splice(i, 1)[0]);
     onChange(list);
   };
+  const addOption = (i: number) => {
+    const n = (value[i].or ?? []).length;
+    set(i, { or: [...(value[i].or ?? []), { text: "", tool: null, required: false }] });
+    setTimeout(() => box.current?.querySelector<HTMLInputElement>(`[data-option-text="${i}-${n}"]`)?.focus(), 0);
+  };
   const lower = noun.toLowerCase();
+  const cols = cn("grid items-center gap-2", steps ? `${options ? OR_COLS : STEP_COLS} max-md:grid-cols-[22px_1fr_auto]` : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]");
+
+  /** The text, tool and required inputs of a step or an option; `name` labels them, e.g. "Step 2" or "Step 2, option 1". */
+  const inputs = (s: StepOption, name: string, change: (s: Partial<StepOption>) => void, data: Record<string, string>) => (
+    <>
+      <Input value={s.text} placeholder={placeholder} aria-label={name} onChange={(e) => change({ text: e.target.value })} {...data} />
+      <Input
+        className="max-md:col-start-2"
+        value={s.tool ?? ""}
+        placeholder="Tool (optional)"
+        aria-label={`Tool for ${name.charAt(0).toLowerCase()}${name.slice(1)}`}
+        onChange={(e) => change({ tool: e.target.value.trim() ? e.target.value : null })}
+      />
+      {steps && (
+        <label className="inline-flex cursor-pointer items-center gap-2 md:justify-center">
+          <Checkbox checked={!!s.required} aria-label={`${name} required`} onCheckedChange={(c) => change({ required: c === true })} />
+          <span className="md:hidden">Required</span>
+        </label>
+      )}
+    </>
+  );
+
   return (
-    <div id={`f-${id}`}>
+    <div id={`f-${id}`} ref={box}>
       <div className="grid gap-2">
         {steps && value.length > 0 && (
-          <div className={cn("text-muted-foreground grid items-center gap-2 text-sm max-md:hidden", STEP_COLS)}>
+          <div className={cn("text-muted-foreground grid items-center gap-2 text-sm max-md:hidden", options ? OR_COLS : STEP_COLS)}>
             <span />
             <span />
             <span className="px-2">Tool</span>
@@ -129,24 +162,31 @@ export function StepRows({
         )}
         {value.map((s, i) => {
           const bad = errsFor(errors, id, i).length > 0;
-          return (
-            <div key={i} className={cn("grid items-center gap-2", steps ? `${STEP_COLS} max-md:grid-cols-[22px_1fr_auto]` : "grid-cols-[1fr_170px_auto] max-md:grid-cols-[1fr_auto]", bad && "[&_input]:border-err")}>
+          const opts = options ? (s.or ?? []) : [];
+          const name = `${noun} ${i + 1}`;
+          const notes = (
+            <div className={cn("col-span-full", steps && "col-start-2")}>
+              <ErrNotes errors={errors} field={id} index={i} />
+            </div>
+          );
+          const row = (
+            <div key={i} className={cn(cols, !opts.length && bad && "[&_input]:border-err")}>
               {steps && <span className="text-muted-foreground text-right tabular-nums">{i + 1}.</span>}
-              <Input value={s.text} placeholder={placeholder} aria-label={`${noun} ${i + 1}`} onChange={(e) => set(i, { text: e.target.value })} data-step-text />
-              <Input
-                className="max-md:col-start-2"
-                value={s.tool ?? ""}
-                placeholder="Tool (optional)"
-                aria-label={`Tool for ${lower} ${i + 1}`}
-                onChange={(e) => set(i, { tool: e.target.value.trim() ? e.target.value : null })}
-              />
-              {steps && (
-                <label className="inline-flex cursor-pointer items-center gap-2 md:justify-center">
-                  <Checkbox checked={!!s.required} aria-label={`${noun} ${i + 1} required`} onCheckedChange={(c) => set(i, { required: c === true })} />
-                  <span className="md:hidden">Required</span>
-                </label>
-              )}
-              <span className="flex">
+              {inputs(s, opts.length ? `${name}, option 1` : name, (x) => set(i, x), { "data-step-text": "" })}
+              <span className="flex items-center justify-end">
+                {options && (
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    className="border-input text-primary mr-1.5"
+                    type="button"
+                    title="Add an alternative: only one option applies on a call"
+                    aria-label={`Add an OR option to ${lower} ${i + 1}`}
+                    onClick={() => addOption(i)}
+                  >
+                    + OR
+                  </Button>
+                )}
                 <Button variant="ghost" size="icon-sm" className={iconBtn} type="button" disabled={i === 0} aria-label={`Move ${lower} ${i + 1} up`} onClick={() => move(i, -1)}>
                   <ArrowUp />
                 </Button>
@@ -157,9 +197,42 @@ export function StepRows({
                   <X />
                 </Button>
               </span>
-              <div className={cn("col-span-full", steps && "col-start-2")}>
-                <ErrNotes errors={errors} field={id} index={i} />
-              </div>
+              {!opts.length && notes}
+            </div>
+          );
+          if (!opts.length) return row;
+          // An OR step: the step and its options in one shaded block, the number shown once.
+          return (
+            <div key={i} className={cn("bg-muted -mx-2.5 my-1 grid gap-2 rounded-lg p-2.5", bad && "[&_input]:border-err")}>
+              {row}
+              {opts.map((o, n) => (
+                <Fragment key={n}>
+                  <div className={cols}>
+                    <span />
+                    <div className="col-span-4 flex items-center gap-2.5 max-md:col-span-2" aria-hidden="true">
+                      <span className="bg-primary text-primary-foreground rounded-full px-2 py-0.5 text-xs font-semibold tracking-wider">OR</span>
+                      <span className="border-input flex-1 border-t border-dashed" />
+                    </div>
+                  </div>
+                  <div className={cols}>
+                    <span />
+                    {inputs(o, `${name}, option ${n + 2}`, (x) => setOption(i, n, x), { "data-option-text": `${i}-${n}` })}
+                    <span className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className={iconBtn}
+                        type="button"
+                        aria-label={`Remove option ${n + 2} of ${lower} ${i + 1}`}
+                        onClick={() => set(i, { or: opts.filter((_, k) => k !== n) })}
+                      >
+                        <X />
+                      </Button>
+                    </span>
+                  </div>
+                </Fragment>
+              ))}
+              {bad && <div className={cols}>{notes}</div>}
             </div>
           );
         })}

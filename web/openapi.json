@@ -30318,6 +30318,15 @@
             "title": "Required",
             "description": "Steps only: the tool call must happen.",
             "default": false
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/StepOption-Input"
+            },
+            "type": "array",
+            "title": "Or",
+            "description": "Steps only: alternatives; on a call only one of the step and its options applies.",
+            "default": []
           }
         },
         "type": "object",
@@ -30349,6 +30358,80 @@
             "title": "Required",
             "description": "Steps only: the tool call must happen.",
             "default": false
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/StepOption-Output"
+            },
+            "type": "array",
+            "title": "Or",
+            "description": "Steps only: alternatives; on a call only one of the step and its options applies.",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "tool",
+          "required",
+          "or"
+        ],
+        "title": "Step"
+      },
+      "StepOption-Input": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "Exact name of a tool the agent has."
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Steps only: the tool call must happen.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "StepOption"
+      },
+      "StepOption-Output": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool",
+            "description": "Exact name of a tool the agent has."
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "description": "Steps only: the tool call must happen.",
+            "default": false
           }
         },
         "type": "object",
@@ -30357,7 +30440,7 @@
           "tool",
           "required"
         ],
-        "title": "Step"
+        "title": "StepOption"
       },
       "SuggestIn": {
         "properties": {
