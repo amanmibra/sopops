@@ -4,7 +4,7 @@ import subprocess
 from datetime import datetime, timezone
 
 import pytest
-from conftest import FIXTURE, SOPC_BIN, WS, expected, read_files
+from conftest import FIXTURE, SOP_BIN, WS, expected, read_files
 from sqlalchemy import insert, select
 
 from sopops_server.orm import FileVersion, Org, Release, Workspace
@@ -72,7 +72,7 @@ def test_config_reads_every_item(seeded):
     assert {u["agent"] for u in voice["used_by"]} == {"tonys-pizza", "luigis-trattoria", "sakura-sushi"}
 
     [group] = cfg["groups"]
-    assert (group["id"], group["blocks"], group["file"], group["version"]) == ("delivery-orders", ["delivery-handling", "large-orders"], "sopc.yaml", 1)
+    assert (group["id"], group["blocks"], group["file"], group["version"]) == ("delivery-orders", ["delivery-handling", "large-orders"], "sop.yaml", 1)
     assert group["used_by"] == [{"agent": "luigis-trattoria", "via": None}, {"agent": "tonys-pizza", "via": None}]
 
     large = seeded.get(f"{CFG}/procedures/large-orders").json()
@@ -182,7 +182,7 @@ def test_locked_from_sopc_v009_is_refused_then_converted(client, files):
     res = client.post(f"{WS}/publish", json={"files": locked})
     bad = issue(res)
     assert (bad["code"], bad["kind"], bad["id"]) == ("removed_field", "instruction", "brand-voice")
-    assert "`locked`" in bad["text"] and "sopc migrate" in bad["text"]
+    assert "`locked`" in bad["text"] and "sop migrate" in bad["text"]
 
     # A workspace stored with it (by a sopops that spoke sopc v0.0.9) converts like an old-format one.
     now = datetime.now(timezone.utc)
@@ -240,7 +240,7 @@ def test_shared_instructions(seeded):
     assert seeded.put(f"{CFG}/groups/delivery-orders", json={"blocks": [*group["blocks"], "hours"]}).status_code == 200
     res = seeded.delete(f"{CFG}/instructions/hours")
     assert res.status_code == 200, res.json()
-    assert {c["path"] for c in res.json()["changed"]} == {"instructions/hours.md", "agents/sakura-sushi.yaml", "sopc.yaml"}
+    assert {c["path"] for c in res.json()["changed"]} == {"instructions/hours.md", "agents/sakura-sushi.yaml", "sop.yaml"}
     assert seeded.get(f"{CFG}/groups/delivery-orders").json()["blocks"] == group["blocks"]
     assert seeded.delete(f"{CFG}/instructions/brand-voice").status_code == 200
     assert all("brand-voice" not in a["blocks"] for a in seeded.get(CFG).json()["agents"])
@@ -249,8 +249,8 @@ def test_shared_instructions(seeded):
 def test_groups(seeded):
     res = seeded.post(f"{CFG}/groups", json={"id": "front-of-house", "blocks": ["restaurant-host", "brand-voice"], "author": "ana"})
     assert res.status_code == 201, res.json()
-    assert res.json()["changed"] == [{"path": "sopc.yaml", "version": 2, "deleted": False}]
-    content = seeded.get(f"{WS}/files/sopc.yaml").json()["content"]
+    assert res.json()["changed"] == [{"path": "sop.yaml", "version": 2, "deleted": False}]
+    content = seeded.get(f"{WS}/files/sop.yaml").json()["content"]
     assert "groups:\n  delivery-orders:\n    - delivery-handling\n    - large-orders\n  front-of-house:\n    - restaurant-host\n    - brand-voice\n" in content
     assert seeded.post(f"{CFG}/groups", json={"id": "front-of-house", "blocks": []}).status_code == 409
 
@@ -269,7 +269,7 @@ def test_groups(seeded):
     assert (bad["code"], bad["kind"], bad["id"]) == ("unknown_block", "group", "odd")
     assert issue(seeded.post(f"{CFG}/groups", json={"id": "closing", "blocks": []}), "id")["code"] == "duplicate_id"
 
-    # Draft: each group change is its own item, though they live in sopc.yaml.
+    # Draft: each group change is its own item, though they live in sop.yaml.
     assert seeded.put(f"{CFG}/groups/delivery-orders", json={"blocks": ["large-orders", "delivery-handling"]}).status_code == 200
     items = {(i["kind"], i["id"]): i for i in seeded.get(f"{WS}/draft").json()["items"]}
     assert set(items) == {("group", "front-of-house"), ("group", "delivery-orders"), ("agent", "luigis-trattoria")}
@@ -277,7 +277,7 @@ def test_groups(seeded):
     moved = items[("group", "delivery-orders")]
     assert moved["change"] == "edited" and moved["before"]["blocks"] == ["delivery-handling", "large-orders"] and moved["after"]["blocks"] == ["large-orders", "delivery-handling"]
 
-    # History lists only the versions of sopc.yaml that changed that group (or the settings).
+    # History lists only the versions of sop.yaml that changed that group (or the settings).
     assert [(h["version"], h["author"], h["deleted"]) for h in seeded.get(f"{CFG}/groups/front-of-house/history").json()] == [(2, "ana", False)]
     assert [h["version"] for h in seeded.get(f"{CFG}/groups/delivery-orders/history").json()] == [3, 1]
     assert seeded.get(f"{CFG}/groups/delivery-orders/versions/1").json()["blocks"] == ["delivery-handling", "large-orders"]
@@ -385,7 +385,7 @@ def test_procedures(seeded):
 
     # Deleting a procedure takes it out of agents and groups.
     res = seeded.delete(f"{CFG}/procedures/takeout")
-    assert {c["path"] for c in res.json()["changed"]} == {"procedures/takeout.md", "sopc.yaml"}
+    assert {c["path"] for c in res.json()["changed"]} == {"procedures/takeout.md", "sop.yaml"}
     assert seeded.get(f"{CFG}/groups/delivery-orders").json()["blocks"] == group["blocks"]
     assert seeded.delete(f"{CFG}/procedures/reservations").status_code == 200
     assert "reservations" not in seeded.get(f"{CFG}/agents/sakura-sushi").json()["blocks"]
@@ -469,12 +469,12 @@ procedureSteps:
 """
 
 
-def sopc_fmt_keeps(files: dict[str, str], tmp_path) -> None:
-    """`sopc fmt` (YAML too) leaves the files as they are: they're in sopc's canonical style."""
+def sop_fmt_keeps(files: dict[str, str], tmp_path) -> None:
+    """`sop fmt` (YAML too) leaves the files as they are: they're in sop's canonical style."""
     for path, content in files.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(content)
-    res = subprocess.run([SOPC_BIN, "fmt", "--check", "--yaml", "-C", str(tmp_path)], capture_output=True, text=True)
+    res = subprocess.run([SOP_BIN, "fmt", "--check", "--yaml", "-C", str(tmp_path)], capture_output=True, text=True)
     assert res.returncode == 0, res.stdout + res.stderr
 
 
@@ -484,7 +484,7 @@ def test_or_options(seeded, tmp_path):
     assert res.status_code == 201, res.json()
     content = seeded.get(f"{WS}/files/procedures/booking-changes.md").json()["content"]
     assert content == BOOKING_MD
-    sopc_fmt_keeps({"sopc.yaml": "version: 1\n", "procedures/booking-changes.md": content}, tmp_path / "md")
+    sop_fmt_keeps({"sop.yaml": "version: 1\n", "procedures/booking-changes.md": content}, tmp_path / "md")
     got = seeded.get(f"{CFG}/procedures/booking-changes").json()
     assert got["steps"][0] == {"text": "Collect name, date, time and party size", "tool": None, "required": False, "or": []}
     assert got["steps"][1]["or"] == [
@@ -498,7 +498,7 @@ def test_or_options(seeded, tmp_path):
     assert res.status_code == 200, res.json()
     content = seeded.get(f"{WS}/files/procedures/booking-changes.yaml").json()["content"]
     assert content == BOOKING_YAML
-    sopc_fmt_keeps({"sopc.yaml": "version: 1\n", "procedures/booking-changes.yaml": content}, tmp_path / "yaml")
+    sop_fmt_keeps({"sop.yaml": "version: 1\n", "procedures/booking-changes.yaml": content}, tmp_path / "yaml")
     assert seeded.get(f"{CFG}/procedures/booking-changes").json()["steps"] == got["steps"]
 
     # Removing the last option makes it a plain step again.
@@ -553,7 +553,7 @@ def test_any_text_round_trips_exactly(seeded):
 
 
 def test_settings_and_new_workspace(client):
-    # A new workspace starts from the first form save; sopc.yaml is written with it.
+    # A new workspace starts from the first form save; sop.yaml is written with it.
     res = client.put(f"{CFG}/settings", json={"variables": {"brand": "Acme"}, "procedures_heading": "## How to handle calls"})
     assert res.status_code == 200, res.json()
     res = client.post(f"{CFG}/procedures", json={"id": "callback", "name": "Callback", "goal": "A callback is booked.", "steps": [{"text": "Take a number"}]})
@@ -597,7 +597,7 @@ def test_old_format_upload_says_to_migrate(client):
     assert res.status_code == 422
     issues = res.json()["issues"]
     assert {i["code"] for i in issues} == {"old_format"}
-    assert "sopc migrate" in issues[0]["text"] and "POST /v1/migrate" in issues[0]["text"]
+    assert "sop migrate" in issues[0]["text"] and "POST /v1/migrate" in issues[0]["text"]
 
     # The stateless converter returns files that publish.
     res = client.post("/v1/migrate", json={"files": {**old, "build/lock.json": "{}"}})
@@ -624,6 +624,7 @@ def test_stored_old_workspace_is_converted_in_place(client):
     assert changed["bases/closing.md"] is True and changed["instructions/closing.md"] is False
     cfg = client.get(CFG).json()
     assert next(a for a in cfg["agents"] if a["id"] == "tonys-pizza")["blocks"][-1] == "closing"
+    assert "sopc.yaml" in changed and "sop.yaml" not in changed and cfg["settings"]["file"] == "sopc.yaml"  # the name it had
     assert client.post(f"{WS}/migrate", json={}).json()["needed"] is False
 
     # An agent's version from before reads as legacy content in its history.
@@ -638,5 +639,5 @@ def test_draft_compares_with_a_released_old_workspace_as_converted(client):
     closing = items[("instruction", "closing")]  # bases/closing.md became instructions/closing.md
     assert closing["change"] == "edited" and closing["before"] == closing["after"]
     tonys = items[("agent", "tonys-pizza")]
-    assert tonys["before"] == tonys["after"]  # the old release is read as `sopc migrate` converts it
+    assert tonys["before"] == tonys["after"]  # the old release is read as `sop migrate` converts it
     assert ("settings", "settings") not in items  # dropping sop_order changes no setting

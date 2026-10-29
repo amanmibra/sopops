@@ -1,4 +1,4 @@
-"""The onboarding pull request: in repo mode, when the connected folder had no sopc project sopc could build, the coding
+"""The onboarding pull request: in repo mode, when the connected folder had no sop project sop could build, the coding
 agent opens a pull request adding one and reports its URL (`record`). sopops follows it on GitHub like a suggestion's
 (`sync`: the `sopops_pr_status` cron, `sopops pr-status`, and reading the import, at most every `PR_CHECK_EVERY`, backed
 off while the repository sends webhooks), and right away when the `pull_request` webhook says it closed (`pr_closed`).
@@ -17,7 +17,7 @@ from sqlmodel import Session, select
 
 from .. import github, repo_sync
 from ..orm import ImportEvent, ImportRecord
-from ..sopc import Invalid
+from ..sop import Invalid
 
 if TYPE_CHECKING:
     from ..store import Store

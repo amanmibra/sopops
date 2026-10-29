@@ -1,4 +1,4 @@
-"""Files, validation, rendering and lint: the sopc folder as the API shows it."""
+"""Files, validation, rendering and lint: the sop folder as the API shows it."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ from .base import BaseModel, Files
 
 
 class FilesRequest(BaseModel):
-    files: Files = Field(description="Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.")
+    files: Files = Field(description="Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.")
 
 
 class IssueOut(BaseModel):
     code: str
-    message: str = Field(description="sopc's message.")
-    path: str = Field(description="Relative to the sopc folder; empty for folder-wide issues.")
+    message: str = Field(description="sop's message.")
+    path: str = Field(description="Relative to the sop folder; empty for folder-wide issues.")
     severity: Literal["error", "warning"]
     kind: Literal["agent", "instruction", "procedure", "group", "settings"] | None = Field(None, description="The item the issue is about, if known.")
     id: str | None = None
@@ -41,7 +41,7 @@ class RenderedAgent(BaseModel):
 
 class RenderResponse(BaseModel):
     agents: dict[str, RenderedAgent]
-    lock: dict[str, Any] = Field(description="sopc's build/lock.json.")
+    lock: dict[str, Any] = Field(description="sop's build/lock.json.")
     warnings: list[IssueOut]
 
 

@@ -49,7 +49,7 @@ def test_an_outage_uses_the_last_good_copy(client):
     ins = run(client.fetch_instructions("tonys-pizza"))
     assert ins.source == "cache" and ins.text == "You are Tony's." and ins.release == 3
 
-    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(503, json={"detail": "sopc unavailable"}))
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(503, json={"detail": "sop unavailable"}))
     assert run(client.fetch_instructions("tonys-pizza")).source == "cache"
 
     # a pinned release is cached on its own

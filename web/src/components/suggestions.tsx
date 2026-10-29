@@ -339,7 +339,7 @@ export function SuggestionView({ id }: { id: string }) {
       {s.status === "generating" && (
         <Banner>
           <span className="inline-flex items-center gap-2">
-            <Loader2 className="size-4 animate-spin" /> Being written and checked with sopc. This page updates when it's ready.
+            <Loader2 className="size-4 animate-spin" /> Being written and checked with sop. This page updates when it's ready.
           </span>
         </Banner>
       )}

@@ -1,7 +1,7 @@
 """The review of an import as summaries, so it reads the same at 5 agents or 100: one line of counts, then the
 disagreements, the variables, which agents use or miss each proposed block, each agent's unique text, and fidelity.
 
-Groups come from `sopc overlap --json` on the original prompts (shared text, near-copies, variables, text most agents
+Groups come from `sop overlap --json` on the original prompts (shared text, near-copies, variables, text most agents
 have but some lack, text only one agent has), with stable 12-hex ids, so a reviewer's decisions (`Proposal.decisions`,
 keyed by those ids) survive a re-run. Drift the extraction proposed that overlap doesn't find (a paraphrased conflict)
 is listed as suggested by the model.
@@ -31,7 +31,7 @@ def _variant_agents(group: dict[str, Any]) -> list[tuple[str, list[str]]]:
 
 
 def disagreements(proposal: Proposal, overlap: dict[str, Any]) -> list[dict[str, Any]]:
-    """Rule-word drift from sopc overlap (majority wording against the outliers, the smallest minority first), then
+    """Rule-word drift from sop overlap (majority wording against the outliers, the smallest minority first), then
     drift the extraction found that overlap doesn't (suggested by the model)."""
     out = []
     seen_texts: set[str] = set()
@@ -67,7 +67,7 @@ def disagreements(proposal: Proposal, overlap: dict[str, Any]) -> list[dict[str,
 
 def variables(proposal: Proposal, overlap: dict[str, Any]) -> list[dict[str, Any]]:
     """Every variable × agent: the proposal's (named by the model), then overlap's that the proposal doesn't have
-    (named by sopc's heuristic, a default to rename)."""
+    (named by sop's heuristic, a default to rename)."""
     names = list(dict.fromkeys([*proposal.settings.variables, *(n for a in proposal.agents for n in a.variables)]))
     rows = [{"name": n, "values": {a.id: a.variables.get(n, proposal.settings.variables.get(n)) for a in proposal.agents}, "source": "proposal", "id": None} for n in names]
     have = {tuple(sorted((k, tx.norm(v or "")) for k, v in r["values"].items() if v)) for r in rows}

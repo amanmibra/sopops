@@ -38,7 +38,7 @@ flowchart LR
 4. **Review** the patterns: a real mistake, acceptable, the procedure is wrong, or sopops is wrong.
 5. **Fix** with a suggested edit, compiled and shown as a diff of each agent's instructions. Apply it as a draft or a GitHub pull request.
 
-sopops is built on [sopc](https://github.com/amanmibra/sopc), and compiles with the sopc binary, so its output matches the CLI byte for byte.
+sopops is built on [sop](https://github.com/sopops-dev/sop), and compiles with the sop binary, so its output matches the CLI byte for byte.
 
 ## Quickstart
 
@@ -49,11 +49,11 @@ docker compose up --build   # sopops and Postgres on http://127.0.0.1:8484
 
 Open http://127.0.0.1:8484 and follow the setup steps. To check calls, set a model ([Models](docs/sessions-and-review.md#models)).
 
-Without Docker, with [sopc](https://github.com/amanmibra/sopc) v0.0.18 or later:
+Without Docker, with [sop](https://github.com/sopops-dev/sop) v0.1.0 or later:
 
 ```sh
 uv sync && pnpm -C web install && pnpm -C web build
-SOPC_BIN=/path/to/sopc uv run sopops   # SQLite in ./sopops.db
+SOP_BIN=/path/to/sop uv run sopops   # SQLite in ./sopops.db
 ```
 
 To see the whole loop first, [the walkthrough](examples/walkthrough/WALKTHROUGH.md) sends 300 synthetic calls with planted failures through it. `just examples/walkthrough/all` runs it in about a minute with fake models, no keys needed.
@@ -82,7 +82,7 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8484 --env SOPOPS_TOKEN=
   && claude "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 ```
 
-Your coding agent finds the instructions wherever they live, splits them into blocks and sends a proposal. Every agent is compared with its original sentence by sentence, so nothing is dropped silently. You review it step by step and apply it as drafts. You can also paste instructions, upload them, read them from ElevenLabs or Vapi, or import a sopc project. [More on importing](docs/import.md).
+Your coding agent finds the instructions wherever they live, splits them into blocks and sends a proposal. Every agent is compared with its original sentence by sentence, so nothing is dropped silently. You review it step by step and apply it as drafts. You can also paste instructions, upload them, read them from ElevenLabs or Vapi, or import a sop project. [More on importing](docs/import.md).
 
 ## Connect your agent
 
@@ -126,7 +126,7 @@ Every guide is also at [docs.sopops.dev](https://docs.sopops.dev), with search.
 
 | | |
 |---|---|
-| [Import](docs/import.md) | Coding agents, sopc projects, paste and platform import |
+| [Import](docs/import.md) | Coding agents, sop projects, paste and platform import |
 | [Connect](docs/connect.md) | SDKs, webhooks, no-code capture, backfilling the last 7 days, tokens |
 | [A/B tests](docs/ab-tests.md) | Compare versions of an agent: models, voices, prompts |
 | [Sessions and review](docs/sessions-and-review.md) | The check pipeline, patterns, verdicts, suggestions, models and spend |

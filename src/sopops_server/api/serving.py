@@ -36,7 +36,7 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
     @r.get("/v1/workspaces/{workspace}/agents/{agent}", response_model=AgentOut, dependencies=fetch_auth, tags=["serving"])
     def get_agent(workspace: str, agent: str, release: int | None = Query(None, description="Pin a release (e.g. for A/B); default: current."),
                   platform: str | None = Query(None, description="Scope a raw platform id to this platform, e.g. `livekit`.")) -> dict:
-        """What to load at call start. `agent` is the sopc id, platform ref, or a platform id when `platform` scopes it. Logs a fetch."""
+        """What to load at call start. `agent` is the sop id, platform ref, or a platform id when `platform` scopes it. Logs a fetch."""
         served = store.agent(workspace, agent, release, platform)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
         return {"agent": served["agent"], "release": served["release"], **released(served)}
@@ -46,14 +46,15 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         response_class=PlainTextResponse,
         dependencies=fetch_auth,
         tags=["serving"],
-        responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers."}},
+        responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash)."}},
     )
     def get_prompt(workspace: str, agent: str, response: Response, release: int | None = None, platform: str | None = None) -> str:
         """Just the instructions text. Logs a fetch."""
         served = store.agent(workspace, agent, release, platform)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
-        response.headers["X-Sopc-Release"] = str(served["release"])
-        response.headers["X-Sopc-Hash"] = served["hash"]
+        for prefix in ("X-Sop", "X-Sopc"):  # X-Sopc-*: the old names, still sent for clients that read them
+            response.headers[f"{prefix}-Release"] = str(served["release"])
+            response.headers[f"{prefix}-Hash"] = served["hash"]
         return served["prompt"]
 
     @r.get("/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}", response_model=dict[str, Any], dependencies=fetch_auth, tags=["serving"])
@@ -65,7 +66,7 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         return served["sops"][sop_id]
 
     @r.get("/v1/workspaces/{workspace}/fetches", response_model=list[FetchOut], dependencies=OPEN, tags=["serving"])
-    def list_fetches(workspace: str, agent: str | None = Query(None, description="sopc agent id."), limit: int = Query(100, ge=1, le=1000)) -> list[dict]:
+    def list_fetches(workspace: str, agent: str | None = Query(None, description="sop agent id."), limit: int = Query(100, ge=1, le=1000)) -> list[dict]:
         """Which release and instructions hash each agent was served, newest first."""
         return store.fetches(workspace, agent, limit)
 

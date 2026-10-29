@@ -17,7 +17,7 @@ from test_onboarding import FIXTURES, sources
 from sopops_server.onboarding.pipeline import extract
 from sopops_server.onboarding.rules import RulesModels
 
-TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sopc_project",
+TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sop_project", "write_sopc_project",
          "list_sops", "get_sop", "get_sop_settings", "save_sop", "save_sop_settings", "delete_sop", "get_sop_history", "get_sop_version", "preview_agent"}
 
 
@@ -69,7 +69,7 @@ def test_without_sopops_only_the_platform_tools_work():
         call(server, "list_platform_agents", platform="elevenlabs")
 
 
-def test_extraction_fidelity_and_sopc_project_through_sopops(client, tmp_path, monkeypatch):
+def test_extraction_fidelity_and_sop_project_through_sopops(client, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     _, server = connected(client)
     guide = call(server, "get_extraction_guide")
@@ -82,9 +82,9 @@ def test_extraction_fidelity_and_sopc_project_through_sopops(client, tmp_path, m
     proposal = built_proposal()
     fid = call(server, "check_fidelity", proposal=proposal, originals=proposal["originals"])
     assert [f["ok"] for f in fid["fidelity"]] == [True] * 4
-    written = call(server, "write_sopc_project", proposal=proposal, path="sops")
-    assert not written["issues"] and not [i for i in written["sopc_validate"] if i["severity"] == "error"]
-    assert (tmp_path / "sops" / "sopc.yaml").exists() and (tmp_path / "sops" / "agents" / "golden-wok.yaml").exists()
+    written = call(server, "write_sop_project", proposal=proposal, path="sops")
+    assert not written["issues"] and not [i for i in written["sop_validate"] if i["severity"] == "error"]
+    assert (tmp_path / "sops" / "sop.yaml").exists() and (tmp_path / "sops" / "agents" / "golden-wok.yaml").exists()
     assert "vapi:" in (tmp_path / "sops" / "agents" / "golden-wok.yaml").read_text()
 
 

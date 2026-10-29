@@ -386,7 +386,7 @@ export function ChangesView() {
       )}
       {d.lint.length > 0 && (
         <Banner tone="warn" className="mt-4">
-          Possible duplicates or conflicts, found by sopc lint (these don't block publishing; decide which text is right):
+          Possible duplicates or conflicts, found by sop lint (these don't block publishing; decide which text is right):
           <LintList findings={d.lint} />
         </Banner>
       )}
@@ -553,7 +553,7 @@ export function ReleaseView({ number }: { number: number }) {
   );
 }
 
-// --- converting an older sopc format ---------------------------------------------------
+// --- converting an older sop format ---------------------------------------------------
 
 export function ConvertView() {
   const { ws, legacy } = useWs();
@@ -563,7 +563,7 @@ export function ConvertView() {
   const plan = useQuery({ queryKey: ["ws", ws, "migrate-plan"], queryFn: () => call(sdk.migrate({ path: { workspace: ws }, body: {} })) });
   const convert = async () => {
     try {
-      await call(sdk.migrate({ path: { workspace: ws }, body: { apply: true, author: author(), note: "Converted with sopc migrate" } }));
+      await call(sdk.migrate({ path: { workspace: ws }, body: { apply: true, author: author(), note: "Converted with sop migrate" } }));
       toast.success("Converted. The new files are a draft: check the changes, then publish.");
       await refresh(qc, ws);
       go(wsHref(ws, "changes"));
@@ -576,8 +576,8 @@ export function ConvertView() {
       <PageTitle>Convert your team's files</PageTitle>
       <Sub>
         {legacy === "removed_field"
-          ? `Some shared instructions or procedures here are marked locked, a setting sopc no longer has. Converting runs sopc migrate, which removes it. No agent's instructions change.`
-          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sopc migrate: every agent's instructions stay the same, except that its own text moves to the top.`}
+          ? `Some shared instructions or procedures here are marked locked, a setting sop no longer has. Converting runs sop migrate, which removes it. No agent's instructions change.`
+          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sop migrate: every agent's instructions stay the same, except that its own text moves to the top.`}
       </Sub>
       {plan.isPending ? (
         <p className="text-muted-foreground">Checking what converting changes…</p>

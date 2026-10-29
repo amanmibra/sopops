@@ -23,7 +23,7 @@ walkthrough/
 
 ## Quick start
 
-From the repo root, with [just](https://github.com/casey/just) (`brew install just`, `cargo install just` or `uv tool install rust-just`), [sopc](https://github.com/amanmibra/sopc) v0.0.17 or later on `PATH` (or `SOPC_BIN`) and the UI built once (`pnpm -C web install && pnpm -C web build`):
+From the repo root, with [just](https://github.com/casey/just) (`brew install just`, `cargo install just` or `uv tool install rust-just`), [sop](https://github.com/sopops-dev/sop) v0.1.0 or later on `PATH` (or `SOP_BIN`) and the UI built once (`pnpm -C web install && pnpm -C web build`):
 
 ```sh
 just examples/walkthrough/all          # fake mode: no keys, no cost, about a minute
@@ -60,7 +60,7 @@ just examples/walkthrough/demo-preview                           # http://127.0.
 | What answers the model calls | `fake_models.py`: a keyword checker that knows the generator's phrasings, through `sopops.ai.fakes` | your models, from the environment |
 | Cost, network | none | see below |
 | Findings | exactly the planted ones (verify.py expects 100%) | what the model finds (verify.py expects 70% recall and precision per rule) |
-| What it shows | every page, the whole pipeline around the models (routing, checks, rollup, findings, patterns split into failure modes, assignment, themes, verdicts, suppression, suggestions compiled by sopc, Insights), on data with a known answer | how well a real checker and reviewer do on the same calls |
+| What it shows | every page, the whole pipeline around the models (routing, checks, rollup, findings, patterns split into failure modes, assignment, themes, verdicts, suppression, suggestions compiled by sop, Insights), on data with a known answer | how well a real checker and reviewer do on the same calls |
 | What it doesn't | anything about model quality: the fake can't misread a call it wasn't scripted for, and its suggestions are canned edits | |
 
 Fake mode checks every rule with the scripted reviewer (`SOPOPS_CHECK_MODE=review`), names each failure mode after the checker's reason, and is naive on purpose about one thing: it flags the word "safe" even when the agent says it *can't* promise a dish is safe. That pattern is there for a `checker_wrong` verdict. A real reviewer should mostly not flag those calls, and verify.py checks that in real mode.
@@ -105,7 +105,7 @@ claude mcp add sopops --env SOPOPS_URL=http://127.0.0.1:8585 --env SOPOPS_TOKEN=
 
 (To run the MCP server from this clone instead of GitHub's `main`, start sopops with `SOPOPS_MCP_SOURCE="$PWD/sdks/python[mcp]"` from the repo root; the command then says `--from <your clone>/sdks/python[mcp]`.) The agent reads `prompts.py`, builds a proposal with the `sopops-mcp` tools, checks fidelity and pushes it; you watch its progress on the import page. Expect roughly what `onboarding/proposal.json` holds: 4 agents, 3 shared instructions, 3 procedures (4 until the drift is resolved), variables for the restaurant name, allergen link and who to transfer to.
 
-This is **In sopops** (hosted) mode, which leaves the repo alone. **In my repo too** keeps the instructions in a GitHub repository as well: connect it on the same page (the form from Settings → GitHub; the folder defaults to `sops`), and sopops looks there first. A sopc project sopc builds is offered with **Import it**; with none, the kickoff also tells the agent to open the onboarding pull request adding `sops/` and report it, and the import page follows that PR: when you merge it, sopops pulls `sops/` into drafts and says **Publish your first release**. A folder sopc can't build shows sopc's errors, to import it anyway and fix it, or have the agent rewrite it. The walkthrough's sample repo isn't on GitHub, so the steps below stay hosted.
+This is **In sopops** (hosted) mode, which leaves the repo alone. **In my repo too** keeps the instructions in a GitHub repository as well: connect it on the same page (the form from Settings → GitHub; the folder defaults to `sops`), and sopops looks there first. A sop project sop builds is offered with **Import it**; with none, the kickoff also tells the agent to open the onboarding pull request adding `sops/` and report it, and the import page follows that PR: when you merge it, sopops pulls `sops/` into drafts and says **Publish your first release**. A folder sop can't build shows sop's errors, to import it anyway and fix it, or have the agent rewrite it. The walkthrough's sample repo isn't on GitHub, so the steps below stay hosted.
 
 **Without a coding agent.** Push the prepared proposal over the same API, with the originals built by `prompts.py` itself:
 
@@ -121,13 +121,13 @@ just examples/walkthrough/onboard-publish  # resolve the drift, apply, publish r
 
 Expected: release 1 at `/w/walkthrough/releases`, and each agent's instructions at `/w/walkthrough/agents/<agent>/prompt`, the same text `prompts.py` built (fidelity 100%).
 
-**Or: from an existing sopc project.** A team that already keeps its instructions as a sopc project (or exports one from wherever its agents' instructions live, a database say) onboards without a coding agent. `onboarding/sops/` is that project for these four agents, with the shared allergen wording already chosen. In **Instructions → Import**, choose **A sopc project** and pick that folder (or, with a GitHub repository connected, read it from there), then **Add original** for each agent with the prompt `prompts.py` builds. The import page shows, per agent, the share of the original's sentences kept, how many rules appear word for word, how similar the two texts are, and the lines that are missing: Bayleaf and Juniper keep everything; both Copper Woks lose their own wording of the allergen never rule (9 of 10 rules word for word, 1 line missing), which is the drift the team settled. **Apply as drafts** writes exactly the project's files; publish as usual. The script does all of it:
+**Or: from an existing sop project.** A team that already keeps its instructions as a sop project (or exports one from wherever its agents' instructions live, a database say) onboards without a coding agent. `onboarding/sops/` is that project for these four agents, with the shared allergen wording already chosen. In **Instructions → Import**, choose **A sop project** and pick that folder (or, with a GitHub repository connected, read it from there), then **Add original** for each agent with the prompt `prompts.py` builds. The import page shows, per agent, the share of the original's sentences kept, how many rules appear word for word, how similar the two texts are, and the lines that are missing: Bayleaf and Juniper keep everything; both Copper Woks lose their own wording of the allergen never rule (9 of 10 rules word for word, 1 line missing), which is the drift the team settled. **Apply as drafts** writes exactly the project's files; publish as usual. The script does all of it:
 
 ```sh
-just examples/walkthrough/onboard-sopc     # instead of onboard: import onboarding/sops/ with the originals, apply, publish release 1
+just examples/walkthrough/onboard-sop     # instead of onboard: import onboarding/sops/ with the originals, apply, publish release 1
 ```
 
-`WALKTHROUGH_ONBOARD=sopc just examples/walkthrough/all` runs the whole walkthrough this way; the release and everything after it are the same.
+`WALKTHROUGH_ONBOARD=sop just examples/walkthrough/all` runs the whole walkthrough this way; the release and everything after it are the same.
 
 ### 3. Switch the agent to fetch its instructions
 
@@ -201,7 +201,7 @@ Posts the 200 calls with the SDK (`SopOps.post_session`, 8 at a time), each conv
 - "Used the word safe while declining to promise it" (fake mode): **Checker is wrong**. Suppressed, and kept as negative calibration labels.
 - The other patterns: **Real mistake**, no suggestion asked for.
 
-**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sopc, showing how it changes each agent's instructions. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected under **the gear icon** (Settings), open each as a pull request instead.
+**Suggestions** (`/w/walkthrough/suggestions`): one edit per suggestion, each compiled with sop, showing how it changes each agent's instructions. The delivery one rewords the rule to "Never tell the caller a delivery time before the delivery zone check confirms the address"; the allergen one adds guidance about what to say when a caller asks whether a dish is safe. **Save as draft** on each (`just examples/walkthrough/review-apply`), or, with a GitHub repository connected under **the gear icon** (Settings), open each as a pull request instead.
 
 **Instructions → Changes** (`/w/walkthrough/changes`) shows the two procedure edits and how each agent's instructions change. Publish them as release 2 (`just examples/walkthrough/review-publish`). `just examples/walkthrough/review` does all three; it also saves the regression cases of two patterns (`…/patterns/<id>/regression`) to `out/regression-*.jsonl`.
 

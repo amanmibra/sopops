@@ -7,11 +7,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.fakes import FakeModels, FakeSystemOne
 from sopops_server.ai.signatures import CheckRules, field_name
 from sopops_server.insights import Filters, compare_flag, delta_points, pct, wilson
@@ -52,17 +52,17 @@ def decide(state, questions):
 def env(tmp_path_factory, request):
     from conftest import FIXTURE, read_files
 
-    if not SOPC_BIN:
-        pytest.skip("needs sopc")
+    if not SOP_BIN:
+        pytest.skip("needs sop")
     tmp = tmp_path_factory.mktemp("insights")
-    store = Store(fresh_db_url(tmp), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp), Sop(SOP_BIN))
     os.environ["SOPOPS_CHECK_MODE"] = "review"  # the sessions are all processed here, during setup
     request.addfinalizer(lambda: os.environ.pop("SOPOPS_CHECK_MODE", None))
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=FakeModels(model, FakeSystemOne(decide)))))
     files = read_files(FIXTURE / "sops")
     client.put(f"{WS}/files", json={"files": files})
     client.post(f"{WS}/releases", json={})
-    # release 2: new guidance, same rules (rule ids come from sopc and stay the same)
+    # release 2: new guidance, same rules (rule ids come from sop and stay the same)
     proc = files["procedures/allergen-check.yaml"].replace("Parents often ask", "Parents and carers often ask")
     client.put(f"{WS}/files", json={"files": {**files, "procedures/allergen-check.yaml": proc}})
     assert client.post(f"{WS}/releases", json={}).json()["release"]["number"] == 2

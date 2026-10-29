@@ -7,11 +7,11 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 
-from sopops_server import Sopc, Store, configs, create_app
+from sopops_server import Sop, Store, configs, create_app
 from sopops_server.ai.fakes import FakeModels, FakeSystemOne
 from sopops_server.ai.signatures import CheckRules, field_name
 from sopops_server.capture import agent_config
@@ -105,10 +105,10 @@ def decide(state, questions):
 def env(tmp_path_factory, request):
     from conftest import FIXTURE, read_files
 
-    if not SOPC_BIN:
-        pytest.skip("needs sopc")
+    if not SOP_BIN:
+        pytest.skip("needs sop")
     tmp = tmp_path_factory.mktemp("versions")
-    store = Store(fresh_db_url(tmp), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp), Sop(SOP_BIN))
     os.environ["SOPOPS_CHECK_MODE"] = "review"
     request.addfinalizer(lambda: os.environ.pop("SOPOPS_CHECK_MODE", None))
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=FakeModels(model, FakeSystemOne(decide)))))

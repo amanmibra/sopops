@@ -33,7 +33,7 @@ def test_validate_render_lint(client, files):
     res = client.post("/v1/render", json={"files": broken})
     assert res.status_code == 422 and res.json()["issues"][0]["path"] == "agents/tonys-pizza.yaml"
 
-    no_config = {p: c for p, c in files.items() if p != "sopc.yaml"}
+    no_config = {p: c for p, c in files.items() if p != "sop.yaml"}
     assert client.post("/v1/validate", json={"files": no_config}).json()["issues"][0]["code"] == "missing_config"
 
     dup = {**files, "instructions/closing.md": files["instructions/closing.md"] + "\nSpeak warmly and briefly.\n"}
@@ -42,7 +42,7 @@ def test_validate_render_lint(client, files):
     assert client.post("/v1/lint", json={"files": broken}).status_code == 422
 
 
-@pytest.mark.parametrize("path", ["/etc/passwd", "../x.md", "instructions/../../x.md", "instructions//x.md", "./sopc.yaml", "bases\\x.md", "C:/x.md"])
+@pytest.mark.parametrize("path", ["/etc/passwd", "../x.md", "instructions/../../x.md", "instructions//x.md", "./sop.yaml", "bases\\x.md", "C:/x.md"])
 def test_unsafe_paths_are_rejected(client, files, path):
     res = client.post("/v1/validate", json={"files": {**files, path: "x"}}).json()
     assert res["valid"] is False and res["issues"][0]["code"] == "unsafe_path"
@@ -97,7 +97,7 @@ def test_edit_draft_release_fetch_rollback(client, files):
     assert agent["tool_sops"] == ["large-orders"]
     components = {c["path"]: c["version"] for c in agent["components"]}
     assert components["instructions/brand-voice.md"] == 2 and components["instructions/pizza-context.md"] == 1
-    assert components["procedures/large-orders.yaml"] == 1 and components["sopc.yaml"] == 1
+    assert components["procedures/large-orders.yaml"] == 1 and components["sop.yaml"] == 1
     assert components["agents/tonys-pizza.yaml"] == 1
     assert "procedures/reservations.yaml" not in components
 
@@ -105,7 +105,7 @@ def test_edit_draft_release_fetch_rollback(client, files):
     pinned = client.get(f"{WS}/agents/tonys-pizza", params={"release": 1}).json()
     assert pinned["prompt"] == expected("tonys-pizza.prompt.md") and pinned["release"] == 1
     res = client.get(f"{WS}/agents/tonys-pizza/prompt", params={"release": 1})
-    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sopc-Release"] == "1"
+    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sop-Release"] == res.headers["X-Sopc-Release"] == "1"
 
     fetches = client.get(f"{WS}/fetches", params={"agent": "tonys-pizza"}).json()
     assert [(f["release"], f["hash"]) for f in fetches] == [(1, pinned["hash"]), (1, pinned["hash"]), (2, agent["hash"]), (1, pinned["hash"])]
@@ -114,7 +114,7 @@ def test_edit_draft_release_fetch_rollback(client, files):
     # Roll back.
     assert client.post(f"{WS}/releases/1/activate").json() == {"workspace": "demo", "current_release": 1}
     res = client.get(f"{WS}/agents/tonys-pizza/prompt")
-    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sopc-Hash"] == pinned["hash"]
+    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sop-Hash"] == pinned["hash"]
     assert [(r["number"], r["current"]) for r in client.get(f"{WS}/releases").json()] == [(2, False), (1, True)]
     assert client.post(f"{WS}/releases/9/activate").status_code == 404
 
@@ -183,7 +183,7 @@ def test_git_publish_replace_and_export(client, files):
     assert {c["path"] for c in body["changed"]} == {"procedures/reservations.yaml", "agents/luigis-trattoria.yaml", "agents/sakura-sushi.yaml"}
     assert "### Reservations" not in client.get(f"{WS}/agents/sakura-sushi/prompt").text
 
-    broken = {**files, "sopc.yaml": "version: [\n"}
+    broken = {**files, "sop.yaml": "version: [\n"}
     res = client.post(f"{WS}/publish", json={"files": broken})
     assert res.status_code == 422 and res.json()["issues"][0]["code"] == "invalid_yaml"
     assert client.get(f"{WS}/releases").json()[0]["number"] == 2

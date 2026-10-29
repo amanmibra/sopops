@@ -32,7 +32,7 @@ class CreateImport(BaseModel):
 
 
 class ProjectImport(BaseModel):
-    files: dict[str, str] | None = Field(None, description="The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored.")
+    files: dict[str, str] | None = Field(None, description="The sop project's files, by path relative to its folder (the one with sop.yaml). build/ is ignored.")
     from_repo: bool = Field(False, description="Read the project from the workspace's GitHub repository (its branch's head, its folder) instead of `files`.")
     originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original instructions, by agent id, to check the project against (optional).")
     author: str | None = None
@@ -54,7 +54,7 @@ class PlatformAgent(BaseModel):
 
 class AgentImportRequest(BaseModel):
     mode: Literal["hosted", "repo"] = Field("hosted", description="hosted: instructions live in sopops. repo: they live in the workspace's connected "
-                                            "GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.")
+                                            "GitHub repository too; unless its folder already holds a project sop builds, the agent opens a pull request adding it.")
     server_url: str | None = Field(None, description="The URL the coding agent reaches sopops at. Default: this request's base URL.")
     author: str | None = None
 
@@ -77,12 +77,12 @@ class AgentClient(BaseModel):
 class ImportOut(BaseModel):
     id: str
     workspace: str
-    source: Literal["llm", "agent", "sopc"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project.")
+    source: Literal["llm", "agent", "sopc"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0).")
     status: Literal["waiting", "running", "ready", "failed", "applied", "discarded"]
     mode: str
     repo: str | None = Field(description="Repo mode: the connected repository (owner/name).")
     repo_branch: str | None
-    repo_path: str | None = Field(description="Repo mode: the sopc project's folder; empty for the root.")
+    repo_path: str | None = Field(description="Repo mode: the sop project's folder; empty for the root.")
     repo_project: Literal["missing", "invalid", "valid"] | None = Field(description="Repo mode: what the folder held when the import started.")
     pr_url: str | None = Field(description="The onboarding pull request the coding agent opened.")
     pr_state: Literal["open", "merged", "closed"] | None = Field(description="Followed on GitHub. Merged: the folder was pulled into drafts.")
@@ -246,9 +246,9 @@ class ProjectIn(BaseModel):
 
 
 class ProjectOut(BaseModel):
-    files: dict[str, str] = Field(description="The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/.")
+    files: dict[str, str] = Field(description="The sop project's files by path: sop.yaml, instructions/, procedures/, agents/.")
     issues: list[dict[str, Any]] = Field(description="Problems that kept items from being written.")
-    validation: list[dict[str, Any]] = Field(description="`sopc validate` on the files.")
+    validation: list[dict[str, Any]] = Field(description="`sop validate` on the files.")
 
 
 # --- the review, as summaries ----------------------------------------------------------------------------------------
@@ -270,8 +270,8 @@ class WordingGroup(BaseModel):
 
 
 class Disagreement(BaseModel):
-    id: str = Field(description="sopc overlap's group id (stable across runs), or the extraction's finding id.")
-    source: Literal["overlap", "model"] = Field(description="overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict).")
+    id: str = Field(description="sop overlap's group id (stable across runs), or the extraction's finding id.")
+    source: Literal["overlap", "model"] = Field(description="overlap: a rule word differs (sop); model: suggested by the model (a paraphrased conflict).")
     majority: WordingGroup
     outliers: list[WordingGroup]
     minority: int = Field(description="How many agents aren't in the majority.")
@@ -282,7 +282,7 @@ class Disagreement(BaseModel):
 class VariableRow(BaseModel):
     name: str
     values: dict[str, str | None] = Field(description="Each agent's value.")
-    source: Literal["proposal", "overlap"] = Field(description="proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default).")
+    source: Literal["proposal", "overlap"] = Field(description="proposal: named by the model; overlap: found by sop and not in the proposal (its name is a default).")
     id: str | None
 
 

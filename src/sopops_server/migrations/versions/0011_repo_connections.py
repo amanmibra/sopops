@@ -1,4 +1,4 @@
-"""Repo connections: a workspace's GitHub repository, to pull its sopc project and open pull requests.
+"""Repo connections: a workspace's GitHub repository, to pull its sop project and open pull requests.
 
 Revision ID: 0011
 Revises: 0010

@@ -1,6 +1,6 @@
 ---
 name: sopops-onboard
-description: Onboard a team's voice agents into sopops from their repo. Finds every agent's instructions (code, prompt files, config, a database, or ElevenLabs/Vapi), extracts agent context, shared instructions and procedures with the sopops-mcp tools, checks fidelity, pushes the proposal to sopops for review, and optionally opens a PR adding a sopc project at sops/. Use when the user asks to onboard, import or migrate agents' instructions (prompts) into sopops, or pastes a sopops kickoff prompt.
+description: Onboard a team's voice agents into sopops from their repo. Finds every agent's instructions (code, prompt files, config, a database, or ElevenLabs/Vapi), extracts agent context, shared instructions and procedures with the sopops-mcp tools, checks fidelity, pushes the proposal to sopops for review, and optionally opens a PR adding a sop project at sops/. Use when the user asks to onboard, import or migrate agents' instructions (prompts) into sopops, or pastes a sopops kickoff prompt.
 ---
 
 # Onboard voice agents into sopops
@@ -40,10 +40,10 @@ Cursor (`.cursor/mcp.json`):
 | `list_platform_agents(platform)` | ElevenLabs or Vapi agents, with the key from the environment. |
 | `get_agent_prompt(platform, id)` | One agent's instructions and tool names. |
 | `propose_extraction(prompts)` | The extraction guide (`instructions`) plus each agent's instructions split into numbered units for you to classify, and the originals by agent id. |
-| `check_fidelity(proposal, originals)` | Compiles each agent with sopc and lists missing or changed sentences against its original. |
+| `check_fidelity(proposal, originals)` | Compiles each agent with sop and lists missing or changed sentences against its original. |
 | `push_to_sopops(proposal, originals, findings?, notes?)` | Sends the proposal for review. Each push replaces the last. Nothing is published. |
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
-| `write_sopc_project(proposal, path)` | Writes the proposal as a sopc project (default `sops/`), as sopops's sopc writes it, with `sopc validate`'s result. |
+| `write_sop_project(proposal, path)` | Writes the proposal as a sop project (default `sops/`), as sopops's sop writes it, with `sop validate`'s result. Older sopops-mcp versions call it `write_sopc_project`. |
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
 | `get_ab_test_guide()` | How to set up an A/B test of an agent's models, voice or instructions (the sopops-ab-tests skill). |
 | `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |
@@ -66,13 +66,13 @@ Onboard this project's voice agents into the sopops workspace this session is fo
    often a row id from their own database, sometimes the LiveKit agent name. On ElevenLabs or Vapi it has to be the
    platform's own id, so pushes and webhooks match. If two places disagree, or you can't tell which value reaches
    the agent at call start, ask rather than guess: a wrong identifier means calls fetch the wrong instructions.
-   Keep the sopc id readable (`copper-wok-harbor`) and put the real identifier in `platform_id`; they don't have to
+   Keep the sop id readable (`copper-wok-harbor`) and put the real identifier in `platform_id`; they don't have to
    match, and sopops resolves either.
 3. Find every agent's instructions, wherever they live: agent code, prompt files, env or config, or a database (query it read-only with this project's existing tooling). For ElevenLabs or Vapi agents, `list_platform_agents` and `get_agent_prompt` read them if the key is set. Resolve templating so each original is the exact text the model gets. Note platform, platform id and tool names.
 4. Before you propose, ask the user how they want their instructions organized (e.g. "keep each restaurant's menu as its own block", "everything about refunds is one procedure"), and follow their answer when you split, group and name blocks, without dropping or rewording text; no preference means the defaults below. Build one proposal for all agents (or start from `propose_extraction`): each agent's own context, shared instructions, procedures (goal, when, steps with tool names, never, warning signs), `{{variables}}` for values that differ between agents, and findings for drift (agents that disagree on a rule). Keep the original wording; never drop text (text you can't place goes in the agent's context).
 5. Call `check_fidelity` with the proposal and the original instructions. Fix every missing or changed sentence and check again until each agent passes, or explain what's left.
 6. Call `push_to_sopops` with the proposal, the originals and your findings. Pushing again replaces what you pushed before. The person reviews it in sopops and applies it as drafts; you can't publish.
-7. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sopc project sopc can build): `write_sopc_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
+7. Repo mode only, when the session says to open the onboarding PR (the connected folder has no sop project sop can build): `write_sop_project` at that folder, then open a PR into that branch (`gh pr create`) with the agents, blocks, drift and fidelity scores, and call `report_pull_request` with its URL. When the session says sopops is connected through its GitHub App, call `open_pull_request` instead (no git or `gh`). Don't merge it.
 
 ## Many agents
 
@@ -93,7 +93,7 @@ workspace token that has the `config` scope (sopops Settings → Tokens) and `SO
 
 1. `list_sops` for what exists now, then `get_sop_settings` when defaults or placeholders might matter.
 2. `get_sop(kind, id)` for the item you mean to change, then `save_sop(kind, id, fields)` with the whole item, not a
-   patch. sopc checks every save, so one that wouldn't compile comes back with its issues.
+   patch. sop checks every save, so one that wouldn't compile comes back with its issues.
 3. For a shared instruction, procedure or group, inspect `used_by` and preview each affected agent with
    `preview_agent(agent)` before handing it off.
 4. Before deleting, inspect `used_by`, explain the effect, and get an explicit request. Use `delete_sop`; it creates

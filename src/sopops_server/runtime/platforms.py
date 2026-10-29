@@ -1,6 +1,6 @@
 """The ElevenLabs and Vapi APIs, as far as sopops uses them: read one agent, and replace its system prompt.
 
-Where each platform keeps the prompt matches sopc's import and verify:
+Where each platform keeps the prompt matches sop's import and verify:
 ElevenLabs `conversation_config.agent.prompt.prompt` (GET/PATCH /v1/convai/agents/<id>, `xi-api-key`);
 Vapi the `system` message in `model.messages` (GET/PATCH /assistant/<id>, `Authorization: Bearer`).
 Base URLs can be overridden with SOPOPS_ELEVENLABS_URL and SOPOPS_VAPI_URL (tests, proxies).
@@ -79,7 +79,7 @@ def live_prompt(platform: str, agent: dict) -> str | None:
 
 
 def elevenlabs_routed(agent: dict) -> int:
-    """Workflow nodes besides start and end: such an agent doesn't run the main prompt alone (as in sopc verify)."""
+    """Workflow nodes besides start and end: such an agent doesn't run the main prompt alone (as in sop verify)."""
     nodes = (agent.get("workflow") or {}).get("nodes") or {}
     return sum(1 for n in nodes.values() if isinstance(n, dict) and n.get("type") not in ("start", "end"))
 

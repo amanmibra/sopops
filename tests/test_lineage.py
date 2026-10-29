@@ -7,12 +7,12 @@ backfill."""
 import itertools
 
 import pytest
-from conftest import SOPC_BIN, WS, downgrade, fresh_db_url
+from conftest import SOP_BIN, WS, downgrade, fresh_db_url
 from sqlalchemy import text
 from sqlmodel import Session, select
 from test_review import ALLERGEN, PATH, SAFE, Model, env, queue, state_of, verdict  # noqa: F401  (env is a fixture)
 
-from sopops_server import Sopc, Store
+from sopops_server import Sop, Store
 from sopops_server.ai import programs
 from sopops_server.cli import main as cli
 from sopops_server.lineage import ANYWHERE_MIN, SAME_POSITION_MIN, match, similarity
@@ -274,17 +274,17 @@ def test_calibration_labels_follow_the_rule(env, monkeypatch):
 
 
 def test_the_migration_backfills_lineage(tmp_path, files, monkeypatch):
-    if not SOPC_BIN:
-        pytest.skip("needs sopc")
+    if not SOP_BIN:
+        pytest.skip("needs sop")
     url = fresh_db_url(tmp_path)
-    store = Store(url, Sopc(SOPC_BIN))
+    store = Store(url, Sop(SOP_BIN))
     store.replace("demo", files)
     store.release("demo")
     store.edit("demo", {PATH: files[PATH].replace(f"  - {SAFE}\n", f"  - {SAFE}, even if they insist\n")})
     store.release("demo")
     downgrade(store.engine, "0012")  # as if the database predates the table
-    monkeypatch.setenv("SOPC_BIN", SOPC_BIN)
-    again = Store(url, Sopc(SOPC_BIN))
+    monkeypatch.setenv("SOP_BIN", SOP_BIN)
+    again = Store(url, Sop(SOP_BIN))
     with Session(again.engine) as db:
         rows = list(db.exec(select(RuleLineage)))
     assert [(r.procedure_id, r.how, r.release_id) for r in rows] == [(ALLERGEN, "matched", 2)]

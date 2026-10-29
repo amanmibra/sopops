@@ -381,13 +381,13 @@ def test_a_client_reports_the_call_its_prompt_served(client, files, published):
 
 
 def test_cors_for_browser_clients(monkeypatch, tmp_path):
-    from conftest import SOPC_BIN
+    from conftest import SOP_BIN
     from fastapi.testclient import TestClient
 
-    from sopops_server import Sopc, Store, create_app
+    from sopops_server import Sop, Store, create_app
 
     monkeypatch.setenv("SOPOPS_CORS_ORIGINS", "https://app.example.com")
-    c = TestClient(create_app(Store(f"sqlite:///{tmp_path / 'c.db'}", Sopc(SOPC_BIN))))
+    c = TestClient(create_app(Store(f"sqlite:///{tmp_path / 'c.db'}", Sop(SOP_BIN))))
     pre = c.options(f"{WS}/agents/x", headers={"Origin": "https://app.example.com", "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"})
     assert pre.headers["access-control-allow-origin"] == "https://app.example.com"
     assert "access-control-allow-origin" not in c.get("/v1/workspaces", headers={"Origin": "https://evil.example"}).headers
@@ -399,9 +399,9 @@ def test_an_agent_answers_to_its_own_id_without_the_platform_prefix(client, file
         "platform": "livekit", "platform_id": "42", "context": "The harbor branch.", "blocks": [], "variables": {}})
     assert client.post(f"{WS}/releases").status_code == 200
 
-    by_sopc_id = client.get(f"{WS}/agents/copper-wok-harbor").json()
-    assert client.get(f"{WS}/agents/livekit:42").json()["agent"] == by_sopc_id["agent"]
-    assert client.get(f"{WS}/agents/42").json()["agent"] == by_sopc_id["agent"]
+    by_sop_id = client.get(f"{WS}/agents/copper-wok-harbor").json()
+    assert client.get(f"{WS}/agents/livekit:42").json()["agent"] == by_sop_id["agent"]
+    assert client.get(f"{WS}/agents/42").json()["agent"] == by_sop_id["agent"]
     assert client.get(f"{WS}/agents/43").status_code == 404
 
 
@@ -427,7 +427,7 @@ def test_phone_number_identifiers_match_however_they_are_written():
 
 
 def test_different_numbers_and_ordinary_ids_still_differ():
-    """Normalising numbers mustn't collapse two agents into one, or touch sopc ids and UUIDs."""
+    """Normalising numbers mustn't collapse two agents into one, or touch sop ids and UUIDs."""
     assert not same_ref("livekit:+14155550123", "livekit:+14155550124")
     assert not same_ref("livekit:+14155550123", "vapi:+14155550123")
     assert platform_id_key("copper-wok-harbor") != platform_id_key("copperwokharbor")

@@ -23,12 +23,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from conftest import SOPC_BIN, fresh_db_url
+from conftest import SOP_BIN, fresh_db_url
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, Store
+from sopops_server import Sop, Store
 from sopops_server.api import provider_webhooks
 from sopops_server.auth import providers, webhooks
 from sopops_server.auth.providers import LoginProvider
@@ -97,7 +97,7 @@ def octo(monkeypatch):
 
 @pytest.fixture
 def store(tmp_path):
-    return Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    return Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
 
 
 @pytest.fixture

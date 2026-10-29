@@ -10,12 +10,12 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.fakes import FakeModels, FakeSystemOne
 from sopops_server import github
 from sopops_server.ai import calibration
@@ -73,10 +73,10 @@ class Model:
 
 @pytest.fixture
 def env(tmp_path, files, monkeypatch):
-    if not SOPC_BIN:
-        pytest.skip("needs sopc")
+    if not SOP_BIN:
+        pytest.skip("needs sop")
     monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     model = Model()
     fake = FakeModels(model, FakeSystemOne(model.decide))
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))

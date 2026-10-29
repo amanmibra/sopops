@@ -29,7 +29,7 @@ Workspace
   those agents can list the group instead of every block in it.
 - **Settings** hold workspace-wide defaults for <code v-pre>{{placeholders}}</code>.
 
-Each piece is one file in a [sopc](https://github.com/amanmibra/sopc) folder.
+Each piece is one file in a [sop](https://github.com/sopops-dev/sop) folder.
 The forms in sopops and the [config API](api/agents-and-config.md) edit those
 files for you, so a workspace can also live in git and stay in sync ([Instructions in git](git.md)).
 
@@ -201,7 +201,7 @@ fetches the procedure.
 A named, ordered list of blocks that several agents share. An agent lists the
 group in its `blocks`, and it expands in place.
 
-**File:** the `groups` map in `sopc.yaml`.
+**File:** the `groups` map in `sop.yaml`.
 
 ```yaml
 groups:
@@ -224,7 +224,7 @@ agent's prompt changes.
 
 Workspace-wide defaults.
 
-**File:** `sopc.yaml`, which also marks the root of the sopc folder.
+**File:** `sop.yaml`, which also marks the root of the sop folder. A folder made before sop v0.1.0 calls it `sopc.yaml`; sop and sopops read either (`sop.yaml` wins if both are there), and sopops keeps the name a workspace or repository already has.
 
 ```yaml
 version: 1
@@ -256,7 +256,7 @@ returns its fields plus:
 |---|---|
 | `version` | The item's file version, counting every saved change. |
 | `updated_at`, `updated_by` | When and by whom the current version was saved. |
-| `file` | The sopc file it lives in, e.g. `procedures/allergen-check.md`. |
+| `file` | The sop file it lives in, e.g. `procedures/allergen-check.md`. |
 | `used_by` | Blocks and groups only: `[{agent, via}]`, each agent that gets it, and `via`, the group it comes through (null if listed directly). |
 
 Saving an item creates a **draft**. Nothing reaches an agent until someone
@@ -307,4 +307,4 @@ the agent had. That's what lets sopops compare releases and show whether a fix
 helped ([Releases](api/releases.md)).
 
 The complete file format, every validation error and the JSON Schemas are in
-sopc's [FORMAT.md](https://github.com/amanmibra/sopc/blob/main/FORMAT.md).
+sop's [FORMAT.md](https://github.com/sopops-dev/sop/blob/main/FORMAT.md).

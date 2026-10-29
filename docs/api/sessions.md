@@ -47,7 +47,7 @@ A new or changed session runs `process_session`.
 
 | Filter | Type | |
 |---|---|---|
-| `agent` | string | The sopc id, or the agent as sent. |
+| `agent` | string | The sop id, or the agent as sent. |
 | `channel`, `status`, `result`, `platform`, `release` | enum, int | Exact match. |
 | `since`, `until` | ISO 8601 | On `started_at`. |
 | `cursor` | string | The previous page's `next_cursor`. |
@@ -242,7 +242,7 @@ Requests are spaced out, and a `429` waits for `Retry-After` and tries again. Ea
 | `platform` | enum | Required. `livekit`, `elevenlabs` or `vapi`, or the transport: `otel`, `import`, `api`. |
 | `external_id` | string | Required, up to 256 characters. The platform's id for the session: a LiveKit job id (room names get reused), an ElevenLabs conversation id, a Vapi call id. With `platform`, it's the session's unique key in the workspace. |
 | `channel` | enum | `voice` (default) or `text`. |
-| `agent` | string | The sopc agent id, its platform ref (`livekit:tonys-pizza`) or its platform id on this platform. Matched against the given release (else the live one) and stored as `agent_id`; what was sent is kept as `agent_ref`. |
+| `agent` | string | The sop agent id, its platform ref (`livekit:tonys-pizza`) or its platform id on this platform. Matched against the given release (else the live one) and stored as `agent_id`; what was sent is kept as `agent_ref`. |
 | `release` | int | The sopops release the agent ran on (`release` from `GET /v1/workspaces/{ws}/agents/{agent}` at session start). An unknown release is dropped with a warning; the session is still stored. |
 | `version_ref` | string | The platform's own version of the agent: ElevenLabs `version_id`, Vapi `assistantVersion`. |
 | `started_at`, `ended_at` | ISO 8601 | `started_at` defaults to the first turn's time, else when it was received. |

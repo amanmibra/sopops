@@ -66,21 +66,32 @@ def test_not_connected():
 
 
 @respx.mock
-def test_write_sopc_project_writes_what_sopops_sends(tmp_path, monkeypatch):
+def test_write_sop_project_writes_what_sopops_sends(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    files = {"sopc.yaml": "variables: {}\n", "agents/a.yaml": "platform: livekit\n"}
-    respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": files, "issues": [], "validation": []}))
-    out = call(make_server(ENV), "write_sopc_project", proposal={}, path="sops")
-    assert out["issues"] == [] and out["sopc_validate"] == [] and len(out["written"]) == 2
+    files = {"sop.yaml": "variables: {}\n", "agents/a.yaml": "platform: livekit\n"}
+    issue = {"code": "x", "message": "m", "path": "sop.yaml", "severity": "warning"}
+    respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": files, "issues": [], "validation": [issue]}))
+    out = call(make_server(ENV), "write_sop_project", proposal={}, path="sops")
+    assert out["issues"] == [] and out["sop_validate"] == [issue] and len(out["written"]) == 2
+    assert out["sopc_validate"] == out["sop_validate"]  # the old field, for one release
     assert (tmp_path / "sops" / "agents" / "a.yaml").read_text() == "platform: livekit\n"
 
 
 @respx.mock
-def test_write_sopc_project_stays_in_its_folder(tmp_path, monkeypatch):
+def test_write_sopc_project_is_a_deprecated_alias(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    files = {"sopc.yaml": "variables: {}\n"}
+    respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": files, "issues": [], "validation": []}))
+    out = call(make_server(ENV), "write_sopc_project", proposal={}, path="sops")
+    assert out["sopc_validate"] == out["sop_validate"] == [] and (tmp_path / "sops" / "sopc.yaml").exists()
+
+
+@respx.mock
+def test_write_sop_project_stays_in_its_folder(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": {"../escape.txt": "x"}, "issues": [], "validation": []}))
     with pytest.raises(ToolError, match="outside"):
-        call(make_server(ENV), "write_sopc_project", proposal={}, path="sops")
+        call(make_server(ENV), "write_sop_project", proposal={}, path="sops")
     assert not (tmp_path / "escape.txt").exists()
 
 
@@ -187,7 +198,7 @@ def remote():
         if request.url.path == "/v1/onboarding/kickoff":
             return httpx.Response(200, json={"instructions": f"# Onboard ({request.url.params['server_url']})"})
         if request.url.path == "/v1/onboarding/project":
-            return httpx.Response(200, json={"files": {"sopc.yaml": "variables: {}\n"}, "issues": [], "validation": []})
+            return httpx.Response(200, json={"files": {"sop.yaml": "variables: {}\n"}, "issues": [], "validation": []})
         if request.url.path == "/v1/workspaces/prod/config/settings":
             return httpx.Response(200, json={"variables": {}})
         return httpx.Response(404, json={"detail": "not here"})
@@ -258,13 +269,15 @@ def test_remote_workspace_and_platform_keys_come_from_headers(remote):
     assert msg["result"]["isError"] and "x-vapi-api-key header" in msg["result"]["content"][0]["text"]  # not the server's env
 
 
-def test_remote_write_sopc_project_returns_the_files(remote, tmp_path, monkeypatch):
+def test_remote_write_sop_project_returns_the_files(remote, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     base, _ = remote
-    _, msg = rpc(base, "tools/call", {"name": "write_sopc_project", "arguments": {"proposal": {}, "path": "sops"}})
-    assert msg["result"]["structuredContent"]["files"] == {"sops/sopc.yaml": "variables: {}\n"}
+    for name in ("write_sop_project", "write_sopc_project"):  # the old name still works, for one release
+        _, msg = rpc(base, "tools/call", {"name": name, "arguments": {"proposal": {}, "path": "sops"}})
+        got = msg["result"]["structuredContent"]
+        assert got["files"] == {"sops/sop.yaml": "variables: {}\n"} and got["sop_validate"] == got["sopc_validate"] == []
     assert not list(tmp_path.iterdir())  # nothing written on the server
-    _, msg = rpc(base, "tools/call", {"name": "write_sopc_project", "arguments": {"proposal": {}, "path": "../elsewhere"}})
+    _, msg = rpc(base, "tools/call", {"name": "write_sop_project", "arguments": {"proposal": {}, "path": "../elsewhere"}})
     assert msg["result"]["isError"]
 
 

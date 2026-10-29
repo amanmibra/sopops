@@ -8,7 +8,7 @@ from sqlmodel import BigInteger, Column, DateTime, Field, SQLModel, Text
 
 
 class RepoConnection(SQLModel, table=True):
-    """A workspace's GitHub repository: the sopc project at `path` on `base_branch`, pulled into drafts, and where
+    """A workspace's GitHub repository: the sop project at `path` on `base_branch`, pulled into drafts, and where
     suggestions open pull requests. One per workspace. `auth` is how sopops authenticates: `token` (a fine-grained
     personal access token, encrypted with SOPOPS_SECRET_KEY in `ciphertext`; never returned by the API) or `app` (the
     GitHub App's `installation_id`; `ciphertext` and `hint` are empty). `pulled_sha` and `pulled_digest` are the commit
@@ -25,7 +25,7 @@ class RepoConnection(SQLModel, table=True):
     owner: str = Field(max_length=100)
     repo: str = Field(max_length=100)
     base_branch: str = Field(max_length=255)
-    path: str = Field(max_length=512, description="The sopc project's folder in the repo; empty for the root.")
+    path: str = Field(max_length=512, description="The sop project's folder in the repo; empty for the root.")
     auth: str = Field(max_length=16)
     ciphertext: str = Field(sa_column=Column(Text, nullable=False))
     hint: str = Field(max_length=16, description="The token's last few characters, to tell tokens apart.")

@@ -2,11 +2,11 @@
 
 ## Set up
 
-You need [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io) and the [sopc](https://github.com/amanmibra/sopc) binary, v0.0.18 or later.
+You need [uv](https://docs.astral.sh/uv/), [pnpm](https://pnpm.io) and the [sop](https://github.com/sopops-dev/sop) binary, v0.1.0 or later.
 
 ```sh
 uv sync --all-extras
-SOPC_BIN=/path/to/sopc uv run sopops    # API on :8484, and the built UI
+SOP_BIN=/path/to/sop uv run sopops    # API on :8484, and the built UI
 pnpm -C web install && pnpm -C web dev   # UI on :5173, proxying /v1 to :8484
 ```
 

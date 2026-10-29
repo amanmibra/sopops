@@ -31,7 +31,7 @@ export class ApiError extends Error {
     this.status = status;
     this.data = data;
   }
-  /** sopc's issues, for a 422 from a write that doesn't compile. */
+  /** sop's issues, for a 422 from a write that doesn't compile. */
   get issues(): IssueOut[] {
     const d = this.data as { issues?: IssueOut[] } | null;
     return (d && Array.isArray(d.issues) && d.issues) || [];
@@ -60,7 +60,7 @@ export function toSignIn() {
   if (!appPath().startsWith("/sign-in")) assignApp(`/sign-in?next=${encodeURIComponent(here)}`);
 }
 
-/** An issue made here rather than by sopc (a message to show the same way). */
+/** An issue made here rather than by sop (a message to show the same way). */
 export const localIssue = (text: string, field: string | null = null): IssueOut => ({
   code: "",
   message: text,
@@ -75,13 +75,13 @@ export const localIssue = (text: string, field: string | null = null): IssueOut 
 
 export const issuesOf = (e: unknown): IssueOut[] => (e instanceof ApiError ? e.issues : []);
 
-// Issues that mean a workspace is stored in an older sopc format, which the Convert page fixes.
+// Issues that mean a workspace is stored in an older sop format, which the Convert page fixes.
 export const LEGACY_CODES = ["old_format", "removed_field"] as const;
 export type Legacy = (typeof LEGACY_CODES)[number] | null;
 
 export const EMPTY_CONFIG = (workspace: string): ConfigResponse => ({
   workspace,
-  settings: { variables: {}, procedures_heading: "## Procedures", file: "sopc.yaml", version: null, updated_at: null, updated_by: null },
+  settings: { variables: {}, procedures_heading: "## Procedures", file: "sop.yaml", version: null, updated_at: null, updated_by: null },
   agents: [],
   instructions: [],
   procedures: [],

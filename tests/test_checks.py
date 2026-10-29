@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlmodel import Session, func, select
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.fakes import FakeModels, FakeSystemOne
 from sopops_server.ai.signatures import CheckRules, field_name
 from sopops_server.jobs import Jobs
@@ -109,7 +109,7 @@ BASE = Scenario(
 @pytest.fixture
 def env(tmp_path, files, monkeypatch):
     monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     fake = fake_models(BASE)
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
     client.put(f"{WS}/files", json={"files": files})
@@ -147,7 +147,7 @@ def test_route_and_check_statuses_and_rollup(env):
     assert r["step_3"]["evidence"][0]["source"] == "tool_calls" and r["step_3"]["evidence"][0]["quote"].startswith("lookup_allergens(")
     assert r["never_1"]["evidence"] == [{"turn": 7, "quote": "totally safe for him", "source": "transcript"}]
     assert r["never_1"]["finding"] and not r["step_1"]["finding"]
-    assert r["step_1"]["rule_id"] == "5cc0634f287a"  # sopc's stable id
+    assert r["step_1"]["rule_id"] == "5cc0634f287a"  # sop's stable id
 
     delivery = checks[DELIVERY]
     d = rules_by_key(delivery)
@@ -415,12 +415,12 @@ def or_env(tmp_path, files, monkeypatch):
     old = "  - text: Check each item the customer ordered against {{menu_allergen_link}}\n    tool: lookup_allergens\n    required: true\n"
     assert old in files[path]
     files = {**files, path: files[path].replace(old, OR_STEP)}
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     fake = fake_models(BASE)
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
     r = client.put(f"{WS}/files", json={"files": files})
     if r.status_code != 200:
-        pytest.skip(f"needs a sopc with OR options (v0.0.18+): {r.text[:200]}")
+        pytest.skip(f"needs a sop with OR options (v0.0.18+): {r.text[:200]}")
     client.post(f"{WS}/releases", json={})
     token = client.post(f"{WS}/tokens").json()["token"]
 

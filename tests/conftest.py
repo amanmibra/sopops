@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import make_url, text
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.lm import ROLE_ENV, set_ai
 from alembic import command
 
@@ -15,16 +15,16 @@ from sopops_server.db import alembic_config, engine_from_url
 from sopops_server.orm import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
-SOPC_BIN = os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sopc/target/release/sopc")
-if not Path(SOPC_BIN).exists():
-    SOPC_BIN = shutil.which("sopc")
+SOP_BIN = os.environ.get("SOP_BIN") or os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sop/target/release/sop")
+if not Path(SOP_BIN).exists():
+    SOP_BIN = shutil.which("sop")
 
 WS = "/v1/workspaces/demo"
 
 
 def pytest_collection_modifyitems(items):
-    if not SOPC_BIN:
-        skip = pytest.mark.skip(reason="needs a sopc binary with `validate --json` and `export` (set SOPC_BIN)")
+    if not SOP_BIN:
+        skip = pytest.mark.skip(reason="needs a sop binary with `validate --json` and `export` (set SOP_BIN)")
         for item in items:
             item.add_marker(skip)
 
@@ -107,4 +107,4 @@ def downgrade(engine, revision: str) -> None:
 @pytest.fixture
 def client(tmp_path):
     """SQLite by default; set SOPOPS_TEST_DATABASE_URL to run against Postgres (its tables are dropped first)."""
-    return TestClient(create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))))
+    return TestClient(create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN))))

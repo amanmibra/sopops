@@ -1,7 +1,7 @@
 [project]
 name = "sopops-server"
 version = "0.1.0"
-description = "Versioned sopc workspaces, and each agent's compiled prompt at call start."
+description = "Versioned sop workspaces, and each agent's compiled prompt at call start."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -11,7 +11,7 @@ from .columns import JSONDoc
 
 class RuleChecks(SQLModel, table=True):
     """A rule rewritten as literal yes/no checks for Jev (`sopops_server.ai.signatures.SplitRule`), once per rule version:
-    keyed by sopc's rule id and a hash of the rule's text, so an edited rule is split again."""
+    keyed by sop's rule id and a hash of the rule's text, so an edited rule is split again."""
 
     __tablename__ = "rule_checks"
 

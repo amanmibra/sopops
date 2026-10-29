@@ -276,7 +276,7 @@ class RateOut(BaseModel):
 
 
 class Wording(BaseModel):
-    rule_id: str = Field(description="sopc's id for this wording.")
+    rule_id: str = Field(description="sop's id for this wording.")
     from_release: int | None = Field(description="The release that published it (its lineage link's), else the first release a session ran it on.")
     text: str
     text_hash: str

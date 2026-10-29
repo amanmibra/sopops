@@ -6,7 +6,7 @@ evidence and decodes it the same way). Each answer is a probability; a calibrate
 unsure.
 
 **Rules as literal checks.** Jev reads a question literally, so each rule is first rewritten by the reasoning model
-(`SplitRule`) as a condition and positive actions, once per rule version (stored in `rule_checks`, keyed by sopc's rule
+(`SplitRule`) as a condition and positive actions, once per rule version (stored in `rule_checks`, keyed by sop's rule
 id and the text's hash). A split serves every agent that uses the procedure, so it keeps the rule's `{{placeholders}}`
 and each session's questions fill them with its agent's values.
 

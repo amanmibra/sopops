@@ -212,7 +212,7 @@ class Backfills:
         return Session(self.store.engine, expire_on_commit=False)
 
     def agents(self, ws: str, platform: str) -> list[tuple[str, str]]:
-        """(sopc agent, platform id) for each agent at head on the platform, one per platform id."""
+        """(sop agent, platform id) for each agent at head on the platform, one per platform id."""
         seen: dict[str, str] = {}
         for d in self.runtime.deliveries(ws):
             if d["platform"] == platform and d["platform_id"] and d["platform_id"] not in seen:

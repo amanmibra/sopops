@@ -37,7 +37,7 @@ class SessionRecord(SQLModel, table=True):
 
     id: str = Field(primary_key=True, max_length=36)
     workspace_id: str = Field(max_length=128)
-    agent_id: str | None = Field(default=None, max_length=256, description="The sopc agent, when the payload's agent could be matched.")
+    agent_id: str | None = Field(default=None, max_length=256, description="The sop agent, when the payload's agent could be matched.")
     agent_ref: str | None = Field(default=None, max_length=256, description="The agent as the payload named it.")
     channel: str = Field(max_length=16)  # voice | text
     platform: str = Field(max_length=32)  # livekit | elevenlabs | vapi | otel | import | api (schemas.Platform)

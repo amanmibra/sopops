@@ -12,7 +12,7 @@ from .columns import JSONDoc
 
 class Suggestion(SQLModel, table=True):
     """A proposed edit to one procedure, made by the reasoning model from a pattern and its verdict, checked by
-    compiling it with sopc. `plan` is what the edit does to the compiled prompts. See `sopops_server.suggestions`."""
+    compiling it with sop. `plan` is what the edit does to the compiled prompts. See `sopops_server.suggestions`."""
 
     __tablename__ = "suggestions"
     __table_args__ = (

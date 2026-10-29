@@ -38,7 +38,7 @@ class DraftResponse(BaseModel):
     files: list[FileChange] = Field(description="Files changed since the current release.")
     items: list[DraftItem] = Field(description="The same changes as agents, shared instructions, procedures, groups and settings.")
     agents: list[DraftAgent]
-    lint: list[LintFinding] = Field([], description="`sopc lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.")
+    lint: list[LintFinding] = Field([], description="`sop lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.")
 
 
 class ReleaseRequest(BaseModel):
@@ -94,7 +94,7 @@ class AgentsResponse(BaseModel):
 
 
 class AgentOut(BaseModel):
-    agent: str = Field(description="sopc agent id.")
+    agent: str = Field(description="sop agent id.")
     platform_ref: str
     release: int
     hash: str

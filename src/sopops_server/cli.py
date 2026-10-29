@@ -8,7 +8,7 @@ sopops lineage rebuild [--workspace WS] [--database-url URL]
 sopops patterns rename [--workspace WS] [--all] [--database-url URL]
 sopops reset-password EMAIL [--url URL] [--database-url URL]
 
-Env: DATABASE_URL (default sqlite:///sopops.db), SOPC_BIN for the sopc binary (default: `sopc` on PATH),
+Env: DATABASE_URL (default sqlite:///sopops.db), SOP_BIN for the sop binary (default: `sop` on PATH),
 HATCHET_CLIENT_TOKEN to run the session pipeline on Hatchet (else it runs inline, in the API process).
 Database migrations (Alembic) run on startup. Sign-in: see "Sign in" in the README.
 """
@@ -31,7 +31,7 @@ from .errors import SAFE_ID, NotFound
 from .jobs import Jobs
 from .onboarding import pulls
 from .schemas import SessionIn
-from .sopc import Sopc
+from .sop import Sop
 from .store import Store
 
 COMMANDS = ("serve", "import", "worker", "recluster", "calibrate", "pr-status", "lineage", "patterns", "reset-password")
@@ -45,15 +45,15 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def serve(argv: list[str]) -> None:
-    parser = argparse.ArgumentParser(prog="sopops", description="Versioned sopc workspaces, each agent's instructions at session start, and sessions.")
+    parser = argparse.ArgumentParser(prog="sopops", description="Versioned sop workspaces, each agent's instructions at session start, and sessions.")
     parser.add_argument("--host", default=os.environ.get("HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=int(os.environ.get("PORT", 8484)))
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    sopc = Sopc()
-    if not sopc.binary:
-        parser.error("sopc not found; install it or set SOPC_BIN")
-    uvicorn.run(create_app(Store(args.database_url, sopc)), host=args.host, port=args.port)
+    sop = Sop()
+    if not sop.binary:
+        parser.error("sop not found; install it or set SOP_BIN")
+    uvicorn.run(create_app(Store(args.database_url, sop)), host=args.host, port=args.port)
 
 
 def import_sessions(argv: list[str]) -> None:
@@ -66,7 +66,7 @@ def import_sessions(argv: list[str]) -> None:
     if not SAFE_ID.match(args.workspace):
         parser.error(f"invalid workspace id '{args.workspace}'")
 
-    store = Store(args.database_url, Sopc())
+    store = Store(args.database_url, Sop())
     jobs = Jobs(store)
     counts = {"created": 0, "updated": 0, "unchanged": 0, "failed": 0}
     stream = sys.stdin if args.file == "-" else open(args.file, encoding="utf-8")
@@ -114,7 +114,7 @@ def recluster(argv: list[str]) -> None:
     args = parser.parse_args(argv)
     if args.rule and not args.procedure:
         parser.error("--rule needs --procedure")
-    store = Store(args.database_url, Sopc())
+    store = Store(args.database_url, Sop())
     pats = store.patterns
     out = pats.assign_pending(args.workspace)
     if args.rule:
@@ -147,7 +147,7 @@ def calibrate(argv: list[str]) -> None:
     args = parser.parse_args(argv)
     if not SAFE_ID.match(args.workspace):
         parser.error(f"invalid workspace id '{args.workspace}'")
-    out = Store(args.database_url, Sopc()).calibrate.run(args.workspace, args.procedure, args.dry_run)
+    out = Store(args.database_url, Sop()).calibrate.run(args.workspace, args.procedure, args.dry_run)
     if not out["procedures"]:
         print("no labeled sessions: give patterns verdicts or override findings first")
     for p in out["procedures"]:
@@ -171,7 +171,7 @@ def pr_status(argv: list[str]) -> None:
     parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    store = Store(args.database_url, Sopc())
+    store = Store(args.database_url, Sop())
     out = store.suggestions.sync_prs(args.workspace, force=True)
     print("suggestions: " + ", ".join(f"{v} {k}" for k, v in out.items()))
     out = pulls.sync(store, args.workspace, force=True)
@@ -187,7 +187,7 @@ def lineage(argv: list[str]) -> None:
     parser.add_argument("--workspace", "-w", help="Only this workspace (default: all).")
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    store = Store(args.database_url, Sopc())
+    store = Store(args.database_url, Sop())
     for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
         out = store.lineage.rebuild(ws)
         print(f"{ws}: {out['links']} rules linked to an earlier wording, {out['procedures']} procedures")
@@ -202,7 +202,7 @@ def patterns(argv: list[str]) -> None:
     parser.add_argument("--all", action="store_true", help="Every rule pattern, including those a model already named.")
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
-    store = Store(args.database_url, Sopc())
+    store = Store(args.database_url, Sop())
     for ws in [args.workspace] if args.workspace else [w["workspace"] for w in store.workspaces()]:
         print(f"{ws}: {store.patterns.name(ws, force=args.all)} rule patterns renamed")
 
@@ -217,7 +217,7 @@ def reset_password(argv: list[str]) -> None:
     parser.add_argument("--database-url", default=database_url())
     args = parser.parse_args(argv)
     try:
-        info, token = Accounts(Store(args.database_url, Sopc())).cli_password_link(args.email)
+        info, token = Accounts(Store(args.database_url, Sop())).cli_password_link(args.email)
     except NotFound as e:
         sys.exit(f"sopops reset-password: {e}")
     print(f"Open this link to set the password for {info['email']}. It works once, for an hour:")

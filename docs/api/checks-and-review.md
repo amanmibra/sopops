@@ -7,7 +7,7 @@ How sopops checks each session against its procedures, groups the same mistake a
 `GET /v1/workspaces/{ws}/sessions/{id}` returns `checks`, one per procedure the router considered.
 
 - Each session is checked against the procedures its agent lists, directly or through a group, in the release it ran on, or the live release if it didn't say.
-- Rules are identified by sopc's stable rule ids (`sopc export`, `lock.json`), so results line up across releases.
+- Rules are identified by sop's stable rule ids (`sop export`, `lock.json`), so results line up across releases.
 
 | Field | Type | |
 |---|---|---|
@@ -308,7 +308,7 @@ Each pattern has a `review_state`, with `review_reason` and a `review_note` sayi
 | The release with the edit | The first release whose file has the suggested edit, alone or merged with others. For a repo, the pull of the merge commit, then a publish. |
 | `fix_release` | That release. Once it's live, `fix_sessions` counts those sessions and `fix_sessions_needed` is 10 (also on `fixed`). |
 | A pull request closed without merging | Dismisses the suggestion, so the pattern is `open` again. |
-| A reworded rule | The edit gives it a new sopc id. Its lineage keeps the new wording's findings in the same pattern, so a regression counts. |
+| A reworded rule | The edit gives it a new sop id. Its lineage keeps the new wording's findings in the same pattern, so a regression counts. |
 
 The review queue lists `needs_review` and `regressed`; `state=open` lists verdicts waiting for a fix, and so on. A new verdict starts over.
 
@@ -318,7 +318,7 @@ A **suggestion** is an edit to the pattern's procedure, made by the reasoning mo
 
 | | |
 |---|---|
-| Compiling | The edited file must compile with the rest of head. One that doesn't is sent back once with sopc's issues, then marked `failed`. |
+| Compiling | The edited file must compile with the rest of head. One that doesn't is sent back once with sop's issues, then marked `failed`. |
 | `plan.agents` | Every agent whose instructions change, with a diff. |
 | Generated | As a job: inline after the response, or the Hatchet `sopops_suggest` workflow. |
 | `status` | `generating`, then `proposed` or `failed`. A proposal becomes `applied`, `pr_open` or `dismissed`. |
@@ -463,7 +463,7 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 | `changes` | A unified diff of the file since the suggestion was written. |
 | `merged_text` | For `merges`. |
 | `conflicts` | For `conflict`: each part's `line` in the file now, and its `base`, `current` and `suggested` lines. |
-| `issues` | For `conflict`: sopc's errors with the merged file. |
+| `issues` | For `conflict`: sop's errors with the merged file. |
 
 ```json
 {
@@ -500,7 +500,7 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 
 ## Rule lineage
 
-sopc derives a rule's id from its text, so a reworded rule (by hand, or by an applied suggestion) has a new id. Sessions and findings keep the exact rule id and wording they ran. sopops records which rule each reworded rule replaced (`rule_lineage`).
+sop derives a rule's id from its text, so a reworded rule (by hand, or by an applied suggestion) has a new id. Sessions and findings keep the exact rule id and wording they ran. sopops records which rule each reworded rule replaced (`rule_lineage`).
 
 | What follows the chain | |
 |---|---|
@@ -554,4 +554,4 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
 
 Linking a rule by hand moves its findings into the earlier rule's pattern. When both had a pattern they merge into the older one: failure modes, verdicts (whose latest then counts) and suggestions move over. If the older one is split, the findings wait in `other` for the next recluster.
 
-`sopops lineage rebuild [--workspace WS]` does the rebuild from the command line. Migration 0013 ran it on every workspace when it added the table; it needs the sopc binary, and without one it says to run the command.
+`sopops lineage rebuild [--workspace WS]` does the rebuild from the command line. Migration 0013 ran it on every workspace when it added the table; it needs the sop binary, and without one it says to run the command.

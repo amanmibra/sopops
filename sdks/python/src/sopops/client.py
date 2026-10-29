@@ -178,7 +178,7 @@ def fetch(
 ) -> Instructions:
     """The agent's instructions, blocking: one call for code that isn't async.
 
-    `agent` is the agent's id on its platform or its sopc id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it
+    `agent` is the agent's id on its platform or its sop id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it
     to one platform when two agents share an id. `release` pins one; without it you get the live release. `url`
     and `token` default to `SOPOPS_URL` and `SOPOPS_TOKEN`, as `SopOps` reads them.
 
@@ -240,7 +240,7 @@ class SopOps:
     async def fetch_instructions(self, agent: str, release: int | None = None, *, platform: str | None = None, fallback: str | None = None,
                                  variables: Mapping[str, Any] | None = None) -> Instructions:
         """The agent's instructions in the live release, or in `release` if pinned. `agent` is the agent's id
-        on its platform or its sopc id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it to one platform when two
+        on its platform or its sop id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it to one platform when two
         agents share an id.
 
         `variables` fills `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything your

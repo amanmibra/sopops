@@ -74,7 +74,7 @@ to `agent`; the helper scopes it to the platform.
 
 | Argument | What it does |
 |---|---|
-| `agent` | The agent's id on its platform, or its sopc id: `tonys-pizza`. No platform prefix. |
+| `agent` | The agent's id on its platform, or its sop id: `tonys-pizza`. No platform prefix. |
 | `release` | Pins one release, for an arm of an [A/B test](ab-tests.md). Without it you get the live release. |
 | `platform` | Scopes `agent` to one platform (`"livekit"`), for when two agents share an id. |
 | `fallback` | Text to serve when sopops is down and nothing is cached. |
@@ -103,7 +103,7 @@ A frozen dataclass in Python, an interface in TypeScript.
 |---|---|---|---|
 | `text` | `text` | string | The compiled prompt, with whatever variables you passed already filled. |
 | `release` | `release` | int or null | The release it came from. Null for a fallback. |
-| `agent` | `agent` | string | The sopc agent id, as sopops resolved it. Pass this one back when you post the session. |
+| `agent` | `agent` | string | The sop agent id, as sopops resolved it. Pass this one back when you post the session. |
 | `blocks` | `blocks` | list | Each file the prompt was built from, in prompt order: `kind`, `id`, `path`, `version`. |
 | `hash` | `hash` | string or null | The compiled prompt's hash. |
 | `platform_ref` | `platformRef` | string or null | Where the agent runs, as the server stores it (`livekit:tonys-pizza`). Read-only: pass the bare id as `agent`. |

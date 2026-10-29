@@ -22,10 +22,10 @@ class SuggestionSummary(BaseModel):
     procedure_id: str
     rule_id: str
     block_id: str = Field(description="The block the edit is to: the procedure.")
-    status: SuggestionStatus = Field(description="`generating` until the model and sopc are done; then `proposed` or `failed`. "
+    status: SuggestionStatus = Field(description="`generating` until the model and sop are done; then `proposed` or `failed`. "
                                      "A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.")
     rationale: str | None
-    error: str | None = Field(description="Why it failed: sopc's issues with the last proposal, or the model's error.")
+    error: str | None = Field(description="Why it failed: sop's issues with the last proposal, or the model's error.")
     pr_url: str | None
     created_at: datetime
     updated_at: datetime
@@ -72,7 +72,7 @@ class SinceWritten(BaseModel):
     changes: str | None = Field(description="A unified diff of the file, as written against to now (None when unchanged).")
     merged_text: str | None = Field(description="`merges`: the file applying would write, the edit merged into the file now.")
     conflicts: list[MergeConflict] = Field(description="`conflict`: the parts both changed, each side as it reads.")
-    issues: str | None = Field(description="`conflict`: sopc's errors with the merged file, or why there's nothing to merge into.")
+    issues: str | None = Field(description="`conflict`: sop's errors with the merged file, or why there's nothing to merge into.")
 
 
 class SuggestionDetail(SuggestionSummary):

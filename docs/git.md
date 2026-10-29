@@ -2,22 +2,22 @@
 
 ## Keep SOPs in the database
 
-Edit everything in the UI or over the `/config` API. Nobody edits YAML or Markdown, and each block is still a sopc file, versioned on its own. `GET /v1/workspaces/{ws}/files?content=true` exports the workspace as sopc files to switch to Git.
+Edit everything in the UI or over the `/config` API. Nobody edits YAML or Markdown, and each block is still a sop file, versioned on its own. `GET /v1/workspaces/{ws}/files?content=true` exports the workspace as sop files to switch to Git.
 
 ## Publish from Git with CI
 
-Keep the sopc folder in your repo. CI publishes it on merge:
+Keep the sop folder in your repo. CI publishes it on merge:
 
 ```sh
 python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"files": {p.relative_to(r).as_posix(): p.read_text() for p in r.rglob("*") if p.is_file()}}))' \
   | curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$SOPOPS_URL/publish"
 ```
 
-`build/` is ignored. Folders in sopc v0.0.8 format or earlier, or that still set `locked` (v0.0.9), are refused with a message to run `sopc migrate`. Workspaces stored that way show a Convert page.
+`build/` is ignored. Folders in sopc v0.0.8 format or earlier, or that still set `locked` (v0.0.9), are refused with a message to run `sop migrate`. Workspaces stored that way show a Convert page.
 
 ## Connect a GitHub repository
 
-sopops syncs a workspace with a sopc folder in your repo, both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`).
+sopops syncs a workspace with a sop folder in your repo, both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`). The folder holds `sop.yaml`, or `sopc.yaml` if it was made before sop v0.1.0; sopops keeps whichever it has and never renames it.
 
 ### With the GitHub App (preferred)
 

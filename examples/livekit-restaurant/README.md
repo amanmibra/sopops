@@ -1,6 +1,6 @@
 # 📋🗄️ Example: LiveKit restaurant agents, served by sopops
 
-The same restaurants as sopc's [LiveKit restaurant example](https://github.com/amanmibra/sopc/tree/main/examples/livekit-restaurant): one phone agent per restaurant, sharing a brand voice, an allergen procedure and a closing.
+The same restaurants as sop's [LiveKit restaurant example](https://github.com/sopops-dev/sop/tree/main/examples/livekit-restaurant): one phone agent per restaurant, sharing a brand voice, an allergen procedure and a closing.
 
 | Restaurant | LiveKit `agent_name` | What's special |
 |---|---|---|
@@ -8,7 +8,7 @@ The same restaurants as sopc's [LiveKit restaurant example](https://github.com/a
 | Luigi's Trattoria | `luigis-trattoria` | takes reservations and large orders |
 | Sakura Sushi | `sakura-sushi` | reservations, **no delivery**, transfers to the head chef |
 
-In sopc's example, each restaurant's prompt is built into `sops/build/` and ships with the code, so a wording change means redeploying every agent it reaches. Here the agent fetches its prompt from sopops when a call starts: a publish in sopops reaches the next call with no redeploy, a rollback is one click, and every call goes back to sopops with the release it ran on, to be checked against its procedures.
+In sop's example, each restaurant's prompt is built into `sops/build/` and ships with the code, so a wording change means redeploying every agent it reaches. Here the agent fetches its prompt from sopops when a call starts: a publish in sopops reaches the next call with no redeploy, a rollback is one click, and every call goes back to sopops with the release it ran on, to be checked against its procedures.
 
 ## What's in this folder
 
@@ -20,7 +20,7 @@ livekit-restaurant/
   .env.example      LiveKit and sopops settings
 ```
 
-There's no `sops/` folder. The instructions are sopc's [`examples/livekit-restaurant/sops`](https://github.com/amanmibra/sopc/tree/main/examples/livekit-restaurant/sops), published into a sopops workspace once (below); after that they live in sopops, edited in its UI or kept in git and published by CI. Start with `agents/sakura-sushi.yaml` there to see how a restaurant's prompt is put together.
+There's no `sops/` folder. The instructions are sop's [`examples/livekit-restaurant/sops`](https://github.com/sopops-dev/sop/tree/main/examples/livekit-restaurant/sops), published into a sopops workspace once (below); after that they live in sopops, edited in its UI or kept in git and published by CI. Start with `agents/sakura-sushi.yaml` there to see how a restaurant's prompt is put together.
 
 ## How the agent uses it
 
@@ -70,10 +70,10 @@ With `SOPOPS_STREAM=1`, `agent.py` passes `stream=True`: each turn and tool call
 
 ## Run it
 
-Start sopops (the [Quickstart](../../README.md#quickstart)) and create a workspace named `prod`. Publish the restaurant instructions into it, from a clone of [sopc](https://github.com/amanmibra/sopc):
+Start sopops (the [Quickstart](../../README.md#quickstart)) and create a workspace named `prod`. Publish the restaurant instructions into it, from a clone of [sop](https://github.com/sopops-dev/sop):
 
 ```sh
-cd sopc/examples/livekit-restaurant
+cd sop/examples/livekit-restaurant
 python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"files": {p.relative_to(r).as_posix(): p.read_text() for p in r.rglob("*") if p.is_file()}}))' \
   | curl -fsS -X POST -H 'Content-Type: application/json' -d @- http://127.0.0.1:8484/v1/workspaces/prod/publish
 ```
@@ -88,9 +88,9 @@ AGENT_NAME=sakura-sushi uv run agent.py dev
 
 `uv run agent.py console` talks to the agent from your terminal instead of a LiveKit room.
 
-## Compared with sopc's example
+## Compared with sop's example
 
-| | sopc's example (prompt in the build) | This example (prompt from sopops) |
+| | sop's example (prompt in the build) | This example (prompt from sopops) |
 |---|---|---|
 | Where the prompt comes from | `sops/build/`, copied into the image | sopops, when each call starts |
 | Getting a change live | Deploy each changed agent | Publish; the next call runs it |

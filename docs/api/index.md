@@ -18,7 +18,7 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
 
 | Page | What it covers |
 |---|---|
-| [Agents and config](agents-and-config.md) | Editing agents, shared instructions, procedures and groups; the files behind them; stateless sopc checks |
+| [Agents and config](agents-and-config.md) | Editing agents, shared instructions, procedures and groups; the files behind them; stateless sop checks |
 | [Releases](releases.md) | Publishing and rolling back, serving instructions when a call starts, and pushing them to ElevenLabs or Vapi |
 | [Sessions](sessions.md) | Sending calls and chats to sopops, streaming, backfill, the session format, and importing a file |
 | [Checks and review](checks-and-review.md) | How sessions are checked, grouped mistakes, verdicts, suggested fixes, and reworded rules |
@@ -41,7 +41,7 @@ With sign-in off, only tokens guard anything, so keep sopops on a private networ
 | Status | Body |
 |---|---|
 | `404`, `409` | `{"detail": "..."}` |
-| `422` from sopc | `{"valid": false, "issues": [...]}` |
+| `422` from sop | `{"valid": false, "issues": [...]}` |
 
 ```json
 {
@@ -64,7 +64,7 @@ With sign-in off, only tokens guard anything, so keep sopops on a private networ
 
 | Field | Type | |
 |---|---|---|
-| `code`, `message`, `path`, `severity` | string | sopc's own. `severity` is `error` or `warning`. |
+| `code`, `message`, `path`, `severity` | string | sop's own. `severity` is `error` or `warning`. |
 | `kind` | string | `agent`, `instruction`, `procedure`, `group` or `settings`. |
 | `id` | string | Which one. |
 | `field` | string | As the `/config` endpoints name it, e.g. `blocks`, `steps`. |

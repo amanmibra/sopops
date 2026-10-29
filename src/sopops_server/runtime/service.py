@@ -274,7 +274,7 @@ class Runtime:
         raise Unauthorized(f"the {NAMES[platform]} webhook isn't signed with this workspace's webhook secret (Settings → Platforms)")
 
     def resolve(self, workspace: str, platform: str, ref: str | None, release: int | None) -> dict:
-        """The served build for an agent named by sopc id, platform ref, or its id on `platform`. Without `ref`,
+        """The served build for an agent named by sop id, platform ref, or its id on `platform`. Without `ref`,
         the only agent on that platform in the release."""
         rel = self.store.get_release(workspace, release)
         built = rel["build"]["agents"]

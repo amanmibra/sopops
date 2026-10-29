@@ -1,5 +1,5 @@
-// Onboarding with GitHub: connect the repository (the Settings form), then look for the sopc project in its folder.
-// A project sopc builds is imported; without one, the coding agent proposes it in a pull request; one sopc can't build
+// Onboarding with GitHub: connect the repository (the Settings form), then look for the sop project in its folder.
+// A project sop builds is imported; without one, the coding agent proposes it in a pull request; one sop can't build
 // is imported to fix, or rewritten by the coding agent.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitBranch, RefreshCw } from "lucide-react";
@@ -35,7 +35,7 @@ export function RepoConnect() {
 }
 
 /** What the connected folder holds, and the way forward for each case. Shown only once a team says its instructions
- * live in the repository. `onAgent`: the coding agent should rewrite a project sopc can't build. */
+ * live in the repository. `onAgent`: the coding agent should rewrite a project sop can't build. */
 export function ProjectFinding({ repo, useAgent, onAgent }: { repo: RepoOut; useAgent: boolean; onAgent: () => void }) {
   const { ws } = useWs();
   const qc = useQueryClient();
@@ -51,7 +51,7 @@ export function ProjectFinding({ repo, useAgent, onAgent }: { repo: RepoOut; use
       <RefreshCw className={project.isFetching ? "animate-spin" : undefined} /> Check again
     </Button>
   );
-  if (project.isPending) return <Note>Looking for a sopc project at {where}…</Note>;
+  if (project.isPending) return <Note>Looking for a sop project at {where}…</Note>;
   if (project.isError)
     return (
       <div className="grid gap-2">
@@ -65,9 +65,9 @@ export function ProjectFinding({ repo, useAgent, onAgent }: { repo: RepoOut; use
       <Banner tone="ok" className="mb-0">
         <div className="grid gap-2">
           <div>
-            <b>Found a sopc project at {where}</b>: {plural(p.agents.length, "agent", "agents")} ({p.agents.join(", ")}), {plural(p.files, "file", "files")}.
+            <b>Found a sop project at {where}</b>: {plural(p.agents.length, "agent", "agents")} ({p.agents.join(", ")}), {plural(p.files, "file", "files")}.
           </div>
-          <div>Import it as it is. sopops checks it with sopc, and you can compare each agent with its original instructions. Nothing is published.</div>
+          <div>Import it as it is. sopops checks it with sop, and you can compare each agent with its original instructions. Nothing is published.</div>
           <div className="flex flex-wrap items-center gap-2">
             <ImportFromRepo label="Import it" />
             {recheck}
@@ -80,7 +80,7 @@ export function ProjectFinding({ repo, useAgent, onAgent }: { repo: RepoOut; use
     <Banner className="mb-0">
       <div className="grid gap-2">
         <div>
-          <b>No sopc project at {where} yet.</b>
+          <b>No sop project at {where} yet.</b>
         </div>
         <div>
           Your coding agent will propose a pull request adding <code>{folder}</code> to {p.repo}. Nothing merges without you. When you merge it, sopops pulls it into drafts.
@@ -111,7 +111,7 @@ function Invalid({
     <Banner tone="warn" className="mb-0">
       <div className="grid gap-2">
         <div>
-          <b>{where} has a sopc project, but sopc can't build it:</b>
+          <b>{where} has a sop project, but sop can't build it:</b>
         </div>
         <ul className="grid gap-0.5 pl-5 text-sm [list-style:disc]">
           {errors.slice(0, 8).map((i, n) => (
@@ -138,7 +138,7 @@ function Invalid({
   );
 }
 
-/** Import the connected folder (`POST …/imports/sopc` with `from_repo`), then open the import. */
+/** Import the connected folder (`POST …/imports/sop` with `from_repo`), then open the import. */
 function ImportFromRepo({ label, variant }: { label: string; variant?: "outline" }) {
   const { ws } = useWs();
   const qc = useQueryClient();
@@ -149,7 +149,7 @@ function ImportFromRepo({ label, variant }: { label: string; variant?: "outline"
     setBusy(true);
     setError(null);
     try {
-      const created = await call(sdk.importSopcProject({ path: { workspace: ws }, body: { from_repo: true, author: author() } }));
+      const created = await call(sdk.importSopProject({ path: { workspace: ws }, body: { from_repo: true, author: author() } }));
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
       go(wsHref(ws, "settings", "import", created.id));
     } catch (e) {

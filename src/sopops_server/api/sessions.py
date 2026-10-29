@@ -108,7 +108,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     @r.get("/v1/workspaces/{workspace}/sessions", response_model=SessionPage, dependencies=OPEN, tags=["sessions"])
     def list_sessions(
         workspace: str,
-        agent: str | None = Query(None, description="sopc agent id, or the agent as sent."),
+        agent: str | None = Query(None, description="sop agent id, or the agent as sent."),
         channel: Channel | None = None,
         status: SessionStatus | None = None,
         result: CheckResultValue | None = Query(None, description="The session's worst procedure result."),

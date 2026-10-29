@@ -2,7 +2,7 @@
 
 The backfill is `sopops_server.lineage.rebuild` for every workspace (what `sopops lineage rebuild` runs), with rule patterns
 following it. It uses sopops's ORM, so it runs after the last migration (`after_upgrade`, see `migrations/env.py`),
-against the schema the code expects. It needs the sopc binary (the one the Store was given, else SOPC_BIN or `sopc` on
+against the schema the code expects. It needs the sop binary (the one the Store was given, else SOP_BIN or `sop` on
 PATH) to read old releases; it runs in a savepoint, so if it can't, the table is still created and a warning says to
 run the command.
 
@@ -20,7 +20,7 @@ from sqlmodel import Session
 
 from sopops_server.lineage import rebuild_all
 from sopops_server.patterns import rekey
-from sopops_server.sopc import Sopc
+from sopops_server.sop import Sop
 
 revision: str = "0013"
 down_revision: Union[str, None] = "0012"
@@ -49,13 +49,13 @@ def upgrade() -> None:
     op.get_context().config.attributes.setdefault("after_upgrade", []).append(backfill)
 
 
-def backfill(connection: sa.Connection, sopc: Sopc | None) -> None:
-    sopc = sopc or Sopc()
+def backfill(connection: sa.Connection, sop: Sop | None) -> None:
+    sop = sop or Sop()
     with Session(bind=connection, join_transaction_mode="create_savepoint") as db:
         try:
-            done = rebuild_all(db, sopc, follow=rekey)
+            done = rebuild_all(db, sop, follow=rekey)
             db.commit()
-        except Exception as e:  # sopc missing or failing: lineage starts with the next publish
+        except Exception as e:  # sop missing or failing: lineage starts with the next publish
             db.rollback()
             log.warning("rule lineage wasn't backfilled (%s); run `sopops lineage rebuild --workspace WS` for each workspace", e)
             return

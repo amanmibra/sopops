@@ -520,7 +520,7 @@ def test_sopops_opens_the_onboarding_pull_request_through_the_app(client, bare, 
     got = client.post("/v1/onboarding/pull-request/open", headers=auth, json={"description": "Found in agent.py."}).json()
     assert got["pr_url"] == "https://github.com/acme/agents/pull/1" and got["pr_state"] == "open"
     pr = bare.pulls[0]
-    assert pr["title"] == "Add sopc project for sopops" and pr["body"].startswith("Found in agent.py.")
+    assert pr["title"] == "Add sop project for sopops" and pr["body"].startswith("Found in agent.py.")
     assert {p for p in bare.files(pr["head"]) if p.startswith("sops/")} == {f"sops/{p}" for p in files}
     # asking again doesn't open a second one
     assert client.post("/v1/onboarding/pull-request/open", headers=auth, json={}).json()["pr_url"] == got["pr_url"] and len(bare.pulls) == 1

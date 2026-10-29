@@ -6,12 +6,12 @@ from datetime import datetime, timedelta, timezone
 
 import dspy
 import pytest
-from conftest import SOPC_BIN, WS
+from conftest import SOP_BIN, WS
 from sqlmodel import Session, select
 from test_review import ALLERGEN, env, rule_pattern, verdict  # noqa: F401  (env is a fixture)
 from test_sessions import ingest, session, stream_post, token  # noqa: F401  (token is a fixture)
 
-from sopops_server import Sopc, Store
+from sopops_server import Sop, Store
 from sopops_server.ai import spend
 from sopops_server.ai.fakes import FakeEngine
 from sopops_server.ai.lm import Models
@@ -37,7 +37,7 @@ def test_prices_match_by_name_prefix_and_env(monkeypatch):
 
 
 def test_the_real_client_path_is_recorded_through_dspy(tmp_path):
-    store = Store(f"sqlite:///{tmp_path / 'u.db'}", Sopc(SOPC_BIN))
+    store = Store(f"sqlite:///{tmp_path / 'u.db'}", Sop(SOP_BIN))
     lm = dspy.LM("anthropic/claude-haiku-4-5", engine=FakeEngine(lambda outs, text: {"checks": {"condition": None, "actions": ["a"], "forbidden": []}}), cache=False)
     ai = Models({"fast": "anthropic/claude-haiku-4-5", "reasoning": "anthropic/claude-haiku-4-5"}, jev=False)
     ai._clients["anthropic/claude-haiku-4-5"] = lm

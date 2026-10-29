@@ -8,7 +8,7 @@ from sqlmodel import Column, DateTime, Field, Index, SQLModel
 
 
 class RuleLineage(SQLModel, table=True):
-    """Which rule a rule replaced. sopc derives a rule's id from its text, so a reworded rule gets a new id; this row
+    """Which rule a rule replaced. sop derives a rule's id from its text, so a reworded rule gets a new id; this row
     says it is the same rule as `previous_rule_id` (null: a person said it's a new rule, so nothing is matched to it).
     `lineage_id` is the first rule id of the chain, kept on every row so a rule's whole lineage is one query; a rule
     with no row is its own lineage. Written at publish (`sopops_server.lineage`); sessions and findings keep the exact rule id

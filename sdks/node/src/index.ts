@@ -19,7 +19,7 @@ export interface Instructions {
   text: string;
   /** The sopops release it came from; null for a fallback. */
   release: number | null;
-  /** The sopc agent id. */
+  /** The sop agent id. */
   agent: string;
   blocks: Block[];
   hash: string | null;
@@ -241,7 +241,7 @@ export class SopOps {
 
   /**
    * The agent's instructions in the live release, or a pinned one. `agent` is the agent's id on its platform or its
-   * sopc id, e.g. `tonys-pizza`. `options.platform` (`"livekit"`) scopes it when two agents share an id. Never waits longer than
+   * sop id, e.g. `tonys-pizza`. `options.platform` (`"livekit"`) scopes it when two agents share an id. Never waits longer than
    * `timeoutMs`: on any failure it returns the last good copy (`source: "cache"`), else `fallback`, else throws
    * SopOpsUnavailable.
    */
@@ -379,7 +379,7 @@ export class SopOps {
  */
 /** The agent's instructions in one call, for code that doesn't keep a client around.
  *
- * `agent` is the agent's id on its platform or its sopc id, e.g. `tonys-pizza`. Set `platform` (`"livekit"`) to
+ * `agent` is the agent's id on its platform or its sop id, e.g. `tonys-pizza`. Set `platform` (`"livekit"`) to
  * scope it when two agents share an id. `release` pins one; leave it out for the live release. `url` and `token` default to `SOPOPS_URL` and
  * `SOPOPS_TOKEN`, as `SopOps` reads them.
  * Falls back the same way the method does: the cache, then `fallback`, else `SopOpsUnavailable`.

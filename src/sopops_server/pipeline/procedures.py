@@ -1,6 +1,6 @@
 """The procedures a session is checked against: from the release it ran on, else the workspace's live release.
 
-Rules come from `sopc export`, with sopc's stable ids. When the session's agent is known, only the procedures it
+Rules come from `sop export`, with sop's stable ids. When the session's agent is known, only the procedures it
 lists (directly or through a group) are candidates; otherwise every procedure in the release is. Rule text keeps its
 `{{placeholders}}` (rules are shared by every agent that uses the procedure); `fill` puts in the agent's values
 (workspace variables, then the agent's own) wherever a model or a session's page reads it.
@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any
 from sqlmodel import Session, select
 
 from ..orm import FileVersion, Release, Workspace
-from ..sopc import Invalid, SopcUnavailable
+from ..sop import Invalid, SopUnavailable
 
 if TYPE_CHECKING:
     from ..orm import SessionRecord
@@ -104,12 +104,12 @@ def candidates(store: Store, session: SessionRecord) -> Candidates:
 
 def agent_variables(store: Store, ws: str, release: int, agent_id: str | None, known: bool = False) -> dict[str, str]:
     """The values an agent gives `{{placeholders}}` in a release, as its sessions' checks filled them (an agent the
-    release doesn't have gets the workspace's, unless `known`: then none). For showing rule text: a release sopc
-    can't read (or no sopc) gives none, and the placeholders show as they are."""
+    release doesn't have gets the workspace's, unless `known`: then none). For showing rule text: a release sop
+    can't read (or no sop) gives none, and the placeholders show as they are."""
     try:
         with Session(store.engine) as db:
             exported = _release_export(store, db, ws, release)
-    except (Invalid, SopcUnavailable):
+    except (Invalid, SopUnavailable):
         return {}
     agent = _agent(exported, agent_id) if exported is not None else None
     return _variables(exported, agent) if exported is not None and (agent is not None or not known) else {}
@@ -175,7 +175,7 @@ def _procedure(sop: dict[str, Any], versions: dict[str, int], release: int) -> P
 
 
 def _release_export(store: Store, db: Session, ws: str, number: int) -> dict[str, Any] | None:
-    """`sopc export` of a release's files, cached for good (releases are immutable; the key has its creation time, so
+    """`sop export` of a release's files, cached for good (releases are immutable; the key has its creation time, so
     a database made again from scratch, as tests do, doesn't get another one's release)."""
     rel = db.get(Release, (ws, number))
     if rel is None:
@@ -190,9 +190,9 @@ def _release_export(store: Store, db: Session, ws: str, number: int) -> dict[str
         if content is not None:
             files[path] = content
     try:
-        export = store.sopc.export(files)
-    except Invalid:  # a release in an older sopc format
-        export = store.sopc.export(store.sopc.migrate(files)["files"])
+        export = store.sop.export(files)
+    except Invalid:  # a release in an older sop format
+        export = store.sop.export(store.sop.migrate(files)["files"])
     out = {"export": export, "versions": dict(rel.files)}
     with _lock:
         _cache[key] = out

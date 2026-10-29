@@ -12,7 +12,7 @@ A release is a snapshot of every agent's instructions. Publish and roll back, se
 | `GET /v1/workspaces/{ws}/releases/{n}` | One release with every agent's instructions. Doesn't log a fetch. |
 | `POST /v1/workspaces/{ws}/releases/{n}/activate` | Serve an older release (roll back). |
 | `POST /v1/workspaces/{ws}/publish` | `{files, author?, note?}`: replace head and release in one call, for CI. |
-| `POST /v1/workspaces/{ws}/migrate` | `{apply?, author?, note?}`: convert a workspace stored in an older sopc format with `sopc migrate`. Returns `{workspace, needed, plan, applied, changed}`. It handles the v0.0.8 format, and `locked` (v0.0.9). With `apply`, the converted files are written as a draft. |
+| `POST /v1/workspaces/{ws}/migrate` | `{apply?, author?, note?}`: convert a workspace stored in an older sop format with `sop migrate`. Returns `{workspace, needed, plan, applied, changed}`. It handles the v0.0.8 format, and `locked` (v0.0.9). With `apply`, the converted files are written as a draft. |
 
 ```sh
 curl -s -X POST -H "Content-Type: application/json" \
@@ -28,7 +28,7 @@ curl -s -X POST -H "Content-Type: application/json" \
     "created_at": "2026-10-19T16:53:14.360206Z",
     "author": "Ada",
     "note": "Read-back fix",
-    "files": {"agents/copper-wok-harbor.yaml": 1, "procedures/delivery-orders.md": 4, "sopc.yaml": 1},
+    "files": {"agents/copper-wok-harbor.yaml": 1, "procedures/delivery-orders.md": 4, "sop.yaml": 1},
     "current": true
   },
   "created": true
@@ -40,13 +40,13 @@ curl -s -X POST -H "Content-Type: application/json" \
 | Field | Type | |
 |---|---|---|
 | `release` | int | The current release the draft is compared with. |
-| `valid`, `issues` | bool, list | Whether head compiles, and sopc's issues. |
+| `valid`, `issues` | bool, list | Whether head compiles, and sop's issues. |
 | `files` | `[{path, change, version, released_version}]` | Files added, edited or deleted since the current release. |
 | `items` | `[{kind, id, name, change, version, released_version, before, after}]` | The same changes as fields: `before` is the item in the release, `after` is the draft. |
 | `agents` | `[{agent, platform_ref, status, hash, released_hash, prompt, released_prompt, components}]` | `status` is `added`, `changed`, `removed` or `unchanged`. |
-| `lint` | `[{code, message, sources, agents}]` | What `sopc lint` finds in the draft (duplicated or conflicting instructions). Advisory: publishing isn't blocked. |
+| `lint` | `[{code, message, sources, agents}]` | What `sop lint` finds in the draft (duplicated or conflicting instructions). Advisory: publishing isn't blocked. |
 
-A release in an older format is compared the way `sopc migrate` converts it.
+A release in an older format is compared the way `sop migrate` converts it.
 
 ## Serve instructions at call start
 
@@ -54,7 +54,7 @@ A release in an older format is compared the way `sopc migrate` converts it.
 |---|---|
 | `GET /v1/workspaces/{ws}/agents` | Agents in the current release (`?release=N` for another): `{workspace, release, agents: [{agent, platform_ref, hash}]}`. |
 | `GET /v1/workspaces/{ws}/agents/{agent}` | **Call start.** `{agent, platform_ref, release, hash, prompt, tools, tool_sops, components}`. `?release=N` pins a release (A/B); `?platform=livekit` scopes a raw platform identifier. Logs a fetch. |
-| `GET /v1/workspaces/{ws}/agents/{agent}/prompt` | Just the instructions as text, with `X-Sopc-Release` and `X-Sopc-Hash` headers. It accepts the same `release` and `platform` query parameters. Logs a fetch. |
+| `GET /v1/workspaces/{ws}/agents/{agent}/prompt` | Just the instructions as text, with `X-Sop-Release` and `X-Sop-Hash` headers (also sent as `X-Sopc-Release` and `X-Sopc-Hash`, their old names, for now). It accepts the same `release` and `platform` query parameters. Logs a fetch. |
 | `GET /v1/workspaces/{ws}/agents/{agent}/sops/{id}` | What a `get_sop` tool returns, for SOPs with `delivery: auto` or `tool`. It accepts the same `release` and `platform` query parameters. `404` for a SOP that isn't tool-delivered to that agent. |
 | `GET /v1/workspaces/{ws}/fetches?agent=&limit=` | Which release and instructions hash each agent was served, newest first: `[{id, agent, release, hash, at}]`. Default limit 100, at most 1000. |
 
@@ -75,15 +75,15 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
   "components": [
     {"kind": "agent", "id": "copper-wok-harbor", "path": "agents/copper-wok-harbor.yaml", "version": 1},
     {"kind": "sop", "id": "delivery-orders", "path": "procedures/delivery-orders.md", "version": 4},
-    {"kind": "config", "id": "sopc", "path": "sopc.yaml", "version": 1}
+    {"kind": "config", "id": "sop", "path": "sop.yaml", "version": 1}
   ]
 }
 ```
 
 | Rule | |
 |---|---|
-| Naming an agent | The sopc id (`copper-wok-harbor`), its platform ref (`livekit:copper-wok-harbor`), or the platform id alone (`42`) when one agent has it. Pass `platform=livekit` to resolve a raw id within LiveKit. Two agents sharing one across platforms without `platform` answer `422` with both refs. |
-| `components` | Each file the instructions were built from, in order, at its version: `agent`, `instruction`, `sop`, plus `sopc.yaml` as `config` (`base` in releases made before sopc v0.0.9). |
+| Naming an agent | The sop id (`copper-wok-harbor`), its platform ref (`livekit:copper-wok-harbor`), or the platform id alone (`42`) when one agent has it. Pass `platform=livekit` to resolve a raw id within LiveKit. Two agents sharing one across platforms without `platform` answer `422` with both refs. |
+| `components` | Each file the instructions were built from, in order, at its version: `agent`, `instruction`, `sop`, plus `sop.yaml` (or `sopc.yaml`) as `config` (`base` in releases made before sopc v0.0.9). |
 | Auth | `/agents/{agent}`, `/agents/{agent}/prompt` and `/agents/{agent}/sops/{id}` take a token with the `runtime` scope ([Tokens](teams-and-access.md#tokens)) once the workspace has one. Without it they answer `401`, and `403` for a token without the scope. A workspace with no unrevoked runtime token serves them openly (local mode). |
 
 ## Deliver to platforms

@@ -4,11 +4,11 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
-from conftest import SOPC_BIN, WS
+from conftest import SOP_BIN, WS
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, text
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.db import INITIAL, alembic_config, current_revision, upgrade
 from sopops_server.orm import metadata
 
@@ -34,7 +34,7 @@ def test_a_database_from_before_alembic_is_stamped_and_kept(tmp_path, files):
         conn.execute(text("INSERT INTO workspaces (workspace, current_release) VALUES ('demo', NULL)"))
     assert "alembic_version" not in inspect(engine).get_table_names()
 
-    client = TestClient(create_app(Store(url, Sopc(SOPC_BIN))))
+    client = TestClient(create_app(Store(url, Sop(SOP_BIN))))
     assert current_revision(engine) == ScriptDirectory.from_config(alembic_config()).get_current_head()  # one head
     assert client.get("/v1/workspaces").json() == [{"workspace": "demo", "current_release": None}]
     assert client.put(f"{WS}/files", json={"files": files}).status_code == 200

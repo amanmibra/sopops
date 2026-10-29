@@ -60,13 +60,13 @@ def router(store: Store) -> APIRouter:
     @r.get("/v1/workspaces/{workspace}/config", response_model=ConfigResponse, dependencies=OPEN, tags=["config"])
     def get_config(workspace: str) -> dict:
         """Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.
-        422 with `old_format` or `removed_field` issues if the workspace is in an older sopc format: see `…/migrate`."""
+        422 with `old_format` or `removed_field` issues if the workspace is in an older sop format: see `…/migrate`."""
         return {"workspace": workspace, **store.items(workspace)}
 
     def item_routes(kind: str, plural: str, In: type[BaseModel], New: type[BaseModel], Out: type[BaseModel]) -> None:
         """GET/POST {plural}, GET/PUT/DELETE {plural}/{id}, and its history and old versions."""
         path = f"/v1/workspaces/{{workspace}}/config/{plural}"
-        what = {"agent": "agent", "instruction": "shared instruction", "procedure": "procedure (SOP)", "group": "group (in sopc.yaml)"}[kind]
+        what = {"agent": "agent", "instruction": "shared instruction", "procedure": "procedure (SOP)", "group": "group (in sop.yaml)"}[kind]
         Result = create_model(f"{Out.__name__}Saved", item=(Out, ...), changed=(list[WrittenFile], ...))
 
         def save(workspace: str, id: str, req: BaseModel, create: bool) -> dict:
@@ -152,8 +152,8 @@ def router(store: Store) -> APIRouter:
 
     @r.post("/v1/workspaces/{workspace}/migrate", response_model=MigrateResponse, responses=INVALID, dependencies=OPEN, tags=["config"])
     def migrate(workspace: str, req: MigrateRequest | None = None) -> dict:
-        """Convert a workspace stored in an older sopc format with `sopc migrate`: the v0.0.8 format, or
-        `locked` (v0.0.9), which sopc no longer has. Returns the plan;
+        """Convert a workspace stored in an older sop format with `sop migrate`: the v0.0.8 format, or
+        `locked` (v0.0.9), which sop no longer has. Returns the plan;
         with `apply`, writes the converted files as a draft (publish to release them)."""
         req = req or MigrateRequest()
         return store.migrate(workspace, req.apply, req.author, req.note)

@@ -3,9 +3,9 @@
 import json
 
 from .app import create_app
-from .sopc import Sopc
+from .sop import Sop
 from .store import Store
 
 if __name__ == "__main__":
-    spec = create_app(Store("sqlite://", Sopc(), migrate=False)).openapi()
+    spec = create_app(Store("sqlite://", Sop(), migrate=False)).openapi()
     print(json.dumps(spec, indent=2, sort_keys=False))

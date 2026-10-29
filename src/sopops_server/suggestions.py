@@ -8,7 +8,7 @@
   ("PR closed").
 - The reasoning model sees the procedure's file at head, the rule, the pattern, the verdict and its note, and up to 5
   of the pattern's findings (`sopops_server.ai.programs.SuggestEdits`). The edited file must compile with the rest of head;
-  if it doesn't, it's sent back once with sopc's issues, else the suggestion fails with them. `plan` records which
+  if it doesn't, it's sent back once with sop's issues, else the suggestion fails with them. `plan` records which
   agents' prompts change and how (a unified diff per agent).
 - **Apply**: with a repo connection (`sopops_server.github`), a pull request with the file; without one, a draft edit of the
   file, as if saved in the editor, so it shows in Unpublished changes and goes out with the next publish.
@@ -42,7 +42,7 @@ from .ai.signatures import VERSIONS, ExampleIn
 from .errors import Conflict, NotFound
 from .orm import Pattern, Suggestion, Verdict, Workspace
 from .patterns import KIND_LABEL
-from .sopc import Invalid
+from .sop import Invalid
 from .verdicts import SUGGESTIBLE, release_with, suggestion_summary, verdict_out
 
 if TYPE_CHECKING:
@@ -107,20 +107,20 @@ class Suggestions:
     # --- since it was written ------------------------------------------------------------------------------------
 
     def _issues(self, files: dict[str, str], path: str, procedure_id: str, text: str) -> str | None:
-        """Why `text` can't be the procedure's file with the rest of `files`: sopc's errors, or the procedure gone."""
+        """Why `text` can't be the procedure's file with the rest of `files`: sop's errors, or the procedure gone."""
         changed = {**files, path: _eol(text)}
-        compiled = self.store.sopc.compile(changed)
+        compiled = self.store.sop.compile(changed)
         if not compiled.valid:
             return "; ".join(forms.locate(i).text or i.message for i in compiled.issues if i.severity == "error")
         try:
-            found = forms.find(forms.from_export(self.store.sopc.export(changed)), "procedure", procedure_id)
+            found = forms.find(forms.from_export(self.store.sop.export(changed)), "procedure", procedure_id)
         except Invalid as e:
             return str(e)
         return None if found is not None else f"The file must still define the procedure '{procedure_id}'."
 
     def _since(self, s: Suggestion, head: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
         """How a proposed suggestion fits the procedure's file at head (`head`: path -> {version, content}): `current`,
-        `merges` (with the merged file) or `conflict` (with the conflicting parts, or sopc's issues). None for any
+        `merges` (with the merged file) or `conflict` (with the conflicting parts, or sop's issues). None for any
         other suggestion. Kept per suggestion and head versions, so reading it again doesn't compile again."""
         if s.status != "proposed" or not s.path or s.old_text is None or s.new_text is None:
             return None
@@ -276,7 +276,7 @@ class Suggestions:
         try:
             with spend.scope(self.store.engine, ws, "suggestion"):
                 return self._generate(ws, s, v, ai or self.store.ai_keys.ai(ws), before)
-        except Exception as e:  # a model or sopc outage: the suggestion fails with the reason, and can be made again
+        except Exception as e:  # a model or sop outage: the suggestion fails with the reason, and can be made again
             log.exception("generating suggestion %s failed", s.id)
             return self._save(s, status="failed", error=f"{type(e).__name__}: {str(e)[:1000]}")
 
@@ -290,7 +290,7 @@ class Suggestions:
         if proc is None:
             return self._save(s, status="failed", error=f"The procedure '{s.procedure_id}' isn't in the workspace any more.")
         path = proc["file"]
-        sop = next((x for x in self.store.sopc.export(files)["sops"] if x["id"] == s.procedure_id), {})
+        sop = next((x for x in self.store.sop.export(files)["sops"] if x["id"] == s.procedure_id), {})
         rule = self._current_rule(ws, s, sop.get("rules") or [])
         if rule is None:
             return self._save(s, status="failed", error="The rule isn't in the procedure any more.")
@@ -319,7 +319,7 @@ class Suggestions:
         common = {"new_text": _eol(got.new_text), "rationale": got.rationale, "attempts": got.attempts, "model": ai.model("reasoning"), "prompt_version": VERSIONS["suggest"]}
         if got.error:
             return self._save(s, status="failed", error=got.error, **common)
-        plan = prompt_plan(self.store.sopc.compile(files).agents, self.store.sopc.compile({**files, path: common["new_text"]}).agents)
+        plan = prompt_plan(self.store.sop.compile(files).agents, self.store.sop.compile({**files, path: common["new_text"]}).agents)
         return self._save(s, status="proposed", error=None, plan=plan, **common)
 
     def _current_rule(self, ws: str, s: Suggestion, rules: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -331,7 +331,7 @@ class Suggestions:
             ids = lineage.members(db, ws, s.procedure_id, lid)
             found = next((r for r in rules if r["id"] in ids), None)
             live = db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
-            snap = lineage.snapshot(db, self.store.sopc, ws, live) if found is None and live is not None else None
+            snap = lineage.snapshot(db, self.store.sop, ws, live) if found is None and live is not None else None
         if found is not None or snap is None:
             return found
         released = snap.rules.get(s.procedure_id, [])

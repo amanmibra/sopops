@@ -1,10 +1,10 @@
 # Import
 
-Import agents' existing instructions, or an existing sopc project. The guide is [Import your agents](../import.md).
+Import agents' existing instructions, or an existing sop project. The guide is [Import your agents](../import.md).
 
 Every way ends in a **proposal** you review and apply as drafts: agents, shared instructions, procedures, groups, findings, and per-agent fidelity.
 
-**Fidelity** compiles each agent and compares it with its original instructions (`sopc compare`, sentence by sentence):
+**Fidelity** compiles each agent and compares it with its original instructions (`sop compare`, sentence by sentence):
 
 | Field | Type | |
 |---|---|---|
@@ -24,7 +24,7 @@ Every way ends in a **proposal** you review and apply as drafts: agents, shared 
 | `POST /v1/onboarding/platform-agents` | `{platform: elevenlabs \| vapi, api_key}` → `[{id, name}]`: the agents the key can see. The key is used for this request only. |
 | `GET/POST /v1/workspaces/{ws}/imports` | List imports, or start one with sopops's model: `{sources: [{name, platform, platform_id?, prompt, tools}], platform?: {platform, api_key, agent_ids}, guidance?}`. `guidance` (up to 2000 characters) is how the user wants their instructions organized; the model follows it when splitting and structuring, and empty means the default choices. `503` if no model is configured. Runs in the background. |
 | `POST /v1/workspaces/{ws}/imports/agent` | `{mode: hosted \| repo, server_url?}`: start an import by Claude Code or Codex. Fields below. |
-| `POST /v1/workspaces/{ws}/imports/sopc` | `{files?, from_repo?, originals?}`: import an existing sopc project. Fields below. |
+| `POST /v1/workspaces/{ws}/imports/sop` | `{files?, from_repo?, originals?}`: import an existing sop project. Fields below. |
 | `PUT /v1/workspaces/{ws}/imports/{id}/originals` | `{originals: {agent: prompt}}`: add or replace agents' original instructions (an empty one removes them) and check fidelity again. |
 | `GET /v1/workspaces/{ws}/imports/{id}` | Status (`waiting`, `running`, `ready`, `failed`, `applied`, `discarded`), token state, the proposal, and in repo mode the onboarding pull request. |
 | `GET /v1/workspaces/{ws}/imports/{id}/events?after=N` | Progress messages: `[{id, at, step, message, by, client}]`. The coding agent's messages (`by: agent`) carry `client` (Claude Code, Codex) when its MCP client said which it is. |
@@ -34,7 +34,7 @@ Every way ends in a **proposal** you review and apply as drafts: agents, shared 
 | `GET /v1/workspaces/{ws}/imports/{id}/review` | The proposal as summaries, for any number of agents. Fields below. |
 | `POST /v1/workspaces/{ws}/imports/{id}/review/{group}` | `{choice}`: for a disagreement, `keep` or `all:<agent>`; for unique text, `context` or `block` (a new shared instruction). Kept with the proposal by group id. |
 | `PUT /v1/workspaces/{ws}/imports/{id}/variables/{name}` | `{name?, values?}`: rename a variable everywhere, or set agents' values. |
-| `POST /v1/workspaces/{ws}/imports/{id}/apply` | Write the proposal as drafts (items with the same id are replaced). An imported sopc project writes exactly its files. Ends the token. |
+| `POST /v1/workspaces/{ws}/imports/{id}/apply` | Write the proposal as drafts (items with the same id are replaced). An imported sop project writes exactly its files. Ends the token. |
 | `POST /v1/workspaces/{ws}/imports/{id}/revoke` | End the token (Finish). |
 | `DELETE /v1/workspaces/{ws}/imports/{id}` | Discard the import. |
 
@@ -83,13 +83,13 @@ Repo mode needs the workspace's GitHub repository: `400` without one, or when Gi
 - That pull request is `pr_url`, `pr_state` (`open`, `merged`, `closed`) and `pr_merged_at`. An open one is checked on GitHub when the import is read (at most once a minute) and by the `sopops_pr_status` cron (`sopops pr-status`).
 - Merged pulls the folder into drafts (`POST /v1/workspaces/{ws}/repo/pull`) and makes the import `applied`. If that pull fails, `error` says why.
 
-### sopc project imports
+### sop project imports
 
-`POST /imports/sopc` takes the project's files by path relative to the folder with `sopc.yaml` (`build/` ignored), or `from_repo: true` to read the workspace's GitHub repository, and optionally each agent's original instructions.
+`POST /imports/sop` (formerly `/imports/sopc`, which still works) takes the project's files by path relative to the folder with `sop.yaml` (or `sopc.yaml`) (`build/` ignored), or `from_repo: true` to read the workspace's GitHub repository, and optionally each agent's original instructions.
 
-- The import has `source: sopc` and is ready at once: the proposal shows what the project holds and carries its `files`.
+- The import has `source: sopc` (the name from before sop v0.1.0) and is ready at once: the proposal shows what the project holds and carries its `files`.
 - Fidelity is checked for every agent with an original, as for any proposal.
-- `400` without files or `sopc.yaml`; `422` when sopc can't read it.
+- `400` without files or a `sop.yaml` (or `sopc.yaml`); `422` when sop can't read it.
 - Its content isn't edited here (`409`): change the project and import it again.
 
 ### What `GET /imports/{id}/review` has
@@ -97,13 +97,13 @@ Repo mode needs the workspace's GitHub repository: `400` without one, or when Gi
 | Field | |
 |---|---|
 | `counts` | Agents, shared blocks, variables, disagreements, undecided, agents with unique content, below 100% fidelity. |
-| `disagreements` | Rule words that differ, from `sopc overlap`: majority against outliers, smallest minority first. Then drift the model suggested beyond what overlap finds. |
+| `disagreements` | Rule words that differ, from `sop overlap`: majority against outliers, smallest minority first. Then drift the model suggested beyond what overlap finds. |
 | `variables` | Each variable by agent. |
 | `blocks` | Who uses each proposed block, and who lacks text most agents have. |
 | `unique` | Each agent's text no other has. |
 | `fidelity` | Per agent, as above. |
 
-Group ids are sopc's, stable across runs.
+Group ids are sop's, stable across runs.
 
 ```json
 {
@@ -136,7 +136,7 @@ These take `Authorization: Bearer <onboarding token>`: scope `onboarding:write`,
 | `GET /v1/onboarding/kickoff?server_url=` | `{instructions}`: the sopops-onboard skill and this session (what `get_kickoff` returns). |
 | `GET /v1/onboarding/guide` | `{guide, proposal_schema, finding_schema}`: the extraction rules and the JSON schemas. |
 | `POST /v1/onboarding/extraction` | `{prompts: [{name, platform, platform_id, prompt, tools}]}` → `{mode, instructions, inputs, originals, proposal_schema, next}`: each agent's instructions split into numbered units for the agent to classify. No model is called; nothing is stored. |
-| `POST /v1/onboarding/project` | `{proposal}` → `{files, issues, validation}`: the proposal as a sopc project's files, written and checked with sopc. Nothing is stored. |
+| `POST /v1/onboarding/project` | `{proposal}` → `{files, issues, validation}`: the proposal as a sop project's files, written and checked with sop. Nothing is stored. |
 | `POST /v1/onboarding/progress` | `{step, message}`: shown live on the import page. |
 | `PUT /v1/onboarding/proposal` | `{proposal, originals, findings?, notes?}`: replaces the import's proposal. Returns `{id, pushes, fidelity, issues}`. |
 | `POST /v1/onboarding/fidelity` | `{proposal, originals}` → `{fidelity, issues}`. Nothing is stored. |

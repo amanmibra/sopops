@@ -8,10 +8,10 @@ from pathlib import Path
 import dspy
 import httpx
 import pytest
-from conftest import SOPC_BIN, WS
+from conftest import SOP_BIN, WS
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, github
+from sopops_server import Sop, github
 from sopops_server.ai.lm import Usage
 from sopops_server.ai.signatures import NameVariables, SegmentPrompt, StructureProcedure
 from sopops_server.onboarding import kickoff, platforms
@@ -40,7 +40,7 @@ def sources() -> list[SourcePrompt]:
 
 @pytest.fixture(scope="module")
 def proposal():
-    return extract(sources(), RulesModels(), Sopc(SOPC_BIN))
+    return extract(sources(), RulesModels(), Sop(SOP_BIN))
 
 
 # --- text --------------------------------------------------------------------------------
@@ -64,17 +64,17 @@ def test_templates_values_drift_and_too_different():
     assert tx.template(["Ask for the address.\nCheck the zone.", "Ask for the address.\nAsk for a gate code.\nCheck the zone."]) is None
 
 
-def test_sopc_compare_and_overlap_as_json():
-    sopc = Sopc(SOPC_BIN)
+def test_sop_compare_and_overlap_as_json():
+    sop = Sop(SOP_BIN)
     originals = {"luigis": "You are the host for Luigi's.\n\nNever upsell more than twice per call.", "tonys": "You are the host for Tony's.\n\nNever upsell more than once per call."}
     files = {
-        "sopc.yaml": "version: 1\n",
+        "sop.yaml": "version: 1\n",
         "agents/luigis.yaml": "livekit: luigis\ncontext: |\n  You are the host for Luigi's.\n\n  Never upsell more than once per call.\n",
     }
-    report = sopc.compare(files, originals)
+    report = sop.compare(files, originals)
     luigis = next(a for a in report["agents"] if a["agent"] == "luigis")
     assert not luigis["ok"] and luigis["changed"][0]["changed_words"] == {"original": "twice", "compiled": "once"}
-    overlap = sopc.overlap(originals)
+    overlap = sop.overlap(originals)
     drift = [n for n in overlap["near_copies"] if n["kind"] == "rule_word"]
     assert len(drift) == 1 and set(drift[0]["agents_by_variant"]) == {"Never upsell more than twice per call.", "Never upsell more than once per call."}
     assert all(len(g["id"]) == 12 for g in overlap["near_copies"] + overlap["variables"])
@@ -124,7 +124,7 @@ def test_fidelity_is_complete_and_flags_dropped_text(proposal):
     broken = proposal.model_copy(deep=True)
     closing = next(i for i in broken.instructions if "Before hanging up" in i.text)
     closing.text = "Thank the caller."
-    checked = check(broken, Sopc(SOPC_BIN))
+    checked = check(broken, Sop(SOP_BIN))
     lost = {f.agent: f for f in checked.fidelity}
     assert all(not f.ok for f in lost.values())
     assert any("Before hanging up" in m for m in lost["bella-pasta"].missing + [c.original for c in lost["bella-pasta"].changed])
@@ -157,7 +157,7 @@ class Scripted:
 def test_units_the_model_leaves_out_are_kept_as_context():
     src = SourcePrompt(name="Solo", prompt="Solo Diner is on Main Street.\n\nBe brief.\n\nWe close at 9pm.")
     fake = Scripted(segments=Segmentation(segments=[Segment(units=[2], kind="instruction", title="Voice")]))
-    p = extract([src], fake, Sopc(SOPC_BIN))
+    p = extract([src], fake, Sop(SOP_BIN))
     assert p.agents[0].context == "Solo Diner is on Main Street.\n\nWe close at 9pm."
     assert [i.text for i in p.instructions] == ["Be brief."]
     assert any("weren't placed" in n for n in p.notes)
@@ -172,7 +172,7 @@ def test_procedures_keep_tools_from_the_agent_and_report_dropped_variables():
     draft = ProcedureDraft(name="Booking", goal="The table is booked.", goal_inferred=True, when="Someone books.", steps=[
         StepDraft(text="Ask the size."), StepDraft(text="Book it.", tool="made_up_tool"),
     ])
-    p = extract([a, b], Scripted(segments=segs, procedure=draft, names=["cafe_name"]), Sopc(SOPC_BIN))
+    p = extract([a, b], Scripted(segments=segs, procedure=draft, names=["cafe_name"]), Sop(SOP_BIN))
     proc = p.procedures[0]
     assert proc.goal_inferred and proc.steps[1].tool is None
     assert "{{cafe_name}}" in proc.source and p.agents[1].variables == {"cafe_name": "Beta Bistro"}
@@ -425,11 +425,11 @@ def test_kickoff_is_one_command_per_agent_and_the_skill_is_the_instructions(monk
     session = {"workspace": "prod", "mode": "repo", "repo": "acme/agents", "repo_branch": "trunk", "repo_path": "sops", "server_url": "https://sopops.example"}
     repo = kickoff.instructions({**session, "repo_project": "missing"})
     assert repo.startswith("# Onboard voice agents into sopops") and "Workspace: `prod`" in repo and "`acme/agents`, branch `trunk`, folder `sops/`" in repo
-    assert "doesn't hold a sopc project yet" in repo and "pull request into `trunk`" in repo and "report_pull_request" in repo
+    assert "doesn't hold a sop project yet" in repo and "pull request into `trunk`" in repo and "report_pull_request" in repo
     assert "push_to_sopops" in repo and "check_fidelity" in repo and "report_progress" in repo
     assert "can't build; replace its files" in kickoff.instructions({**session, "repo_project": "invalid"})
     valid = kickoff.instructions({**session, "repo_project": "valid"})
-    assert "already holds a sopc project at `sops/` on `trunk`" in valid and "don't open a pull request" in valid and "report_pull_request" not in valid.split("## This session")[1]
+    assert "already holds a sop project at `sops/` on `trunk`" in valid and "don't open a pull request" in valid and "report_pull_request" not in valid.split("## This session")[1]
     assert "pull request" not in kickoff.instructions({"workspace": "prod", "mode": "hosted"}) and "Not connected" in kickoff.instructions(None)
 
 
@@ -499,17 +499,17 @@ def test_the_review_summarizes_sixty_agents(client):
     assert client.put(f"{IMPORTS}/{body['id']}/variables/restaurant_label", json={"name": "Bad Name"}).status_code == 400
 
 
-# --- an existing sopc project ------------------------------------------------------------
+# --- an existing sop project ------------------------------------------------------------
 
 
-def test_importing_a_sopc_project_checks_fidelity_and_applies_its_files(client, files, monkeypatch):
-    compiled = Sopc(SOPC_BIN).compile(files).agents
+def test_importing_a_sop_project_checks_fidelity_and_applies_its_files(client, files, monkeypatch):
+    compiled = Sop(SOP_BIN).compile(files).agents
     lost = "Never say an item is \"allergen-free\" or \"safe\""
     a, b = sorted(x for x in compiled if lost in compiled[x]["prompt"])[:2]
     original_a = compiled[a]["prompt"]
     original_b = compiled[b]["prompt"].replace(lost, "Never call an item safe") + "\nAlways ask for the caller's phone number.\n"
     project = {**files, "build/prompt.md": "generated"}
-    r = client.post(f"{IMPORTS}/sopc", json={"files": project, "originals": {a: original_a}, "author": "dana"})
+    r = client.post(f"{IMPORTS}/sop", json={"files": project, "originals": {a: original_a}, "author": "dana"})
     assert r.status_code == 201, r.text
     imp = r.json()
     assert (imp["source"], imp["status"]) == ("sopc", "ready") and set(imp["agents"]) == set(compiled)
@@ -533,10 +533,10 @@ def test_importing_a_sopc_project_checks_fidelity_and_applies_its_files(client, 
     assert head == files  # exactly the project's files, as drafts
     assert client.get(f"{WS}/releases").json() == []  # nothing published
 
-    assert client.post(f"{IMPORTS}/sopc", json={}).status_code == 400
-    assert client.post(f"{IMPORTS}/sopc", json={"files": {"agents/x.yaml": "livekit: x"}}).status_code == 400  # no sopc.yaml
+    assert client.post(f"{IMPORTS}/sop", json={}).status_code == 400
+    assert client.post(f"{IMPORTS}/sop", json={"files": {"agents/x.yaml": "livekit: x"}}).status_code == 400  # no sop.yaml
     monkeypatch.setattr(github, "read_project", lambda store, ws: (files, "acme/agents@abc1234"))
-    got = client.post(f"{IMPORTS}/sopc", json={"from_repo": True}).json()
+    got = client.post(f"{IMPORTS}/sop", json={"from_repo": True}).json()
     assert got["repo"] == "acme/agents@abc1234" and got["proposal"]["fidelity"] == []
 
 
@@ -573,7 +573,7 @@ def test_guidance_reaches_the_splitting_and_structuring_calls():
 
 def test_empty_guidance_is_the_default_import(proposal):
     fake = rules_fake()
-    p = extract(sources(), fake, Sopc(SOPC_BIN), guidance="   ")
+    p = extract(sources(), fake, Sop(SOP_BIN), guidance="   ")
     assert {inputs["guidance"] for _, sig, inputs in fake.calls if sig in (SegmentPrompt, StructureProcedure)} == {""}
     assert p.model_dump() == proposal.model_dump()
 

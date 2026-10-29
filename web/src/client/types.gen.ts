@@ -124,7 +124,7 @@ export type AgentConfig = {
     /**
      * File
      *
-     * Where it lives in the sopc folder (for git export).
+     * Where it lives in the sop folder (for git export).
      */
     file: string;
     /**
@@ -207,7 +207,7 @@ export type AgentDeliveryOut = {
 /**
  * AgentFidelity
  *
- * How the agent's full instructions cover its original (`sopc compare`, sentence by sentence).
+ * How the agent's full instructions cover its original (`sop compare`, sentence by sentence).
  */
 export type AgentFidelity = {
     /**
@@ -373,7 +373,7 @@ export type AgentImportRequest = {
     /**
      * Mode
      *
-     * hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.
+     * hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sop builds, the agent opens a pull request adding it.
      */
     mode?: 'hosted' | 'repo';
     /**
@@ -441,7 +441,7 @@ export type AgentOut = {
     /**
      * Agent
      *
-     * sopc agent id.
+     * sop agent id.
      */
     agent: string;
     /**
@@ -861,7 +861,7 @@ export type BackfillAgentPreview = {
     /**
      * Agent
      *
-     * The sopc agent.
+     * The sop agent.
      */
     agent: string;
     /**
@@ -1607,7 +1607,7 @@ export type ConfigResponse = {
     /**
      * Groups
      *
-     * In the order sopc.yaml lists them.
+     * In the order sop.yaml lists them.
      */
     groups: Array<GroupConfig>;
 };
@@ -1806,13 +1806,13 @@ export type Disagreement = {
     /**
      * Id
      *
-     * sopc overlap's group id (stable across runs), or the extraction's finding id.
+     * sop overlap's group id (stable across runs), or the extraction's finding id.
      */
     id: string;
     /**
      * Source
      *
-     * overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict).
+     * overlap: a rule word differs (sop); model: suggested by the model (a paraphrased conflict).
      */
     source: 'overlap' | 'model';
     majority: WordingGroup;
@@ -1985,7 +1985,7 @@ export type DraftResponse = {
     /**
      * Lint
      *
-     * `sopc lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.
+     * `sop lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.
      */
     lint: Array<LintFinding>;
 };
@@ -2398,7 +2398,7 @@ export type FilesRequest = {
     /**
      * Files
      *
-     * Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
+     * Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
      */
     files: {
         [key: string]: string;
@@ -2589,7 +2589,7 @@ export type GroupConfig = {
     /**
      * File
      *
-     * Where it lives in the sopc folder (for git export).
+     * Where it lives in the sop folder (for git export).
      */
     file: string;
     /**
@@ -2692,7 +2692,7 @@ export type ImportOut = {
     /**
      * Source
      *
-     * llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project.
+     * llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0).
      */
     source: 'llm' | 'agent' | 'sopc';
     /**
@@ -2716,7 +2716,7 @@ export type ImportOut = {
     /**
      * Repo Path
      *
-     * Repo mode: the sopc project's folder; empty for the root.
+     * Repo mode: the sop project's folder; empty for the root.
      */
     repo_path: string | null;
     /**
@@ -2878,7 +2878,7 @@ export type InstructionConfig = {
     /**
      * File
      *
-     * Where it lives in the sopc folder (for git export).
+     * Where it lives in the sop folder (for git export).
      */
     file: string;
     /**
@@ -3091,13 +3091,13 @@ export type IssueOut = {
     /**
      * Message
      *
-     * sopc's message.
+     * sop's message.
      */
     message: string;
     /**
      * Path
      *
-     * Relative to the sopc folder; empty for folder-wide issues.
+     * Relative to the sop folder; empty for folder-wide issues.
      */
     path: string;
     /**
@@ -3789,7 +3789,7 @@ export type LiveKitIn = {
     /**
      * Agent Map
      *
-     * A LiveKit agent name (or `*` for any) to a sopc agent, for rooms whose agent name and metadata don't name one. Left out: kept.
+     * A LiveKit agent name (or `*` for any) to a sop agent, for rooms whose agent name and metadata don't name one. Left out: kept.
      */
     agent_map?: {
         [key: string]: string;
@@ -3971,7 +3971,7 @@ export type MigrateResponse = {
     /**
      * Plan
      *
-     * sopc migrate's plan: what changes in each file, and any warnings.
+     * sop migrate's plan: what changes in each file, and any warnings.
      */
     plan: string;
     /**
@@ -5242,7 +5242,7 @@ export type ProcedureConfig = {
     /**
      * File
      *
-     * Where it lives in the sopc folder (for git export).
+     * Where it lives in the sop folder (for git export).
      */
     file: string;
     /**
@@ -5422,7 +5422,7 @@ export type ProjectImport = {
     /**
      * Files
      *
-     * The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored.
+     * The sop project's files, by path relative to its folder (the one with sop.yaml). build/ is ignored.
      */
     files?: {
         [key: string]: string;
@@ -5461,7 +5461,7 @@ export type ProjectOut = {
     /**
      * Files
      *
-     * The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/.
+     * The sop project's files by path: sop.yaml, instructions/, procedures/, agents/.
      */
     files: {
         [key: string]: string;
@@ -5477,7 +5477,7 @@ export type ProjectOut = {
     /**
      * Validation
      *
-     * `sopc validate` on the files.
+     * `sop validate` on the files.
      */
     validation: Array<{
         [key: string]: unknown;
@@ -5516,7 +5516,7 @@ export type Proposal = {
     /**
      * Issues
      *
-     * sopc's checks of the proposal as files.
+     * sop's checks of the proposal as files.
      */
     issues?: Array<ProposalIssue>;
     /**
@@ -5534,7 +5534,7 @@ export type Proposal = {
     /**
      * Decisions
      *
-     * The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).
+     * The reviewer's decisions, by the id of the group they're about (sop overlap's ids).
      */
     decisions?: {
         [key: string]: string;
@@ -5542,7 +5542,7 @@ export type Proposal = {
     /**
      * Files
      *
-     * An imported sopc project's files: the import is these files, written as drafts exactly.
+     * An imported sop project's files: the import is these files, written as drafts exactly.
      */
     files?: {
         [key: string]: string;
@@ -5903,7 +5903,7 @@ export type PublishRequest = {
     /**
      * Files
      *
-     * Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
+     * Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
      */
     files: {
         [key: string]: string;
@@ -5952,7 +5952,7 @@ export type PullOut = {
     /**
      * Files
      *
-     * Files in the sopc project at that commit.
+     * Files in the sop project at that commit.
      */
     files: number;
     /**
@@ -6537,7 +6537,7 @@ export type RenderResponse = {
     /**
      * Lock
      *
-     * sopc's build/lock.json.
+     * sop's build/lock.json.
      */
     lock: {
         [key: string]: unknown;
@@ -6587,7 +6587,7 @@ export type ReplaceRequest = {
     /**
      * Files
      *
-     * Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
+     * Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored.
      */
     files: {
         [key: string]: string;
@@ -6639,13 +6639,13 @@ export type RepoIn = {
     /**
      * Path
      *
-     * The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.
+     * The sop project's folder in the repository (the one with sop.yaml); empty for the root.
      */
     path?: string;
     /**
      * Require Project
      *
-     * Check that `path` holds a sopc project (sopc.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.
+     * Check that `path` holds a sop project (sop.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.
      */
     require_project?: boolean;
 };
@@ -6673,7 +6673,7 @@ export type RepoOut = {
     /**
      * Path
      *
-     * The sopc project's folder; empty for the root.
+     * The sop project's folder; empty for the root.
      */
     path: string;
     /**
@@ -6769,7 +6769,7 @@ export type RepoProjectOut = {
     /**
      * Path
      *
-     * The sopc project's folder; empty for the root.
+     * The sop project's folder; empty for the root.
      */
     path: string;
     /**
@@ -6781,7 +6781,7 @@ export type RepoProjectOut = {
     /**
      * State
      *
-     * missing: no folder, or no sopc.yaml in it. invalid: sopc can't build it (`issues`). valid: a sopc project sopc builds.
+     * missing: no folder, or no sop.yaml in it. invalid: sop can't build it (`issues`). valid: a sop project sop builds.
      */
     state: 'missing' | 'invalid' | 'valid';
     /**
@@ -6799,7 +6799,7 @@ export type RepoProjectOut = {
     /**
      * Issues
      *
-     * sopc's issues: errors when invalid, warnings otherwise.
+     * sop's issues: errors when invalid, warnings otherwise.
      */
     issues: Array<IssueOut>;
 };
@@ -7768,7 +7768,7 @@ export type RuleResultOut = {
     /**
      * Rule Id
      *
-     * sopc's stable rule id.
+     * sop's stable rule id.
      */
     rule_id: string;
     /**
@@ -8046,7 +8046,7 @@ export type ServedIn = {
     /**
      * Agent
      *
-     * The sopc agent id or platform ref the instructions were fetched for.
+     * The sop agent id or platform ref the instructions were fetched for.
      */
     agent: string;
     /**
@@ -8124,7 +8124,7 @@ export type SessionDetail = {
     /**
      * Agent Id
      *
-     * The sopc agent, if the payload's agent matched one.
+     * The sop agent, if the payload's agent matched one.
      */
     agent_id: string | null;
     /**
@@ -8329,7 +8329,7 @@ export type SessionIn = {
     /**
      * Agent
      *
-     * The sopc agent id, or the agent's platform id (`tonys-pizza`).
+     * The sop agent id, or the agent's platform id (`tonys-pizza`).
      */
     agent?: string | null;
     /**
@@ -8594,7 +8594,7 @@ export type SessionSummary = {
     /**
      * Agent Id
      *
-     * The sopc agent, if the payload's agent matched one.
+     * The sop agent, if the payload's agent matched one.
      */
     agent_id: string | null;
     /**
@@ -8762,7 +8762,7 @@ export type SettingsConfig = {
     /**
      * File
      *
-     * Where it lives in the sopc folder (for git export).
+     * Where it lives in the sop folder (for git export).
      */
     file: string;
     /**
@@ -8943,7 +8943,7 @@ export type SinceWritten = {
     /**
      * Issues
      *
-     * `conflict`: sopc's errors with the merged file, or why there's nothing to merge into.
+     * `conflict`: sop's errors with the merged file, or why there's nothing to merge into.
      */
     issues: string | null;
 };
@@ -8973,7 +8973,7 @@ export type SourcePrompt = {
     /**
      * Name
      *
-     * The agent's name; its sopc id is made from it.
+     * The agent's name; its sop id is made from it.
      */
     name: string;
     /**
@@ -9435,7 +9435,7 @@ export type SuggestionDetail = {
     /**
      * Status
      *
-     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
+     * `generating` until the model and sop are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
      */
     status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'merged' | 'failed';
     /**
@@ -9445,7 +9445,7 @@ export type SuggestionDetail = {
     /**
      * Error
      *
-     * Why it failed: sopc's issues with the last proposal, or the model's error.
+     * Why it failed: sop's issues with the last proposal, or the model's error.
      */
     error: string | null;
     /**
@@ -9651,7 +9651,7 @@ export type SuggestionSummary = {
     /**
      * Status
      *
-     * `generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
+     * `generating` until the model and sop are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`.
      */
     status: 'generating' | 'proposed' | 'applied' | 'dismissed' | 'pr_open' | 'merged' | 'failed';
     /**
@@ -9661,7 +9661,7 @@ export type SuggestionSummary = {
     /**
      * Error
      *
-     * Why it failed: sopc's issues with the last proposal, or the model's error.
+     * Why it failed: sop's issues with the last proposal, or the model's error.
      */
     error: string | null;
     /**
@@ -10698,7 +10698,7 @@ export type VariableRow = {
     /**
      * Source
      *
-     * proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default).
+     * proposal: named by the model; overlap: found by sop and not in the proposal (its name is a default).
      */
     source: 'proposal' | 'overlap';
     /**
@@ -11262,7 +11262,7 @@ export type Wording = {
     /**
      * Rule Id
      *
-     * sopc's id for this wording.
+     * sop's id for this wording.
      */
     rule_id: string;
     /**
@@ -11310,7 +11310,7 @@ export type WordingGroup = {
 /**
  * WordingRef
  *
- * One wording of a rule: its sopc id (which follows the text), the text, and the release that published it.
+ * One wording of a rule: its sop id (which follows the text), the text, and the release that published it.
  */
 export type WordingRef = {
     /**
@@ -12724,7 +12724,7 @@ export type RenderData = {
 
 export type RenderErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -12749,7 +12749,7 @@ export type MigrateFilesData = {
 
 export type MigrateFilesErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -12774,7 +12774,7 @@ export type LintData = {
 
 export type LintErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -12859,7 +12859,7 @@ export type EditFilesData = {
 
 export type EditFilesErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -12889,7 +12889,7 @@ export type ReplaceFilesData = {
 
 export type ReplaceFilesErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13060,7 +13060,7 @@ export type ConfigCreateAgentErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13103,7 +13103,7 @@ export type ConfigDeleteAgentData = {
 
 export type ConfigDeleteAgentErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13171,7 +13171,7 @@ export type ConfigPutAgentData = {
 
 export type ConfigPutAgentErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13322,7 +13322,7 @@ export type ConfigCreateInstructionErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13365,7 +13365,7 @@ export type ConfigDeleteInstructionData = {
 
 export type ConfigDeleteInstructionErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13433,7 +13433,7 @@ export type ConfigPutInstructionData = {
 
 export type ConfigPutInstructionErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13584,7 +13584,7 @@ export type ConfigCreateProcedureErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13627,7 +13627,7 @@ export type ConfigDeleteProcedureData = {
 
 export type ConfigDeleteProcedureErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13695,7 +13695,7 @@ export type ConfigPutProcedureData = {
 
 export type ConfigPutProcedureErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13846,7 +13846,7 @@ export type ConfigCreateGroupErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13889,7 +13889,7 @@ export type ConfigDeleteGroupData = {
 
 export type ConfigDeleteGroupErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -13957,7 +13957,7 @@ export type ConfigPutGroupData = {
 
 export type ConfigPutGroupErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14080,7 +14080,7 @@ export type AddBlockErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14131,7 +14131,7 @@ export type RemoveBlockErrors = {
      */
     409: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14205,7 +14205,7 @@ export type MigrateData = {
 
 export type MigrateErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14265,7 +14265,7 @@ export type PutSettingsData = {
 
 export type PutSettingsErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14430,7 +14430,7 @@ export type CreateReleaseData = {
 
 export type CreateReleaseErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14528,7 +14528,7 @@ export type PublishData = {
 
 export type PublishErrors = {
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -14662,7 +14662,7 @@ export type GetPromptError = GetPromptErrors[keyof GetPromptErrors];
 
 export type GetPromptResponses = {
     /**
-     * The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers.
+     * The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash).
      */
     200: string;
 };
@@ -14732,7 +14732,7 @@ export type ListFetchesData = {
         /**
          * Agent
          *
-         * sopc agent id.
+         * sop agent id.
          */
         agent?: string | null;
         /**
@@ -14775,7 +14775,7 @@ export type ListSessionsData = {
         /**
          * Agent
          *
-         * sopc agent id, or the agent as sent.
+         * sop agent id, or the agent as sent.
          */
         agent?: string | null;
         /**
@@ -17500,7 +17500,7 @@ export type ConnectRepoData = {
 
 export type ConnectRepoErrors = {
     /**
-     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     * GitHub refused the token, can't find the repository, branch or sop project, or rejected a request.
      */
     400: unknown;
     /**
@@ -17546,7 +17546,7 @@ export type InspectRepoProjectData = {
 
 export type InspectRepoProjectErrors = {
     /**
-     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     * GitHub refused the token, can't find the repository, branch or sop project, or rejected a request.
      */
     400: unknown;
     /**
@@ -17601,11 +17601,11 @@ export type PullRepoData = {
 
 export type PullRepoErrors = {
     /**
-     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     * GitHub refused the token, can't find the repository, branch or sop project, or rejected a request.
      */
     400: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
     /**
@@ -17652,7 +17652,7 @@ export type SyncRepoData = {
 
 export type SyncRepoErrors = {
     /**
-     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     * GitHub refused the token, can't find the repository, branch or sop project, or rejected a request.
      */
     400: unknown;
     /**
@@ -17698,7 +17698,7 @@ export type SendRepoDraftsData = {
 
 export type SendRepoDraftsErrors = {
     /**
-     * GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request.
+     * GitHub refused the token, can't find the repository, branch or sop project, or rejected a request.
      */
     400: unknown;
     /**
@@ -17791,7 +17791,7 @@ export type ResolveRepoConflictErrors = {
      */
     404: unknown;
     /**
-     * The files don't compile; sopc's issues.
+     * The files don't compile; sop's issues.
      */
     422: ValidateResponse;
 };
@@ -18361,7 +18361,7 @@ export type CreateImportResponses = {
 
 export type CreateImportResponse = CreateImportResponses[keyof CreateImportResponses];
 
-export type ImportSopcProjectData = {
+export type ImportSopProjectData = {
     body: ProjectImport;
     path: {
         /**
@@ -18370,28 +18370,28 @@ export type ImportSopcProjectData = {
         workspace: string;
     };
     query?: never;
-    url: '/v1/workspaces/{workspace}/imports/sopc';
+    url: '/v1/workspaces/{workspace}/imports/sop';
 };
 
-export type ImportSopcProjectErrors = {
+export type ImportSopProjectErrors = {
     /**
-     * No files and no repository, or no sopc.yaml.
+     * No files and no repository, or no sop.yaml (or sopc.yaml).
      */
     400: unknown;
     /**
-     * sopc can't read the project.
+     * sop can't read the project.
      */
     422: unknown;
 };
 
-export type ImportSopcProjectResponses = {
+export type ImportSopProjectResponses = {
     /**
      * Successful Response
      */
     201: ImportOut;
 };
 
-export type ImportSopcProjectResponse = ImportSopcProjectResponses[keyof ImportSopcProjectResponses];
+export type ImportSopProjectResponse = ImportSopProjectResponses[keyof ImportSopProjectResponses];
 
 export type SetImportOriginalsData = {
     body: OriginalsIn;

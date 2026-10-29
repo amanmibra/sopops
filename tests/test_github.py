@@ -1,4 +1,4 @@
-"""GitHub: connecting a repository, pulling its sopc project into drafts, and opening pull requests. GitHub is a small
+"""GitHub: connecting a repository, pulling its sop project into drafts, and opening pull requests. GitHub is a small
 in-memory git (blobs, flat trees, commits, refs, pulls) behind respx; no network, no real token."""
 
 import base64
@@ -186,7 +186,7 @@ def secret_key(monkeypatch):
 
 @pytest.fixture
 def gh(files):
-    """The repo: the fixture's sopc project at `sops/`, a README at the root, and a committed build/ to ignore."""
+    """The repo: the fixture's sop project at `sops/`, a README at the root, and a committed build/ to ignore."""
     fake = FakeGitHub({**{f"sops/{p}": c for p, c in files.items()}, "README.md": "# agents\n", "sops/build/lock.json": "{}"})
     with respx.mock(assert_all_called=False) as router:
         fake.install(router)
@@ -213,7 +213,7 @@ def test_connect_checks_the_repo_and_never_returns_the_token(client, gh):
     assert out["url"] == "https://github.com/acme/agents/tree/main/sops"
     assert TOKEN not in res.text and TOKEN not in client.get(f"{WS}/repo").text
     assert client.get(f"{WS}/repo").json() == out
-    assert ("GET", f"{REPO}/contents/sops/sopc.yaml") in gh.calls
+    assert ("GET", f"{REPO}/contents/sops/sop.yaml") in gh.calls
 
     with Session(store_of(client).engine) as db:
         row = db.get(RepoConnection, "demo")
@@ -233,7 +233,7 @@ def test_connect_explains_what_is_wrong(client, gh):
     res = connect(client, base_branch="develop")
     assert res.status_code == 400 and "no branch develop" in res.json()["detail"]
     res = connect(client, path="agents")
-    assert res.status_code == 400 and "no sopc project at 'agents'" in res.json()["detail"]
+    assert res.status_code == 400 and "no sop project at 'agents'" in res.json()["detail"]
     assert connect(client, path="../etc").status_code == 400
     assert connect(client, owner="not an owner").status_code == 400
     assert client.post(f"{WS}/repo", json={"owner": "acme", "repo": "agents"}).json()["detail"] == "enter a GitHub token"
@@ -329,7 +329,7 @@ def test_pull_refuses_what_does_not_compile(client, gh, files):
     assert client.get(f"{WS}/repo").json()["pulled_sha"] is None
     gh.push("main", {f"sops/{p}": None for p in files})
     res = client.post(f"{WS}/repo/pull")
-    assert res.status_code == 400 and "sopc.yaml isn't there" in res.json()["detail"]
+    assert res.status_code == 400 and "sop.yaml isn't there" in res.json()["detail"]
 
 
 # --- pull requests ---------------------------------------------------------------------------------
@@ -369,7 +369,7 @@ def test_open_pull_request_refusals(client, gh, files):
     with pytest.raises(GitHubError, match="paths must be relative"):
         github.open_pull_request(store, "demo", {"../x.md": "x"}, "t", "b")
     with pytest.raises(GitHubError) as nothing:
-        github.open_pull_request(store, "demo", {"sopc.yaml": files["sopc.yaml"]}, "t", "b")
+        github.open_pull_request(store, "demo", {"sop.yaml": files["sop.yaml"]}, "t", "b")
     assert nothing.value.status == 409 and gh.pulls == []
 
     gh.fail[("POST", f"{REPO}/pulls")] = httpx.Response(422, json={"message": "Validation Failed", "errors": [{"message": "base is invalid"}]})
@@ -405,7 +405,7 @@ def test_applying_a_suggestion_opens_a_pull_request(env):
 
 @pytest.fixture
 def bare():
-    """A repo without a sopc project: only a README."""
+    """A repo without a sop project: only a README."""
     fake = FakeGitHub({"README.md": "# agents\n", "agent.py": "PROMPT = 'Be kind.'\n"})
     with respx.mock(assert_all_called=False) as router:
         fake.install(router)
@@ -431,7 +431,7 @@ def test_onboarding_connects_before_there_is_a_project(client, bare):
     assert (imp["repo"], imp["repo_branch"], imp["repo_path"], imp["repo_project"], imp["pr_url"]) == ("acme/agents", "main", "sops", "missing", None)
     assert "uvx --from 'sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python' sopops-mcp" in started["kickoff"]["claude_code"]
     events = client.get(f"{WS}/imports/{imp['id']}/events").json()
-    assert "propose a pull request adding a sopc project at sops/ on main. Nothing merges without you." in events[-1]["message"]
+    assert "propose a pull request adding a sop project at sops/ on main. Nothing merges without you." in events[-1]["message"]
     session = client.get("/v1/onboarding/session", headers={"Authorization": f"Bearer {started['token']}"}).json()
     assert (session["repo"], session["repo_branch"], session["repo_path"], session["repo_project"]) == ("acme/agents", "main", "sops", "missing")
 
@@ -451,7 +451,7 @@ def test_a_valid_project_is_found_and_imported(client, gh, files):
     found = client.get(f"{WS}/repo/project").json()
     assert found["state"] == "valid" and found["files"] == len(files) and "tonys-pizza" in found["agents"]
     assert not [i for i in found["issues"] if i["severity"] == "error"]
-    imp = client.post(f"{WS}/imports/sopc", json={"from_repo": True}).json()
+    imp = client.post(f"{WS}/imports/sop", json={"from_repo": True}).json()
     assert imp["source"] == "sopc" and imp["status"] == "ready" and imp["repo"].startswith("acme/agents@")
     # A coding agent anyway: it's told the repo already has a project, and not to open a PR.
     started = start_repo_onboarding(client)
@@ -460,7 +460,7 @@ def test_a_valid_project_is_found_and_imported(client, gh, files):
     assert "don't open a pull request" in kickoff.instructions(session)
 
 
-def test_an_invalid_project_shows_sopcs_errors(client, gh, files):
+def test_an_invalid_project_shows_sops_errors(client, gh, files):
     gh.push("main", {"sops/agents/tonys-pizza.yaml": files["agents/tonys-pizza.yaml"].replace("  - closing\n", "  - no-such-block\n")})
     connect(client, require_project=False)
     found = client.get(f"{WS}/repo/project").json()

@@ -12,7 +12,7 @@ LinkHow = Literal["suggestion", "matched", "manual"]
 
 
 class WordingRef(BaseModel):
-    """One wording of a rule: its sopc id (which follows the text), the text, and the release that published it."""
+    """One wording of a rule: its sop id (which follows the text), the text, and the release that published it."""
 
     rule_id: str
     text: str

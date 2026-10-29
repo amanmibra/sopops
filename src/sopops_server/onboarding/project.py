@@ -1,11 +1,11 @@
-"""An existing sopc project as an import: its files (uploaded, or read from the workspace's GitHub repository) become a
-proposal that shows what's in it, checked like any proposal (compiled with sopc, each agent against its original prompt
+"""An existing sop project as an import: its files (uploaded, or read from the workspace's GitHub repository) become a
+proposal that shows what's in it, checked like any proposal (compiled with sop, each agent against its original prompt
 when one is given), and applied as exactly those files."""
 
 from __future__ import annotations
 
 from .. import forms
-from ..sopc import Files, Sopc
+from ..sop import Files, Sop
 from .review import refresh_used_by
 from .types import (
     Proposal,
@@ -17,7 +17,7 @@ from .types import (
     ProposedStep,
 )
 
-SKIP = ("build/",)  # sopc regenerates it
+SKIP = ("build/",)  # sop regenerates it
 
 
 def clean(files: Files) -> Files:
@@ -37,13 +37,14 @@ def steps(rows: list[dict]) -> list[ProposedStep]:
     return [ProposedStep(**one(r), or_=[one(o) for o in (r.get("or") or [])] if isinstance(r, dict) else []) for r in rows]
 
 
-def proposal_of(files: Files, sopc: Sopc, originals: dict[str, str] | None = None) -> Proposal:
-    """What the project holds, as a proposal carrying the files themselves. Raises Invalid when there's no sopc.yaml or
-    sopc can't read the project (sopc's Invalid); ValueError without a sopc.yaml."""
+def proposal_of(files: Files, sop: Sop, originals: dict[str, str] | None = None) -> Proposal:
+    """What the project holds, as a proposal carrying the files themselves. Raises Invalid when there's no sop.yaml or
+    sop can't read the project (sop's Invalid); ValueError without a sop.yaml."""
     files = clean(files)
-    if forms.CONFIG not in files:
+    config = forms.config_path(files)
+    if config is None:
         raise ValueError(f"no {forms.CONFIG}: upload the project's folder (the one with {forms.CONFIG} in it)")
-    items = forms.from_export(sopc.export(files))
+    items = forms.from_export(sop.export(files), config)
     p = Proposal(
         instructions=[ProposedInstruction(id=i["id"], title=i["id"], text=i["text"]) for i in items["instructions"]],
         procedures=[ProposedProcedure(id=x["id"], name=x["name"], goal=x.get("goal") or "", when=x.get("when") or "", guidance=x.get("guidance") or "",

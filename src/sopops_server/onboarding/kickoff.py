@@ -4,7 +4,7 @@ The UI gives one command per agent that adds the sopops MCP server (server URL a
 starts the agent with a short prompt: call `get_kickoff` and follow it. The MCP server (`sopops-mcp`) ships in the client
 SDK and asks this server (`/v1/onboarding/kickoff`), which returns the onboarding skill (`skills/sopops-onboard/SKILL.md`,
 the single source of the instructions, bundled with the server package so it matches this server) plus this session's details: workspace, server, mode, and in repo mode the connected repository and
-what to do there: open the onboarding pull request adding the sopc project when the folder has none sopc can build (with
+what to do there: open the onboarding pull request adding the sop project when the folder has none sop can build (with
 a GitHub App connection, sopops opens it from the pushed proposal; with a token, the agent opens it with `gh`).
 """
 
@@ -24,9 +24,9 @@ SKILLS = (SKILL_NAME, AB_SKILL)
 PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 
 REPO_STEP = """Repo mode (the user opted in). sopops is connected to GitHub: `{repo}`, branch `{branch}`, folder `{folder}`, which {finding}.
-After pushing, write the same proposal as a sopc project at `{folder}` with `write_sopc_project`, run `sopc validate` there if the
-sopc CLI is installed, and open a pull request into `{branch}` from a new branch (with `gh pr create` if it's available,
-otherwise say how) titled "Add sopc project for sopops". In its description: the agents and where each one's instructions were found,
+After pushing, write the same proposal as a sop project at `{folder}` with `write_sop_project` (`write_sopc_project` in older sopops-mcp), run `sop validate` there if the
+sop CLI is installed, and open a pull request into `{branch}` from a new branch (with `gh pr create` if it's available,
+otherwise say how) titled "Add sop project for sopops". In its description: the agents and where each one's instructions were found,
 the blocks extracted, drift found, and each agent's fidelity score. Don't merge it. Then call `report_pull_request` with its
 URL: sopops follows it, and when the user merges it, pulls `{folder}` into drafts."""
 
@@ -37,10 +37,10 @@ call `open_pull_request` with a description: the agents and where each one's ins
 it's open for their review, and don't merge it. When the user merges it, sopops pulls `{folder}` into drafts."""
 
 REPO_FINDING = {
-    "missing": "doesn't hold a sopc project yet",
-    "invalid": "holds a sopc project sopc can't build; replace its files with yours",
+    "missing": "doesn't hold a sop project yet",
+    "invalid": "holds a sop project sop can't build; replace its files with yours",
 }
-REPO_VALID = """Repo mode: `{repo}` already holds a sopc project at `{folder}` on `{branch}`, and sopops reads it from there. Push
+REPO_VALID = """Repo mode: `{repo}` already holds a sop project at `{folder}` on `{branch}`, and sopops reads it from there. Push
 your proposal for review as usual, but don't open a pull request."""
 
 SETTINGS = {
@@ -82,7 +82,7 @@ def instructions(session: dict | None) -> str:
 
 
 def repo_step(session: dict) -> str:
-    """What to do in the repository: the onboarding pull request, unless the folder already holds a project sopc builds."""
+    """What to do in the repository: the onboarding pull request, unless the folder already holds a project sop builds."""
     path = session.get("repo_path")
     where = {"repo": session.get("repo") or "this repository", "branch": session.get("repo_branch") or "main",
              "folder": f"{path}/" if path else ("the repository root" if path == "" else "sops/")}

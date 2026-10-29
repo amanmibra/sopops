@@ -4,7 +4,7 @@
     python examples/walkthrough/run_all.py --models real    # your models (see WALKTHROUGH.md for the variables)
     python examples/walkthrough/run_all.py --stop           # stop sopops when done (what the test does)
     python examples/walkthrough/run_all.py --sign-in        # afterwards, serve it all behind a sign-in
-    WALKTHROUGH_ONBOARD=sopc python examples/walkthrough/run_all.py   # onboard from the existing sopc project instead
+    WALKTHROUGH_ONBOARD=sop python examples/walkthrough/run_all.py   # onboard from the existing sop project instead
 
 Starts `serve.py --fresh` on WALKTHROUGH_PORT (default 8585), then runs onboard.py, generate.py, backfill.py,
 review.py, replay.py, verify.py and conflicts.py. Exits with the checks' status (verify.py's and conflicts.py's).
@@ -27,10 +27,10 @@ import httpx
 
 from common import HERE, PORT, URL
 
-ONBOARD = os.environ.get("WALKTHROUGH_ONBOARD", "proposal")  # proposal (a coding agent's push) | sopc (an existing sopc project)
+ONBOARD = os.environ.get("WALKTHROUGH_ONBOARD", "proposal")  # proposal (a coding agent's push) | sop (an existing sop project)
 STEPS = [
-    ("2. Onboard (prepared proposal) and publish release 1", ["onboard.py"]) if ONBOARD != "sopc" else
-    ("2. Onboard (an existing sopc project) and publish release 1", ["onboard.py", "sopc"]),
+    ("2. Onboard (prepared proposal) and publish release 1", ["onboard.py"]) if ONBOARD != "sop" else
+    ("2. Onboard (an existing sop project) and publish release 1", ["onboard.py", "sop"]),
     ("4. Generate the calls", ["generate.py"]),
     ("5. Backfill", ["backfill.py"]),
     ("6. Review patterns, verdicts and suggestions; publish release 2", ["review.py"]),

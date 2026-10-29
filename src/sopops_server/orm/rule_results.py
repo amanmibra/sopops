@@ -31,7 +31,7 @@ class RuleResult(SQLModel, table=True):
     workspace_id: str = Field(max_length=128)
     session_id: str = Field(max_length=36)
     procedure_id: str = Field(max_length=256)
-    rule_id: str = Field(max_length=64, description="sopc's stable rule id (lock.json, `sopc export`).")
+    rule_id: str = Field(max_length=64, description="sop's stable rule id (lock.json, `sop export`).")
     kind: str = Field(max_length=16)  # step | option | never | warning
     index: int = Field(description="1-based position within its kind; an option has its step's.")
     option: int | None = Field(default=None, description="An option: its 1-based place among its step's OR options.")

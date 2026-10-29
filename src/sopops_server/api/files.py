@@ -13,7 +13,7 @@ from ..schemas import (
     WorkspaceOut,
     WriteResponse,
 )
-from ..sopc import without_build
+from ..sop import without_build
 from ..store import Store
 from .deps import INVALID, OPEN
 

@@ -7,12 +7,12 @@ from datetime import datetime, timedelta, timezone
 
 import httpx
 import pytest
-from conftest import SOPC_BIN, downgrade, fresh_db_url
+from conftest import SOP_BIN, downgrade, fresh_db_url
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.auth import access
 from sopops_server.db import upgrade
 from sopops_server.orm import FileVersion, JoinLink, LoginAttempt, Membership, Org, User, Workspace
@@ -35,7 +35,7 @@ def db(c: TestClient) -> Session:
 def fresh(tmp_path, monkeypatch):
     """A fresh install with passwords and nothing else: no users, no workspaces."""
     monkeypatch.setenv("SOPOPS_AUTH_REQUIRED", "true")
-    return create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    return create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN)))
 
 
 def first_run(app, team: str = "Northwind", email: str = "ana@example.com") -> TestClient:
@@ -269,7 +269,7 @@ def test_platforms_with_sign_in_off(client):
 
 def test_the_migration_leaves_existing_orgs_showing_every_platform(tmp_path, files):
     url = f"sqlite:///{tmp_path / 'm.db'}"
-    Store(url, Sopc(SOPC_BIN)).replace("demo", files)
+    Store(url, Sop(SOP_BIN)).replace("demo", files)
     engine = create_engine(url)
     downgrade(engine, "0025")
     with engine.connect() as conn:

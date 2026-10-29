@@ -48,13 +48,13 @@ const sopops = new SopOps({ cache: new FileCache() });  // or new FileCache("/va
 
 | Name | What it is | Who picks it |
 |---|---|---|
-| sopc id | The readable name in sopops's URLs, like `copper-wok-harbor`. | sopops. |
+| sop id | The readable name in sopops's URLs, like `copper-wok-harbor`. | sopops. |
 | platform identifier | The raw value your platform uses for the agent, such as a LiveKit agent name, a database row id, or a phone number. | You. |
 | platform ref | The stored platform and identifier, such as `livekit:42`. | sopops. |
 
 - Pass the raw platform identifier to an adapter. `attach` resolves it within
   LiveKit, so you do not add `livekit:` yourself.
-- A generic instruction fetch can take a sopc id, platform ref, or a raw
+- A generic instruction fetch can take a sop id, platform ref, or a raw
   identifier. Scope a raw identifier to its platform when another platform can
   use the same value.
 

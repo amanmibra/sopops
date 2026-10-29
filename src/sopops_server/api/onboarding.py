@@ -120,11 +120,12 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
         except ValueError as e:
             raise HTTPException(400, str(e)) from None
 
-    @r.post(f"{base}/sopc", response_model=ImportOut, status_code=201,
-            responses={400: {"description": "No files and no repository, or no sopc.yaml."}, 422: {"description": "sopc can't read the project."}})
-    def import_sopc_project(workspace: str, req: ProjectImport) -> dict:
-        """Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
-        agent's original instructions optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for
+    @r.post(f"{base}/sop", response_model=ImportOut, status_code=201,
+            responses={400: {"description": "No files and no repository, or no sop.yaml (or sopc.yaml)."}, 422: {"description": "sop can't read the project."}})
+    @r.post(f"{base}/sopc", response_model=ImportOut, status_code=201, include_in_schema=False)  # the old path, for older clients
+    def import_sop_project(workspace: str, req: ProjectImport) -> dict:
+        """Import an existing sop project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
+        agent's original instructions optionally. It's ready to review at once: what it holds, sop's checks, and fidelity for
         every agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes
         exactly its files as drafts; nothing is published."""
         origin = None
@@ -152,7 +153,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     def start_agent_import(workspace: str, req: AgentImportRequest, request: Request) -> dict:
         """An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the
         commands and instructions to start one. The token is shown only in this response. Repo mode reads the connected
-        repository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull
+        repository's folder first: unless it holds a project sop builds, the agent is told to open the onboarding pull
         request adding one, and to report it."""
         server = (req.server_url or str(request.base_url)).rstrip("/")
         try:
@@ -193,7 +194,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.put(f"{base}/{{id}}/proposal", response_model=ImportOut)
     def update_import_proposal(workspace: str, id: str, req: ProposalContent) -> dict:
-        """Save edits to the proposal; fidelity and sopc's checks are run again."""
+        """Save edits to the proposal; fidelity and sop's checks are run again."""
         return onboarding.update(workspace, id, req)
 
     @r.post(f"{base}/{{id}}/findings/{{finding}}", response_model=ImportOut, responses={400: {"description": "Not a choice for this finding."}})
@@ -207,7 +208,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     @r.get(f"{base}/{{id}}/review", response_model=ReviewOut, responses={409: {"description": "No proposal yet."}})
     def get_import_review(workspace: str, id: str) -> dict:
         """The proposal as summaries, for any number of agents: counts, disagreements (rule words that differ, from
-        sopc overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity."""
+        sop overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity."""
         return onboarding.review(workspace, id)
 
     @r.post(f"{base}/{{id}}/review/{{group}}", response_model=ReviewOut, responses={400: {"description": "Not a choice for this group."}})
@@ -281,7 +282,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.post("/v1/onboarding/project", response_model=ProjectOut)
     def onboarding_project(req: ProjectIn, rec: ImportRecord = Depends(caller)) -> dict:
-        """A proposal as a sopc project's files, written with sopc, and `sopc validate` on them. Stores nothing."""
+        """A proposal as a sop project's files, written with sop, and `sop validate` on them. Stores nothing."""
         return onboarding.project_files(req.proposal)
 
     @r.post("/v1/onboarding/progress", response_model=EventOut)
@@ -306,7 +307,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
     @r.post("/v1/onboarding/pull-request/open", response_model=ImportOut,
             responses={400: {"description": "Not repo mode, no proposal pushed yet, or GitHub refused."}, 404: {"description": "No repository connected."}})
     def onboarding_open_pull_request(req: OpenPullRequestIn, rec: ImportRecord = Depends(caller)) -> dict:
-        """Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at
+        """Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sop project at
         the connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it."""
         try:
             return onboarding.open_pull_request(rec, req.description)
@@ -325,7 +326,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
 
     @r.post("/v1/onboarding/fidelity", response_model=FidelityOut)
     def onboarding_check(req: FidelityIn, rec: ImportRecord = Depends(caller)) -> dict:
-        """Compile a proposal with sopc and compare each agent with its original. Stores nothing."""
+        """Compile a proposal with sop and compare each agent with its original. Stores nothing."""
         return onboarding.check(req.proposal, req.originals)
 
     return r

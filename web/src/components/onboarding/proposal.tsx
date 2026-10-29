@@ -170,7 +170,7 @@ export function Review({ imp, proposal, place, onPlace }: { imp: ImportOut; prop
       <Stepper steps={steps} current={current.id} reached={place.reached} onPick={(s) => void moveTo(s)} />
       {errors.length > 0 && (
         <Banner tone="err">
-          sopc can't build this yet:
+          sop can't build this yet:
           <ul>
             {errors.map((i, n) => (
               <li key={n}>

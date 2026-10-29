@@ -13,13 +13,13 @@ from urllib.parse import parse_qs, unquote, urlparse
 import httpx
 import pytest
 import respx
-from conftest import SOPC_BIN, WS, downgrade, fresh_db_url
+from conftest import SOP_BIN, WS, downgrade, fresh_db_url
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, Store, cli, create_app
+from sopops_server import Sop, Store, cli, create_app
 from sopops_server.api.auth import SESSION_MAX_AGE
 from sopops_server.auth import access, mode, providers
 from sopops_server.auth.service import csrf_token
@@ -41,7 +41,7 @@ def providers_env(monkeypatch):
 
 @pytest.fixture
 def app(tmp_path, providers_env):
-    return create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    return create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN)))
 
 
 @pytest.fixture
@@ -708,7 +708,7 @@ def test_the_onboarding_token_works_without_a_session(owner, app):
 
 def test_the_migration_puts_existing_workspaces_in_one_org(tmp_path, files):
     url = f"sqlite:///{tmp_path / 'm.db'}"
-    store = Store(url, Sopc(SOPC_BIN))
+    store = Store(url, Sop(SOP_BIN))
     for ws in ("zeta", "alpha"):
         store.replace(ws, files)
     engine = create_engine(url)
@@ -838,7 +838,7 @@ PW_LINK = re.compile(r"/set-password#([A-Za-z0-9_-]+)")
 def pw_app(tmp_path, monkeypatch, files):
     """Sign-in forced on with no provider and no email: passwords only."""
     monkeypatch.setenv("SOPOPS_AUTH_REQUIRED", "true")
-    app = create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    app = create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN)))
     app.state.store.replace("demo", files)
     return app
 

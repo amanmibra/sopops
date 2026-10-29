@@ -126,7 +126,7 @@ def main() -> None:
         for mode, sid in review["suggestions"].items():
             s = call(http, "GET", f"/v1/workspaces/{{ws}}/suggestions/{sid}")
             check(s["status"] in ("applied", "pr_open"), f"{mode}: suggestion for {s['block_id']} {s['status']}: {s['rationale']}")
-            check(bool(s["new_text"]) and s["new_text"] != s["old_text"], f"{mode}: the edit changes {s['path']} and compiled with sopc")
+            check(bool(s["new_text"]) and s["new_text"] != s["old_text"], f"{mode}: the edit changes {s['path']} and compiled with sop")
             got = call(http, "GET", f"/v1/workspaces/{{ws}}/releases/{latest}")
             check(any(f["path"] == s["path"] and f["version"] > (s["base_version"] or 0) for f in files_of(got)), f"{mode}: release {latest} has the edited {s['path']}")
         if len(review["suggestions"]) < 2:

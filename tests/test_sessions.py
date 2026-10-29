@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session as DB
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.cli import main as cli
 from sopops_server.events import Broker
 from sopops_server.pipeline.normalize import normalize_turns
@@ -411,7 +411,7 @@ def test_the_migration_renames_partial_sessions_to_incomplete(tmp_path):
     downgrade(store.engine, "0013")  # as a database from before 0014 has it
     with DB(store.engine) as db, db.begin():
         assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "partial"
-    again = Store(url, Sopc())
+    again = Store(url, Sop())
     with DB(again.engine) as db:
         assert db.exec(text("SELECT status FROM sessions WHERE id = :id").bindparams(id=sid)).one()[0] == "incomplete"
 

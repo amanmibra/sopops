@@ -87,7 +87,7 @@ Then open http://127.0.0.1:8484 (`open` on a Mac, `xdg-open` on Linux) and stay 
 
 - **Their agents' instructions are in a repo:** on the sopops **Import agents** page, choose **Claude Code or Codex** and copy the command it shows. It has a token that lasts two hours. Have them run it in a terminal **in their agents' repo**, not in this one. A second agent session then finds every agent's instructions, splits them into blocks and sends them back to sopops for review. That session follows the `sopops-onboard` skill. Afterwards, the person reviews the proposal on the page and applies it.
 - **On ElevenLabs or Vapi with no repo:** the Import page can read agents straight from the platform with a read-only key, which they paste on the page.
-- **No agents yet, or just looking:** paste an example prompt on the Import page (**Paste or upload**, which needs the model key from step 5), or show them the walkthrough (`examples/walkthrough/WALKTHROUGH.md`). It sends 300 sample calls with planted mistakes through sopops, without keys. It needs `just`, `uv`, `pnpm` and the sopc compiler, so ask before installing any of them.
+- **No agents yet, or just looking:** paste an example prompt on the Import page (**Paste or upload**, which needs the model key from step 5), or show them the walkthrough (`examples/walkthrough/WALKTHROUGH.md`). It sends 300 sample calls with planted mistakes through sopops, without keys. It needs `just`, `uv`, `pnpm` and the sop compiler, so ask before installing any of them.
 
 ## 7. Connect their calls
 

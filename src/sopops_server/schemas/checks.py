@@ -37,7 +37,7 @@ class RuleCorrectionOut(BaseModel):
 
 
 class RuleResultOut(BaseModel):
-    rule_id: str = Field(description="sopc's stable rule id.")
+    rule_id: str = Field(description="sop's stable rule id.")
     kind: RuleKind
     index: int = Field(description="1-based position within its kind; an option has its step's.")
     option: int | None = Field(None, description="An option: its 1-based place among its step's OR options.")

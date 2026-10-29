@@ -1,12 +1,12 @@
 """Agents, shared instructions, procedures (SOPs), groups and settings as structured data.
 
-Reading goes through `sopc export`, so there is one parser (sopc's). Writing generates the sopc file
-for one item: YAML for agents, YAML procedures and sopc.yaml (settings and groups), Markdown with front
-matter for instructions and Markdown procedures. Every generated file is read back with `sopc export`
+Reading goes through `sop export`, so there is one parser (sop's). Writing generates the sop file
+for one item: YAML for agents, YAML procedures and sop.yaml (settings and groups), Markdown with front
+matter for instructions and Markdown procedures. Every generated file is read back with `sop export`
 and must give exactly the values that were asked for; if the readable form doesn't, a fully quoted one
 is used instead.
 
-sopc's issues name files; `locate` maps them back to the item and field they're about, in plain words.
+sop's issues name files; `locate` maps them back to the item and field they're about, in plain words.
 """
 
 from __future__ import annotations
@@ -15,11 +15,13 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
-from .sopc import Files, Invalid, Issue
+from .sop import Files, Invalid, Issue
 
-CONFIG = "sopc.yaml"
+CONFIG = "sop.yaml"  # where a new project keeps its settings and groups
+LEGACY_CONFIG = "sopc.yaml"  # the name before sop v0.1.0; projects that have it keep it, and sop reads it
+CONFIGS = (CONFIG, LEGACY_CONFIG)  # in the order sop looks for them: sop.yaml wins when both are there
 PLATFORMS = ("livekit", "vapi", "elevenlabs", "retell")
 DEFAULT_HEADING = "## Procedures"
 FOLDERS = {"agent": "agents", "instruction": "instructions", "procedure": "procedures"}
@@ -37,10 +39,26 @@ Item = dict[str, Any]
 # --- files <-> items ------------------------------------------------------------------
 
 
+def config_path(paths: Iterable[str]) -> str | None:
+    """The project's config file among `paths` (sop.yaml, else sopc.yaml, as sop picks), or None without one."""
+    paths = set(paths)
+    return next((c for c in CONFIGS if c in paths), None)
+
+
+def with_config_at(files: Files, path: str) -> Files:
+    """`files` with their config file at `path`, so a project keeps the name it already has (sop.yaml or sopc.yaml)."""
+    current = config_path(files)
+    if current is None or current == path:
+        return files
+    out = {p: c for p, c in files.items() if p not in CONFIGS}
+    out[path] = files[current]
+    return out
+
+
 def item_of_path(path: str) -> tuple[str, str] | None:
     """(kind, id) for a source path, e.g. ('procedure', 'large-orders'); None for other files.
-    sopc.yaml is ('settings', 'settings'), though it also holds the groups."""
-    if path == CONFIG:
+    sop.yaml (or sopc.yaml) is ('settings', 'settings'), though it also holds the groups."""
+    if path in CONFIGS:
         return ("settings", "settings")
     p = PurePosixPath(path)
     if len(p.parts) != 2:
@@ -56,7 +74,7 @@ def item_of_path(path: str) -> tuple[str, str] | None:
 def paths_of(kind: str, id: str) -> list[str]:
     """Every path an item can live at; the first is where a new one is written."""
     if kind in ("settings", "group"):
-        return [CONFIG]
+        return list(CONFIGS)
     if kind == "procedure":
         return [f"procedures/{id}.md", f"procedures/{id}.yaml"]
     return [f"{FOLDERS[kind]}/{id}.{'md' if kind == 'instruction' else 'yaml'}"]
@@ -74,9 +92,9 @@ def _step(raw: Any) -> dict:
     return {**_option(raw), "or": [_option(o) for o in options]}
 
 
-def from_export(exported: dict) -> dict:
-    """`sopc export` output as items: {settings, agents, instructions, procedures, groups}.
-    Agents, instructions and procedures are sorted by id; groups keep their order in sopc.yaml."""
+def from_export(exported: dict, config: str = CONFIG) -> dict:
+    """`sop export` output as items: {settings, agents, instructions, procedures, groups}.
+    Agents, instructions and procedures are sorted by id; groups keep their order in the config file (`config`)."""
     cfg = exported["config"]
     return {
         "settings": {"variables": dict(cfg["variables"]), "procedures_heading": cfg["sops_heading"]},
@@ -109,12 +127,12 @@ def from_export(exported: dict) -> dict:
             }
             for s in exported["sops"]
         ],
-        "groups": [{"id": name, "blocks": list(blocks), "file": CONFIG} for name, blocks in cfg["groups"].items()],
+        "groups": [{"id": name, "blocks": list(blocks), "file": config} for name, blocks in cfg["groups"].items()],
     }
 
 
 def config_of(items: dict) -> Item:
-    """What sopc.yaml holds: the settings and every group, in order."""
+    """What sop.yaml holds: the settings and every group, in order."""
     return {**items["settings"], "groups": {g["id"]: list(g["blocks"]) for g in items["groups"]}}
 
 
@@ -173,7 +191,7 @@ def used_by(items: dict) -> dict[str, list[dict]]:
     return out
 
 
-# The fields each kind is compared on (what a form edits). "config" is all of sopc.yaml.
+# The fields each kind is compared on (what a form edits). "config" is all of sop.yaml.
 FIELDS = {
     "agent": ("platform", "platform_id", "context", "blocks", "variables"),
     "instruction": ("text",),
@@ -203,11 +221,11 @@ def same(kind: str, a: Item, b: Item) -> bool:
     return norm(a) == norm(b)
 
 
-# --- checks before sopc ---------------------------------------------------------------
+# --- checks before sop ---------------------------------------------------------------
 
 
 def check(kind: str, id: str, item: Item) -> list[Issue]:
-    """Problems with the values themselves; sopc then checks how items fit together."""
+    """Problems with the values themselves; sop then checks how items fit together."""
     issues: list[Issue] = []
     path = paths_of(kind, id)[0]
 
@@ -316,7 +334,7 @@ class Yaml:
         return [f"{key}:"] + [self.kv(f"  {self.scalar(k)}:", v, 2) for k, v in values.items()]
 
     def ids(self, key: str, values: list[str], indent: int = 0) -> list[str]:
-        """A list of ids, one per line (how sopc's docs write `blocks` and groups)."""
+        """A list of ids, one per line (how sop's docs write `blocks` and groups)."""
         pad = " " * indent
         if not values:
             return [f"{pad}{key}: []"]
@@ -439,7 +457,7 @@ def md_normalized(item: Item) -> Item:
 
 
 def normalized(kind: str, item: Item) -> Item:
-    """Values as sopc keeps them whatever the file format: instruction text is trimmed."""
+    """Values as sop keeps them whatever the file format: instruction text is trimmed."""
     if kind == "instruction":
         return {**item, "text": item["text"].strip()}
     return item
@@ -448,13 +466,13 @@ def normalized(kind: str, item: Item) -> Item:
 # --- writing an item, checked by reading it back ------------------------------------------
 
 
-Export = Callable[[Files], dict]  # files -> `sopc export` output; raises Invalid
+Export = Callable[[Files], dict]  # files -> `sop export` output; raises Invalid
 
 
 def write(kind: str, id: str, item: Item, current_path: str | None, export: Export) -> tuple[str, str, Item]:
-    """(path, text, the item as sopc reads it back). `kind` is agent, instruction, procedure or config
-    (sopc.yaml: settings plus groups). Markdown procedures stay Markdown unless that would change a value,
-    then they're written as YAML. Raises Invalid if sopc can't read the values."""
+    """(path, text, the item as sop reads it back). `kind` is agent, instruction, procedure or config
+    (sop.yaml: settings plus groups). Markdown procedures stay Markdown unless that would change a value,
+    then they're written as YAML. Raises Invalid if sop can't read the values."""
     item = normalized(kind, item)
     if kind == "procedure":
         candidates: list[tuple[str, Callable[[Item, Yaml], str], Item]] = []
@@ -462,7 +480,7 @@ def write(kind: str, id: str, item: Item, current_path: str | None, export: Expo
             candidates.append((f"procedures/{id}.md", procedure_md, md_normalized(item)))
         candidates.append((f"procedures/{id}.yaml", procedure_yaml, item))
     elif kind == "config":
-        candidates = [(CONFIG, config_yaml, item)]
+        candidates = [(current_path or CONFIG, config_yaml, item)]
     else:
         writer = {"agent": agent_yaml, "instruction": instruction_md}[kind]
         candidates = [(current_path or paths_of(kind, id)[0], writer, item)]
@@ -476,17 +494,17 @@ def write(kind: str, id: str, item: Item, current_path: str | None, export: Expo
                 back = find(from_export(export(files)), kind, id)
             except Invalid as e:
                 last = e
-                break  # quoting won't help a value sopc rejects
+                break  # quoting won't help a value sop rejects
             if back is not None and same(kind, back, want):
                 return path, text, back
     if last:
         raise last
-    raise RuntimeError(f"could not write {kind} '{id}' so that sopc reads back the same values")
+    raise RuntimeError(f"could not write {kind} '{id}' so that sop reads back the same values")
 
 
 # --- issues -----------------------------------------------------------------------------
 
-# sopc's field names, as the forms call them.
+# sop's field names, as the forms call them.
 _FIELD_NAMES = {
     "description": "goal",
     "scope": "when",
@@ -504,11 +522,11 @@ _VIA = re.compile(r"in group `([^`]*)`")
 _STEP_REF = re.compile(r"^(procedureSteps|forbiddenActions|warningSigns)\[(\d+)\]")
 
 OLD_FORMAT_TEXT = (
-    "This folder is in the format of sopc v0.0.8 or earlier. Run `sopc migrate --yes` on it "
+    "This folder is in the format of sopc v0.0.8 or earlier. Run `sop migrate --yes` on it "
     "(or send it to POST /v1/migrate), then publish again."
 )
 REMOVED_FIELD_TEXT = (
-    "Uses `locked`, which sopc no longer has. Run `sopc migrate --yes` on the folder "
+    "Uses `locked`, which sop no longer has. Run `sop migrate --yes` on the folder "
     "(or convert the workspace) to remove it; no agent's instructions change."
 )
 

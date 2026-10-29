@@ -56,7 +56,7 @@ from ..pipeline.types import (
     SessionRef,
     SuggestRef,
 )
-from ..sopc import Sopc
+from ..sop import Sop
 from ..store import Store
 
 hatchet = Hatchet()
@@ -102,7 +102,7 @@ def _get_store():
     """The worker's store, from DATABASE_URL. The API process runs migrations; the worker doesn't."""
     global _store
     if _store is None:
-        _store = Store(database_url(), Sopc(), migrate=False)
+        _store = Store(database_url(), Sop(), migrate=False)
     return _store
 
 

@@ -78,7 +78,7 @@ class RetryIn(BaseModel):
 class ServedIn(BaseModel):
     platform: PushPlatform
     call_id: str = Field(min_length=1, max_length=256, description="The platform's id for the call: an ElevenLabs conversation id, a Vapi call id.")
-    agent: str = Field(description="The sopc agent id or platform ref the instructions were fetched for.")
+    agent: str = Field(description="The sop agent id or platform ref the instructions were fetched for.")
     release: int
 
 

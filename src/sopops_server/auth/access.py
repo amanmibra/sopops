@@ -132,7 +132,7 @@ ROUTES: dict[str, str] = {
         "rebuild_lineage", "model_usage", "call_usage", "model_prices", "server_features", "get_repo", "connect_repo", "inspect_repo_project", "disconnect_repo", "pull_repo",
         "sync_repo", "send_repo_drafts", "get_repo_conflict", "resolve_repo_conflict", "get_github_app", "github_install_url", "github_setup",
         "list_github_installations", "list_installation_repositories", "onboarding_capabilities", "list_platform_agents", "list_imports",
-        "create_import", "import_sopc_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
+        "create_import", "import_sop_project", "set_import_originals", "start_agent_import", "get_import", "import_events", "import_stream",
         "update_import_proposal", "resolve_import_finding", "get_import_review", "decide_import_group", "edit_import_variable", "apply_import",
         "revoke_import_token", "discard_import", "open_import_pull_request", "get_ai_settings", "list_ai_models", "estimate_ai_cost", "get_analysis",
     )},

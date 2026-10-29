@@ -1,5 +1,5 @@
-"""A proposal as sopc files, and the fidelity check: compile every proposed agent with sopc and compare its prompt with
-the original, sentence by sentence (`sopc compare`), so dropped or changed text is flagged before anything is applied."""
+"""A proposal as sop files, and the fidelity check: compile every proposed agent with sop and compare its prompt with
+the original, sentence by sentence (`sop compare`), so dropped or changed text is flagged before anything is applied."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from difflib import SequenceMatcher
 from typing import Callable
 
 from .. import forms
-from ..sopc import Files, Invalid, Issue, Sopc
+from ..sop import Files, Invalid, Issue, Sop
 from . import text as tx
 from .types import AgentFidelity, Changed, Proposal, ProposalContent, ProposalIssue
 
@@ -40,10 +40,10 @@ def config_data(content: ProposalContent) -> dict:
 
 
 def files_of(content: ProposalContent, export: Export | None = None) -> tuple[Files, list[Issue]]:
-    """The sopc files for a proposal, and the problems that kept some items from being written.
+    """The sop files for a proposal, and the problems that kept some items from being written.
 
-    With `export` (sopc's), each file is read back to check it holds exactly the values asked for, as the forms do.
-    Without it (no sopc binary, e.g. the MCP server on a laptop), the files are written directly, every string quoted."""
+    With `export` (sop's), each file is read back to check it holds exactly the values asked for, as the forms do.
+    Without it (no sop binary, e.g. the MCP server on a laptop), the files are written directly, every string quoted."""
     files: Files = {}
     issues: list[Issue] = []
     for kind, id, data in item_data(content):
@@ -82,37 +82,37 @@ def _direct(kind: str, data: dict) -> str:
     return forms.agent_yaml(data, y)
 
 
-def check(proposal: Proposal, sopc: Sopc) -> Proposal:
-    """The proposal with `issues` (sopc's checks) and `fidelity` (each agent against its original) filled in. A proposal
-    that is an imported sopc project (`files`) is checked as those files."""
+def check(proposal: Proposal, sop: Sop) -> Proposal:
+    """The proposal with `issues` (sop's checks) and `fidelity` (each agent against its original) filled in. A proposal
+    that is an imported sop project (`files`) is checked as those files."""
     if proposal.files:
-        return check_files(proposal, sopc)
-    files, issues = files_of(proposal, sopc.export)
+        return check_files(proposal, sop)
+    files, issues = files_of(proposal, sop.export)
     out = proposal.model_copy(deep=True)
     out.fidelity = []
     names = {p.id: p.name for p in proposal.procedures}
     if any(i.severity == "error" for i in issues):
         out.issues = [ProposalIssue(**i.to_dict()) for i in issues]
         return out
-    return _compare(out, files, issues, names, sopc)
+    return _compare(out, files, issues, names, sop)
 
 
-def check_files(proposal: Proposal, sopc: Sopc) -> Proposal:
-    """`check` for an imported sopc project: its own files, compiled as they are."""
+def check_files(proposal: Proposal, sop: Sop) -> Proposal:
+    """`check` for an imported sop project: its own files, compiled as they are."""
     out = proposal.model_copy(deep=True)
     out.fidelity = []
-    return _compare(out, dict(proposal.files), [], {p.id: p.name for p in proposal.procedures}, sopc)
+    return _compare(out, dict(proposal.files), [], {p.id: p.name for p in proposal.procedures}, sop)
 
 
-def _compare(out: Proposal, files: Files, issues: list[Issue], names: dict[str, str], sopc: Sopc) -> Proposal:
-    compiled = sopc.compile(files)
+def _compare(out: Proposal, files: Files, issues: list[Issue], names: dict[str, str], sop: Sop) -> Proposal:
+    compiled = sop.compile(files)
     issues = issues + [forms.locate(i, names) for i in compiled.issues]
     out.issues = [ProposalIssue(**i.to_dict()) for i in issues]
     if not compiled.valid:
         return out
     prompts = {a: c["prompt"] for a, c in compiled.agents.items()}
     originals = {a: t for a, t in out.originals.items() if a in prompts}
-    report = {r["agent"]: r for r in sopc.compare(files, originals)["agents"]} if originals else {}
+    report = {r["agent"]: r for r in sop.compare(files, originals)["agents"]} if originals else {}
     for agent in [a.id for a in out.agents if a.id in originals]:
         r = report.get(agent) or {"ok": True, "score": 1.0, "sentences_total": 0, "lost": [], "changed": [], "reworded": [], "added": []}
         variables = {**out.settings.variables, **next((a.variables for a in out.agents if a.id == agent), {})}
@@ -129,7 +129,7 @@ def _compare(out: Proposal, files: Files, issues: list[Issue], names: dict[str, 
 
 
 def rule_texts(agent: dict, variables: dict[str, str]) -> list[str]:
-    """Every procedure rule of a compiled agent (sopc's `blocks`), with its variables filled, in order."""
+    """Every procedure rule of a compiled agent (sop's `blocks`), with its variables filled, in order."""
     def fill(text: str) -> str:
         return re.sub(r"\{\{\s*(\w+)\s*\}\}", lambda m: variables.get(m.group(1), m.group(0)), text)
 

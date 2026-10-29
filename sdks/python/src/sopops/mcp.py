@@ -2,7 +2,7 @@
 
 The coding agent finds each agent's instructions wherever they live (code, config, a database, a platform), turns them
 into a proposal (agent context, shared instructions, procedures, variables), checks fidelity, and pushes the proposal to
-sopops for review. Optionally it writes the same proposal as a sopc project into the repo. sopops does the compiling and
+sopops for review. Optionally it writes the same proposal as a sop project into the repo. sopops does the compiling and
 checking over its HTTP API (`/v1/onboarding`); this server only reads platforms and writes files locally.
 
 Install with the `mcp` extra: `uvx --from "sopops[mcp] @ git+https://github.com/amanmibra/sopops@main#subdirectory=sdks/python" sopops-mcp`.
@@ -23,7 +23,10 @@ It runs two ways:
   sopops API as is), and optionally `X-SopOps-Workspace`, `X-ElevenLabs-Api-Key` and `X-Vapi-Api-Key`, which stand in
   for the variables above and are used for that request only. The server's environment only says where sopops is:
   `SOPOPS_URL` (the API it calls) and `SOPOPS_APP_URL` (where people open sopops, for links; default `SOPOPS_URL`).
-  `write_sopc_project` can't reach the caller's repo from there, so it returns the files for the agent to write.
+  `write_sop_project` can't reach the caller's repo from there, so it returns the files for the agent to write.
+
+`write_sopc_project` is the old name of `write_sop_project`, still registered (deprecated) for one release, and its
+result's `sopc_validate` repeats `sop_validate`.
 """
 
 from __future__ import annotations
@@ -262,8 +265,8 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
     @server.tool()
     @_explained
     def check_fidelity(proposal: dict[str, Any], originals: dict[str, str]) -> dict[str, Any]:
-        """Compile each proposed agent with sopc and compare it with its original instructions, sentence by sentence.
-        Returns per agent: ok, score (share of sentences kept), missing and changed sentences, and sopc's issues."""
+        """Compile each proposed agent with sop and compare it with its original instructions, sentence by sentence.
+        Returns per agent: ok, score (share of sentences kept), missing and changed sentences, and sop's issues."""
         out: dict[str, Any] = sopops.call("POST", "/v1/onboarding/fidelity", {"proposal": proposal, "originals": originals})
         return out
 
@@ -328,7 +331,7 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
     @_explained
     def save_sop(kind: str, id: str, fields: dict[str, Any], note: str | None = None) -> dict[str, Any]:
         """Save an item as a draft, creating it if it's new. Send the whole item, not a patch: read it with
-        `get_sop` first, change what you mean to, and send that back. sopc checks it, so a save that wouldn't
+        `get_sop` first, change what you mean to, and send that back. sop checks it, so a save that wouldn't
         compile is refused with its issues.
 
         Nothing reaches a call until someone publishes a release in sopops; say so when you report back."""
@@ -391,7 +394,7 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
     @server.tool()
     @_explained
     def report_pull_request(url: str) -> dict[str, Any]:
-        """Repo mode: tell sopops the URL of the onboarding pull request you opened (adding the sopc project). sopops
+        """Repo mode: tell sopops the URL of the onboarding pull request you opened (adding the sop project). sopops
         follows it, and pulls the folder into drafts when the user merges it."""
         got = sopops.call("POST", "/v1/onboarding/pull-request", {"url": url})
         return {"pr_url": got["pr_url"], "pr_state": got["pr_state"], "next": "Tell the user the pull request is open for their review; don't merge it."}
@@ -400,18 +403,17 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
     @_explained
     def open_pull_request(description: str = "") -> dict[str, Any]:
         """Repo mode, when the kickoff says sopops opens the pull request (a GitHub App connection): sopops writes your
-        pushed proposal as a sopc project at the connected folder, opens the onboarding pull request, and follows it.
+        pushed proposal as a sop project at the connected folder, opens the onboarding pull request, and follows it.
         Push the proposal first. Don't run git or gh for it."""
         got = sopops.call("POST", "/v1/onboarding/pull-request/open", {"description": description or None})
         return {"pr_url": got["pr_url"], "pr_state": got["pr_state"], "next": "Tell the user the pull request is open for their review; don't merge it."}
 
     if remote:
 
-        @server.tool(name="write_sopc_project")
         @_explained
-        def sopc_project_files(proposal: dict[str, Any], path: str = "sops") -> dict[str, Any]:
-            """The proposal as a sopc project (sopc.yaml, instructions/, procedures/, agents/) under `path`, as sopops's
-            sopc writes and checks it. This sopops MCP server is remote and can't reach your repo, so it returns the files
+        def sop_project_files(proposal: dict[str, Any], path: str = "sops") -> dict[str, Any]:
+            """The proposal as a sop project (sop.yaml, instructions/, procedures/, agents/) under `path`, as sopops's
+            sop writes and checks it. This sopops MCP server is remote and can't reach your repo, so it returns the files
             instead of writing them: write each one at its path (relative to the current directory), overwriting files
             with the same names and leaving other files alone."""
             got = sopops.call("POST", "/v1/onboarding/project", {"proposal": proposal})
@@ -422,16 +424,16 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
                 if root.is_absolute() or ".." in dest.parts:
                     raise ValueError(f"pass a folder inside the repo; sopops must send files inside it: {dest.as_posix()}")
                 files[dest.as_posix()] = text
-            return {"files": files, "issues": got["issues"], "sopc_validate": got["validation"],
-                    "next": "Write each file in `files` at its path, then run `sopc validate` there if the sopc CLI is installed."}
+            return {"files": files, "issues": got["issues"], "sop_validate": got["validation"], "sopc_validate": got["validation"],
+                    "next": "Write each file in `files` at its path, then run `sop validate` there if the sop CLI is installed."}
 
+        _register_write(server, sop_project_files)
         return server
 
-    @server.tool()
     @_explained
-    def write_sopc_project(proposal: dict[str, Any], path: str = "sops") -> dict[str, Any]:
-        """Write the proposal as a sopc project (sopc.yaml, instructions/, procedures/, agents/) at `path`, relative to the
-        current directory. sopops writes the files with sopc and checks them. Existing files with the same names are
+    def write_sop_project(proposal: dict[str, Any], path: str = "sops") -> dict[str, Any]:
+        """Write the proposal as a sop project (sop.yaml, instructions/, procedures/, agents/) at `path`, relative to the
+        current directory. sopops writes the files with sop and checks them. Existing files with the same names are
         overwritten; other files are left alone."""
         got = sopops.call("POST", "/v1/onboarding/project", {"proposal": proposal})
         root = Path(path).expanduser()
@@ -445,9 +447,16 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(text)
             written.append(str(dest))
-        return {"written": written, "issues": got["issues"], "sopc_validate": got["validation"]}
+        return {"written": written, "issues": got["issues"], "sop_validate": got["validation"], "sopc_validate": got["validation"]}
 
+    _register_write(server, write_sop_project)
     return server
+
+
+def _register_write(server: MCPServer, fn: Callable[..., dict[str, Any]]) -> None:
+    """`fn` as `write_sop_project`, and under its old name `write_sopc_project` (deprecated; remove after one release)."""
+    server.tool(name="write_sop_project")(fn)
+    server.tool(name="write_sopc_project", description=f"Deprecated: use write_sop_project, which this is the old name of. {fn.__doc__ or ''}".strip())(fn)
 
 
 def install_skill(root: Path, agents: list[str], url: str, transport: httpx.BaseTransport | None = None, names: tuple[str, ...] = SKILLS) -> list[Path]:

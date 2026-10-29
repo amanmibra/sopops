@@ -28,16 +28,16 @@ import uvicorn
 
 from common import OUT, PORT
 from fake_models import WalkthroughModels
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.lm import configured, set_ai
 from sopops_server.auth.service import Accounts
 from sopops_server.jobs import Jobs
 
 
-SOPC_MIN = (0, 0, 17)
+SOP_MIN = (0, 0, 17)
 
 
-def sopc_version(binary: str) -> tuple[int, ...]:
+def sop_version(binary: str) -> tuple[int, ...]:
     out = subprocess.run([binary, "--version"], capture_output=True, text=True).stdout
     m = re.search(r"(\d+)\.(\d+)\.(\d+)", out)
     return tuple(int(x) for x in m.groups()) if m else (0, 0, 0)
@@ -78,16 +78,16 @@ def main() -> None:
     if args.database_url.startswith("sqlite:///"):
         Path(args.database_url.removeprefix("sqlite:///")).parent.mkdir(parents=True, exist_ok=True)
 
-    sopc = Sopc()
-    if not sopc.binary:
-        sys.exit(f"sopc not found: install v{'.'.join(map(str, SOPC_MIN))} or later, or set SOPC_BIN")
-    found = sopc_version(sopc.binary)
-    if found < SOPC_MIN:
+    sop = Sop()
+    if not sop.binary:
+        sys.exit(f"sop not found: install v{'.'.join(map(str, SOP_MIN))} or later, or set SOP_BIN")
+    found = sop_version(sop.binary)
+    if found < SOP_MIN:
         sys.exit(
-            f"{sopc.binary} is sopc v{'.'.join(map(str, found))}; the walkthrough needs v{'.'.join(map(str, SOPC_MIN))} or later.\n"
-            "Update it (curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | sh) or point SOPC_BIN at a newer one."
+            f"{sop.binary} is sop v{'.'.join(map(str, found))}; the walkthrough needs v{'.'.join(map(str, SOP_MIN))} or later.\n"
+            "Update it (curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | sh) or point SOP_BIN at a newer one."
         )
-    store = Store(args.database_url, sopc)
+    store = Store(args.database_url, sop)
     if args.models == "fake":
         os.environ["SOPOPS_CHECK_MODE"] = "review"  # the scripted reviewer judges every rule
         ai = WalkthroughModels()

@@ -11,7 +11,7 @@ from ..errors import Ambiguous, Conflict, InvalidValue, NotFound
 from ..github import GitHubError
 from ..insights import BadFilter
 from ..sessions import BadCursor
-from ..sopc import Invalid, SopcUnavailable
+from ..sop import Invalid, SopUnavailable
 from ..tokens import Forbidden, Unauthorized
 
 
@@ -36,8 +36,8 @@ def register(app: FastAPI) -> None:
     def _ambiguous(_, exc: Ambiguous) -> JSONResponse:
         return JSONResponse(status_code=422, content={"detail": str(exc)})
 
-    @app.exception_handler(SopcUnavailable)
-    def _sopc_unavailable(_, exc: SopcUnavailable) -> JSONResponse:
+    @app.exception_handler(SopUnavailable)
+    def _sop_unavailable(_, exc: SopUnavailable) -> JSONResponse:
         return JSONResponse(status_code=503, content={"detail": str(exc)})
 
     @app.exception_handler(Unauthorized)

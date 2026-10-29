@@ -31,7 +31,7 @@ class ImportRecord(SQLModel, table=True):
     mode: str = Field(default="hosted", max_length=16)  # hosted | repo
     repo: str | None = Field(default=None, max_length=1024, description="Repo mode: the connected repository (owner/name).")
     repo_branch: str | None = Field(default=None, max_length=255)
-    repo_path: str | None = Field(default=None, max_length=512, description="The sopc project's folder in the repo; empty for the root.")
+    repo_path: str | None = Field(default=None, max_length=512, description="The sop project's folder in the repo; empty for the root.")
     repo_project: str | None = Field(default=None, max_length=16)  # missing | invalid | valid, when the import started
     agents: list[str] = Field(default_factory=list, sa_column=Column(JSON, nullable=False))  # names, for lists
     proposal: dict[str, Any] | None = Field(default=None, sa_column=Column(JSON, nullable=True))

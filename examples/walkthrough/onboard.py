@@ -3,7 +3,7 @@
     python examples/walkthrough/onboard.py push      # an agent import, progress, the proposal: review it in the UI
     python examples/walkthrough/onboard.py publish   # resolve the drift, apply as drafts, publish release 1
     python examples/walkthrough/onboard.py           # both
-    python examples/walkthrough/onboard.py sopc      # instead: import an existing sopc project, apply it, publish release 1
+    python examples/walkthrough/onboard.py sop      # instead: import an existing sop project, apply it, publish release 1
 
 `push` does over HTTP what Claude Code does through sopops-mcp when you run the onboarding one-liner: it starts an
 agent import (the onboarding token the Import page gives you), reports progress, and pushes a proposal with each
@@ -12,7 +12,7 @@ originals are built by agent/before/prompts.py itself, so fidelity is checked ag
 
 `publish` is what the reviewer does in the UI: pick the shared wording where the restaurants drifted, apply, publish.
 
-`sopc` is the other way in, for a team that already keeps a sopc project (or exports one from wherever its prompts
+`sop` is the other way in, for a team that already keeps a sop project (or exports one from wherever its prompts
 live): onboarding/sops/ is that project for these four agents (the shared allergen wording already chosen). It's
 imported as it is with each agent's original prompt, checked for fidelity (Copper Wok's two agents show the never rule
 whose wording they lose), applied as exactly those files and published. Same release 1 as the other way.
@@ -87,27 +87,27 @@ def publish() -> None:
 
 
 def from_project() -> None:
-    """Import onboarding/sops/ (an existing sopc project) with the original prompts, apply its files, publish."""
+    """Import onboarding/sops/ (an existing sop project) with the original prompts, apply its files, publish."""
     wait_until_up()
     files = {p.relative_to(PROJECT).as_posix(): p.read_text() for p in sorted(PROJECT.rglob("*")) if p.is_file()}
     with client() as http:
-        imp = call(http, "POST", "/v1/workspaces/{ws}/imports/sopc", {"files": files, "originals": originals(), "author": "walkthrough"})
+        imp = call(http, "POST", "/v1/workspaces/{ws}/imports/sop", {"files": files, "originals": originals(), "author": "walkthrough"})
         for f in imp["proposal"]["fidelity"]:
             print(f"  {f['agent']}: {round(f['score'] * 100)}% kept, {f['rules_verbatim']} of {f['rules']} rules word for word, "
                   f"{round(f['similarity'] * 100)}% similar, {len(f['missing'])} line{'' if len(f['missing']) == 1 else 's'} missing")
         save("import.json", {"id": imp["id"]})
-        print(f"Imported the sopc project ({len(files)} files). Review it: {URL}/w/{WS}/import/{imp['id']}")
+        print(f"Imported the sop project ({len(files)} files). Review it: {URL}/w/{WS}/import/{imp['id']}")
         applied = call(http, "POST", f"/v1/workspaces/{{ws}}/imports/{imp['id']}/apply", {"author": "walkthrough"})
         print(f"Applied as drafts: {len(applied['changed'])} files.")
-        got = call(http, "POST", "/v1/workspaces/{ws}/releases", {"note": "Onboarded from the team's sopc project"})
+        got = call(http, "POST", "/v1/workspaces/{ws}/releases", {"note": "Onboarded from the team's sop project"})
     print(f"Published release {got['release']['number']}.")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("step", nargs="?", choices=["push", "publish", "all", "sopc"], default="all")
+    parser.add_argument("step", nargs="?", choices=["push", "publish", "all", "sop"], default="all")
     args = parser.parse_args()
-    if args.step == "sopc":
+    if args.step == "sop":
         from_project()
         return
     if args.step in ("push", "all"):

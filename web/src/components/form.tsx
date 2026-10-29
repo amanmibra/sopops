@@ -426,7 +426,7 @@ const DELETED: Record<ListKind, string> = {
   agent: "",
 };
 
-/** Saving and deleting one item, with sopc's issues split into this form's fields and everything else. */
+/** Saving and deleting one item, with sop's issues split into this form's fields and everything else. */
 export function useItemSave(kind: Kind, id: string, isNew: boolean) {
   const { ws, model, href } = useWs();
   const qc = useQueryClient();

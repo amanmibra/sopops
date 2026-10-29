@@ -14,7 +14,7 @@ class CaptureSetting(SQLModel, table=True):
     """How sessions reach sopops from a platform with no code in the agent, per workspace and platform. Secrets (the
     LiveKit key pair, the ElevenLabs post-call secret) are in `platform_secrets`, never here.
 
-    LiveKit: the project `url` and `agent_map` (a LiveKit agent name, or `*` for any, to a sopc agent). ElevenLabs:
+    LiveKit: the project `url` and `agent_map` (a LiveKit agent name, or `*` for any, to a sop agent). ElevenLabs:
     `live` turns on Enterprise live monitoring, and `live_state` is how it last went (`on` or `unavailable`)."""
 
     __tablename__ = "capture_settings"

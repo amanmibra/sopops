@@ -29,7 +29,7 @@ Each line is a session in the [canonical format](../../docs/api/sessions.md#the-
 
 ## Run it
 
-Start sopops and make a workspace with the restaurant agents (the [Quickstart](../../README.md#quickstart), then publish the [restaurant SOPs](https://github.com/amanmibra/sopc/tree/main/examples/livekit-restaurant/sops) as described in [Git or database](../../README.md#git-or-database)). Then, from the repo root:
+Start sopops and make a workspace with the restaurant agents (the [Quickstart](../../README.md#quickstart), then publish the [restaurant SOPs](https://github.com/sopops-dev/sop/tree/main/examples/livekit-restaurant/sops) as described in [Git or database](../../README.md#git-or-database)). Then, from the repo root:
 
 ```
 uv run sopops import examples/import-sessions/restaurant-sessions.jsonl --workspace prod

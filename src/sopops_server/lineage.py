@@ -1,6 +1,6 @@
 """Rule lineage: which rule a reworded rule replaced, so its history, patterns, verdicts and review state follow it.
 
-sopc derives a rule's id from its text, so rewording a rule (by hand, or by applying a suggestion) gives it a new id.
+sop derives a rule's id from its text, so rewording a rule (by hand, or by applying a suggestion) gives it a new id.
 That's by design: a session records exactly the wording it ran, and keeps it. sopops records the chain instead, in
 `rule_lineage`: each reworded rule points to the rule it replaced, and every row carries the chain's `lineage_id` (the
 first rule's id). A rule with no row is its own lineage.
@@ -44,7 +44,7 @@ from sqlmodel import Session, delete, func, or_, select
 from . import merge
 from .errors import Conflict, NotFound
 from .orm import FileVersion, Release, RuleLineage, RuleResult, SessionRecord, Suggestion, Workspace
-from .sopc import Invalid, Sopc
+from .sop import Invalid, Sop
 
 if TYPE_CHECKING:
     from .store import Store
@@ -125,8 +125,8 @@ class Snapshot:
     files: dict[str, tuple[str, str]] = field(default_factory=dict)  # procedure id -> (path, content)
 
 
-def snapshot(db: Session, sopc: Sopc, ws: str, number: int) -> Snapshot | None:
-    """The procedures of a release, read with `sopc export` (an older format as `sopc migrate` converts it)."""
+def snapshot(db: Session, sop: Sop, ws: str, number: int) -> Snapshot | None:
+    """The procedures of a release, read with `sop export` (an older format as `sop migrate` converts it)."""
     rel = db.get(Release, (ws, number))
     if rel is None:
         return None
@@ -136,17 +136,17 @@ def snapshot(db: Session, sopc: Sopc, ws: str, number: int) -> Snapshot | None:
         if content is not None:
             files[path] = content
     try:
-        export = sopc.export(files)
-    except Invalid:  # a release in an older sopc format
+        export = sop.export(files)
+    except Invalid:  # a release in an older sop format
         try:
-            export = sopc.export(sopc.migrate(files)["files"])
+            export = sop.export(sop.migrate(files)["files"])
         except Invalid:
             return None
     out = Snapshot()
-    for sop in export.get("sops") or []:
-        out.rules[sop["id"]] = [{k: r[k] for k in ("id", "kind", "index", "text")} for r in sop.get("rules") or []]
-        if sop.get("file") in files:
-            out.files[sop["id"]] = (sop["file"], files[sop["file"]])
+    for proc in export.get("sops") or []:
+        out.rules[proc["id"]] = [{k: r[k] for k in ("id", "kind", "index", "text")} for r in proc.get("rules") or []]
+        if proc.get("file") in files:
+            out.files[proc["id"]] = (proc["file"], files[proc["file"]])
     return out
 
 
@@ -238,7 +238,7 @@ class Wording:
 
 
 def wordings(db: Session, ws: str, procedure_id: str | None = None) -> dict[tuple[str, str], list[Wording]]:
-    """{(procedure id, lineage id): its wordings seen in sessions, oldest first}. One per rule id: its text (sopc's id
+    """{(procedure id, lineage id): its wordings seen in sessions, oldest first}. One per rule id: its text (sop's id
     follows it), its kind and index (and an option's place and step) at the last session that ran it, and `from_release`: the release that published
     it (its lineage row's), else the first release a session ran it on."""
     R, S, L = RuleResult, SessionRecord, RuleLineage
@@ -279,12 +279,12 @@ def current(group: list[Wording]) -> Wording:
 # --- writing ---------------------------------------------------------------------------------------------------------
 
 
-def record(db: Session, sopc: Sopc, ws: str, previous: int | None, number: int, follow: Follow | None = None) -> int:
+def record(db: Session, sop: Sop, ws: str, previous: int | None, number: int, follow: Follow | None = None) -> int:
     """Lineage for release `number` against `previous` (the release live before it). Rules that already have a row are
     left alone (a person's link or unlink, or a rule seen before). Returns how many links it wrote."""
     if previous is None or previous == number:
         return 0
-    old, new = snapshot(db, sopc, ws, previous), snapshot(db, sopc, ws, number)
+    old, new = snapshot(db, sop, ws, previous), snapshot(db, sop, ws, number)
     if old is None or new is None:
         return 0
     rows = {(r.procedure_id, r.rule_id): r for r in db.exec(select(RuleLineage).where(RuleLineage.workspace_id == ws))}
@@ -308,14 +308,14 @@ def record(db: Session, sopc: Sopc, ws: str, previous: int | None, number: int, 
     return written
 
 
-def rebuild(db: Session, sopc: Sopc, ws: str, follow: Follow | None = None) -> dict[str, Any]:
+def rebuild(db: Session, sop: Sop, ws: str, follow: Follow | None = None) -> dict[str, Any]:
     """Recompute the matched and suggestion links of every release, each against the one before it by number (which
     release was live before each isn't kept); manual rows stay. Idempotent. {links, procedures}."""
     before = lineages(db, ws)
     db.exec(delete(RuleLineage).where(RuleLineage.workspace_id == ws, RuleLineage.how != "manual"))
     db.flush()
     numbers = sorted(db.exec(select(Release.number).where(Release.workspace == ws)).all())
-    links = sum(record(db, sopc, ws, a, b) for a, b in zip(numbers, numbers[1:]))
+    links = sum(record(db, sop, ws, a, b) for a, b in zip(numbers, numbers[1:]))
     procs = {p for p, _r in before} | {p for p, _r in lineages(db, ws)}
     procs |= set(db.exec(select(RuleResult.procedure_id).where(RuleResult.workspace_id == ws).distinct()).all())
     for pid in sorted(procs):
@@ -325,8 +325,8 @@ def rebuild(db: Session, sopc: Sopc, ws: str, follow: Follow | None = None) -> d
     return {"workspace": ws, "links": links, "procedures": len(procs)}
 
 
-def rebuild_all(db: Session, sopc: Sopc, follow: Follow | None = None) -> list[dict[str, Any]]:
-    return [rebuild(db, sopc, ws, follow) for ws in db.exec(select(Workspace.workspace).order_by(Workspace.workspace)).all()]
+def rebuild_all(db: Session, sop: Sop, follow: Follow | None = None) -> list[dict[str, Any]]:
+    return [rebuild(db, sop, ws, follow) for ws in db.exec(select(Workspace.workspace).order_by(Workspace.workspace)).all()]
 
 
 def relineage(db: Session, ws: str, procedure_id: str) -> None:
@@ -403,7 +403,7 @@ class Lineage:
         """The procedure every rule id is in: the one given, else the only one that has them all (in a session's
         results, a lineage row or the live release)."""
         live = db.exec(select(Workspace.current_release).where(Workspace.workspace == ws)).first()
-        snap = snapshot(db, self.store.sopc, ws, live) if live is not None else None
+        snap = snapshot(db, self.store.sop, ws, live) if live is not None else None
         procs = []
         for rid in rule_ids:
             found = set(db.exec(select(RuleResult.procedure_id).where(RuleResult.workspace_id == ws, RuleResult.rule_id == rid).distinct()).all())
@@ -437,7 +437,7 @@ class Lineage:
 
     def rebuild(self, ws: str) -> dict[str, Any]:
         with self._db() as db, db.begin():
-            return rebuild(db, self.store.sopc, ws, self.follow)
+            return rebuild(db, self.store.sop, ws, self.follow)
 
 
 def _utc(at: datetime | None) -> datetime | None:

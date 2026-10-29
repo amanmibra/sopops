@@ -7,13 +7,13 @@ import time
 import httpx
 import pytest
 import respx
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from test_capture import POSTCALL, RecordingJobs, el_signed, post_call_body, sessions, vapi_messages
 from test_runtime import platform_files
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.capture import backfill
 
 EL = "https://api.elevenlabs.io"
@@ -38,7 +38,7 @@ HOOKED = "/v1/workspaces/hooked"  # the same agents, whose calls come by webhook
 @pytest.fixture
 def make_app(tmp_path, files):
     def make(keys=("elevenlabs", "vapi")):
-        store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+        store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
         client = TestClient(create_app(store, RecordingJobs(store)))
         for ws in (WS, HOOKED):
             assert client.post(f"{ws}/publish", json={"files": platform_files(files)}).status_code == 200  # luigis on ElevenLabs, sakura on Vapi

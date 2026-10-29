@@ -6,13 +6,13 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
-from conftest import SOPC_BIN, WS, downgrade, fresh_db_url
+from conftest import SOP_BIN, WS, downgrade, fresh_db_url
 from fakes import pattern_answer, pattern_reply
 from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlmodel import Session, select
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai.fakes import FakeModels, FakeSystemOne
 from sopops_server.ai.lm import set_ai
 from sopops_server.ai.programs import rule_phrase
@@ -67,7 +67,7 @@ class Model:
 @pytest.fixture
 def env(tmp_path, files, monkeypatch):
     monkeypatch.setenv("SOPOPS_CHECK_MODE", "review")
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     model = Model()
     fake = FakeModels(model, FakeSystemOne(model.decide))
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
@@ -306,7 +306,7 @@ def test_index_names_are_renamed_by_the_migration_then_the_backfill(env, monkeyp
     with Session(env.store.engine) as db, db.begin():  # as a database from before 0015 has it
         db.exec(text("UPDATE patterns SET name = 'Never rule 1 broken' WHERE kind = 'rule'"))
     url = env.store.engine.url.render_as_string(hide_password=False)
-    again = Store(url, Sopc(SOPC_BIN))
+    again = Store(url, Sop(SOP_BIN))
     (rule,) = [p for p in patterns(again) if p.kind == "rule"]
     assert rule.name == NEVER_1  # from the rule's text, no model
 

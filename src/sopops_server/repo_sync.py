@@ -1,4 +1,4 @@
-"""Two-way sync between a workspace's drafts and the sopc project in its GitHub repository.
+"""Two-way sync between a workspace's drafts and the sop project in its GitHub repository.
 
 **GitHub to sopops** (`sync`): on a push to the base branch that touches the folder (the webhook), when polling notices
 a new head, and on Sync now. The folder at the new commit ("theirs") is brought into the drafts ("ours") against the
@@ -37,7 +37,7 @@ from .errors import Conflict, NotFound, workspace_id
 from .github import GitHubError
 from .orm import RepoConnection, SyncConflict
 from .runtime import crypto
-from .sopc import Invalid
+from .sop import Invalid
 
 if TYPE_CHECKING:
     from .store import Store
@@ -123,9 +123,9 @@ def sync(store: Store, workspace: str, sha: str | None = None, author: str | Non
                 log.warning("reading %s at the last synced %s failed: %s", ws, conn.pulled_sha[:7], e)
         elif conn.pulled_sha:
             base = theirs
-    if github.CONFIG not in theirs:
+    if forms.config_path(theirs) is None:
         where = f"{conn.path}/" if conn.path else "the repository root"
-        message = f"{where} on {conn.base_branch} has no {github.CONFIG} at {sha[:7]}, so nothing was synced"
+        message = f"{where} on {conn.base_branch} has no {forms.CONFIG} at {sha[:7]}, so nothing was synced"
         if conn.pulled_sha is None:
             raise GitHubError(message, 400)
         return _failed(store, ws, sha, message)

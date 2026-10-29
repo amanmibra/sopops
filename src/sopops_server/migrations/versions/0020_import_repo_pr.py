@@ -1,5 +1,5 @@
 """Imports: the repository an onboarding in repo mode writes to (branch, folder, and whether the folder already held a
-sopc project), and the onboarding pull request the coding agent opened, followed on GitHub.
+sop project), and the onboarding pull request the coding agent opened, followed on GitHub.
 
 Revision ID: 0020
 Revises: 0019

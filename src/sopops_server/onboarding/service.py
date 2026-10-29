@@ -6,9 +6,9 @@ Two ways in, one way out:
   background thread, with the configured models (`sopops_server.ai`).
 - **Agent import** (`source: agent`): the user starts Claude Code or Codex in their repo with the `sopops-mcp` server
   and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one. In repo
-  mode the workspace's GitHub connection is checked first and its folder read: without a sopc project sopc can build,
+  mode the workspace's GitHub connection is checked first and its folder read: without a sop project sop can build,
   the agent also opens the onboarding pull request adding one, which sopops follows (`pulls`) and pulls when merged.
-- **sopc project** (`source: sopc`): a team that already keeps one (or exports one from wherever its prompts live)
+- **sop project** (`source: sopc`, the value keeps its old name): a team that already keeps one (or exports one from wherever its prompts live)
   uploads its files or reads them from the workspace's GitHub repository, optionally with each agent's original prompt.
   It's checked like any proposal; applying writes exactly its files. Its content isn't edited here: change the
   project and import it again.
@@ -38,7 +38,7 @@ from ..ai import spend
 from ..ai.lm import AI, RULES, AIError, configured, get_ai, model_for
 from ..errors import workspace_id
 from ..orm import ImportEvent, ImportRecord, Token
-from ..sopc import Invalid, SopcUnavailable
+from ..sop import Invalid, SopUnavailable
 from ..store import Conflict, NotFound, Store
 from ..tokens import Forbidden, Tokens, Unauthorized
 from ..tokens import out as token_info
@@ -173,11 +173,11 @@ class Onboarding:
             if ai is None:
                 raise AIError("no model is configured")
             with spend.scope(self.store.engine, ws, "onboarding"):
-                proposal = extract(sources, ai, self.store.sopc, progress=lambda step, msg: self.event(id, step, msg), guidance=guidance)
+                proposal = extract(sources, ai, self.store.sop, progress=lambda step, msg: self.event(id, step, msg), guidance=guidance)
             self._save(id, proposal, status="ready")
         except Exception as e:  # report every failure on the import itself
             log.exception("import %s failed", id)
-            message = str(e) if isinstance(e, (AIError, SopcUnavailable, Invalid, ValueError)) else f"{type(e).__name__}: {e}"
+            message = str(e) if isinstance(e, (AIError, SopUnavailable, Invalid, ValueError)) else f"{type(e).__name__}: {e}"
             self.event(id, "failed", message[:2000])
             with self._db() as db:
                 r = db.get(ImportRecord, id)
@@ -186,13 +186,13 @@ class Onboarding:
                     db.add(r)
                     db.commit()
 
-    # --- sopc projects -----------------------------------------------------------------
+    # --- sop projects -----------------------------------------------------------------
 
     def import_project(self, workspace: str, files: dict[str, str], originals: dict[str, str] | None = None, author: str | None = None,
                        origin: str | None = None) -> dict:
-        """An existing sopc project as an import, ready to review: what it holds, sopc's checks, and fidelity for each agent
+        """An existing sop project as an import, ready to review: what it holds, sop's checks, and fidelity for each agent
         with an original prompt. `origin`: where the files came from (a repository and commit), for the log."""
-        proposal = fidelity.check(project.proposal_of(files, self.store.sopc, originals), self.store.sopc)
+        proposal = fidelity.check(project.proposal_of(files, self.store.sop, originals), self.store.sop)
         rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="sopc", status="ready", repo=origin,
                            agents=[a.id for a in proposal.agents], proposal=proposal.model_dump(mode="json"), created_at=_now(), updated_at=_now(),
                            created_by=author)
@@ -200,7 +200,7 @@ class Onboarding:
             db.add(rec)
             db.commit()
         what = f"{len(proposal.agents)} agents, {len(proposal.instructions)} instructions, {len(proposal.procedures)} procedures, {len(proposal.files)} files"
-        self.event(rec.id, "start", f"sopc project{f' from {origin}' if origin else ''}: {what}")
+        self.event(rec.id, "start", f"sop project{f' from {origin}' if origin else ''}: {what}")
         self.event(rec.id, "fidelity", self._fidelity_line(proposal))
         return self.get(workspace, rec.id)
 
@@ -215,7 +215,7 @@ class Onboarding:
             raise ValueError(f"no agent {', '.join(repr(a) for a in unknown)} in this import")
         merged = {**proposal.originals, **originals}
         proposal.originals = {k: v for k, v in merged.items() if v.strip()}
-        proposal = fidelity.check(proposal, self.store.sopc)
+        proposal = fidelity.check(proposal, self.store.sop)
         self._save(id, proposal)
         self.event(id, "fidelity", self._fidelity_line(proposal))
         return self.get(workspace, id)
@@ -231,7 +231,7 @@ class Onboarding:
     def start_agent(self, workspace: str, server_url: str, mode: str = "hosted", author: str | None = None, ttl: timedelta = TOKEN_TTL) -> dict:
         """An onboarding token and the commands to start a coding agent. Repo mode needs the workspace's GitHub
         connection: its folder is read first (which checks the token still works), and the agent is told to open the
-        onboarding pull request unless the folder already holds a project sopc builds. ValueError without a connection."""
+        onboarding pull request unless the folder already holds a project sop builds. ValueError without a connection."""
         rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="agent", status="waiting", mode=mode,
                            created_at=_now(), updated_at=_now(), created_by=author)
         if mode == "repo":
@@ -247,7 +247,7 @@ class Onboarding:
         self.event(rec.id, "start", "Waiting for Claude Code or Codex to connect", by="sopops")
         if rec.repo_project in ("missing", "invalid"):
             folder = f"{rec.repo_path}/" if rec.repo_path else "the repository root"
-            self.event(rec.id, "repo", f"{rec.repo}: your agent will propose a pull request adding a sopc project at {folder} on "
+            self.event(rec.id, "repo", f"{rec.repo}: your agent will propose a pull request adding a sop project at {folder} on "
                        f"{rec.repo_branch}. Nothing merges without you.", by="sopops")
         return {"import": self.get(workspace, rec.id), "token": token, "kickoff": kickoff.kickoff(workspace, server_url, token)}
 
@@ -262,28 +262,29 @@ class Onboarding:
 
     def open_pull_request(self, rec: ImportRecord, description: str | None = None, by: str = "agent") -> dict:
         """sopops opens the onboarding pull request itself, from the pushed proposal (the coding agent doesn't need
-        `gh`): its files at the connected folder on a new branch, replacing what the folder held when sopc couldn't build
+        `gh`): its files at the connected folder on a new branch, replacing what the folder held when sop couldn't build
         it. Then it's followed like a reported one. ValueError when there's nothing to open it with."""
         if rec.mode != "repo" or not rec.repo:
             raise ValueError("this import isn't in repo mode, so there's no onboarding pull request to open")
         if rec.pr_url and rec.pr_state == "open":
             return self.get(rec.workspace, rec.id)
         if rec.repo_project == "valid":
-            raise ValueError("the repository already holds a sopc project sopc builds; there's no pull request to open")
+            raise ValueError("the repository already holds a sop project sop builds; there's no pull request to open")
         if rec.proposal is None:
             raise ValueError("push the proposal first (push_to_sopops); the pull request is made from it")
         proposal = Proposal.model_validate(rec.proposal)
-        files, issues = (dict(proposal.files), []) if proposal.files else fidelity.files_of(ProposalContent(**proposal.model_dump(include=set(ProposalContent.model_fields))), self.store.sopc.export)
+        files, issues = (dict(proposal.files), []) if proposal.files else fidelity.files_of(ProposalContent(**proposal.model_dump(include=set(ProposalContent.model_fields))), self.store.sop.export)
         if not files:
             raise ValueError("the proposal has nothing to write: " + "; ".join(i.message for i in issues)[:500])
         changes: dict[str, str | None] = dict(files)
-        if rec.repo_project == "invalid":  # replace the project sopc couldn't build
+        if rec.repo_project == "invalid":  # replace the project sop couldn't build, keeping its config file's name
             existing, _ = github.read_head(self.store, rec.workspace)
-            changes |= {p: None for p in existing if p not in files}
+            files = forms.with_config_at(files, forms.config_path(existing) or forms.CONFIG)
+            changes = dict(files) | {p: None for p in existing if p not in files}
         agents = ", ".join(a.name or a.id for a in proposal.agents) or "none"
         body = "\n\n".join(x for x in (description, f"Agents: {agents}.", f"Fidelity: {', '.join(f'{f.agent} {round(f.score * 100)}%' for f in proposal.fidelity)}."
                                         if proposal.fidelity else None, "Opened by sopops. When it merges, sopops pulls the folder into drafts.") if x)
-        url = github.open_pull_request(self.store, rec.workspace, changes, "Add sopc project for sopops", body)
+        url = github.open_pull_request(self.store, rec.workspace, changes, "Add sop project for sopops", body)
         pulls.record(self.store, rec, url, by=by)
         return self.get(rec.workspace, rec.id)
 
@@ -346,7 +347,7 @@ class Onboarding:
         """Replace the import's proposal with this one (each push replaces the last), with fidelity checked here."""
         proposal = Proposal(**content.model_dump(), findings=findings, notes=notes, originals=originals)
         refresh_used_by(proposal)
-        proposal = fidelity.check(proposal, self.store.sopc)
+        proposal = fidelity.check(proposal, self.store.sop)
         with self._db() as db:
             r = db.get(ImportRecord, rec.id)
             assert r is not None
@@ -363,13 +364,13 @@ class Onboarding:
     def check(self, content: ProposalContent, originals: dict[str, str]) -> dict:
         proposal = Proposal(**content.model_dump(), originals=originals)
         refresh_used_by(proposal)
-        proposal = fidelity.check(proposal, self.store.sopc)
+        proposal = fidelity.check(proposal, self.store.sop)
         return {"fidelity": [f.model_dump() for f in proposal.fidelity], "issues": [i.model_dump() for i in proposal.issues]}
 
     def project_files(self, content: ProposalContent) -> dict:
-        """The proposal as sopc files (each read back with sopc), what kept items out, and sopc's checks on them."""
-        files, issues = fidelity.files_of(content, self.store.sopc.export)
-        return {"files": files, "issues": [i.to_dict() for i in issues], "validation": [i.to_dict() for i in self.store.sopc.validate(files)]}
+        """The proposal as sop files (each read back with sop), what kept items out, and sop's checks on them."""
+        files, issues = fidelity.files_of(content, self.store.sop.export)
+        return {"files": files, "issues": [i.to_dict() for i in issues], "validation": [i.to_dict() for i in self.store.sop.validate(files)]}
 
     # --- review ------------------------------------------------------------------------
 
@@ -377,23 +378,23 @@ class Onboarding:
         proposal = self._editable(workspace, id)
         merged = Proposal(**{**proposal.model_dump(), **content.model_dump()})
         refresh_used_by(merged)
-        self._save(id, fidelity.check(merged, self.store.sopc))
+        self._save(id, fidelity.check(merged, self.store.sop))
         return self.get(workspace, id)
 
     def resolve(self, workspace: str, id: str, finding: str, choice: str) -> dict:
         proposal = resolve(self._editable(workspace, id), finding, choice)
-        self._save(id, fidelity.check(proposal, self.store.sopc))
+        self._save(id, fidelity.check(proposal, self.store.sop))
         return self.get(workspace, id)
 
     # --- the review, as summaries (see `summary`) ------------------------------------------------------------------
 
     def overlap(self, proposal: Proposal) -> dict:
-        """`sopc overlap --json` on the originals, cached by their content (it's the same until they change)."""
+        """`sop overlap --json` on the originals, cached by their content (it's the same until they change)."""
         key = hashlib.sha256(json.dumps(proposal.originals, sort_keys=True).encode()).hexdigest()
         with self._overlap_lock:
             if key in self._overlaps:
                 return self._overlaps[key]
-        got = self.store.sopc.overlap(proposal.originals) if len(proposal.originals) > 1 else {}
+        got = self.store.sop.overlap(proposal.originals) if len(proposal.originals) > 1 else {}
         with self._overlap_lock:
             self._overlaps[key] = got
             while len(self._overlaps) > 32:
@@ -407,12 +408,12 @@ class Onboarding:
     def decide(self, workspace: str, id: str, group: str, choice: str) -> dict:
         proposal = self._editable(workspace, id)
         changed = summary.decide(proposal, self.overlap(proposal), group, choice)
-        self._save(id, fidelity.check(changed, self.store.sopc) if changed.model_dump(exclude={"decisions"}) != proposal.model_dump(exclude={"decisions"}) else changed)
+        self._save(id, fidelity.check(changed, self.store.sop) if changed.model_dump(exclude={"decisions"}) != proposal.model_dump(exclude={"decisions"}) else changed)
         return self.review(workspace, id)
 
     def edit_variable(self, workspace: str, id: str, name: str, new_name: str | None, values: dict[str, str] | None) -> dict:
         proposal = summary.edit_variable(self._editable(workspace, id), name, new_name, values)
-        self._save(id, fidelity.check(proposal, self.store.sopc))
+        self._save(id, fidelity.check(proposal, self.store.sop))
         return self.review(workspace, id)
 
     def discard(self, workspace: str, id: str) -> dict:
@@ -433,13 +434,14 @@ class Onboarding:
         with self._db() as db:
             if self._load(db, workspace, id).status in DONE:
                 raise Conflict("this import was already applied or discarded")
-        if proposal.files:  # a sopc project: exactly its files
+        if proposal.files:  # a sop project: exactly its files
             if any(i.severity == "error" for i in proposal.issues):
-                raise Conflict("sopc can't build this project; fix it and import it again")
+                raise Conflict("sop can't build this project; fix it and import it again")
             items = self.store.items(workspace)
             replaced = [f"{k}:{i.id}" for k, xs in (("agent", proposal.agents), ("instruction", proposal.instructions), ("procedure", proposal.procedures))
                         for i in xs if forms.find(items, k, i.id)]
-            changes = dict(proposal.files)
+            # A workspace that has a config file keeps its name (sop.yaml or sopc.yaml), whatever the project calls it.
+            changes = forms.with_config_at(dict(proposal.files), items["settings"]["file"]) if items["settings"]["version"] else dict(proposal.files)
         else:
             changes, replaced = self.changes(workspace, proposal)
         written = self.store.edit(workspace, changes, author, note or "Imported with sopops onboarding")
@@ -455,7 +457,7 @@ class Onboarding:
     def changes(self, workspace: str, content: ProposalContent) -> tuple[dict[str, str | None], list[str]]:
         """The file changes that write a proposal into the workspace's head, and the ids of items it replaces."""
         items = self.store.items(workspace)
-        export = self.store.sopc.export
+        export = self.store.sop.export
         changes: dict[str, str | None] = {}
         replaced: list[str] = []
         for kind, item_id, data in fidelity.item_data(content):
@@ -482,7 +484,8 @@ class Onboarding:
         config["variables"] = {**config["variables"], **content.settings.variables}
         if not items["agents"] and not items["instructions"] and not items["procedures"]:
             config["procedures_heading"] = content.settings.procedures_heading or forms.DEFAULT_HEADING
-        changes[forms.CONFIG] = forms.write("config", "config", config, None, export)[1]
+        path, text, _ = forms.write("config", "config", config, items["settings"]["file"], export)  # sopc.yaml stays sopc.yaml
+        changes[path] = text
         return changes, replaced
 
     # --- internals ------------------------------------------------------------------------
@@ -497,7 +500,7 @@ class Onboarding:
     def _editable(self, workspace: str, id: str) -> Proposal:
         proposal = self._proposal(workspace, id)
         if proposal.files:
-            raise Conflict("an imported sopc project is applied as its files: change the project and import it again")
+            raise Conflict("an imported sop project is applied as its files: change the project and import it again")
         return proposal
 
     def _save(self, id: str, proposal: Proposal, status: str | None = None) -> None:

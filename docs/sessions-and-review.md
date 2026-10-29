@@ -70,14 +70,14 @@ A corrected rule shows the status, who gave it and when. A missed mistake doesn'
 
 A merged pull request moves the pattern on. A closed one reopens it.
 
-**Reworded rules.** sopc gives changed rule text a new id, and every applied suggestion rewords one. On publish, sopops links each reworded rule to the one it replaced: by the suggestion that made the edit, else by wording at the same position, then anywhere in the procedure ([API reference](api/checks-and-review.md#rule-lineage)).
+**Reworded rules.** sop gives changed rule text a new id, and every applied suggestion rewords one. On publish, sopops links each reworded rule to the one it replaced: by the suggestion that made the edit, else by wording at the same position, then anywhere in the procedure ([API reference](api/checks-and-review.md#rule-lineage)).
 
 - The rule keeps its pattern, verdicts, state and history.
 - Sessions keep the wording they ran.
 - Insights shows "reworded in release 4", with earlier wordings on hover.
 - Link or unlink a wrong match by hand on the rule's Insights page.
 
-**Suggestions.** The reviewer proposes the smallest edit that settles the verdict. sopops compiles it with sopc (one retry) and shows how each agent's instructions change ([details](api/checks-and-review.md#review-and-suggestions)).
+**Suggestions.** The reviewer proposes the smallest edit that settles the verdict. sopops compiles it with sop (one retry) and shows how each agent's instructions change ([details](api/checks-and-review.md#review-and-suggestions)).
 
 - Apply saves a draft, or opens a pull request if a GitHub repository is connected.
 - If the procedure changed since, edits on different lines merge when the result compiles.

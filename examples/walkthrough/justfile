@@ -40,9 +40,9 @@ onboard-push:
 onboard-publish:
     {{py}} onboard.py publish
 
-# 2 (instead). import the team's existing sopc project (onboarding/sops), apply it, publish release 1
-onboard-sopc:
-    {{py}} onboard.py sopc
+# 2 (instead). import the team's existing sop project (onboarding/sops), apply it, publish release 1
+onboard-sop:
+    {{py}} onboard.py sop
 
 # 4. 200 backfill calls, 100 new ones, and the ground truth
 generate *args:

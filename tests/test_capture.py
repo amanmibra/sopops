@@ -13,7 +13,7 @@ import httpx
 import jwt
 import pytest
 import respx
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from test_runtime import platform_files
@@ -22,7 +22,7 @@ from websockets.exceptions import ConnectionClosedError, InvalidStatus
 from websockets.frames import Close
 from websockets.http11 import Response
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.capture import Capture, LiveConversationRef, LiveRoomRef
 from sopops_server.capture import elevenlabs as el
 from sopops_server.capture import livekit as lk
@@ -63,7 +63,7 @@ class RecordingJobs(Jobs):
 
 @pytest.fixture
 def app(tmp_path, files):
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     jobs = RecordingJobs(store)
     client = TestClient(create_app(store, jobs))
     res = client.post(f"{WS}/publish", json={"files": platform_files(files)})  # luigis on ElevenLabs, sakura on Vapi, tonys on LiveKit

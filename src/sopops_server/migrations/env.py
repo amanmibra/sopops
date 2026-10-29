@@ -2,7 +2,7 @@
 builds one from DATABASE_URL.
 
 A migration whose data backfill uses sopops's ORM code (which always matches the head schema) doesn't run it itself:
-it appends `fn(connection, sopc)` to `config.attributes["after_upgrade"]`, and it runs once every migration has, in
+it appends `fn(connection, sop)` to `config.attributes["after_upgrade"]`, and it runs once every migration has, in
 the same transaction. Run inline, a later migration's new column would be missing when the ORM selects it."""
 
 from alembic import context
@@ -37,7 +37,7 @@ def _run(connection) -> None:
     with context.begin_transaction():
         context.run_migrations()
         for backfill in config.attributes.pop("after_upgrade", []):
-            backfill(connection, config.attributes.get("sopc"))
+            backfill(connection, config.attributes.get("sop"))
 
 
 if context.is_offline_mode():

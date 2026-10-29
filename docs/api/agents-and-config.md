@@ -1,10 +1,10 @@
 # Agents and config
 
-Edit what agents are told: agents, shared instructions, procedures, groups and settings, the sopc files behind them, and sopc's checks on files you send.
+Edit what agents are told: agents, shared instructions, procedures, groups and settings, the sop files behind them, and sop's checks on files you send.
 
 ## Edit with forms
 
-- Each item is one sopc file, so git publishing and exports keep working. sopops writes the file, then reads it back with `sopc export` to check it holds exactly what was sent.
+- Each item is one sop file, so git publishing and exports keep working. sopops writes the file, then reads it back with `sop export` to check it holds exactly what was sent.
 - Saves are drafts. Nothing reaches agents until a [release](releases.md#publish-and-roll-back).
 - Ids can't be renamed yet. Instructions, procedures and groups share one set of names.
 - A signed-in member can call these, and so can a token with the `config` scope ([Tokens](teams-and-access.md#tokens)), which is how a coding agent keeps a workspace's SOPs up to date from a repo. Neither can publish: that stays with a person.
@@ -19,10 +19,10 @@ Edit what agents are told: agents, shared instructions, procedures, groups and s
 | `POST /v1/workspaces/{ws}/config/agents/{id}/preview` | An agent's fields, unsaved, compiled with the rest of head. Returns `{valid, issues, prompt, hash, blocks, release, released_prompt}` and saves nothing. |
 | `/v1/workspaces/{ws}/config/instructions[/{id}]` | Shared instructions: `{id, text}`. Deleting one takes it out of every agent and group that lists it. |
 | `/v1/workspaces/{ws}/config/procedures[/{id}]` | Procedures (SOPs). Fields below. Deleting one takes it out of every agent and group. |
-| `/v1/workspaces/{ws}/config/groups[/{id}]` | Groups, kept in `sopc.yaml`: `{id, blocks}`. Deleting one lists its blocks in its place wherever it was used, so no agent's instructions change. |
+| `/v1/workspaces/{ws}/config/groups[/{id}]` | Groups, kept in `sop.yaml`: `{id, blocks}`. Deleting one lists its blocks in its place wherever it was used, so no agent's instructions change. |
 | `GET/PUT /v1/workspaces/{ws}/config/settings` | `{variables, procedures_heading}`. |
-| `GET /v1/workspaces/{ws}/config/{kind}/{id}/history` | Every version, newest first. Groups and settings list only the versions of `sopc.yaml` that changed them. |
-| `GET /v1/workspaces/{ws}/config/{kind}/{id}/versions/{n}` | An older version, as fields. One that set `locked` is read the way `sopc migrate` converts it. One saved in the v0.0.8 format comes back with `legacy: true` and its `content`. |
+| `GET /v1/workspaces/{ws}/config/{kind}/{id}/history` | Every version, newest first. Groups and settings list only the versions of `sop.yaml` that changed them. |
+| `GET /v1/workspaces/{ws}/config/{kind}/{id}/versions/{n}` | An older version, as fields. One that set `locked` is read the way `sop migrate` converts it. One saved in the v0.0.8 format comes back with `legacy: true` and its `content`. |
 
 ```sh
 curl -s -X PUT -H "Content-Type: application/json" \
@@ -111,14 +111,14 @@ Nothing is stored.
 
 | Endpoint | What it does |
 |---|---|
-| `POST /v1/validate` | `{files}`: sopc's checks. Returns `{valid, issues}`. |
+| `POST /v1/validate` | `{files}`: sop's checks. Returns `{valid, issues}`. |
 | `POST /v1/render` | `{files}`: each agent's full instructions. Returns `{agents, lock, warnings}`. |
 | `POST /v1/lint` | `{files}`: duplicate or conflicting instructions. Returns `{findings}`. |
-| `POST /v1/migrate` | `{files}`: a folder in an older sopc format (v0.0.8, or with `locked`), converted with `sopc migrate`. Returns `{migrated, plan, files}`. |
+| `POST /v1/migrate` | `{files}`: a folder in an older sop format (v0.0.8, or with `locked`), converted with `sop migrate`. Returns `{migrated, plan, files}`. |
 
 ```sh
 curl -s -X POST -H "Content-Type: application/json" "$SOPOPS_URL/v1/validate" \
-  -d '{"files": {"sopc.yaml": "version: 1\n", "agents/a.yaml": "livekit: a\nblocks:\n  - nope\n"}}'
+  -d '{"files": {"sop.yaml": "version: 1\n", "agents/a.yaml": "livekit: a\nblocks:\n  - nope\n"}}'
 ```
 
 ```json

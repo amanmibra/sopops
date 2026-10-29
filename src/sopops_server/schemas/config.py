@@ -34,7 +34,7 @@ class ItemMeta(BaseModel):
     version: int | None = Field(None, description="Version of the item's file at head.")
     updated_at: datetime | None = None
     updated_by: str | None = None
-    file: str = Field(description="Where it lives in the sopc folder (for git export).")
+    file: str = Field(description="Where it lives in the sop folder (for git export).")
 
 
 class AgentFields(BaseModel):
@@ -152,7 +152,7 @@ class ConfigResponse(BaseModel):
     agents: list[AgentConfig]
     instructions: list[InstructionConfig]
     procedures: list[ProcedureConfig]
-    groups: list[GroupConfig] = Field(description="In the order sopc.yaml lists them.")
+    groups: list[GroupConfig] = Field(description="In the order sop.yaml lists them.")
 
 
 class BlockRequest(Saved):
@@ -186,7 +186,7 @@ class MigrateRequest(Saved):
 class MigrateResponse(BaseModel):
     workspace: str
     needed: bool = Field(description="False if head is already in the current format.")
-    plan: str = Field(description="sopc migrate's plan: what changes in each file, and any warnings.")
+    plan: str = Field(description="sop migrate's plan: what changes in each file, and any warnings.")
     applied: bool
     changed: list[WrittenFile]
 

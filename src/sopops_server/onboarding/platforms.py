@@ -1,7 +1,8 @@
 """Reading agents from ElevenLabs and Vapi: their names, prompts and tool names. Only GET requests, read-only.
 
 The API key is passed in per call and used for those requests only: it is never stored, logged or put in an error
-message. Base URLs can be overridden with SOPC_ELEVENLABS_URL and SOPC_VAPI_URL (the variables `sopc verify` reads).
+message. Base URLs can be overridden with SOP_ELEVENLABS_URL and SOP_VAPI_URL (the variables `sop verify` reads; the older
+SOPC_ELEVENLABS_URL and SOPC_VAPI_URL still work).
 LiveKit agents keep their prompt in code, so there is nothing to fetch: paste or upload it, or let a coding agent
 read the repo (`sopops-mcp`).
 """
@@ -23,9 +24,9 @@ class PlatformError(RuntimeError):
 
 def base_url(platform: str) -> str:
     if platform == "elevenlabs":
-        return os.environ.get("SOPC_ELEVENLABS_URL", "https://api.elevenlabs.io").rstrip("/")
+        return (os.environ.get("SOP_ELEVENLABS_URL") or os.environ.get("SOPC_ELEVENLABS_URL") or "https://api.elevenlabs.io").rstrip("/")
     if platform == "vapi":
-        return os.environ.get("SOPC_VAPI_URL", "https://api.vapi.ai").rstrip("/")
+        return (os.environ.get("SOP_VAPI_URL") or os.environ.get("SOPC_VAPI_URL") or "https://api.vapi.ai").rstrip("/")
     raise PlatformError(f"sopops can't read agents from '{platform}'; paste or upload its instructions instead")
 
 

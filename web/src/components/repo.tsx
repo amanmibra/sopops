@@ -35,7 +35,7 @@ export const githubAppQuery = () => ({
   staleTime: 60_000,
 });
 
-/** What the connected folder holds at the branch's head: missing, invalid (sopc's issues) or valid. */
+/** What the connected folder holds at the branch's head: missing, invalid (sop's issues) or valid. */
 export const repoProjectQuery = (ws: string) => ({
   queryKey: ["ws", ws, "repo", "project"],
   queryFn: (): Promise<RepoProjectOut> => call(sdk.inspectRepoProject({ path: { workspace: ws } })),
@@ -112,7 +112,7 @@ function useGitHubReturn() {
 
 /** Connect the repository, or change the connection: through the GitHub App when one is set up, else with an access
  * token (and, when sopops can, an offer to create the App). `requireProject: false` (onboarding) connects before the
- * folder holds a sopc project. */
+ * folder holds a sop project. */
 export function ConnectForm(props: FormProps) {
   const app = useQuery(githubAppQuery());
   const ret = useGitHubReturn();
@@ -268,7 +268,7 @@ function AppConnect({ current, onDone, onCancel, requireProject = true, app, ins
         <Field
           id="repo-app-path"
           label="Folder"
-          hint={requireProject ? "The sopc project (with sopc.yaml); empty for the root" : "Where the sopc project is, or will go; empty for the root"}
+          hint={requireProject ? "The sop project (with sop.yaml); empty for the root" : "Where the sop project is, or will go; empty for the root"}
         >
           <Input id="repo-app-path" className="h-9" value={path} onChange={(e) => setPath(e.target.value)} />
         </Field>
@@ -337,7 +337,7 @@ function TokenForm({ current, onDone, onCancel, requireProject = true }: FormPro
         <Field
           id="repo-path"
           label="Folder"
-          hint={requireProject ? "The sopc project (with sopc.yaml); empty for the root" : "Where the sopc project is, or will go; empty for the root"}
+          hint={requireProject ? "The sop project (with sop.yaml); empty for the root" : "Where the sop project is, or will go; empty for the root"}
           error={fields.path}
         >
           {input("path")}
@@ -509,7 +509,7 @@ export function RepoCard() {
   return (
     <Panel title="GitHub repository">
       <p className="text-muted-foreground mb-3 text-sm">
-        Keep your team's sopc project in a repository: changes on GitHub come into drafts here, drafts go back as a pull request, and suggestions are applied as pull
+        Keep your team's sop project in a repository: changes on GitHub come into drafts here, drafts go back as a pull request, and suggestions are applied as pull
         requests instead of drafts.
       </p>
       {res.isPending ? (

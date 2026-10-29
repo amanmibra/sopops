@@ -21,7 +21,7 @@ You are turning a team's hand-written voice agent prompts into a sopops proposal
 | A near-copy that differs in a rule ("once" vs "twice", "before" vs "after") | Drift: keep each agent's behavior (a variable, or one block per version) and report it as a finding |
 | Said only at the end of the call | An instruction each agent lists last |
 
-Section headings that only introduce other sections ("# Procedures") are dropped: sopc adds its own heading (`settings.procedures_heading`) before the procedures.
+Section headings that only introduce other sections ("# Procedures") are dropped: sop adds its own heading (`settings.procedures_heading`) before the procedures.
 
 ## 3. Procedures
 
@@ -38,7 +38,7 @@ Each procedure has: `name` (short title, from its heading), `when` (the trigger,
 
 ## 5. Check fidelity, then fix
 
-Call `check_fidelity(proposal, originals)`. For each agent it compiles the prompt with sopc and compares it sentence by sentence with the original: **missing** and **changed** sentences are lost or altered instructions; fix them and check again until every agent is ok. **Reworded** lines (a sentence split into steps) are fine; **added** lines should only be procedure headings and goals you wrote.
+Call `check_fidelity(proposal, originals)`. For each agent it compiles the prompt with sop and compares it sentence by sentence with the original: **missing** and **changed** sentences are lost or altered instructions; fix them and check again until every agent is ok. **Reworded** lines (a sentence split into steps) are fine; **added** lines should only be procedure headings and goals you wrote.
 
 ## Proposal format
 

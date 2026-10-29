@@ -1,4 +1,4 @@
-# One image: the web UI built with node, served by sopops (FastAPI) with the sopc compiler.
+# One image: the web UI built with node, served by sopops (FastAPI) with the sop compiler.
 
 FROM node:22-slim AS web
 RUN corepack enable
@@ -10,10 +10,10 @@ RUN pnpm build
 
 FROM python:3.12-slim
 
-# sopc compiles the prompts; pinned so served prompts don't change under a rebuild.
-ARG SOPC_REF=v0.0.18
+# sop compiles the prompts; pinned so served prompts don't change under a rebuild.
+ARG SOP_REF=v0.1.0
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates \
-    && curl -fsSL https://raw.githubusercontent.com/amanmibra/sopc/main/install.sh | SOPC_REF=$SOPC_REF SOPC_INSTALL_DIR=/usr/local/bin sh \
+    && curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=$SOP_REF SOP_INSTALL_DIR=/usr/local/bin sh \
     && apt-get purge -y curl && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir --no-deps . && rm -rf web skills
 # Migrations run on startup.
 RUN mkdir /data && chown nobody /data
 VOLUME /data
-ENV HOST=0.0.0.0 PORT=8484 SOPC_BIN=/usr/local/bin/sopc DATABASE_URL=sqlite:////data/sopops.db
+ENV HOST=0.0.0.0 PORT=8484 SOP_BIN=/usr/local/bin/sop DATABASE_URL=sqlite:////data/sopops.db
 EXPOSE 8484
 USER nobody
 CMD ["sopops"]

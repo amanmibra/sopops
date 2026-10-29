@@ -36,7 +36,7 @@ function WorkspaceLayout() {
       </main>
     );
   if (!value) return <main className="text-muted-foreground px-8 py-6">Loading…</main>;
-  // A workspace stored in an older sopc format can only be converted (or its releases looked at).
+  // A workspace stored in an older sop format can only be converted (or its releases looked at).
   const convert = value.legacy && !pathname.includes("/releases");
   // Setup is a page of its own; Settings brings its own side menu in place of the mode's rail.
   if (!convert && /^\/w\/[^/]+\/setup$/.test(pathname))

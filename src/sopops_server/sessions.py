@@ -326,7 +326,7 @@ class Sessions:
         eligible: bool | None = None,
         suppressed: bool | None = None,
     ) -> dict:
-        """Newest first (by start time). `agent` matches the sopc agent or the agent as sent. The drill-down filters
+        """Newest first (by start time). `agent` matches the sop agent or the agent as sent. The drill-down filters
         (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
         check, rule result or finding; a rule pattern includes its sub-patterns, a theme every pattern in it. `suppressed`
         false leaves suppressed findings (and their rule results) out of those filters, true matches only them."""
@@ -444,7 +444,7 @@ class Sessions:
             sa_event.listen(db, "after_commit", lambda _s: self.broker.publish(event), once=True)
 
     def _match_agent(self, db: Session, ws: str, agent: str, platform: str, number: int) -> str | None:
-        """The sopc agent `agent` names in the release: its sopc id, its platform ref (`livekit:tonys-pizza`),
+        """The sop agent `agent` names in the release: its sop id, its platform ref (`livekit:tonys-pizza`),
         or its platform id on this session's platform."""
         refs = self._agents_by_release.get((ws, number))
         if refs is None:  # releases are immutable, so this is cached for good

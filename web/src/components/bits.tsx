@@ -94,7 +94,7 @@ export function Banner({ tone = "info", children, className }: { tone?: keyof ty
   );
 }
 
-/** sopc's issues; an issue about another item links to it. */
+/** sop's issues; an issue about another item links to it. */
 export function IssueList({ issues, here }: { issues: IssueOut[]; here?: { kind: Kind; id: string } }) {
   const { href, model } = useWs();
   return (
@@ -131,7 +131,7 @@ export function ErrorBanner({ error, lead = "This change can't be saved yet:" }:
   );
 }
 
-// `sopc lint` names blocks as "instruction `brand-voice`", "SOP `allergen-check`" or "agent `tonys-pizza`".
+// `sop lint` names blocks as "instruction `brand-voice`", "SOP `allergen-check`" or "agent `tonys-pizza`".
 const LINT_KINDS: Record<string, Kind> = { agent: "agent", instruction: "instruction", SOP: "procedure" };
 function LintSource({ label }: { label: string }) {
   const { href, model } = useWs();

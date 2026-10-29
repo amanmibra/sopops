@@ -16,7 +16,7 @@ SegmentKind = Literal["context", "instruction", "procedure", "heading"]
 class SourcePrompt(BaseModel):
     """One existing agent's instructions, as they run today."""
 
-    name: str = Field(description="The agent's name; its sopc id is made from it.", min_length=1, max_length=200)
+    name: str = Field(description="The agent's name; its sop id is made from it.", min_length=1, max_length=200)
     platform: Platform = "livekit"
     platform_id: str | None = Field(None, description="The agent's id on its platform (LiveKit agent_name, ElevenLabs agent_id, Vapi assistant id). Default: the agent's id.")
     prompt: str = Field(description="The instructions, verbatim.", min_length=1)
@@ -145,7 +145,7 @@ class Changed(BaseModel):
 
 
 class AgentFidelity(BaseModel):
-    """How the agent's full instructions cover its original (`sopc compare`, sentence by sentence)."""
+    """How the agent's full instructions cover its original (`sop compare`, sentence by sentence)."""
 
     agent: str
     ok: bool
@@ -187,8 +187,8 @@ class ProposalContent(BaseModel):
 class Proposal(ProposalContent):
     findings: list[Finding] = Field(default_factory=list)
     fidelity: list[AgentFidelity] = Field(default_factory=list)
-    issues: list[ProposalIssue] = Field(default_factory=list, description="sopc's checks of the proposal as files.")
+    issues: list[ProposalIssue] = Field(default_factory=list, description="sop's checks of the proposal as files.")
     notes: list[str] = Field(default_factory=list)
     originals: dict[str, str] = Field(default_factory=dict, description="Each agent's original instructions, by agent id.")
-    decisions: dict[str, str] = Field(default_factory=dict, description="The reviewer's decisions, by the id of the group they're about (sopc overlap's ids).")
-    files: dict[str, str] = Field(default_factory=dict, description="An imported sopc project's files: the import is these files, written as drafts exactly.")
+    decisions: dict[str, str] = Field(default_factory=dict, description="The reviewer's decisions, by the id of the group they're about (sop overlap's ids).")
+    files: dict[str, str] = Field(default_factory=dict, description="An imported sop project's files: the import is these files, written as drafts exactly.")

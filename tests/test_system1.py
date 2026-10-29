@@ -9,14 +9,14 @@ import dspy
 import httpx
 import pytest
 import respx
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from test_checks import ALLERGEN, checks_by_id, rules_by_key, session
 from test_decisions import Decisions, Generative
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai import decide, lm, spend, system1
 from sopops_server.ai.fakes import FakeEngine, FakeModels, FakeSystemOne
 from sopops_server.ai.signatures import KeyCheck, decision_predict
@@ -122,7 +122,7 @@ def test_choices_keep_their_probabilities(monkeypatch):
 def test_spend_is_recorded_under_the_backend_model(tmp_path, monkeypatch):
     gateway_env(monkeypatch)
     respx.post(ENDPOINT).mock(side_effect=FakeGateway(lambda s, qs: {k: 0.9 for k in qs}))
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     q = {"instructions": "Is the sentence about the weather?", "threshold": 0.5}
     with spend.scope(store.engine, "demo", "check", "s-1"):
         gateway_models().predict(lm.DECIDE, decision_predict(KeyCheck, {"answer": q}), sentence="Sunny.")
@@ -203,7 +203,7 @@ def test_the_async_path_answers_too(monkeypatch):
 def run_check(tmp_path, files, decide_with):
     """One session through the app: decisions answered by `decide_with` (an AI's predict), the rest by the fakes."""
     tmp_path.mkdir(exist_ok=True)
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     fake = FakeModels(Generative(), FakeSystemOne(Decisions({})))
     fake.model = lambda role: decide_with.model(role) if role == lm.DECIDE else FakeModels.model(fake, role)
 

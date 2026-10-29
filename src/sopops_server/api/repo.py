@@ -1,4 +1,4 @@
-"""A workspace's GitHub repository: connect it, pull its sopc project into drafts, keep the two in sync both ways
+"""A workspace's GitHub repository: connect it, pull its sop project into drafts, keep the two in sync both ways
 (`sopops_server.repo_sync`). Pull requests also come from suggestions (`sopops_server.github.open_pull_request`)."""
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from ..store import Store
 from .deps import INVALID, OPEN
 
 GITHUB = {
-    400: {"description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."},
+    400: {"description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."},
     429: {"description": "GitHub's rate limit for the token is used up."},
     502: {"description": "GitHub failed or couldn't be reached."},
     503: {"description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."},
@@ -40,14 +40,14 @@ def router(store: Store) -> APIRouter:
     @r.post(path, response_model=RepoOut, dependencies=OPEN, tags=["repo"], responses=GITHUB)
     def connect_repo(workspace: str, req: RepoIn) -> dict:
         """Connect a GitHub repository, or change the connection. Checks that the token can read the repository and the
-        branch and (unless `require_project` is false) that `path` on `base_branch` holds a sopc project (sopc.yaml);
+        branch and (unless `require_project` is false) that `path` on `base_branch` holds a sop project (sop.yaml);
         the token is stored encrypted with SOPOPS_SECRET_KEY."""
         return github.connect(store, workspace, req.owner, req.repo, req.token, req.base_branch, req.path, req.require_project, req.installation_id)
 
     @r.get(f"{path}/project", response_model=RepoProjectOut, dependencies=OPEN, tags=["repo"], responses={**GITHUB, 404: {"description": "No repository connected."}})
     def inspect_repo_project(workspace: str) -> dict:
-        """What the connected folder holds at the base branch's head, compiled with sopc: `missing`, `invalid` (with
-        sopc's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and
+        """What the connected folder holds at the base branch's head, compiled with sop: `missing`, `invalid` (with
+        sop's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and
         having a coding agent propose one."""
         return github.inspect_project(store, workspace)
 
@@ -59,7 +59,7 @@ def router(store: Store) -> APIRouter:
 
     @r.post(f"{path}/pull", response_model=PullOut, dependencies=OPEN, tags=["repo"], responses={**GITHUB, **INVALID})
     def pull_repo(workspace: str, author: str | None = None) -> dict:
-        """Make the workspace's head the sopc project at the base branch's head, as drafts: files not in the repository
+        """Make the workspace's head the sop project at the base branch's head, as drafts: files not in the repository
         are deleted. Publish from Unpublished changes as usual. Pulling a commit already pulled is a no-op."""
         return github.pull(store, workspace, author)
 

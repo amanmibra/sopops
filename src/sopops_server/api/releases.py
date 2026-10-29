@@ -15,7 +15,7 @@ from ..schemas import (
     ReleaseSummary,
     WorkspaceOut,
 )
-from ..sopc import without_build
+from ..sop import without_build
 from ..store import Store
 from .deps import INVALID, OPEN
 from .runtime import push_on_release

@@ -1,4 +1,4 @@
-// Importing an existing sopc project: pick its folder (or read it from the connected GitHub repository), then on the
+// Importing an existing sop project: pick its folder (or read it from the connected GitHub repository), then on the
 // import page add each agent's original instructions, read the fidelity check, and apply the files as drafts.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderUp, GitBranch } from "lucide-react";
@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AgentFidelity, ImportOut, Proposal } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
-import { plural } from "@/lib/kinds";
+import { CONFIG_FILES, plural } from "@/lib/kinds";
 import { pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
@@ -21,11 +21,15 @@ import { Textarea } from "../ui/textarea";
 
 const TEXT = /\.(ya?ml|md|markdown|txt|json)$/i;
 
-/** The picked files as a sopc project: paths relative to the folder holding sopc.yaml, text files only, no build/. */
+/** Whether the files have a config file: sop.yaml, or sopc.yaml from before sop v0.1.0. */
+const hasConfig = (files: Record<string, string>) => CONFIG_FILES.some((c) => c in files);
+
+/** The picked files as a sop project: paths relative to the folder holding sop.yaml (or sopc.yaml), text files only, no build/. */
 export async function readProject(list: FileList | File[]): Promise<Record<string, string>> {
   const files = Array.from(list).map((f) => ({ f, path: (f.webkitRelativePath || f.name).replace(/\\/g, "/") }));
-  const config = files.map((x) => x.path).filter((p) => p === "sopc.yaml" || p.endsWith("/sopc.yaml")).sort((a, b) => a.length - b.length)[0];
-  const root = config ? config.slice(0, -"sopc.yaml".length) : "";
+  const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
+  const config = files.map((x) => x.path).filter((p) => CONFIG_FILES.includes(name(p))).sort((a, b) => a.length - b.length)[0];
+  const root = config ? config.slice(0, -name(config).length) : "";
   const out: Record<string, string> = {};
   for (const { f, path } of files) {
     if (!path.startsWith(root) || !TEXT.test(path)) continue;
@@ -36,7 +40,7 @@ export async function readProject(list: FileList | File[]): Promise<Record<strin
   return out;
 }
 
-export function SopcSource() {
+export function SopSource() {
   const { ws } = useWs();
   const qc = useQueryClient();
   const go = useGo();
@@ -49,7 +53,7 @@ export function SopcSource() {
     setBusy(body.from_repo ? "repo" : "files");
     setError(null);
     try {
-      const created = await call(sdk.importSopcProject({ path: { workspace: ws }, body: { ...body, author: author() } }));
+      const created = await call(sdk.importSopProject({ path: { workspace: ws }, body: { ...body, author: author() } }));
       await qc.invalidateQueries({ queryKey: ["ws", ws, "imports"] });
       go(wsHref(ws, "settings", "import", created.id));
     } catch (e) {
@@ -61,9 +65,9 @@ export function SopcSource() {
   const paths = files ? Object.keys(files).sort() : [];
   return (
     <div className="grid gap-4">
-      <Panel title="Your sopc project" className="mb-0">
+      <Panel title="Your sop project" className="mb-0">
         <p className="text-muted-foreground mb-3 text-sm">
-          sopops checks the project with sopc, as it is. Next you add each agent's original instructions, so you can see nothing was lost. Applying saves exactly these
+          sopops checks the project with sop, as it is. Next you add each agent's original instructions, so you can see nothing was lost. Applying saves exactly these
           files as drafts, and nothing is published.
         </p>
         <div className="flex flex-wrap items-center gap-2">
@@ -88,14 +92,14 @@ export function SopcSource() {
         </div>
         {files && (
           <div className="mt-3 text-sm">
-            {"sopc.yaml" in files ? (
+            {hasConfig(files) ? (
               <Note>
                 {plural(paths.length, "file", "files")}: {paths.slice(0, 6).join(", ")}
                 {paths.length > 6 ? ` and ${paths.length - 6} more` : ""}.
               </Note>
             ) : (
               <Banner tone="warn" className="mb-0">
-                No sopc.yaml in what you picked. Choose the folder that holds it (usually <code>sops/</code>).
+                No sop.yaml in what you picked. Choose the folder that holds it (usually <code>sops/</code>).
               </Banner>
             )}
           </div>
@@ -103,7 +107,7 @@ export function SopcSource() {
       </Panel>
       {error ? <ErrorBanner error={error} lead="The import can't start:" /> : null}
       <div>
-        <Button disabled={!!busy || !files || !("sopc.yaml" in files)} onClick={() => files && void start({ files })}>
+        <Button disabled={!!busy || !files || !hasConfig(files)} onClick={() => files && void start({ files })}>
           {busy === "files" ? "Checking…" : "Import the project"}
         </Button>
       </div>
@@ -113,7 +117,7 @@ export function SopcSource() {
 
 // --- the import page ---------------------------------------------------------------------------
 
-export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
+export function SopReview({ imp, proposal }: { imp: ImportOut; proposal: Proposal }) {
   const { ws } = useWs();
   const qc = useQueryClient();
   const go = useGo();
@@ -174,7 +178,7 @@ export function SopcReview({ imp, proposal }: { imp: ImportOut; proposal: Propos
       </Panel>
       {errors.length > 0 && (
         <Banner tone="err">
-          sopc can't build this project, so it can't be applied. Fix it and import it again:
+          sop can't build this project, so it can't be applied. Fix it and import it again:
           <ul>
             {errors.map((i, n) => (
               <li key={n}>
@@ -339,11 +343,11 @@ function FidelityLine({ agent, f, has, onEdit }: { agent: string; f?: AgentFidel
   );
 }
 
-export function SopcIntro({ imp }: { imp: ImportOut }) {
+export function SopIntro({ imp }: { imp: ImportOut }) {
   const { ws } = useWs();
   return (
     <>
-      An existing sopc project{imp.repo ? `, read from ${imp.repo}` : ""}. It's applied exactly as its files; to change it, edit the project and{" "}
+      An existing sop project{imp.repo ? `, read from ${imp.repo}` : ""}. It's applied exactly as its files; to change it, edit the project and{" "}
       <HrefLink href={settingsHref(ws, "import")}>import it again</HrefLink>.
     </>
   );

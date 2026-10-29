@@ -162,7 +162,7 @@ class Capture:
     # --- agents --------------------------------------------------------------------------
 
     def known_agent(self, workspace: str, platform: str, ref: str | None) -> str | None:
-        """The sopc agent `ref` names in the live release (its id, platform ref or id on `platform`), else None."""
+        """The sop agent `ref` names in the live release (its id, platform ref or id on `platform`), else None."""
         if not ref:
             return None
         ws = workspace_id(workspace)
@@ -171,7 +171,7 @@ class Capture:
             return self.store.sessions._match_agent(db, ws, ref, platform, number) if number else None
 
     def livekit_agent(self, workspace: str, agent_name: str | None, metadata: Iterable[str | dict | None]) -> tuple[str | None, int | None]:
-        """The sopc agent for a LiveKit room, and a release pinned for it: the agent name it was dispatched by, else
+        """The sop agent for a LiveKit room, and a release pinned for it: the agent name it was dispatched by, else
         `{"sopops": {"agent": ...}}` in job or room metadata, else the workspace's mapping (that name, or `*`). With
         no match, the agent name as is (the session keeps it as sent)."""
         pins = [_sopops_meta(m) for m in metadata]

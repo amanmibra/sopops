@@ -8,7 +8,7 @@ from sqlmodel import Column, DateTime, Field, SQLModel, Text
 
 
 class FileVersion(SQLModel, table=True):
-    """One version of one file in a workspace's sopc folder. `content` is NULL in a version that deletes the file."""
+    """One version of one file in a workspace's sop folder. `content` is NULL in a version that deletes the file."""
 
     __tablename__ = "file_versions"
 

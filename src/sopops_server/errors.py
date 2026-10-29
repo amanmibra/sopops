@@ -36,7 +36,7 @@ PHONE = re.compile(r"^\+?[\d\s().-]{7,}$")
 def platform_id_key(platform_id: str) -> str:
     """How a platform id is compared. Teams that identify agents by phone number paste whichever form they
     have on hand — `+1 (415) 555-0123`, `+14155550123`, `1-415-555-0123` — so a number is compared by its
-    digits alone. Anything else (a sopc id, a UUID, a short numeric id) is compared as written, ignoring case."""
+    digits alone. Anything else (a sop id, a UUID, a short numeric id) is compared as written, ignoring case."""
     value = platform_id.strip()
     if PHONE.match(value):
         return "+" + re.sub(r"\D", "", value)

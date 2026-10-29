@@ -8,12 +8,12 @@ from types import SimpleNamespace
 
 import dspy
 import pytest
-from conftest import SOPC_BIN, WS, fresh_db_url
+from conftest import SOP_BIN, WS, fresh_db_url
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 from test_checks import ALLERGEN, DELIVERY, checks_by_id, rules_by_key, session
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.ai import calibration, decide
 from sopops_server.ai.decide import Band, DecisionConfig, Line, segments
 from sopops_server.ai.fakes import FakeEngine, FakeModels, FakeSystemOne
@@ -73,7 +73,7 @@ class Generative:
 
 @pytest.fixture
 def env(tmp_path, files, monkeypatch):
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     decider = FakeSystemOne(Decisions({ALLERGEN: 0.95, DELIVERY: 0.9}))
     fake = FakeModels(Generative(), decider)
     client = TestClient(create_app(store, Jobs(store, use_hatchet=False, ai=fake)))
@@ -227,7 +227,7 @@ def test_calibrated_thresholds_apply_while_their_question_is_unchanged(env):
 
 
 def test_a_generative_model_answers_decisions_and_locates_evidence(tmp_path, files):
-    store = Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))
+    store = Store(fresh_db_url(tmp_path), Sop(SOP_BIN))
     engine = FakeEngine(lambda outputs, text: {n: {"noul": 0.97 if n.endswith("_situation") or n.endswith("_responded") else 0.9} for n in outputs})
     gen = Models({"fast": "fake/fast", "reasoning": "fake/reasoning"}, jev=False)
     gen._clients["fake/fast"] = dspy.LM("fake/fast", engine=engine)  # decisions on the fast model

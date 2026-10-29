@@ -15,7 +15,7 @@ class LiveKitIn(BaseModel):
     api_key: str | None = Field(None, max_length=256, description="Needed to connect; left out, the stored one is kept.")
     api_secret: str | None = Field(None, max_length=512, description="Needed to connect; left out, the stored one is kept.")
     agent_map: dict[str, str] | None = Field(
-        None, description="A LiveKit agent name (or `*` for any) to a sopc agent, for rooms whose agent name and metadata don't name one. Left out: kept."
+        None, description="A LiveKit agent name (or `*` for any) to a sop agent, for rooms whose agent name and metadata don't name one. Left out: kept."
     )
 
     @field_validator("agent_map")
@@ -87,7 +87,7 @@ class WebhookReceipt(BaseModel):
 
 
 class BackfillAgentPreview(BaseModel):
-    agent: str = Field(description="The sopc agent.")
+    agent: str = Field(description="The sop agent.")
     platform_id: str = Field(description="Its agent (ElevenLabs) or assistant (Vapi) id.")
     found: int = Field(description="Finished calls in the window.")
     already_imported: int

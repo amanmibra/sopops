@@ -1,6 +1,6 @@
-"""GitHub: a workspace's repository connection, pulling its sopc project into drafts, and pull requests.
+"""GitHub: a workspace's repository connection, pulling its sop project into drafts, and pull requests.
 
-A workspace that keeps its instructions in git connects the repository, the branch and the folder of its sopc project
+A workspace that keeps its instructions in git connects the repository, the branch and the folder of its sop project
 (default `sops` on `main`, where onboarding writes it). **Pull** reads that folder at the branch's head (the git trees and blobs API) and makes it
 the workspace's head, as drafts, like `PUT …/files` does; the commit is recorded, so pulling it again is a no-op.
 **Pull requests** carry suggestions back: `open_pull_request` commits files to a new `sopops/<id>` branch off the
@@ -34,7 +34,7 @@ from .errors import NotFound, workspace_id
 from .github_client import API_ENV, API_VERSION, TIMEOUT, Client, GitHubError, api_url  # noqa: F401 (re-exported)
 from .orm import RepoConnection, SyncConflict
 from .runtime import crypto
-from .sopc import BUILD_DIR, is_safe_path
+from .sop import BUILD_DIR, is_safe_path
 
 if TYPE_CHECKING:
     from .store import Store
@@ -45,7 +45,6 @@ TOKEN = "token"
 APP = "app"
 DEFAULT_BRANCH = "main"
 DEFAULT_PATH = "sops"
-CONFIG = "sopc.yaml"
 BRANCH_PREFIX = "sopops/"
 # While GitHub sends a repository's webhooks, polling it (its pull requests, its branch) is only a fallback.
 WEBHOOK_FRESH = timedelta(hours=1)
@@ -115,7 +114,7 @@ def connect(store: Store, workspace: str, owner: str, repo: str, token: str | No
             base_branch: str = DEFAULT_BRANCH, path: str = DEFAULT_PATH, require_project: bool = True,
             installation_id: int | None = None) -> dict:
     """Save the workspace's connection, after checking that sopops can read the repository and the branch and,
-    with `require_project`, that `path` on `base_branch` holds a sopc project (onboarding connects before there is
+    with `require_project`, that `path` on `base_branch` holds a sop project (onboarding connects before there is
     one, and proposes it). Signs in with `token`, or through the GitHub App's `installation_id` (one installed from
     this workspace); with neither, the stored token or installation is kept (to change the branch or path)."""
     ws = _ws(workspace)
@@ -170,11 +169,14 @@ def connect(store: Store, workspace: str, owner: str, repo: str, token: str | No
 
 
 def _require_config(gh: Client, owner: str, repo: str, head: str, base_branch: str, path: str) -> None:
-    config = _join(path, CONFIG)
-    found = gh.get(f"{repo_path(owner, repo)}/contents/{quote(config)}", params={"ref": head}, missing=True, what=f"{config} at {base_branch}")
-    if found is None or (isinstance(found, dict) and found.get("type") != "file"):
-        where = f"'{path}'" if path else "the repository root"
-        raise GitHubError(f"no sopc project at {where} on {base_branch}: {config} isn't there", 400)
+    """`path` on the branch holds sop.yaml, or sopc.yaml (the name before sop v0.1.0)."""
+    for name in forms.CONFIGS:
+        config = _join(path, name)
+        found = gh.get(f"{repo_path(owner, repo)}/contents/{quote(config)}", params={"ref": head}, missing=True, what=f"{config} at {base_branch}")
+        if found is not None and not (isinstance(found, dict) and found.get("type") != "file"):
+            return
+    where = f"'{path}'" if path else "the repository root"
+    raise GitHubError(f"no sop project at {where} on {base_branch}: {_join(path, forms.CONFIG)} isn't there", 400)
 
 
 def disconnect(store: Store, workspace: str) -> None:
@@ -212,16 +214,16 @@ def normalize_path(path: str | None) -> str:
 
 
 def read_project(store: Store, workspace: str) -> tuple[dict[str, str], str]:
-    """The sopc project at the base branch's head, as files (relative to its folder), and the commit, without changing
+    """The sop project at the base branch's head, as files (relative to its folder), and the commit, without changing
     the workspace (an import reads it this way, to check before applying)."""
     ws = _ws(workspace)
     conn = require(store, ws)
     with client(store, conn) as gh:
         sha = branch_head(gh, conn.owner, conn.repo, conn.base_branch)
         files = read_folder(gh, conn, sha, {})
-    if CONFIG not in files:
+    if forms.config_path(files) is None:
         where = f"'{conn.path}'" if conn.path else "the repository root"
-        raise GitHubError(f"no sopc project at {where} on {conn.base_branch} ({sha[:7]}): {CONFIG} isn't there", 400)
+        raise GitHubError(f"no sop project at {where} on {conn.base_branch} ({sha[:7]}): {forms.CONFIG} isn't there", 400)
     return files, f"{conn.owner}/{conn.repo}@{sha[:7]}"
 
 
@@ -234,8 +236,8 @@ def read_head(store: Store, workspace: str) -> tuple[dict[str, str], str]:
 
 
 def inspect_project(store: Store, workspace: str) -> dict:
-    """What the connected folder holds at the base branch's head, compiled with sopc, without changing the workspace:
-    `missing` (no folder, or no sopc.yaml in it), `invalid` (sopc can't build it; `issues` says why) or `valid`."""
+    """What the connected folder holds at the base branch's head, compiled with sop, without changing the workspace:
+    `missing` (no folder, or no sop.yaml in it), `invalid` (sop can't build it; `issues` says why) or `valid`."""
     ws = _ws(workspace)
     conn = require(store, ws)
     with client(store, conn) as gh:
@@ -243,9 +245,9 @@ def inspect_project(store: Store, workspace: str) -> dict:
         files = read_folder(gh, conn, sha, {})
     out = {"workspace": ws, "repo": f"{conn.owner}/{conn.repo}", "base_branch": conn.base_branch, "path": conn.path, "sha": sha,
            "files": len(files), "agents": [], "issues": []}
-    if CONFIG not in files:
+    if forms.config_path(files) is None:
         return {**out, "state": "missing"}
-    compiled = store.sopc.compile(files)
+    compiled = store.sop.compile(files)
     issues = [forms.locate(i).to_dict() for i in compiled.issues]
     if not compiled.valid:
         return {**out, "state": "invalid", "issues": issues}
@@ -253,7 +255,7 @@ def inspect_project(store: Store, workspace: str) -> dict:
 
 
 def pull(store: Store, workspace: str, author: str | None = None) -> dict:
-    """Make the workspace's head the sopc project at the base branch's head, as drafts (publish as usual).
+    """Make the workspace's head the sop project at the base branch's head, as drafts (publish as usual).
     A commit already pulled, with head unchanged since, is a no-op that reads only the branch.
     Raises Invalid (422) if the files don't compile."""
     ws = _ws(workspace)
@@ -264,9 +266,9 @@ def pull(store: Store, workspace: str, author: str | None = None) -> dict:
         if sha == conn.pulled_sha and digest(head_files) == conn.pulled_digest:
             return {"workspace": ws, "sha": sha, "files": len(head_files), "changed": [], "unchanged": True}
         files = read_folder(gh, conn, sha, head_files)
-    if CONFIG not in files:
+    if forms.config_path(files) is None:
         where = f"'{conn.path}'" if conn.path else "the repository root"
-        raise GitHubError(f"no sopc project at {where} on {conn.base_branch} ({sha[:7]}): {CONFIG} isn't there", 400)
+        raise GitHubError(f"no sop project at {where} on {conn.base_branch} ({sha[:7]}): {forms.CONFIG} isn't there", 400)
     changed = store.replace(ws, files, author, f"Pulled from GitHub: {conn.owner}/{conn.repo}@{sha[:7]}")
     with Session(store.engine) as db, db.begin():
         row = db.get(RepoConnection, ws)
@@ -280,7 +282,7 @@ def pull(store: Store, workspace: str, author: str | None = None) -> dict:
 
 def read_folder(gh: Client, conn: RepoConnection, sha: str, known: dict[str, str]) -> dict[str, str]:
     """Every file under the project's folder at commit `sha`, relative to the folder. Files whose blob matches one
-    in `known` (head) aren't downloaded again; build/ is skipped (sopc regenerates it)."""
+    in `known` (head) aren't downloaded again; build/ is skipped (sop regenerates it)."""
     repo = repo_path(conn.owner, conn.repo)
     tree_sha = gh.get(f"{repo}/git/commits/{sha}", what=f"commit {sha[:7]}")["tree"]["sha"]
     tree = gh.get(f"{repo}/git/trees/{tree_sha}", params={"recursive": "1"}, what=f"the tree of {sha[:7]}")
@@ -303,7 +305,7 @@ def read_folder(gh: Client, conn: RepoConnection, sha: str, known: dict[str, str
         try:
             files[rel] = base64.b64decode(blob.get("content", "")).decode("utf-8")
         except (ValueError, UnicodeDecodeError):
-            raise GitHubError(f"{full} isn't UTF-8 text; a sopc project holds only text files", 400) from None
+            raise GitHubError(f"{full} isn't UTF-8 text; a sop project holds only text files", 400) from None
     return files
 
 
@@ -320,7 +322,7 @@ def open_pull_request(store: Store, workspace_id: str, files: Mapping[str, str |
         raise GitHubError("no files to propose", 400)
     bad = [p for p in files if not is_safe_path(p)]
     if bad:
-        raise GitHubError(f"paths must be relative to the sopc project, use '/', and not contain '..': {', '.join(sorted(bad))}", 400)
+        raise GitHubError(f"paths must be relative to the sop project, use '/', and not contain '..': {', '.join(sorted(bad))}", 400)
     title = title.strip() or "Suggested instruction changes"
     with client(store, conn) as gh:
         repo = repo_path(conn.owner, conn.repo)

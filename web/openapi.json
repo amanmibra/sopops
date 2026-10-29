@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "sopops",
-    "description": "Versioned sopc workspaces: edit files, release them, and serve each agent its full instructions at call start. Sessions (voice calls and text chats) come in through the ingest endpoints.",
+    "description": "Versioned sop workspaces: edit files, release them, and serve each agent its full instructions at call start. Sessions (voice calls and text chats) come in through the ingest endpoints.",
     "version": "0.1.0"
   },
   "paths": {
@@ -2117,7 +2117,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2135,7 +2135,7 @@
           "stateless"
         ],
         "summary": "Migrate Files",
-        "description": "Convert a folder in an older sopc format with `sopc migrate`: the v0.0.8 format (bases/, agent targeting),\nor `locked` (v0.0.9), which sopc no longer has. Nothing stored.",
+        "description": "Convert a folder in an older sop format with `sop migrate`: the v0.0.8 format (bases/, agent targeting),\nor `locked` (v0.0.9), which sop no longer has. Nothing stored.",
         "operationId": "migrate_files",
         "requestBody": {
           "content": {
@@ -2159,7 +2159,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2201,7 +2201,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2333,7 +2333,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2384,7 +2384,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2526,7 +2526,7 @@
           "config"
         ],
         "summary": "Get Config",
-        "description": "Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.\n422 with `old_format` or `removed_field` issues if the workspace is in an older sopc format: see `\u2026/migrate`.",
+        "description": "Head as structured items: settings, agents, shared instructions, procedures (SOPs) and groups.\n422 with `old_format` or `removed_field` issues if the workspace is in an older sop format: see `\u2026/migrate`.",
         "operationId": "get_config",
         "security": [
           {
@@ -2664,7 +2664,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2789,7 +2789,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -2876,7 +2876,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3131,7 +3131,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3256,7 +3256,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3343,7 +3343,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3598,7 +3598,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3723,7 +3723,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3810,7 +3810,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -3975,7 +3975,7 @@
           "config"
         ],
         "summary": "Config List Groups",
-        "description": "Every group (in sopc.yaml) at head.",
+        "description": "Every group (in sop.yaml) at head.",
         "operationId": "config_list_groups",
         "security": [
           {
@@ -4025,7 +4025,7 @@
           "config"
         ],
         "summary": "Config Create Group",
-        "description": "Create a group (in sopc.yaml). Rejected if the result doesn't compile; 409 if it exists.",
+        "description": "Create a group (in sop.yaml). Rejected if the result doesn't compile; 409 if it exists.",
         "operationId": "config_create_group",
         "security": [
           {
@@ -4065,7 +4065,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4086,7 +4086,7 @@
           "config"
         ],
         "summary": "Config Get Group",
-        "description": "One group (in sopc.yaml) at head.",
+        "description": "One group (in sop.yaml) at head.",
         "operationId": "config_get_group",
         "security": [
           {
@@ -4141,7 +4141,7 @@
           "config"
         ],
         "summary": "Config Put Group",
-        "description": "Create or replace a group (in sopc.yaml). Rejected if the result doesn't compile. Nothing goes live until a release.",
+        "description": "Create or replace a group (in sop.yaml). Rejected if the result doesn't compile. Nothing goes live until a release.",
         "operationId": "config_put_group",
         "security": [
           {
@@ -4190,7 +4190,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4206,7 +4206,7 @@
           "config"
         ],
         "summary": "Config Delete Group",
-        "description": "Delete a group (in sopc.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.",
+        "description": "Delete a group (in sop.yaml). Wherever it's listed, its blocks are listed in its place, so no agent's instructions change.",
         "operationId": "config_delete_group",
         "security": [
           {
@@ -4277,7 +4277,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4295,7 +4295,7 @@
           "config"
         ],
         "summary": "Config Group History",
-        "description": "Every version of a group (in sopc.yaml), newest first.",
+        "description": "Every version of a group (in sop.yaml), newest first.",
         "operationId": "config_group_history",
         "security": [
           {
@@ -4356,7 +4356,7 @@
           "config"
         ],
         "summary": "Config Group Version",
-        "description": "An older version of a group (in sopc.yaml), as fields.",
+        "description": "An older version of a group (in sop.yaml), as fields.",
         "operationId": "config_group_version",
         "security": [
           {
@@ -4491,7 +4491,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4592,7 +4592,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4693,7 +4693,7 @@
           "config"
         ],
         "summary": "Migrate",
-        "description": "Convert a workspace stored in an older sopc format with `sopc migrate`: the v0.0.8 format, or\n`locked` (v0.0.9), which sopc no longer has. Returns the plan;\nwith `apply`, writes the converted files as a draft (publish to release them).",
+        "description": "Convert a workspace stored in an older sop format with `sop migrate`: the v0.0.8 format, or\n`locked` (v0.0.9), which sop no longer has. Returns the plan;\nwith `apply`, writes the converted files as a draft (publish to release them).",
         "operationId": "migrate",
         "security": [
           {
@@ -4740,7 +4740,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4842,7 +4842,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5054,7 +5054,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5255,7 +5255,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5331,7 +5331,7 @@
           "serving"
         ],
         "summary": "Get Agent",
-        "description": "What to load at call start. `agent` is the sopc id, platform ref, or a platform id when `platform` scopes it. Logs a fetch.",
+        "description": "What to load at call start. `agent` is the sop id, platform ref, or a platform id when `platform` scopes it. Logs a fetch.",
         "operationId": "get_agent",
         "security": [
           {
@@ -5485,7 +5485,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The agent's full instructions, with X-Sopc-Release and X-Sopc-Hash headers.",
+            "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash).",
             "content": {
               "text/plain": {
                 "schema": {
@@ -5638,10 +5638,10 @@
                   "type": "null"
                 }
               ],
-              "description": "sopc agent id.",
+              "description": "sop agent id.",
               "title": "Agent"
             },
-            "description": "sopc agent id."
+            "description": "sop agent id."
           },
           {
             "name": "limit",
@@ -5787,10 +5787,10 @@
                   "type": "null"
                 }
               ],
-              "description": "sopc agent id, or the agent as sent.",
+              "description": "sop agent id, or the agent as sent.",
               "title": "Agent"
             },
-            "description": "sopc agent id, or the agent as sent."
+            "description": "sop agent id, or the agent as sent."
           },
           {
             "name": "channel",
@@ -8538,7 +8538,7 @@
           "suggestions"
         ],
         "summary": "Suggest Edit",
-        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the\nreviewer asked it to do (`guidance`). It comes back `generating`; the model and sopc run as a job. 409 while the\nworkspace's analysis is paused.",
+        "description": "(Re)generate a suggestion for the pattern's current verdict (real, acceptable or sop_wrong), with what the\nreviewer asked it to do (`guidance`). It comes back `generating`; the model and sop run as a job. 409 while the\nworkspace's analysis is paused.",
         "operationId": "suggest_edit",
         "parameters": [
           {
@@ -8676,7 +8676,7 @@
           "suggestions"
         ],
         "summary": "Rewrite Suggestion",
-        "description": "Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was\nwritten. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sopc run as a job);\nthis one is dismissed. 409 unless it's proposed, and while the workspace's analysis is paused.",
+        "description": "Write a proposed suggestion again against the procedure as it is now, keeping the edits made since it was\nwritten. Returns the new suggestion (`generating`, `rewrite_of` this one; the model and sop run as a job);\nthis one is dismissed. 409 unless it's proposed, and while the workspace's analysis is paused.",
         "operationId": "rewrite_suggestion",
         "parameters": [
           {
@@ -11014,7 +11014,7 @@
           "repo"
         ],
         "summary": "Connect Repo",
-        "description": "Connect a GitHub repository, or change the connection. Checks that the token can read the repository and the\nbranch and (unless `require_project` is false) that `path` on `base_branch` holds a sopc project (sopc.yaml);\nthe token is stored encrypted with SOPOPS_SECRET_KEY.",
+        "description": "Connect a GitHub repository, or change the connection. Checks that the token can read the repository and the\nbranch and (unless `require_project` is false) that `path` on `base_branch` holds a sop project (sop.yaml);\nthe token is stored encrypted with SOPOPS_SECRET_KEY.",
         "operationId": "connect_repo",
         "parameters": [
           {
@@ -11049,7 +11049,7 @@
             }
           },
           "400": {
-            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+            "description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."
           },
           "429": {
             "description": "GitHub's rate limit for the token is used up."
@@ -11116,7 +11116,7 @@
           "repo"
         ],
         "summary": "Inspect Repo Project",
-        "description": "What the connected folder holds at the base branch's head, compiled with sopc: `missing`, `invalid` (with\nsopc's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and\nhaving a coding agent propose one.",
+        "description": "What the connected folder holds at the base branch's head, compiled with sop: `missing`, `invalid` (with\nsop's issues) or `valid`. Changes nothing; onboarding uses it to choose between importing the project and\nhaving a coding agent propose one.",
         "operationId": "inspect_repo_project",
         "parameters": [
           {
@@ -11141,7 +11141,7 @@
             }
           },
           "400": {
-            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+            "description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."
           },
           "429": {
             "description": "GitHub's rate limit for the token is used up."
@@ -11174,7 +11174,7 @@
           "repo"
         ],
         "summary": "Pull Repo",
-        "description": "Make the workspace's head the sopc project at the base branch's head, as drafts: files not in the repository\nare deleted. Publish from Unpublished changes as usual. Pulling a commit already pulled is a no-op.",
+        "description": "Make the workspace's head the sop project at the base branch's head, as drafts: files not in the repository\nare deleted. Publish from Unpublished changes as usual. Pulling a commit already pulled is a no-op.",
         "operationId": "pull_repo",
         "parameters": [
           {
@@ -11215,7 +11215,7 @@
             }
           },
           "400": {
-            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+            "description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."
           },
           "429": {
             "description": "GitHub's rate limit for the token is used up."
@@ -11227,7 +11227,7 @@
             "description": "SOPOPS_SECRET_KEY isn't set, so the token can't be stored or read."
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -11286,7 +11286,7 @@
             }
           },
           "400": {
-            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+            "description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."
           },
           "429": {
             "description": "GitHub's rate limit for the token is used up."
@@ -11341,7 +11341,7 @@
             }
           },
           "400": {
-            "description": "GitHub refused the token, can't find the repository, branch or sopc project, or rejected a request."
+            "description": "GitHub refused the token, can't find the repository, branch or sop project, or rejected a request."
           },
           "429": {
             "description": "GitHub's rate limit for the token is used up."
@@ -11462,7 +11462,7 @@
             }
           },
           "422": {
-            "description": "The files don't compile; sopc's issues.",
+            "description": "The files don't compile; sop's issues.",
             "content": {
               "application/json": {
                 "schema": {
@@ -12249,14 +12249,14 @@
         }
       }
     },
-    "/v1/workspaces/{workspace}/imports/sopc": {
+    "/v1/workspaces/{workspace}/imports/sop": {
       "post": {
         "tags": [
           "onboarding"
         ],
-        "summary": "Import Sopc Project",
-        "description": "Import an existing sopc project: its `files`, or the workspace's GitHub repository (`from_repo`), with each\nagent's original instructions optionally. It's ready to review at once: what it holds, sopc's checks, and fidelity for\nevery agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes\nexactly its files as drafts; nothing is published.",
-        "operationId": "import_sopc_project",
+        "summary": "Import Sop Project",
+        "description": "Import an existing sop project: its `files`, or the workspace's GitHub repository (`from_repo`), with each\nagent's original instructions optionally. It's ready to review at once: what it holds, sop's checks, and fidelity for\nevery agent with an original (sentences kept, rules word for word, similarity, missing lines). Applying writes\nexactly its files as drafts; nothing is published.",
+        "operationId": "import_sop_project",
         "parameters": [
           {
             "name": "workspace",
@@ -12290,10 +12290,10 @@
             }
           },
           "400": {
-            "description": "No files and no repository, or no sopc.yaml."
+            "description": "No files and no repository, or no sop.yaml (or sopc.yaml)."
           },
           "422": {
-            "description": "sopc can't read the project."
+            "description": "sop can't read the project."
           }
         }
       }
@@ -12369,7 +12369,7 @@
           "onboarding"
         ],
         "summary": "Start Agent Import",
-        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and instructions to start one. The token is shown only in this response. Repo mode reads the connected\nrepository's folder first: unless it holds a project sopc builds, the agent is told to open the onboarding pull\nrequest adding one, and to report it.",
+        "description": "An onboarding token for Claude Code or Codex (scope onboarding:write, this workspace only, 2 hours), and the\ncommands and instructions to start one. The token is shown only in this response. Repo mode reads the connected\nrepository's folder first: unless it holds a project sop builds, the agent is told to open the onboarding pull\nrequest adding one, and to report it.",
         "operationId": "start_agent_import",
         "parameters": [
           {
@@ -12662,7 +12662,7 @@
           "onboarding"
         ],
         "summary": "Update Import Proposal",
-        "description": "Save edits to the proposal; fidelity and sopc's checks are run again.",
+        "description": "Save edits to the proposal; fidelity and sop's checks are run again.",
         "operationId": "update_import_proposal",
         "parameters": [
           {
@@ -12798,7 +12798,7 @@
           "onboarding"
         ],
         "summary": "Get Import Review",
-        "description": "The proposal as summaries, for any number of agents: counts, disagreements (rule words that differ, from\nsopc overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity.",
+        "description": "The proposal as summaries, for any number of agents: counts, disagreements (rule words that differ, from\nsop overlap, then drift the model suggested), variables, blocks by agent, unique text, and fidelity.",
         "operationId": "get_import_review",
         "parameters": [
           {
@@ -13544,7 +13544,7 @@
           "onboarding"
         ],
         "summary": "Onboarding Project",
-        "description": "A proposal as a sopc project's files, written with sopc, and `sopc validate` on them. Stores nothing.",
+        "description": "A proposal as a sop project's files, written with sop, and `sop validate` on them. Stores nothing.",
         "operationId": "onboarding_project",
         "parameters": [
           {
@@ -13931,7 +13931,7 @@
           "onboarding"
         ],
         "summary": "Onboarding Open Pull Request",
-        "description": "Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sopc project at\nthe connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it.",
+        "description": "Repo mode: sopops opens the onboarding pull request itself, writing the pushed proposal as a sop project at\nthe connected folder (what a GitHub App connection does instead of the agent running `gh`), then follows it.",
         "operationId": "onboarding_open_pull_request",
         "parameters": [
           {
@@ -14091,7 +14091,7 @@
           "onboarding"
         ],
         "summary": "Onboarding Check",
-        "description": "Compile a proposal with sopc and compare each agent with its original. Stores nothing.",
+        "description": "Compile a proposal with sop and compare each agent with its original. Stores nothing.",
         "operationId": "onboarding_check",
         "parameters": [
           {
@@ -14380,7 +14380,7 @@
           "file": {
             "type": "string",
             "title": "File",
-            "description": "Where it lives in the sopc folder (for git export)."
+            "description": "Where it lives in the sop folder (for git export)."
           },
           "platform": {
             "type": "string",
@@ -14602,7 +14602,7 @@
           "sentences"
         ],
         "title": "AgentFidelity",
-        "description": "How the agent's full instructions cover its original (`sopc compare`, sentence by sentence)."
+        "description": "How the agent's full instructions cover its original (`sop compare`, sentence by sentence)."
       },
       "AgentFields": {
         "properties": {
@@ -14782,7 +14782,7 @@
               "repo"
             ],
             "title": "Mode",
-            "description": "hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sopc builds, the agent opens a pull request adding it.",
+            "description": "hosted: instructions live in sopops. repo: they live in the workspace's connected GitHub repository too; unless its folder already holds a project sop builds, the agent opens a pull request adding it.",
             "default": "hosted"
           },
           "server_url": {
@@ -14889,7 +14889,7 @@
           "agent": {
             "type": "string",
             "title": "Agent",
-            "description": "sopc agent id."
+            "description": "sop agent id."
           },
           "platform_ref": {
             "type": "string",
@@ -15576,7 +15576,7 @@
           "agent": {
             "type": "string",
             "title": "Agent",
-            "description": "The sopc agent."
+            "description": "The sop agent."
           },
           "platform_id": {
             "type": "string",
@@ -16894,7 +16894,7 @@
             },
             "type": "array",
             "title": "Groups",
-            "description": "In the order sopc.yaml lists them."
+            "description": "In the order sop.yaml lists them."
           }
         },
         "type": "object",
@@ -17199,7 +17199,7 @@
           "id": {
             "type": "string",
             "title": "Id",
-            "description": "sopc overlap's group id (stable across runs), or the extraction's finding id."
+            "description": "sop overlap's group id (stable across runs), or the extraction's finding id."
           },
           "source": {
             "type": "string",
@@ -17208,7 +17208,7 @@
               "model"
             ],
             "title": "Source",
-            "description": "overlap: a rule word differs (sopc); model: suggested by the model (a paraphrased conflict)."
+            "description": "overlap: a rule word differs (sop); model: suggested by the model (a paraphrased conflict)."
           },
           "majority": {
             "$ref": "#/components/schemas/WordingGroup"
@@ -17523,7 +17523,7 @@
             },
             "type": "array",
             "title": "Lint",
-            "description": "`sopc lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.",
+            "description": "`sop lint` on the draft: duplicated or conflicting instructions. Advisory; publishing isn't blocked.",
             "default": []
           }
         },
@@ -18233,7 +18233,7 @@
             },
             "type": "object",
             "title": "Files",
-            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+            "description": "Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
           }
         },
         "type": "object",
@@ -18590,7 +18590,7 @@
           "file": {
             "type": "string",
             "title": "File",
-            "description": "Where it lives in the sopc folder (for git export)."
+            "description": "Where it lives in the sop folder (for git export)."
           },
           "used_by": {
             "items": {
@@ -18743,7 +18743,7 @@
               "sopc"
             ],
             "title": "Source",
-            "description": "llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sopc project."
+            "description": "llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0)."
           },
           "status": {
             "type": "string",
@@ -18794,7 +18794,7 @@
               }
             ],
             "title": "Repo Path",
-            "description": "Repo mode: the sopc project's folder; empty for the root."
+            "description": "Repo mode: the sop project's folder; empty for the root."
           },
           "repo_project": {
             "anyOf": [
@@ -19136,7 +19136,7 @@
           "file": {
             "type": "string",
             "title": "File",
-            "description": "Where it lives in the sopc folder (for git export)."
+            "description": "Where it lives in the sop folder (for git export)."
           },
           "used_by": {
             "items": {
@@ -19445,12 +19445,12 @@
           "message": {
             "type": "string",
             "title": "Message",
-            "description": "sopc's message."
+            "description": "sop's message."
           },
           "path": {
             "type": "string",
             "title": "Path",
-            "description": "Relative to the sopc folder; empty for folder-wide issues."
+            "description": "Relative to the sop folder; empty for folder-wide issues."
           },
           "severity": {
             "type": "string",
@@ -20601,7 +20601,7 @@
               }
             ],
             "title": "Agent Map",
-            "description": "A LiveKit agent name (or `*` for any) to a sopc agent, for rooms whose agent name and metadata don't name one. Left out: kept."
+            "description": "A LiveKit agent name (or `*` for any) to a sop agent, for rooms whose agent name and metadata don't name one. Left out: kept."
           }
         },
         "type": "object",
@@ -20851,7 +20851,7 @@
           "plan": {
             "type": "string",
             "title": "Plan",
-            "description": "sopc migrate's plan: what changes in each file, and any warnings."
+            "description": "sop migrate's plan: what changes in each file, and any warnings."
           },
           "applied": {
             "type": "boolean",
@@ -23163,7 +23163,7 @@
           "file": {
             "type": "string",
             "title": "File",
-            "description": "Where it lives in the sopc folder (for git export)."
+            "description": "Where it lives in the sop folder (for git export)."
           },
           "used_by": {
             "items": {
@@ -23495,7 +23495,7 @@
               }
             ],
             "title": "Files",
-            "description": "The sopc project's files, by path relative to its folder (the one with sopc.yaml). build/ is ignored."
+            "description": "The sop project's files, by path relative to its folder (the one with sop.yaml). build/ is ignored."
           },
           "from_repo": {
             "type": "boolean",
@@ -23546,7 +23546,7 @@
             },
             "type": "object",
             "title": "Files",
-            "description": "The sopc project's files by path: sopc.yaml, instructions/, procedures/, agents/."
+            "description": "The sop project's files by path: sop.yaml, instructions/, procedures/, agents/."
           },
           "issues": {
             "items": {
@@ -23564,7 +23564,7 @@
             },
             "type": "array",
             "title": "Validation",
-            "description": "`sopc validate` on the files."
+            "description": "`sop validate` on the files."
           }
         },
         "type": "object",
@@ -23628,7 +23628,7 @@
             },
             "type": "array",
             "title": "Issues",
-            "description": "sopc's checks of the proposal as files."
+            "description": "sop's checks of the proposal as files."
           },
           "notes": {
             "items": {
@@ -23651,7 +23651,7 @@
             },
             "type": "object",
             "title": "Decisions",
-            "description": "The reviewer's decisions, by the id of the group they're about (sopc overlap's ids)."
+            "description": "The reviewer's decisions, by the id of the group they're about (sop overlap's ids)."
           },
           "files": {
             "additionalProperties": {
@@ -23659,7 +23659,7 @@
             },
             "type": "object",
             "title": "Files",
-            "description": "An imported sopc project's files: the import is these files, written as drafts exactly."
+            "description": "An imported sop project's files: the import is these files, written as drafts exactly."
           }
         },
         "type": "object",
@@ -24235,7 +24235,7 @@
             },
             "type": "object",
             "title": "Files",
-            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+            "description": "Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
           },
           "author": {
             "anyOf": [
@@ -24306,7 +24306,7 @@
           "files": {
             "type": "integer",
             "title": "Files",
-            "description": "Files in the sopc project at that commit."
+            "description": "Files in the sop project at that commit."
           },
           "changed": {
             "items": {
@@ -25271,7 +25271,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Lock",
-            "description": "sopc's build/lock.json."
+            "description": "sop's build/lock.json."
           },
           "warnings": {
             "items": {
@@ -25338,7 +25338,7 @@
             },
             "type": "object",
             "title": "Files",
-            "description": "Source files keyed by path relative to the sopc folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
+            "description": "Source files keyed by path relative to the sop folder, e.g. 'instructions/brand-voice.md'. Paths under build/ are ignored."
           },
           "author": {
             "anyOf": [
@@ -25422,13 +25422,13 @@
             "type": "string",
             "maxLength": 512,
             "title": "Path",
-            "description": "The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.",
+            "description": "The sop project's folder in the repository (the one with sop.yaml); empty for the root.",
             "default": "sops"
           },
           "require_project": {
             "type": "boolean",
             "title": "Require Project",
-            "description": "Check that `path` holds a sopc project (sopc.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.",
+            "description": "Check that `path` holds a sop project (sop.yaml). Onboarding sends false: it connects before there is one, and the coding agent proposes it in a pull request.",
             "default": true
           }
         },
@@ -25460,7 +25460,7 @@
           "path": {
             "type": "string",
             "title": "Path",
-            "description": "The sopc project's folder; empty for the root."
+            "description": "The sop project's folder; empty for the root."
           },
           "auth": {
             "type": "string",
@@ -25632,7 +25632,7 @@
           "path": {
             "type": "string",
             "title": "Path",
-            "description": "The sopc project's folder; empty for the root."
+            "description": "The sop project's folder; empty for the root."
           },
           "sha": {
             "type": "string",
@@ -25647,7 +25647,7 @@
               "valid"
             ],
             "title": "State",
-            "description": "missing: no folder, or no sopc.yaml in it. invalid: sopc can't build it (`issues`). valid: a sopc project sopc builds."
+            "description": "missing: no folder, or no sop.yaml in it. invalid: sop can't build it (`issues`). valid: a sop project sop builds."
           },
           "files": {
             "type": "integer",
@@ -25668,7 +25668,7 @@
             },
             "type": "array",
             "title": "Issues",
-            "description": "sopc's issues: errors when invalid, warnings otherwise."
+            "description": "sop's issues: errors when invalid, warnings otherwise."
           }
         },
         "type": "object",
@@ -27541,7 +27541,7 @@
           "rule_id": {
             "type": "string",
             "title": "Rule Id",
-            "description": "sopc's stable rule id."
+            "description": "sop's stable rule id."
           },
           "kind": {
             "type": "string",
@@ -28006,7 +28006,7 @@
           "agent": {
             "type": "string",
             "title": "Agent",
-            "description": "The sopc agent id or platform ref the instructions were fetched for."
+            "description": "The sop agent id or platform ref the instructions were fetched for."
           },
           "release": {
             "type": "integer",
@@ -28150,7 +28150,7 @@
               }
             ],
             "title": "Agent Id",
-            "description": "The sopc agent, if the payload's agent matched one."
+            "description": "The sop agent, if the payload's agent matched one."
           },
           "agent_ref": {
             "anyOf": [
@@ -28562,7 +28562,7 @@
               }
             ],
             "title": "Agent",
-            "description": "The sopc agent id, or the agent's platform id (`tonys-pizza`)."
+            "description": "The sop agent id, or the agent's platform id (`tonys-pizza`)."
           },
           "release": {
             "anyOf": [
@@ -29104,7 +29104,7 @@
               }
             ],
             "title": "Agent Id",
-            "description": "The sopc agent, if the payload's agent matched one."
+            "description": "The sop agent, if the payload's agent matched one."
           },
           "agent_ref": {
             "anyOf": [
@@ -29454,7 +29454,7 @@
           "file": {
             "type": "string",
             "title": "File",
-            "description": "Where it lives in the sopc folder (for git export)."
+            "description": "Where it lives in the sop folder (for git export)."
           },
           "variables": {
             "additionalProperties": {
@@ -29748,7 +29748,7 @@
               }
             ],
             "title": "Issues",
-            "description": "`conflict`: sopc's errors with the merged file, or why there's nothing to merge into."
+            "description": "`conflict`: sop's errors with the merged file, or why there's nothing to merge into."
           }
         },
         "type": "object",
@@ -29788,7 +29788,7 @@
             "maxLength": 200,
             "minLength": 1,
             "title": "Name",
-            "description": "The agent's name; its sopc id is made from it."
+            "description": "The agent's name; its sop id is made from it."
           },
           "platform": {
             "type": "string",
@@ -30582,7 +30582,7 @@
               "failed"
             ],
             "title": "Status",
-            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
+            "description": "`generating` until the model and sop are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
           },
           "rationale": {
             "anyOf": [
@@ -30605,7 +30605,7 @@
               }
             ],
             "title": "Error",
-            "description": "Why it failed: sopc's issues with the last proposal, or the model's error."
+            "description": "Why it failed: sop's issues with the last proposal, or the model's error."
           },
           "pr_url": {
             "anyOf": [
@@ -31049,7 +31049,7 @@
               "failed"
             ],
             "title": "Status",
-            "description": "`generating` until the model and sopc are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
+            "description": "`generating` until the model and sop are done; then `proposed` or `failed`. A proposal becomes `applied` (a draft edit), `pr_open` (a pull request; then `merged`, or `dismissed` when it's closed) or `dismissed`."
           },
           "rationale": {
             "anyOf": [
@@ -31072,7 +31072,7 @@
               }
             ],
             "title": "Error",
-            "description": "Why it failed: sopc's issues with the last proposal, or the model's error."
+            "description": "Why it failed: sop's issues with the last proposal, or the model's error."
           },
           "pr_url": {
             "anyOf": [
@@ -32719,7 +32719,7 @@
               "overlap"
             ],
             "title": "Source",
-            "description": "proposal: named by the model; overlap: found by sopc and not in the proposal (its name is a default)."
+            "description": "proposal: named by the model; overlap: found by sop and not in the proposal (its name is a default)."
           },
           "id": {
             "anyOf": [
@@ -33741,7 +33741,7 @@
           "rule_id": {
             "type": "string",
             "title": "Rule Id",
-            "description": "sopc's id for this wording."
+            "description": "sop's id for this wording."
           },
           "from_release": {
             "anyOf": [
@@ -33855,7 +33855,7 @@
           "from_release"
         ],
         "title": "WordingRef",
-        "description": "One wording of a rule: its sopc id (which follows the text), the text, and the release that published it."
+        "description": "One wording of a rule: its sop id (which follows the text), the text, and the release that published it."
       },
       "WorkspaceOut": {
         "properties": {

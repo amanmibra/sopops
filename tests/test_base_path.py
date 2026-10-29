@@ -7,11 +7,11 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 import respx
-from conftest import SOPC_BIN, fresh_db_url
+from conftest import SOP_BIN, fresh_db_url
 from fastapi.testclient import TestClient
 from test_auth import GitHub, providers_env  # noqa: F401  (a fixture)
 
-from sopops_server import Sopc, Store, create_app
+from sopops_server import Sop, Store, create_app
 from sopops_server.urls import Layout, clean_prefix, with_prefix
 
 INDEX = """<!doctype html><html><head>
@@ -30,7 +30,7 @@ def built(root: Path, html: str = INDEX) -> Path:
 @pytest.fixture
 def app(tmp_path, monkeypatch, providers_env):  # noqa: F811
     monkeypatch.setenv("SOPOPS_WEB_DIR", str(built(tmp_path / "web")))
-    return create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN)))
+    return create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN)))
 
 
 def edge(prefix: str) -> dict:
@@ -141,7 +141,7 @@ def test_a_ui_at_the_root_stays_out_of_a_prefixed_api(tmp_path, monkeypatch):
     """The UI built for the root (the default) and served from elsewhere: the API behind /api answers 404 for what isn't
     a route, rather than this server's copy of the UI."""
     monkeypatch.setenv("SOPOPS_WEB_DIR", str(built(tmp_path / "web", '<script type="module" crossorigin src="/assets/index-abc.js"></script>')))
-    c = TestClient(create_app(Store(fresh_db_url(tmp_path), Sopc(SOPC_BIN))))
+    c = TestClient(create_app(Store(fresh_db_url(tmp_path), Sop(SOP_BIN))))
     assert c.get("/healthz", headers=edge("/api")).json() == {"ok": True}
     res = c.get("/w/demo", headers=edge("/api"), follow_redirects=False)
     assert res.status_code == 404 and res.json() == {"detail": "Not Found"}

@@ -86,7 +86,7 @@ export function McpSection() {
             <code>get_sop</code> reads one agent, shared instruction, procedure or group in full.
           </li>
           <li>
-            <code>save_sop</code> saves one back as a draft, and sopc checks it.
+            <code>save_sop</code> saves one back as a draft, and sop checks it.
           </li>
           <li>
             <code>preview_agent</code> shows an agent's full instructions, against what its calls run today.

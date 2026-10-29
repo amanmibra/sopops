@@ -1,4 +1,4 @@
-"""A workspace's GitHub repository: the connection, and pulling its sopc project."""
+"""A workspace's GitHub repository: the connection, and pulling its sop project."""
 
 from __future__ import annotations
 
@@ -33,8 +33,8 @@ class RepoIn(BaseModel):
     installation_id: int | None = Field(None, description="Sign in through the GitHub App's installation instead of a token: one installed "
                                         "from this workspace (`GET …/github/installations`).")
     base_branch: str = Field("main", min_length=1, max_length=255, description="The branch to pull from and open pull requests against.")
-    path: str = Field("sops", max_length=512, description="The sopc project's folder in the repository (the one with sopc.yaml); empty for the root.")
-    require_project: bool = Field(True, description="Check that `path` holds a sopc project (sopc.yaml). Onboarding sends false: it connects "
+    path: str = Field("sops", max_length=512, description="The sop project's folder in the repository (the one with sop.yaml); empty for the root.")
+    require_project: bool = Field(True, description="Check that `path` holds a sop project (sop.yaml). Onboarding sends false: it connects "
                                   "before there is one, and the coding agent proposes it in a pull request.")
 
 
@@ -43,7 +43,7 @@ class RepoOut(BaseModel):
     owner: str
     repo: str
     base_branch: str
-    path: str = Field(description="The sopc project's folder; empty for the root.")
+    path: str = Field(description="The sop project's folder; empty for the root.")
     auth: Literal["token", "app"] = Field(description="How sopops signs in to GitHub: `token`, a fine-grained personal access token, or `app`, the GitHub App.")
     installation_id: int | None = Field(description="The GitHub App's installation, for `app`.")
     token_hint: str | None = Field(description="The token's last characters, to tell tokens apart; null for `app`. Never the token.")
@@ -62,7 +62,7 @@ class RepoOut(BaseModel):
 class PullOut(BaseModel):
     workspace: str
     sha: str = Field(description="The base branch's head commit, now the workspace's drafts.")
-    files: int = Field(description="Files in the sopc project at that commit.")
+    files: int = Field(description="Files in the sop project at that commit.")
     changed: list[WrittenFile] = Field(description="New file versions (drafts). Empty if head already matched.")
     unchanged: bool = Field(description="Nothing changed: the commit was already pulled, or its files match head.")
 
@@ -71,13 +71,13 @@ class RepoProjectOut(BaseModel):
     workspace: str
     repo: str = Field(description="owner/name.")
     base_branch: str
-    path: str = Field(description="The sopc project's folder; empty for the root.")
+    path: str = Field(description="The sop project's folder; empty for the root.")
     sha: str = Field(description="The base branch's head commit that was read.")
     state: Literal["missing", "invalid", "valid"] = Field(
-        description="missing: no folder, or no sopc.yaml in it. invalid: sopc can't build it (`issues`). valid: a sopc project sopc builds.")
+        description="missing: no folder, or no sop.yaml in it. invalid: sop can't build it (`issues`). valid: a sop project sop builds.")
     files: int = Field(description="Files in the folder (build/ skipped).")
     agents: list[str] = Field(description="The project's agents, when it's valid.")
-    issues: list[IssueOut] = Field(description="sopc's issues: errors when invalid, warnings otherwise.")
+    issues: list[IssueOut] = Field(description="sop's issues: errors when invalid, warnings otherwise.")
 
 
 class SyncOut(BaseModel):

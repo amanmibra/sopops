@@ -11,7 +11,7 @@
    warning signs, keeping the source wording and every `{{variable}}`.
 4. **Name** (LLM, fast): each variable gets a name; a heuristic name is used if the call fails.
 5. **Propose**: agents (context, blocks in prompt order, variables), a group for blocks every agent starts with,
-   and a fidelity check: each agent compiled with sopc and compared with its original (`fidelity.check`).
+   and a fidelity check: each agent compiled with sop and compared with its original (`fidelity.check`).
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from pathlib import Path
 from ..ai import spend
 from ..ai.lm import AI, AIError
 from ..ai.signatures import NameVariables, SegmentPrompt, Slot, StructureProcedure, Unit
-from ..sopc import Sopc
+from ..sop import Sop
 from . import fidelity
 from . import text as tx
 from .types import (
@@ -429,7 +429,7 @@ def common_group(agents: list[ProposedAgent], taken: set[str]) -> ProposedGroup 
 # --- the whole thing -------------------------------------------------------------------------------------
 
 
-def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progress: Progress | None = None, workers: int = 4,
+def extract(sources: list[SourcePrompt], ai: AI, sop: Sop | None = None, progress: Progress | None = None, workers: int = 4,
             guidance: str = "") -> Proposal:
     """`guidance`: how the user wants their instructions organized, passed to the splitting and structuring calls; empty
     leaves the model's default choices."""
@@ -488,15 +488,15 @@ def extract(sources: list[SourcePrompt], ai: AI, sopc: Sopc | None = None, progr
         if len(set(headings)) == 1 and all(len(hs) == 1 for hs in b.headings.values() if hs) and headings[0].startswith("#"):
             settings.procedures_heading = headings[0]
         else:
-            b.notes.append(f"Section headings left out (sopc adds its own heading before the procedures): {', '.join(sorted(set(headings)))}")
+            b.notes.append(f"Section headings left out (sop adds its own heading before the procedures): {', '.join(sorted(set(headings)))}")
 
     proposal = Proposal(
         agents=agents, instructions=instructions, procedures=procedures, groups=groups, settings=settings,
         findings=b.findings, notes=list(dict.fromkeys(b.notes)), originals={a: s.prompt for a, s in zip(ids, sources)},
     )
-    if sopc is not None:
-        say("fidelity", "Compiling each agent with sopc and comparing it with its original")
-        proposal = fidelity.check(proposal, sopc)
+    if sop is not None:
+        say("fidelity", "Compiling each agent with sop and comparing it with its original")
+        proposal = fidelity.check(proposal, sop)
         kept = [f for f in proposal.fidelity]
         if kept:
             say("fidelity", "; ".join(f"{f.agent} {round(f.score * 100)}%" for f in kept))

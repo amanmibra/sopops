@@ -72,7 +72,7 @@ export interface AttachOptions {
 export interface RecordSessionOptions {
   /** The client to use. Default: a new `SopOps()` (`SOPOPS_URL` / `SOPOPS_TOKEN`). */
   sopops?: SopOps;
-  /** The sopc agent id. Default: the one `attach` noted in `session.userData`, else the job's agent name. */
+  /** The sop agent id. Default: the one `attach` noted in `session.userData`, else the job's agent name. */
   agent?: string | null;
   /** The release the call ran on (`Instructions.release`). Default: the one `attach` noted in `session.userData`. */
   release?: number | null;

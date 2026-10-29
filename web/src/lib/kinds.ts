@@ -14,7 +14,7 @@ export const KIND: Record<Kind, { one: string; many: string; route: string; badg
 
 export const BLOCK_KINDS: BlockKind[] = ["group", "instruction", "procedure"];
 
-// The platforms sopops supports, LiveKit first. sopc also knows `retell`; an agent that already uses it keeps it
+// The platforms sopops supports, LiveKit first. sop also knows `retell`; an agent that already uses it keeps it
 // (`legacy`), but it isn't offered for new agents.
 export const PLATFORMS = [
   {
@@ -64,8 +64,11 @@ export const WORKSPACE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 export const kindOfComponent = (k: string): Kind =>
   (({ agent: "agent", instruction: "instruction", base: "instruction", sop: "procedure", config: "settings" }) as Record<string, Kind>)[k] ?? "instruction";
 
+/** The config file's names: sop.yaml, or sopc.yaml in a project made before sop v0.1.0 (sop.yaml wins if both are there). */
+export const CONFIG_FILES = ["sop.yaml", "sopc.yaml"];
+
 export function itemOfPath(path: string): [Kind, string] | null {
-  if (path === "sopc.yaml") return ["settings", "settings"];
+  if (CONFIG_FILES.includes(path)) return ["settings", "settings"];
   const [dir, name] = path.split("/");
   const kind = ({ agents: "agent", instructions: "instruction", bases: "instruction", procedures: "procedure" } as Record<string, Kind>)[dir];
   return kind ? [kind, (name || "").replace(/\.(md|yaml)$/, "")] : null;

@@ -1,8 +1,8 @@
 # GitHub
 
-Connect a workspace to a repository, keep its sopc project in sync both ways, and set up the GitHub App. The guide is [Instructions in git](../git.md).
+Connect a workspace to a repository, keep its sop project in sync both ways, and set up the GitHub App. The guide is [Instructions in git](../git.md).
 
-A workspace's repository is the sopc project at `path` on `base_branch`. It signs in one of two ways:
+A workspace's repository is the sop project at `path` on `base_branch`. It signs in one of two ways:
 
 | `auth` | Credential |
 |---|---|
@@ -11,7 +11,7 @@ A workspace's repository is the sopc project at `path` on `base_branch`. It sign
 
 | GitHub's answer | What you get |
 |---|---|
-| A refusal: a wrong or expired token, missing access, no such repository, branch or `sopc.yaml` | `400`, with what to fix. |
+| A refusal: a wrong or expired token, missing access, no such repository, branch or `sop.yaml` | `400`, with what to fix. |
 | Its rate limit | `429`. |
 | Down or unreachable | `502`. |
 
@@ -22,8 +22,8 @@ A workspace's repository is the sopc project at `path` on `base_branch`. It sign
 | `POST /v1/workspaces/{ws}/repo` | Connect a repository. Fields below. `503` without `SOPOPS_SECRET_KEY`. |
 | `GET /v1/workspaces/{ws}/repo` | The connection, or `null` if none is connected. Fields below. Reading it polls GitHub in the background when due, the fallback for webhooks. |
 | `DELETE /v1/workspaces/{ws}/repo` | Forget the repository and its token. The files stay. |
-| `GET /v1/workspaces/{ws}/repo/project` | What the folder holds at the branch's head, compiled with sopc, changing nothing: `{workspace, repo, base_branch, path, sha, state, files, agents, issues}`. `state` is `missing` (no folder, or no `sopc.yaml` in it), `invalid` (sopc can't build it; `issues` has the errors) or `valid`. |
-| `POST /v1/workspaces/{ws}/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). Returns `{workspace, sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op. `422` (sopc's issues) if it doesn't compile. |
+| `GET /v1/workspaces/{ws}/repo/project` | What the folder holds at the branch's head, compiled with sop, changing nothing: `{workspace, repo, base_branch, path, sha, state, files, agents, issues}`. `state` is `missing` (no folder, or no `sop.yaml` in it), `invalid` (sop can't build it; `issues` has the errors) or `valid`. |
+| `POST /v1/workspaces/{ws}/repo/pull` | `?author=`: make head exactly the folder at the branch's head, as drafts (`build/` skipped). Returns `{workspace, sha, files, changed, unchanged}`. The same commit with head unchanged since is a no-op. `422` (sop's issues) if it doesn't compile. |
 | `POST /v1/workspaces/{ws}/repo/sync` | `?author=`: bring the folder at the branch's head into drafts, merging both ways. Returns `{workspace, sha, changed, merged, conflicts, unchanged, error}`. |
 | `GET/POST /v1/workspaces/{ws}/repo/conflict` | `?path=`: a sync conflict's `base`, `ours` and `theirs`. Post `{path, take: mine \| github \| edited, content?, author?}` to settle it. |
 | `POST /v1/workspaces/{ws}/repo/send` | Open or update the sync pull request (branch `sopops/sync`) with the drafts' differences from the branch's head. Returns `{url, files, updated}`. |
@@ -63,7 +63,7 @@ curl -s -X POST -H "Content-Type: application/json" \
 `POST /repo` takes `{owner, repo, token?, installation_id?, base_branch?: "main", path?: "sops", require_project?: true}`.
 
 - With `installation_id`, it signs in through the App: an installation made from this workspace, else `400`.
-- It checks that the credential reads the repository and the branch, and that `path` on `base_branch` has a `sopc.yaml`. `require_project: false`, as onboarding sends, skips that last check. Then it saves.
+- It checks that the credential reads the repository and the branch, and that `path` on `base_branch` has a `sop.yaml`. `require_project: false`, as onboarding sends, skips that last check. Then it saves.
 - Without `token` or `installation_id`, the stored credential is kept, so you can change the branch or path alone.
 
 ### Reading the connection
