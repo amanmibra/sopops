@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
       - name: Install sop
-        run: curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=v0.1.0 SOP_INSTALL_DIR=/usr/local/bin sudo -E sh
+        run: curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=v0.1.1 SOP_INSTALL_DIR=/usr/local/bin sudo -E sh
       - run: uv sync --all-extras --python 3.12
       # Spread across the runner's cores; each worker gets its own database (tests/conftest.py).
       - run: uv run pytest -q -n auto
