@@ -171,6 +171,27 @@ def test_variables_are_filled_in_your_process_not_in_sopops(client):
 
 
 @respx.mock
+def test_a_value_passed_at_call_start_wins_over_one_set_in_sopops(client):
+    body = {**AGENT, "prompt": "You are Tony's. Transfer to the manager.",
+            "template": "You are {{restaurant}}. Transfer to {{staff}}.", "variables": {"restaurant": "Tony's", "staff": "the manager"}}
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json=body))
+    ins = run(client.fetch_instructions("tonys-pizza", variables={"staff": "Maria"}))
+    assert (ins.text, ins.unfilled) == ("You are Tony's. Transfer to Maria.", ())
+    assert run(client.fetch_instructions("tonys-pizza")).text == "You are Tony's. Transfer to the manager."
+
+    # the cached copy keeps the template, so the override still applies when sopops is down
+    respx.get(f"{URL}/agents/tonys-pizza").mock(side_effect=httpx.ConnectError("down"))
+    later = run(client.fetch_instructions("tonys-pizza", variables={"staff": "Ada"}))
+    assert (later.source, later.text) == ("cache", "You are Tony's. Transfer to Ada.")
+
+
+@respx.mock
+def test_a_placeholder_only_the_call_knows_is_listed_until_filled(client):
+    respx.get(f"{URL}/agents/tonys-pizza").mock(return_value=httpx.Response(200, json={**AGENT, "prompt": "Greet {{caller}}."}))
+    assert run(client.fetch_instructions("tonys-pizza")).unfilled == ("caller",)
+
+
+@respx.mock
 def test_a_fallback_is_filled_too(client):
     respx.get(f"{URL}/agents/new-agent").mock(side_effect=httpx.ConnectError("down"))
     ins = run(client.fetch_instructions("new-agent", fallback="You are the host. It's {{now}}.", variables={"now": "7:15pm"}))

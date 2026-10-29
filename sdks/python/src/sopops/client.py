@@ -59,7 +59,11 @@ class Instructions:
     source: Source = "live"
     """`live` from sopops, `cache` the last good copy on disk (sopops failed), `fallback` the text you passed."""
     unfilled: tuple[str, ...] = ()
-    """Placeholders still in `text`: ones you passed no value for. Empty unless you passed `variables`."""
+    """Placeholders still in `text`: ones neither you nor sopops gave a value."""
+    template: str | None = None
+    """The instructions before any placeholder was filled. None from a sopops older than this field."""
+    defaults: dict[str, str] = field(default_factory=dict)
+    """The values set in sopops (the agent's, then Settings). Values you pass win over these."""
 
 
 class InstructionCache(Protocol):
@@ -109,7 +113,7 @@ class FileCache:
         os.replace(tmp, path)
 
 
-PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
+PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}")  # names as sop reads them
 
 
 def fill(text: str, variables: Mapping[str, Any]) -> str:
@@ -124,12 +128,14 @@ def unfilled(text: str) -> tuple[str, ...]:
 
 
 def _filled(got: Instructions, variables: Mapping[str, Any] | None) -> Instructions:
-    """Fill what this call knows, and say what didn't line up. A mismatch is never fatal: the call goes on with the
-    placeholder as it is, which is what sopops serves anyway."""
+    """Fill the template with this call's values, then the ones set in sopops, and say what didn't line up. A value
+    can be set in either place; this call's wins. A mismatch is never fatal: the call goes on with the placeholder as
+    it is, which is what sopops serves anyway."""
     if not variables:
-        return got
-    wanted = set(unfilled(got.text))
-    text = fill(got.text, variables)
+        return replace(got, unfilled=unfilled(got.text))
+    template = got.template if got.template is not None else got.text
+    wanted = set(unfilled(template))
+    text = fill(template, {**got.defaults, **variables})
     left = unfilled(text)
     if left:
         log.warning("sopops: no value for %s in %s's instructions; it stays as a placeholder", _names(left), got.agent)
@@ -243,9 +249,10 @@ class SopOps:
         on its platform or its sop id, e.g. `tonys-pizza`. `platform` (`"livekit"`) scopes it to one platform when two
         agents share an id.
 
-        `variables` fills `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything your
-        code works out per call. It happens here, in your process, so those values never reach sopops. A placeholder
-        you pass no value for is left as it is and listed in `ins.unfilled`. The cache keeps the unfilled text, so a
+        `variables` fills `{{placeholders}}` this call knows: the time, the caller, anything your code works out per
+        call. A placeholder can have a value set in sopops too (the agent's variables, or Settings); the one you pass
+        wins, and sopops' fills the rest. It happens here, in your process, so your values never reach sopops. A
+        placeholder with no value from either is left as it is and listed in `ins.unfilled`. The cache keeps the unfilled text, so a
         cached copy still fills with this call's values.
 
         Never waits longer than `timeout`. If sopops fails, returns the last good copy from disk (`source="cache"`),
@@ -260,6 +267,7 @@ class SopOps:
             got = Instructions(
                 text=body["prompt"], release=body["release"], agent=body["agent"], blocks=body.get("components", []),
                 hash=body.get("hash"), platform_ref=body.get("platform_ref"), tools=body.get("tools", []), tool_sops=body.get("tool_sops", []),
+                template=body.get("template"), defaults=body.get("variables") or {},
             )
         except (httpx.HTTPError, asyncio.TimeoutError, SopOpsError, ValueError, KeyError) as e:
             reason = str(e) or type(e).__name__

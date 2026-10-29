@@ -220,12 +220,14 @@ def test_shared_instructions(seeded):
     warning = next(i for i in seeded.get(f"{WS}/draft").json()["issues"] if i["code"] == "unused_block")
     assert (warning["kind"], warning["id"], warning["severity"]) == ("instruction", "hours", "warning")
 
-    res = seeded.post(f"{CFG}/agents/sakura-sushi/blocks", json={"block": "hours"})
-    bad = issue(res, "variables")
-    assert bad["kind"] == "agent" and bad["id"] == "sakura-sushi" and "{{opening_time}}" in bad["text"]
+    # With no value in sopops, the placeholder is served as written for the call to fill, with a warning.
+    assert seeded.post(f"{CFG}/agents/sakura-sushi/blocks", json={"block": "hours"}).status_code == 200
+    assert prompts(seeded)["sakura-sushi"].rstrip().endswith("We open at {{opening_time}}.")
+    warning = next(i for i in seeded.get(f"{WS}/draft").json()["issues"] if i["code"] == "unset_variable")
+    assert (warning["kind"], warning["id"], warning["field"], warning["severity"]) == ("agent", "sakura-sushi", "variables", "warning")
+    assert "{{opening_time}}" in warning["text"]
     settings = seeded.get(f"{CFG}/settings").json()
     assert seeded.put(f"{CFG}/settings", json={**settings, "variables": {**settings["variables"], "opening_time": "11am"}}).status_code == 200
-    assert seeded.post(f"{CFG}/agents/sakura-sushi/blocks", json={"block": "hours"}).status_code == 200
     assert prompts(seeded)["sakura-sushi"].rstrip().endswith("We open at 11am.")
     assert seeded.get(f"{CFG}/instructions/hours").json()["used_by"] == [{"agent": "sakura-sushi", "via": None}]
 
@@ -330,7 +332,7 @@ def test_preview(seeded):
     res = seeded.post(f"{CFG}/agents/tonys-pizza/preview", json={**tonys, "blocks": ["closing", "nope"]}).json()
     assert not res["valid"] and res["prompt"] is None and {i["code"] for i in res["issues"] if i["severity"] == "error"} == {"unknown_block"}
     res = seeded.post(f"{CFG}/agents/new-one/preview", json={"platform": "vapi", "platform_id": "x", "blocks": ["restaurant-host", "brand-voice", "allergen-check"]}).json()
-    assert not res["valid"] and any(i["code"] == "unset_variable" for i in res["issues"]) and res["released_prompt"] is None
+    assert res["valid"] and any(i["code"] == "unset_variable" and i["severity"] == "warning" for i in res["issues"]) and res["released_prompt"] is None
 
     # no fields (the MCP tool sends {}): the agent as it is at head
     for body in ({}, None):
@@ -563,15 +565,17 @@ def test_settings_and_new_workspace(client):
     agent = client.get(f"{WS}/draft").json()["agents"][0]
     assert agent["platform_ref"] == "retell:agent_1" and agent["prompt"].startswith("You answer for Acme.") and "## How to handle calls" in agent["prompt"]
 
-    bad = issue(client.put(f"{CFG}/settings", json={"variables": {}, "procedures_heading": "## Procedures"}), "variables")
-    assert bad["kind"] == "agent" and bad["id"] == "front-desk" and "{{brand}}" in bad["text"]
+    assert client.put(f"{CFG}/settings", json={"variables": {}, "procedures_heading": "## Procedures"}).status_code == 200
+    warning = next(i for i in client.get(f"{WS}/draft").json()["issues"] if i["code"] == "unset_variable")
+    assert warning["kind"] == "agent" and warning["id"] == "front-desk" and "{{brand}}" in warning["text"]
+    assert client.get(f"{WS}/draft").json()["agents"][0]["prompt"].startswith("You answer for {{brand}}.")
 
     assert issue(client.post(f"{CFG}/agents", json={"id": "x", "platform": "retell", "platform_id": "agent_1"}), "platform_id")["code"] == "duplicate_platform_ref"
     assert issue(client.post(f"{CFG}/agents", json={"id": "y", "platform": "retell", "platform_id": " "}), "platform_id")["code"] == "invalid_value"
     assert issue(client.post(f"{CFG}/agents", json={"id": "z", "platform": "vapi", "platform_id": "a", "variables": {"bad name": "x"}}), "variables")
     assert issue(client.post(f"{CFG}/agents", json={"id": "z", "platform": "vapi", "platform_id": "a", "blocks": ["no spaces please"]}), "blocks")["index"] == 0
 
-    assert [h["version"] for h in client.get(f"{CFG}/settings/history").json()] == [1]
+    assert [h["version"] for h in client.get(f"{CFG}/settings/history").json()] == [2, 1]  # 2: the defaults cleared above
     assert client.get(f"{CFG}/settings/versions/1").json()["procedures_heading"] == "## How to handle calls"
     assert client.delete(f"{CFG}/agents/nobody").status_code == 404
 

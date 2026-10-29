@@ -29,8 +29,12 @@ export interface Instructions {
   toolSops: string[];
   /** `live` from sopops, `cache` the last good copy (sopops failed), `fallback` the text you passed. */
   source: Source;
-  /** Placeholders still in `text`: ones you passed no value for. Empty unless you passed `variables`. */
+  /** Placeholders still in `text`: ones neither you nor sopops gave a value. */
   unfilled?: string[];
+  /** The instructions before any placeholder was filled. Missing from a sopops older than this field. */
+  template?: string;
+  /** The values set in sopops (the agent's, then Settings). Values you pass win over these. */
+  defaults?: Record<string, string>;
 }
 
 /** Where the last good instructions are kept. The default keeps them in memory for the process's lifetime. */
@@ -87,8 +91,9 @@ export interface FetchOptions {
   platform?: string;
   /** Text to use if sopops is down and nothing is cached. */
   fallback?: string;
-  /** Values for `{{placeholders}}` this call knows and sopops can't: the time, the caller, anything you work out per
-   * call. Filled here, in your process, so these never reach sopops. What's left over is in `unfilled`. */
+  /** Values for `{{placeholders}}` this call knows: the time, the caller, anything you work out per call. They win
+   * over values set in sopops, which fill the rest. Filled here, in your process, so these never reach sopops.
+   * What's left over is in `unfilled`. */
   variables?: Record<string, string | number | boolean>;
 }
 
@@ -151,7 +156,7 @@ export interface SessionIngested {
 }
 
 /** A release pinned for this call in metadata: `{"sopops_release": 3}` or `{"sopops": {"release": 3}}`, as JSON or an object. */
-const PLACEHOLDER = /\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g;
+const PLACEHOLDER = /\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/g; // names as sop reads them
 
 /** `{{placeholders}}` replaced with your values. One with no value is left as it is, the way sopops leaves a
  * placeholder it has no value for, so a missing value never mangles the instructions. */
@@ -166,12 +171,14 @@ export function unfilled(text: string): string[] {
 
 const names = (xs: string[]) => xs.map((n) => `{{${n}}}`).join(", ");
 
-/** Fill what this call knows, and say what didn't line up. A mismatch is never fatal: the call goes on with the
- * placeholder as it is, which is what sopops serves anyway. */
+/** Fill the template with this call's values, then the ones set in sopops, and say what didn't line up. A value
+ * can be set in either place; this call's wins. A mismatch is never fatal: the call goes on with the placeholder as
+ * it is, which is what sopops serves anyway. */
 function filled(got: Instructions, variables: FetchOptions["variables"]): Instructions {
-  if (!variables || Object.keys(variables).length === 0) return got;
-  const wanted = new Set(unfilled(got.text));
-  const text = fill(got.text, variables);
+  if (!variables || Object.keys(variables).length === 0) return { ...got, unfilled: unfilled(got.text) };
+  const template = got.template ?? got.text;
+  const wanted = new Set(unfilled(template));
+  const text = fill(template, { ...got.defaults, ...variables });
   const left = unfilled(text);
   if (left.length) console.warn(`sopops: no value for ${names(left)} in ${got.agent}'s instructions; it stays as a placeholder`);
   const spare = Object.keys(variables).filter((k) => !wanted.has(k));
@@ -267,6 +274,8 @@ export class SopOps {
         tools: (b.tools as string[]) ?? [],
         toolSops: (b.tool_sops as string[]) ?? [],
         source: "live",
+        ...(typeof b.template === "string" ? { template: b.template } : {}),
+        defaults: (b.variables as Record<string, string>) ?? {},
       };
       try {
         await this.cache.set(key, got);   // unfilled, so the next call fills it with its own values

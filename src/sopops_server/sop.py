@@ -55,7 +55,7 @@ class Issue:
 class Compiled:
     issues: list[Issue]
     lock: dict = field(default_factory=dict)
-    agents: dict[str, dict] = field(default_factory=dict)  # id -> {platform_ref, hash, prompt, tools, sops, blocks}
+    agents: dict[str, dict] = field(default_factory=dict)  # id -> {platform_ref, hash, prompt, template, variables, tools, sops, blocks}
 
     @property
     def valid(self) -> bool:
@@ -211,10 +211,14 @@ class Sop:
             agents = {}
             for agent_id, entry in lock["agents"].items():
                 tool = out / f"{agent_id}.tool.json"
+                template = out / f"{agent_id}.template.md"
+                prompt = (out / f"{agent_id}.prompt.md").read_bytes().decode()
                 agents[agent_id] = {
                     "platform_ref": entry["platform_ref"],
                     "hash": entry["hash"],
-                    "prompt": (out / f"{agent_id}.prompt.md").read_bytes().decode(),
+                    "prompt": prompt,
+                    "template": template.read_bytes().decode() if template.exists() else prompt,
+                    "variables": entry.get("variables", {}),
                     "tools": entry.get("tools", []),
                     "sops": json.loads(tool.read_text()) if tool.exists() else {},
                     "blocks": entry["blocks"],

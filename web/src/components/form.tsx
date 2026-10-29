@@ -355,18 +355,18 @@ export function AgentVars({
   return (
     <div id="f-variables">
       {unset.length > 0 && (
-        <div className="text-warn mb-2 text-sm">
-          {plural(unset.length, "variable needs", "variables need")} a value: the instructions can't be built without {unset.length === 1 ? "it" : "them"}.
+        <div className="text-muted-foreground mb-2 text-sm">
+          {plural(unset.length, "variable has", "variables have")} no value here or in Settings. Pass {unset.length === 1 ? "it" : "them"} at call start, or the agent reads the placeholder as written.
         </div>
       )}
       <div className="grid gap-2">
         {rows.map((r, i) => {
           const name = r.k.trim();
           const from = need.get(name);
-          const missing = !!from && r.v === "" && !(name in defaults);
+          const atCallStart = !!from && r.v === "" && !(name in defaults);
           const dup = name && names.indexOf(name) !== i;
           return (
-            <div key={`${r.fixed ? "f" : "c"}${i}`} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_32px] items-center gap-x-2 gap-y-0.5", (missing || dup) && "[&_input]:border-err")}>
+            <div key={`${r.fixed ? "f" : "c"}${i}`} data-var-row className={cn("grid grid-cols-[minmax(120px,220px)_1fr_32px] items-center gap-x-2 gap-y-0.5", dup && "[&_input]:border-err")}>
               {r.fixed ? (
                 <span className="truncate">
                   <code className="text-sm">{`{{${name}}}`}</code>
@@ -376,7 +376,7 @@ export function AgentVars({
               )}
               <Input
                 value={r.v}
-                placeholder={name in defaults ? `Default: ${defaults[name]}` : missing ? "Needs a value" : "value"}
+                placeholder={name in defaults ? `Default: ${defaults[name]}` : atCallStart ? "Set at call start" : "value"}
                 aria-label={`Value of ${name || "variable"}`}
                 onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))}
               />

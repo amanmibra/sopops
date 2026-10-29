@@ -100,7 +100,7 @@ async function entrypoint(ctx: JobContext) {
 | Never blocks a call | If sopops is down, the last good copy, then `fallback`. |
 | Posts the session | `session.history`, with tool calls, at shutdown. Python can also send each turn and tool call as the call runs (`stream=True`). |
 | Reports the version | LLM, speech and voice models, so Insights can compare them ([A/B tests](ab-tests.md)). |
-| Leaves unknown variables | A <code v-pre>{{placeholder}}</code> sopops has no value for is served as it is. Pass `variables={"now": ..., "caller": ...}` to fill it in your own process, so those values never reach sopops. What is left is in `ins.unfilled`, and a mismatch logs a warning instead of stopping the call. |
+| Runtime variables win | Pass `variables={"now": ..., "caller": ...}` to fill <code v-pre>{{placeholders}}</code> in your own process, so those values never reach sopops. They win over values set in sopops, which fill the rest; a placeholder with neither is served as it is. What is left is in `ins.unfilled`, and a mismatch logs a warning instead of stopping the call. |
 
 - Record a session you start some other way with `record_session`, or `recordSession` in TypeScript.
 - Outside LiveKit, use `fetch_instructions(agent)` and `post_session(...)` on a `SopOps`, `fetchInstructions` and `postSession` in TypeScript, or `sopops.fetch(agent, release)` for Python that isn't async ([SDK reference](sdk.md)).

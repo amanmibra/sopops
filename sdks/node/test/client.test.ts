@@ -190,6 +190,19 @@ describe("runtime variables", () => {
     expect([later.source, later.text]).toEqual(["cache", "You are {{restaurant}}. It's 9:40pm. Greet Ada."]);
   });
 
+  it("a value passed at call start wins over one set in sopops", async () => {
+    const body = { ...AGENT, prompt: "You are Tony's. Transfer to the manager.", template: "You are {{restaurant}}. Transfer to {{staff}}.", variables: { restaurant: "Tony's", staff: "the manager" } };
+    const cache = new MemoryCache();
+    const c = new SopOps({ url: URL, token: "tok", fetch: mockFetch(json(body)).fetch, cache });
+    const ins = await c.fetchInstructions("front-desk", { variables: { staff: "Maria" } });
+    expect([ins.text, ins.unfilled]).toEqual(["You are Tony's. Transfer to Maria.", []]);
+    expect((await c.fetchInstructions("front-desk")).text).toBe("You are Tony's. Transfer to the manager.");
+
+    const down = new SopOps({ url: URL, token: "tok", fetch: mockFetch(new Error("down")).fetch, cache });
+    const later = await down.fetchInstructions("front-desk", { variables: { staff: "Ada" } });
+    expect([later.source, later.text]).toEqual(["cache", "You are Tony's. Transfer to Ada."]);
+  });
+
   it("fills a fallback too", async () => {
     const m = mockFetch(new Error("down"));
     const c = new SopOps({ url: URL, token: "tok", fetch: m.fetch, cache: new MemoryCache() });

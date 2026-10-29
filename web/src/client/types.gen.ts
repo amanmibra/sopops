@@ -458,8 +458,24 @@ export type AgentOut = {
     hash: string;
     /**
      * Prompt
+     *
+     * The full instructions, placeholders filled with the values set in sopops.
      */
     prompt: string;
+    /**
+     * Template
+     *
+     * `prompt` before its placeholders were filled. Fill it with your own values first, then `variables`: a value passed at call start wins over one set in sopops. The SDKs do this.
+     */
+    template: string;
+    /**
+     * Variables
+     *
+     * The values set in sopops (the agent's, then Settings) that filled `prompt`.
+     */
+    variables: {
+        [key: string]: string;
+    };
     /**
      * Tools
      */
@@ -6532,6 +6548,16 @@ export type ReleasedAgent = {
      * Prompt
      */
     prompt: string;
+    /**
+     * Template
+     */
+    template: string;
+    /**
+     * Variables
+     */
+    variables: {
+        [key: string]: string;
+    };
     /**
      * Tools
      */

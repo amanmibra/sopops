@@ -565,7 +565,7 @@ def locate(issue: Issue, names: dict[str, str] | None = None) -> Issue:
     elif code == "unset_variable":
         name = re.search(r"\{\{([^}]*)\}\}", msg)
         var = name.group(1) if name else first
-        field, text = "variables", f"Uses {{{{{var}}}}}, but it has no value here and no default in Settings."
+        field, text = "variables", f"Uses {{{{{var}}}}}, which has no value here or in Settings. Pass it at call start, or the agent reads it as written."
     elif code == "duplicate_platform_ref":
         field, text = "platform_id", "Another agent already uses this platform id."
     elif code == "missing_goal":

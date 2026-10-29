@@ -101,7 +101,7 @@ A frozen dataclass in Python, an interface in TypeScript.
 
 | Python | TypeScript | Type | What it is |
 |---|---|---|---|
-| `text` | `text` | string | The compiled prompt, with whatever variables you passed already filled. |
+| `text` | `text` | string | The compiled prompt, placeholders filled: your variables first, then the ones set in sopops. |
 | `release` | `release` | int or null | The release it came from. Null for a fallback. |
 | `agent` | `agent` | string | The sop agent id, as sopops resolved it. Pass this one back when you post the session. |
 | `blocks` | `blocks` | list | Each file the prompt was built from, in prompt order: `kind`, `id`, `path`, `version`. |
@@ -110,11 +110,15 @@ A frozen dataclass in Python, an interface in TypeScript.
 | `tools` | `tools` | list of strings | The tools the agent's procedures call, by name. |
 | `tool_sops` | `toolSops` | list of strings | Procedures delivered on demand rather than written into the prompt: their ids, fetched with the `get_sop` tool ([Releases](api/releases.md)). |
 | `source` | `source` | `live`, `cache` or `fallback` | Where the text came from. Worth logging. |
-| `unfilled` | `unfilled` | tuple, array | Placeholders still in `text`. Empty unless you passed `variables`. |
+| `unfilled` | `unfilled` | tuple, array | Placeholders still in `text`: ones neither you nor sopops gave a value. |
+| `template` | `template` | string or null | The prompt before any placeholder was filled. |
+| `defaults` | `defaults` | dict, object | The values set in sopops (the agent's, then Settings). |
 
-## Variables are filled in your process, so they never reach sopops
+## Variables from sopops or your code
 
-The time, the caller, a row from your own database: sopops can't know them, so it serves the <code v-pre>{{placeholder}}</code> as it is and the SDK substitutes it where the call runs. A placeholder you pass no value for stays a placeholder and is listed in `ins.unfilled`, and a name that matches nothing in the prompt logs a warning. Neither stops the call.
+A <code v-pre>{{placeholder}}</code> can get its value in sopops (the agent's variables, or the defaults in Settings), from your code at call start, or both. Your code's value wins: sopops serves the unfilled template with its own values, and the SDK fills the template with yours first, then sopops'. So a value set in the dashboard is the default, and a call that knows better replaces it.
+
+Values you pass are filled where the call runs, so the time, the caller or a row from your own database never reach sopops. A placeholder with no value from either stays a placeholder and is listed in `ins.unfilled`, and a name you pass that matches nothing in the prompt logs a warning. Neither stops the call.
 
 ```python
 ins = await sopops.fetch_instructions("tonys-pizza", variables={"now": "7:15pm", "caller": "Sam"})

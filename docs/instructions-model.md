@@ -47,10 +47,9 @@ three. Agents have their own set.
    before the first procedure. Everything after it follows in list order, so an
    instruction listed after the procedures (like a closing) ends the prompt.
 4. Parts are separated by a blank line. Every <code v-pre>{{name}}</code> is then filled from the
-   agent's `variables`, then the workspace's. A placeholder with no value is an
-   error, so the prompt can't be published with a gap in it. Values only known
-   during a call (the time, the caller) are filled by the [SDK](sdk.md) in your
-   own process.
+   agent's `variables`, then the workspace's. A placeholder with no value in
+   either stays as written, with a warning, for your code to fill at call start
+   through the [SDK](sdk.md). A value passed there wins over both.
 
 For example, this agent:
 
@@ -242,8 +241,11 @@ sops_heading: "## Procedures"
 
 <code v-pre>{{name}}</code> works in any text: shared instructions, agent context, and every
 procedure field. Names use letters, digits, `_`, `-` and `.`. Values come from
-the agent's `variables`, then the workspace's, and are filled in when the
-release is built. Rules keep their placeholders, since one rule is shared by
+three places, and any of them can set any placeholder: a value your code passes
+at call start (the [SDK](sdk.md#variables-from-sopops-or-your-code)), then the
+agent's `variables`, then the workspace's. The first one set wins. sopops fills
+its own values when the release is built and serves the unfilled template too,
+so a value passed at call start can still replace one set here. Rules keep their placeholders, since one rule is shared by
 every agent that uses the procedure; sopops fills in each agent's values
 wherever a check or a page shows the rule.
 
@@ -296,7 +298,9 @@ agent, it records exactly what the agent receives:
 |---|---|
 | `release` | The release number. |
 | `agent`, `platform_ref` | Which agent, e.g. `copper-wok-eastside`, and its platform id, stored with the platform in front as `<platform>:<id>` (`livekit:copper-wok-eastside`). |
-| `prompt` | The full compiled instructions, placeholders filled. |
+| `prompt` | The full compiled instructions, placeholders filled with the values set in sopops. |
+| `template` | `prompt` before its placeholders were filled, for code that fills them with its own values first. |
+| `variables` | The values set in sopops (the agent's, then the workspace's) that filled `prompt`. |
 | `hash` | A hash of the prompt, to tell versions apart at a glance. |
 | `tools` | Every tool its procedures name. |
 | `tool_sops` | Procedures it fetches with `get_sop` (delivery `auto` or `tool`). |

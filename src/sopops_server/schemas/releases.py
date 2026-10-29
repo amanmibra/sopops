@@ -72,6 +72,8 @@ class ReleasedAgent(BaseModel):
     platform_ref: str
     hash: str
     prompt: str
+    template: str
+    variables: dict[str, str]
     tools: list[str]
     tool_sops: list[str]
     components: list[Component]
@@ -98,7 +100,10 @@ class AgentOut(BaseModel):
     platform_ref: str
     release: int
     hash: str
-    prompt: str
+    prompt: str = Field(description="The full instructions, placeholders filled with the values set in sopops.")
+    template: str = Field(description="`prompt` before its placeholders were filled. Fill it with your own values first, then `variables`: "
+                                      "a value passed at call start wins over one set in sopops. The SDKs do this.")
+    variables: dict[str, str] = Field(description="The values set in sopops (the agent's, then Settings) that filled `prompt`.")
     tools: list[str]
     tool_sops: list[str] = Field(description="Ids of SOPs to fetch with `get_sop` (`/sops/{sop_id}`).")
     components: list[Component] = Field(description="Each file the instructions were built from, at its version. Put this and `release` in call metadata.")

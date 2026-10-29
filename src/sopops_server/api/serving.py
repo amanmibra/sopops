@@ -78,6 +78,8 @@ def released(b: dict) -> dict:
         "platform_ref": b["platform_ref"],
         "hash": b["hash"],
         "prompt": b["prompt"],
+        "template": b.get("template", b["prompt"]),  # releases built before sop v0.1.2 have neither
+        "variables": b.get("variables", {}),
         "tools": b["tools"],
         "tool_sops": sorted(b["sops"]),
         "components": b["components"],

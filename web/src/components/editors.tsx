@@ -134,7 +134,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
           <Field id="blocks" name="Blocks" help="Shared instructions, procedures and groups, in order. Drag or use the arrows to reorder; open a block to read or edit it." errors={errors}>
             <BlockStack value={m.blocks} onChange={(blocks) => set({ blocks })} errors={errors} />
           </Field>
-          <Field id="variables" name="Variables" help="Values for the {{placeholders}} in this agent's blocks. Leave one empty to use the default from Settings." errors={errors}>
+          <Field id="variables" name="Variables" help="Values for the {{placeholders}} in this agent's blocks. Leave one empty to use the default from Settings or a value your code passes at call start. A value passed at call start wins over both." errors={errors}>
             <AgentVars value={m.variables} onChange={(variables) => set({ variables })} need={model.neededVariables(m)} defaults={cfg.settings.variables} />
           </Field>
         </div>
@@ -402,7 +402,7 @@ function SettingsForm() {
       </SectionHead>
       {banner}
       <div className="grid gap-6">
-        <Field id="variables" name="Default variables" help="Values for placeholders every agent gets unless the agent sets its own." errors={errors}>
+        <Field id="variables" name="Default variables" help="Values for placeholders every agent gets unless the agent sets its own. A value your code passes at call start wins over both." errors={errors}>
           <VarRows id="variables" value={m.variables} onChange={(variables) => set({ variables })} placeholder="default value" />
         </Field>
         <Field id="procedures_heading" name="Procedures heading" help="Placed once, right before the first procedure in every agent's instructions. Leave it empty for none." errors={errors}>

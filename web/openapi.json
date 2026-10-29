@@ -14905,7 +14905,21 @@
           },
           "prompt": {
             "type": "string",
-            "title": "Prompt"
+            "title": "Prompt",
+            "description": "The full instructions, placeholders filled with the values set in sopops."
+          },
+          "template": {
+            "type": "string",
+            "title": "Template",
+            "description": "`prompt` before its placeholders were filled. Fill it with your own values first, then `variables`: a value passed at call start wins over one set in sopops. The SDKs do this."
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "The values set in sopops (the agent's, then Settings) that filled `prompt`."
           },
           "tools": {
             "items": {
@@ -14938,6 +14952,8 @@
           "release",
           "hash",
           "prompt",
+          "template",
+          "variables",
           "tools",
           "tool_sops",
           "components"
@@ -25262,6 +25278,17 @@
             "type": "string",
             "title": "Prompt"
           },
+          "template": {
+            "type": "string",
+            "title": "Template"
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables"
+          },
           "tools": {
             "items": {
               "type": "string"
@@ -25289,6 +25316,8 @@
           "platform_ref",
           "hash",
           "prompt",
+          "template",
+          "variables",
           "tools",
           "tool_sops",
           "components"

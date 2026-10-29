@@ -80,7 +80,7 @@ class Candidates:
 
 _cache: dict[tuple[str, int, str], dict[str, Any]] = {}
 _lock = threading.Lock()
-_PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z0-9_]+)\s*\}\}")
+_PLACEHOLDER = re.compile(r"\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}")  # names as sop reads them
 
 
 def candidates(store: Store, session: SessionRecord) -> Candidates:
