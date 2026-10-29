@@ -577,7 +577,7 @@ export function ConvertView() {
       <Sub>
         {legacy === "removed_field"
           ? `Some shared instructions or procedures here are marked locked, a setting sop no longer has. Converting runs sop migrate, which removes it. No agent's instructions change.`
-          : `Your team's files are stored in the format of sopc v0.0.8 and earlier, where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sop migrate: every agent's instructions stay the same, except that its own text moves to the top.`}
+          : `Your team's files are stored in the format of sop v0.0.8 and earlier (then named sopc), where shared instructions chose their agents. Now each agent lists the blocks it uses, in order. Converting runs sop migrate: every agent's instructions stay the same, except that its own text moves to the top.`}
       </Sub>
       {plan.isPending ? (
         <p className="text-muted-foreground">Checking what converting changes…</p>

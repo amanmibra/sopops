@@ -1,7 +1,7 @@
 """Compiling with the sop binary, so served prompts match the CLI byte for byte.
 
 Each call writes the files to a temp folder and runs `sop validate --json`, then `sop -o` or `sop lint --json`;
-`sop export` reads files into the structured items the forms edit. The binary is `SOP_BIN` (or the older `SOPC_BIN`), else `sop` on PATH.
+`sop export` reads files into the structured items the forms edit. The binary is `SOP_BIN`, else `sop` on PATH.
 It needs the current format (agents compose blocks, no `locked`); `sop migrate` converts a folder in an older one.
 """
 
@@ -94,7 +94,7 @@ def without_build(files: Files) -> Files:
 
 class Sop:
     def __init__(self, binary: str | None = None, cache_size: int = 32):
-        self.binary = binary or os.environ.get("SOP_BIN") or os.environ.get("SOPC_BIN") or shutil.which("sop") or shutil.which("sopc")
+        self.binary = binary or os.environ.get("SOP_BIN") or shutil.which("sop")
         self._cache: OrderedDict[str, Compiled] = OrderedDict()
         self._cache_size = cache_size
         self._exports: OrderedDict[str, dict] = OrderedDict()
@@ -161,7 +161,7 @@ class Sop:
                 raise Invalid(issues or [Issue("migrate_failed", out[:1000] or "sop migrate failed", "", "error")])
             if "already in the current format" in out:
                 return {"migrated": False, "plan": "", "files": dict(files)}
-            lines = [line for line in out.splitlines() if not line.startswith(("Wrote ", "Run `sop`", "Run `sopc`"))]
+            lines = [line for line in out.splitlines() if not line.startswith(("Wrote ", "Run `sop`"))]
             plan = "\n".join(lines).replace("Migrating . to", "Migrating to", 1).replace(" no longer has from . (", " no longer has (", 1)
             migrated = {p.relative_to(root).as_posix(): p.read_bytes().decode() for p in sorted(root.rglob("*")) if p.is_file()}
             result = {"migrated": True, "plan": plan, "files": migrated}

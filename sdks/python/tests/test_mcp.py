@@ -73,17 +73,7 @@ def test_write_sop_project_writes_what_sopops_sends(tmp_path, monkeypatch):
     respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": files, "issues": [], "validation": [issue]}))
     out = call(make_server(ENV), "write_sop_project", proposal={}, path="sops")
     assert out["issues"] == [] and out["sop_validate"] == [issue] and len(out["written"]) == 2
-    assert out["sopc_validate"] == out["sop_validate"]  # the old field, for one release
     assert (tmp_path / "sops" / "agents" / "a.yaml").read_text() == "platform: livekit\n"
-
-
-@respx.mock
-def test_write_sopc_project_is_a_deprecated_alias(tmp_path, monkeypatch):
-    monkeypatch.chdir(tmp_path)
-    files = {"sopc.yaml": "variables: {}\n"}
-    respx.post(f"{URL}/v1/onboarding/project").mock(return_value=httpx.Response(200, json={"files": files, "issues": [], "validation": []}))
-    out = call(make_server(ENV), "write_sopc_project", proposal={}, path="sops")
-    assert out["sopc_validate"] == out["sop_validate"] == [] and (tmp_path / "sops" / "sopc.yaml").exists()
 
 
 @respx.mock
@@ -272,10 +262,9 @@ def test_remote_workspace_and_platform_keys_come_from_headers(remote):
 def test_remote_write_sop_project_returns_the_files(remote, tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     base, _ = remote
-    for name in ("write_sop_project", "write_sopc_project"):  # the old name still works, for one release
-        _, msg = rpc(base, "tools/call", {"name": name, "arguments": {"proposal": {}, "path": "sops"}})
-        got = msg["result"]["structuredContent"]
-        assert got["files"] == {"sops/sop.yaml": "variables: {}\n"} and got["sop_validate"] == got["sopc_validate"] == []
+    _, msg = rpc(base, "tools/call", {"name": "write_sop_project", "arguments": {"proposal": {}, "path": "sops"}})
+    got = msg["result"]["structuredContent"]
+    assert got["files"] == {"sops/sop.yaml": "variables: {}\n"} and got["sop_validate"] == []
     assert not list(tmp_path.iterdir())  # nothing written on the server
     _, msg = rpc(base, "tools/call", {"name": "write_sop_project", "arguments": {"proposal": {}, "path": "../elsewhere"}})
     assert msg["result"]["isError"]

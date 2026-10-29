@@ -512,7 +512,7 @@ def test_importing_a_sop_project_checks_fidelity_and_applies_its_files(client, f
     r = client.post(f"{IMPORTS}/sop", json={"files": project, "originals": {a: original_a}, "author": "dana"})
     assert r.status_code == 201, r.text
     imp = r.json()
-    assert (imp["source"], imp["status"]) == ("sopc", "ready") and set(imp["agents"]) == set(compiled)
+    assert (imp["source"], imp["status"]) == ("sop", "ready") and set(imp["agents"]) == set(compiled)
     p = imp["proposal"]
     assert "build/prompt.md" not in p["files"] and p["files"] == files and not [i for i in p["issues"] if i["severity"] == "error"]
     assert {x["id"] for x in p["procedures"]} >= {"allergen-check"} and p["groups"]

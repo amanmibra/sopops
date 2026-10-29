@@ -452,7 +452,7 @@ def test_a_valid_project_is_found_and_imported(client, gh, files):
     assert found["state"] == "valid" and found["files"] == len(files) and "tonys-pizza" in found["agents"]
     assert not [i for i in found["issues"] if i["severity"] == "error"]
     imp = client.post(f"{WS}/imports/sop", json={"from_repo": True}).json()
-    assert imp["source"] == "sopc" and imp["status"] == "ready" and imp["repo"].startswith("acme/agents@")
+    assert imp["source"] == "sop" and imp["status"] == "ready" and imp["repo"].startswith("acme/agents@")
     # A coding agent anyway: it's told the repo already has a project, and not to open a PR.
     started = start_repo_onboarding(client)
     assert started["import"]["repo_project"] == "valid"

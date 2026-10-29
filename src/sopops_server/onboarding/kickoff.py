@@ -24,7 +24,7 @@ SKILLS = (SKILL_NAME, AB_SKILL)
 PROMPT = "Onboard this project's agents into sopops: call the sopops get_kickoff tool and follow it."
 
 REPO_STEP = """Repo mode (the user opted in). sopops is connected to GitHub: `{repo}`, branch `{branch}`, folder `{folder}`, which {finding}.
-After pushing, write the same proposal as a sop project at `{folder}` with `write_sop_project` (`write_sopc_project` in older sopops-mcp), run `sop validate` there if the
+After pushing, write the same proposal as a sop project at `{folder}` with `write_sop_project`, run `sop validate` there if the
 sop CLI is installed, and open a pull request into `{branch}` from a new branch (with `gh pr create` if it's available,
 otherwise say how) titled "Add sop project for sopops". In its description: the agents and where each one's instructions were found,
 the blocks extracted, drift found, and each agent's fidelity score. Don't merge it. Then call `report_pull_request` with its

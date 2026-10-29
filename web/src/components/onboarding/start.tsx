@@ -25,7 +25,7 @@ import { SopSource } from "./sop";
 import { apiOrigin } from "@/lib/paths";
 
 type Where = "sopops" | "repo";
-type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sopc"; // "sopc": a sop project (the API's name for it)
+type Source = "agent" | "paste" | "elevenlabs" | "vapi" | "sop";
 type Platform = "livekit" | "elevenlabs" | "vapi";
 type Row = { name: string; platform: Platform; platform_id: string; tools: string; prompt: string };
 type Choice<T extends string> = { value: T; title: string; text: string; note?: string; icon?: ReactNode; disabled?: boolean };
@@ -55,7 +55,7 @@ function sources(plats: Platforms, where: Where): Choice<Source>[] {
         ? "LiveKit instructions from your code, or any instructions as text. One agent per text or file."
         : "Any instructions as text. One agent per text or file.",
     },
-    ...(where === "repo" ? [{ value: "sopc" as const, title: "A sop project you keep already", text: "Bring it in as it is, from your repository or a folder." }] : []),
+    ...(where === "repo" ? [{ value: "sop" as const, title: "A sop project you keep already", text: "Bring it in as it is, from your repository or a folder." }] : []),
     ...(plats.has("elevenlabs") ? [{ value: "elevenlabs" as const, title: "ElevenLabs", text: "Read your agents' instructions and tools with an API key." }] : []),
     ...(plats.has("vapi") ? [{ value: "vapi" as const, title: "Vapi", text: "Read your assistants' instructions and tools with an API key." }] : []),
   ];
@@ -64,7 +64,7 @@ function sources(plats: Platforms, where: Where): Choice<Source>[] {
 const ACTION: Record<Source, string> = {
   agent: "Start Claude Code or Codex in your repository",
   paste: "Paste or upload each agent's instructions",
-  sopc: "Bring in your sop project", // the source keeps its old name
+  sop: "Bring in your sop project",
   elevenlabs: "Read your agents from ElevenLabs",
   vapi: "Read your assistants from Vapi",
 };
@@ -100,7 +100,7 @@ export function ImportStart() {
             {open.map((i) => (
               <li key={i.id} className="flex flex-wrap items-center gap-2">
                 <HrefLink href={wsHref(ws, "settings", "import", i.id)}>
-                  {i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sopc" ? "sop project" : "Import"}
+                  {i.agents.length ? i.agents.join(", ") : i.source === "agent" ? "Claude Code / Codex" : i.source === "sop" ? "sop project" : "Import"}
                 </HrefLink>
                 <Tag>{i.status}</Tag>
                 <Note>{when(i.created_at)}</Note>
@@ -127,7 +127,7 @@ export function ImportStart() {
         ) : (
           <>
             {where === "repo" && <RepoPanel />}
-            {chosen?.value === "paste" ? <PasteSource /> : chosen?.value === "sopc" ? <SopSource /> : chosen ? <PlatformSource key={chosen.value} platform={chosen.value} /> : null}
+            {chosen?.value === "paste" ? <PasteSource /> : chosen?.value === "sop" ? <SopSource /> : chosen ? <PlatformSource key={chosen.value} platform={chosen.value} /> : null}
           </>
         )}
       </Step>

@@ -76,7 +76,7 @@ curl -s -X PUT -H "Content-Type: application/json" \
 | `delivery` | `prompt \| auto \| tool` | Whether it goes in the prompt or is fetched with `get_sop`. |
 | `format` | `markdown \| yaml` | Read only. New procedures are Markdown. One that came from git keeps its format unless Markdown can't hold an edit, and then it becomes YAML. |
 
-Instructions, procedures and groups in `GET /config` also have `used_by: [{agent, via}]`, where `via` is the group the agent lists it through, or null. That call answers `422` with `old_format` issues when the workspace is in the sopc v0.0.8 format, or `removed_field` issues when it still sets `locked` (sopc v0.0.9). `POST /v1/workspaces/{ws}/migrate` converts either ([Releases](releases.md#publish-and-roll-back)).
+Instructions, procedures and groups in `GET /config` also have `used_by: [{agent, via}]`, where `via` is the group the agent lists it through, or null. That call answers `422` with `old_format` issues when the workspace is in the format of sop v0.0.8 (then named sopc), or `removed_field` issues when it still sets `locked` (v0.0.9). `POST /v1/workspaces/{ws}/migrate` converts either ([Releases](releases.md#publish-and-roll-back)).
 
 ## Read and write files
 

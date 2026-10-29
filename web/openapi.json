@@ -5485,7 +5485,7 @@
         ],
         "responses": {
           "200": {
-            "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash).",
+            "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers.",
             "content": {
               "text/plain": {
                 "schema": {
@@ -12290,7 +12290,7 @@
             }
           },
           "400": {
-            "description": "No files and no repository, or no sop.yaml (or sopc.yaml)."
+            "description": "No files and no repository, or no sop.yaml."
           },
           "422": {
             "description": "sop can't read the project."
@@ -16820,7 +16820,7 @@
               "base"
             ],
             "title": "Kind",
-            "description": "`base` only in releases made before sopc v0.0.9."
+            "description": "`base` only in releases made with sop v0.0.8 and earlier (then named sopc)."
           },
           "id": {
             "type": "string",
@@ -18740,10 +18740,10 @@
             "enum": [
               "llm",
               "agent",
-              "sopc"
+              "sop"
             ],
             "title": "Source",
-            "description": "llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0)."
+            "description": "llm: sopops's model extracted it; agent: a coding agent pushed it; sop: an existing sop project."
           },
           "status": {
             "type": "string",
@@ -23897,6 +23897,35 @@
         ],
         "title": "ProposedInstruction"
       },
+      "ProposedOption": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "tool": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ProposedOption"
+      },
       "ProposedProcedure": {
         "properties": {
           "id": {
@@ -24018,6 +24047,14 @@
             "type": "boolean",
             "title": "Required",
             "default": false
+          },
+          "or": {
+            "items": {
+              "$ref": "#/components/schemas/ProposedOption"
+            },
+            "type": "array",
+            "title": "Or",
+            "default": []
           }
         },
         "type": "object",

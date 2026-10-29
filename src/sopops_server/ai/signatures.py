@@ -428,7 +428,7 @@ class ExampleIn(BaseModel):
 
 
 class SuggestEdit(dspy.Signature):
-    """You maintain the instructions of AI agents (voice calls and text chats). Instructions are kept as sopc files; a procedure (SOP) file has a name, a goal (`description`), when it applies (`scope`), guidance, ordered steps (`procedureSteps`), things never to do (`forbiddenActions`) and warning signs (`warningSigns`). QA found a pattern: the same thing keeps happening on one rule of a procedure, and a reviewer gave it a verdict. Propose the smallest edit to the procedure file that settles it.
+    """You maintain the instructions of AI agents (voice calls and text chats). Instructions are kept as sop files; a procedure (SOP) file has a name, a goal (`description`), when it applies (`scope`), guidance, ordered steps (`procedureSteps`), things never to do (`forbiddenActions`) and warning signs (`warningSigns`). QA found a pattern: the same thing keeps happening on one rule of a procedure, and a reviewer gave it a verdict. Propose the smallest edit to the procedure file that settles it.
 
     By verdict:
     - `real`: the agent makes a real mistake. Change the instructions so the agent stops making it: make the rule clearer or more specific, add a step, or add guidance that names the situation in the examples. Don't weaken the rule.
@@ -472,7 +472,7 @@ class Unit(BaseModel):
 
 
 class SegmentPrompt(dspy.Signature):
-    """You are splitting one voice agent's existing system prompt into the parts of a sopc project. The team runs several agents whose prompts were copied and edited by hand; sopops will store shared text once and compose each agent from it. You decide what each part of the prompt is. You never rewrite text: you only group numbered units and label them.
+    """You are splitting one voice agent's existing system prompt into the parts of a sop project. The team runs several agents whose prompts were copied and edited by hand; sopops will store shared text once and compose each agent from it. You decide what each part of the prompt is. You never rewrite text: you only group numbered units and label them.
 
     Return segments that together cover every unit exactly once, in order. Each segment is one or more consecutive units about one topic, with:
 
@@ -508,7 +508,7 @@ class SegmentPrompt(dspy.Signature):
 
 
 class StructureProcedure(dspy.Signature):
-    """You are turning one passage of an agent prompt into a sopc procedure (an SOP): a goal, when it applies, ordered steps, things never to do, and warning signs. The passage may contain `{{placeholders}}`; keep each one exactly as written, inside the field where its text goes.
+    """You are turning one passage of an agent prompt into a sop procedure (an SOP): a goal, when it applies, ordered steps, things never to do, and warning signs. The passage may contain `{{placeholders}}`; keep each one exactly as written, inside the field where its text goes.
 
     Fields:
     - `name`: a short title, from the passage's own heading if it has one ("Reservations", "Large orders").
@@ -540,7 +540,7 @@ class Slot(BaseModel):
 
 
 class NameVariables(dspy.Signature):
-    """Several agents shared the same text except for a few values, so the text now has slots, one per place where the agents differ. Name each slot as a sopc variable: snake_case, lowercase letters, digits and underscores, starting with a letter, saying what the value is, not what it is now: `restaurant_name`, `menu_link`, `staff_transfer`, `upsell_limit`, `opening_hours`. The same kind of value in two slots gets the same name only if every agent has the same value in both.
+    """Several agents shared the same text except for a few values, so the text now has slots, one per place where the agents differ. Name each slot as a sop variable: snake_case, lowercase letters, digits and underscores, starting with a letter, saying what the value is, not what it is now: `restaurant_name`, `menu_link`, `staff_transfer`, `upsell_limit`, `opening_hours`. The same kind of value in two slots gets the same name only if every agent has the same value in both.
 
     Return one name per slot, in the order given."""
 

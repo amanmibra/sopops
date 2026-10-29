@@ -105,7 +105,7 @@ def test_edit_draft_release_fetch_rollback(client, files):
     pinned = client.get(f"{WS}/agents/tonys-pizza", params={"release": 1}).json()
     assert pinned["prompt"] == expected("tonys-pizza.prompt.md") and pinned["release"] == 1
     res = client.get(f"{WS}/agents/tonys-pizza/prompt", params={"release": 1})
-    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sop-Release"] == res.headers["X-Sopc-Release"] == "1"
+    assert res.text == expected("tonys-pizza.prompt.md") and res.headers["X-Sop-Release"] == "1"
 
     fetches = client.get(f"{WS}/fetches", params={"agent": "tonys-pizza"}).json()
     assert [(f["release"], f["hash"]) for f in fetches] == [(1, pinned["hash"]), (1, pinned["hash"]), (2, agent["hash"]), (1, pinned["hash"])]

@@ -46,15 +46,14 @@ def router(store: Store, runtime: Runtime) -> APIRouter:
         response_class=PlainTextResponse,
         dependencies=fetch_auth,
         tags=["serving"],
-        responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash)."}},
+        responses={200: {"content": {"text/plain": {}}, "description": "The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers."}},
     )
     def get_prompt(workspace: str, agent: str, response: Response, release: int | None = None, platform: str | None = None) -> str:
         """Just the instructions text. Logs a fetch."""
         served = store.agent(workspace, agent, release, platform)
         store.log_fetch(workspace, served["agent"], served["release"], served["hash"])
-        for prefix in ("X-Sop", "X-Sopc"):  # X-Sopc-*: the old names, still sent for clients that read them
-            response.headers[f"{prefix}-Release"] = str(served["release"])
-            response.headers[f"{prefix}-Hash"] = served["hash"]
+        response.headers["X-Sop-Release"] = str(served["release"])
+        response.headers["X-Sop-Hash"] = served["hash"]
         return served["prompt"]
 
     @r.get("/v1/workspaces/{workspace}/agents/{agent}/sops/{sop_id}", response_model=dict[str, Any], dependencies=fetch_auth, tags=["serving"])

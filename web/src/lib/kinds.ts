@@ -64,11 +64,11 @@ export const WORKSPACE_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 export const kindOfComponent = (k: string): Kind =>
   (({ agent: "agent", instruction: "instruction", base: "instruction", sop: "procedure", config: "settings" }) as Record<string, Kind>)[k] ?? "instruction";
 
-/** The config file's names: sop.yaml, or sopc.yaml in a project made before sop v0.1.0 (sop.yaml wins if both are there). */
-export const CONFIG_FILES = ["sop.yaml", "sopc.yaml"];
+/** The config file: the project's settings and groups. */
+export const CONFIG_FILE = "sop.yaml";
 
 export function itemOfPath(path: string): [Kind, string] | null {
-  if (CONFIG_FILES.includes(path)) return ["settings", "settings"];
+  if (path === CONFIG_FILE) return ["settings", "settings"];
   const [dir, name] = path.split("/");
   const kind = ({ agents: "agent", instructions: "instruction", bases: "instruction", procedures: "procedure" } as Record<string, Kind>)[dir];
   return kind ? [kind, (name || "").replace(/\.(md|yaml)$/, "")] : null;

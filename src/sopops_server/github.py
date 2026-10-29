@@ -7,6 +7,13 @@ the workspace's head, as drafts, like `PUT …/files` does; the commit is record
 branch's head (blobs, a tree, a commit, a ref) and opens a PR against it. Two-way sync (drafts and the folder kept in
 step, by webhooks or polling) is `sopops_server.repo_sync`.
 
+**The old config name.** Before sop v0.1.0 the compiler was named sopc and its config file `sopc.yaml`. sopops itself
+only knows `sop.yaml`, but a connected repository may still have a folder with `sopc.yaml` and no `sop.yaml`. Reading
+the repository is the one place that knows the old name: `read_folder` gives such a folder's `sopc.yaml` as `sop.yaml`
+(`OLD_CONFIG`, `_as_sop_yaml`), so pulls, syncs, imports and checks see the project as sop does, and the drafts show
+no delete and add. Sending the drafts (`repo_sync.send`) reads the folder as it is, so the sync pull request carries
+the rename (`sopc.yaml` deleted, `sop.yaml` added) like any other change.
+
 Auth is either a GitHub App installation (`app`: an installation token, minted and cached by `sopops_server.github_app`) or a
 fine-grained personal access token (`token`: Contents and Pull requests: read and write; Metadata: read), encrypted
 with SOPOPS_SECRET_KEY like platform keys, and never returned or logged. `credentials` is the one place a connection
@@ -46,6 +53,7 @@ APP = "app"
 DEFAULT_BRANCH = "main"
 DEFAULT_PATH = "sops"
 BRANCH_PREFIX = "sopops/"
+OLD_CONFIG = "sopc.yaml"  # sop.yaml's name before sop v0.1.0; see "The old config name" above
 # While GitHub sends a repository's webhooks, polling it (its pull requests, its branch) is only a fallback.
 WEBHOOK_FRESH = timedelta(hours=1)
 BACKED_OFF = timedelta(minutes=30)
@@ -169,8 +177,8 @@ def connect(store: Store, workspace: str, owner: str, repo: str, token: str | No
 
 
 def _require_config(gh: Client, owner: str, repo: str, head: str, base_branch: str, path: str) -> None:
-    """`path` on the branch holds sop.yaml, or sopc.yaml (the name before sop v0.1.0)."""
-    for name in forms.CONFIGS:
+    """`path` on the branch holds sop.yaml, or OLD_CONFIG (read as sop.yaml)."""
+    for name in (forms.CONFIG, OLD_CONFIG):
         config = _join(path, name)
         found = gh.get(f"{repo_path(owner, repo)}/contents/{quote(config)}", params={"ref": head}, missing=True, what=f"{config} at {base_branch}")
         if found is not None and not (isinstance(found, dict) and found.get("type") != "file"):
@@ -221,18 +229,19 @@ def read_project(store: Store, workspace: str) -> tuple[dict[str, str], str]:
     with client(store, conn) as gh:
         sha = branch_head(gh, conn.owner, conn.repo, conn.base_branch)
         files = read_folder(gh, conn, sha, {})
-    if forms.config_path(files) is None:
+    if forms.CONFIG not in files:
         where = f"'{conn.path}'" if conn.path else "the repository root"
         raise GitHubError(f"no sop project at {where} on {conn.base_branch} ({sha[:7]}): {forms.CONFIG} isn't there", 400)
     return files, f"{conn.owner}/{conn.repo}@{sha[:7]}"
 
 
 def read_head(store: Store, workspace: str) -> tuple[dict[str, str], str]:
-    """Whatever the connected folder holds at the base branch's head (maybe nothing), and the commit."""
+    """Whatever the connected folder holds at the base branch's head (maybe nothing), named as in the repository (an
+    OLD_CONFIG stays itself, so a pull request replacing the folder deletes it), and the commit."""
     conn = require(store, _ws(workspace))
     with client(store, conn) as gh:
         sha = branch_head(gh, conn.owner, conn.repo, conn.base_branch)
-        return read_folder(gh, conn, sha, {}), sha
+        return read_folder(gh, conn, sha, {}, as_stored=True), sha
 
 
 def inspect_project(store: Store, workspace: str) -> dict:
@@ -245,7 +254,7 @@ def inspect_project(store: Store, workspace: str) -> dict:
         files = read_folder(gh, conn, sha, {})
     out = {"workspace": ws, "repo": f"{conn.owner}/{conn.repo}", "base_branch": conn.base_branch, "path": conn.path, "sha": sha,
            "files": len(files), "agents": [], "issues": []}
-    if forms.config_path(files) is None:
+    if forms.CONFIG not in files:
         return {**out, "state": "missing"}
     compiled = store.sop.compile(files)
     issues = [forms.locate(i).to_dict() for i in compiled.issues]
@@ -266,7 +275,7 @@ def pull(store: Store, workspace: str, author: str | None = None) -> dict:
         if sha == conn.pulled_sha and digest(head_files) == conn.pulled_digest:
             return {"workspace": ws, "sha": sha, "files": len(head_files), "changed": [], "unchanged": True}
         files = read_folder(gh, conn, sha, head_files)
-    if forms.config_path(files) is None:
+    if forms.CONFIG not in files:
         where = f"'{conn.path}'" if conn.path else "the repository root"
         raise GitHubError(f"no sop project at {where} on {conn.base_branch} ({sha[:7]}): {forms.CONFIG} isn't there", 400)
     changed = store.replace(ws, files, author, f"Pulled from GitHub: {conn.owner}/{conn.repo}@{sha[:7]}")
@@ -280,9 +289,10 @@ def pull(store: Store, workspace: str, author: str | None = None) -> dict:
     return {"workspace": ws, "sha": sha, "files": len(files), "changed": changed, "unchanged": not changed}
 
 
-def read_folder(gh: Client, conn: RepoConnection, sha: str, known: dict[str, str]) -> dict[str, str]:
+def read_folder(gh: Client, conn: RepoConnection, sha: str, known: dict[str, str], as_stored: bool = False) -> dict[str, str]:
     """Every file under the project's folder at commit `sha`, relative to the folder. Files whose blob matches one
-    in `known` (head) aren't downloaded again; build/ is skipped (sop regenerates it)."""
+    in `known` (head) aren't downloaded again; build/ is skipped (sop regenerates it). An OLD_CONFIG without a
+    sop.yaml is given as sop.yaml, unless `as_stored` (the names in the repository, to write changes against)."""
     repo = repo_path(conn.owner, conn.repo)
     tree_sha = gh.get(f"{repo}/git/commits/{sha}", what=f"commit {sha[:7]}")["tree"]["sha"]
     tree = gh.get(f"{repo}/git/trees/{tree_sha}", params={"recursive": "1"}, what=f"the tree of {sha[:7]}")
@@ -306,7 +316,17 @@ def read_folder(gh: Client, conn: RepoConnection, sha: str, known: dict[str, str
             files[rel] = base64.b64decode(blob.get("content", "")).decode("utf-8")
         except (ValueError, UnicodeDecodeError):
             raise GitHubError(f"{full} isn't UTF-8 text; a sop project holds only text files", 400) from None
-    return files
+    return files if as_stored else _as_sop_yaml(files)
+
+
+def _as_sop_yaml(files: dict[str, str]) -> dict[str, str]:
+    """`files` with an OLD_CONFIG renamed sop.yaml, when there's no sop.yaml (with both, sop.yaml is the config and
+    OLD_CONFIG an ordinary file, as sop reads it). The only place sopops reads the old name."""
+    if OLD_CONFIG not in files or forms.CONFIG in files:
+        return files
+    out = {p: c for p, c in files.items() if p != OLD_CONFIG}
+    out[forms.CONFIG] = files[OLD_CONFIG]
+    return out
 
 
 # --- pull requests -----------------------------------------------------------------------------------

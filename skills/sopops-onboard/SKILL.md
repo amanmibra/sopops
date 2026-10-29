@@ -43,7 +43,7 @@ Cursor (`.cursor/mcp.json`):
 | `check_fidelity(proposal, originals)` | Compiles each agent with sop and lists missing or changed sentences against its original. |
 | `push_to_sopops(proposal, originals, findings?, notes?)` | Sends the proposal for review. Each push replaces the last. Nothing is published. |
 | `report_progress(step, message)` | A line on the sopops page the user is watching. |
-| `write_sop_project(proposal, path)` | Writes the proposal as a sop project (default `sops/`), as sopops's sop writes it, with `sop validate`'s result. Older sopops-mcp versions call it `write_sopc_project`. |
+| `write_sop_project(proposal, path)` | Writes the proposal as a sop project (default `sops/`), as sopops's sop writes it, with `sop validate`'s result. |
 | `report_pull_request(url)` | Repo mode: the onboarding PR you opened. sopops follows it and pulls the folder into drafts when it merges. |
 | `get_ab_test_guide()` | How to set up an A/B test of an agent's models, voice or instructions (the sopops-ab-tests skill). |
 | `open_pull_request(description)` | Repo mode through sopops's GitHub App: sopops opens the onboarding PR from your pushed proposal, and follows it. |

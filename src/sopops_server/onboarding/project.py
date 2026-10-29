@@ -41,10 +41,9 @@ def proposal_of(files: Files, sop: Sop, originals: dict[str, str] | None = None)
     """What the project holds, as a proposal carrying the files themselves. Raises Invalid when there's no sop.yaml or
     sop can't read the project (sop's Invalid); ValueError without a sop.yaml."""
     files = clean(files)
-    config = forms.config_path(files)
-    if config is None:
+    if forms.CONFIG not in files:
         raise ValueError(f"no {forms.CONFIG}: upload the project's folder (the one with {forms.CONFIG} in it)")
-    items = forms.from_export(sop.export(files), config)
+    items = forms.from_export(sop.export(files))
     p = Proposal(
         instructions=[ProposedInstruction(id=i["id"], title=i["id"], text=i["text"]) for i in items["instructions"]],
         procedures=[ProposedProcedure(id=x["id"], name=x["name"], goal=x.get("goal") or "", when=x.get("when") or "", guidance=x.get("guidance") or "",

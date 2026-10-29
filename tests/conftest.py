@@ -15,7 +15,7 @@ from sopops_server.db import alembic_config, engine_from_url
 from sopops_server.orm import metadata
 
 FIXTURE = Path(__file__).parent / "fixtures" / "restaurants"
-SOP_BIN = os.environ.get("SOP_BIN") or os.environ.get("SOPC_BIN") or str(Path.home() / "Desktop/repos/sop/target/release/sop")
+SOP_BIN = os.environ.get("SOP_BIN") or str(Path.home() / "Desktop/repos/sop/target/release/sop")
 if not Path(SOP_BIN).exists():
     SOP_BIN = shutil.which("sop")
 

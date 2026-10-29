@@ -77,7 +77,7 @@ class AgentClient(BaseModel):
 class ImportOut(BaseModel):
     id: str
     workspace: str
-    source: Literal["llm", "agent", "sopc"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0).")
+    source: Literal["llm", "agent", "sop"] = Field(description="llm: sopops's model extracted it; agent: a coding agent pushed it; sop: an existing sop project.")
     status: Literal["waiting", "running", "ready", "failed", "applied", "discarded"]
     mode: str
     repo: str | None = Field(description="Repo mode: the connected repository (owner/name).")

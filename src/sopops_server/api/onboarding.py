@@ -121,8 +121,7 @@ def router(store: Store, onboarding: Onboarding) -> APIRouter:
             raise HTTPException(400, str(e)) from None
 
     @r.post(f"{base}/sop", response_model=ImportOut, status_code=201,
-            responses={400: {"description": "No files and no repository, or no sop.yaml (or sopc.yaml)."}, 422: {"description": "sop can't read the project."}})
-    @r.post(f"{base}/sopc", response_model=ImportOut, status_code=201, include_in_schema=False)  # the old path, for older clients
+            responses={400: {"description": "No files and no repository, or no sop.yaml."}, 422: {"description": "sop can't read the project."}})
     def import_sop_project(workspace: str, req: ProjectImport) -> dict:
         """Import an existing sop project: its `files`, or the workspace's GitHub repository (`from_repo`), with each
         agent's original instructions optionally. It's ready to review at once: what it holds, sop's checks, and fidelity for

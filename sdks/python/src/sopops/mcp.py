@@ -24,9 +24,6 @@ It runs two ways:
   for the variables above and are used for that request only. The server's environment only says where sopops is:
   `SOPOPS_URL` (the API it calls) and `SOPOPS_APP_URL` (where people open sopops, for links; default `SOPOPS_URL`).
   `write_sop_project` can't reach the caller's repo from there, so it returns the files for the agent to write.
-
-`write_sopc_project` is the old name of `write_sop_project`, still registered (deprecated) for one release, and its
-result's `sopc_validate` repeats `sop_validate`.
 """
 
 from __future__ import annotations
@@ -424,10 +421,10 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
                 if root.is_absolute() or ".." in dest.parts:
                     raise ValueError(f"pass a folder inside the repo; sopops must send files inside it: {dest.as_posix()}")
                 files[dest.as_posix()] = text
-            return {"files": files, "issues": got["issues"], "sop_validate": got["validation"], "sopc_validate": got["validation"],
+            return {"files": files, "issues": got["issues"], "sop_validate": got["validation"],
                     "next": "Write each file in `files` at its path, then run `sop validate` there if the sop CLI is installed."}
 
-        _register_write(server, sop_project_files)
+        server.tool(name="write_sop_project")(sop_project_files)
         return server
 
     @_explained
@@ -447,16 +444,10 @@ def make_server(env: Mapping[str, str] | None = None, transport: httpx.BaseTrans
             dest.parent.mkdir(parents=True, exist_ok=True)
             dest.write_text(text)
             written.append(str(dest))
-        return {"written": written, "issues": got["issues"], "sop_validate": got["validation"], "sopc_validate": got["validation"]}
+        return {"written": written, "issues": got["issues"], "sop_validate": got["validation"]}
 
-    _register_write(server, write_sop_project)
+    server.tool(name="write_sop_project")(write_sop_project)
     return server
-
-
-def _register_write(server: MCPServer, fn: Callable[..., dict[str, Any]]) -> None:
-    """`fn` as `write_sop_project`, and under its old name `write_sopc_project` (deprecated; remove after one release)."""
-    server.tool(name="write_sop_project")(fn)
-    server.tool(name="write_sopc_project", description=f"Deprecated: use write_sop_project, which this is the old name of. {fn.__doc__ or ''}".strip())(fn)
 
 
 def install_skill(root: Path, agents: list[str], url: str, transport: httpx.BaseTransport | None = None, names: tuple[str, ...] = SKILLS) -> list[Path]:

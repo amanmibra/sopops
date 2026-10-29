@@ -104,7 +104,7 @@ class WriteResponse(BaseModel):
 
 
 class Component(BaseModel):
-    kind: Literal["agent", "instruction", "sop", "config", "base"] = Field(description="`base` only in releases made before sopc v0.0.9.")
+    kind: Literal["agent", "instruction", "sop", "config", "base"] = Field(description="`base` only in releases made with sop v0.0.8 and earlier (then named sopc).")
     id: str
     path: str | None
     version: int | None

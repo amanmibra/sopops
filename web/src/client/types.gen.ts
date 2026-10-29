@@ -1566,7 +1566,7 @@ export type Component = {
     /**
      * Kind
      *
-     * `base` only in releases made before sopc v0.0.9.
+     * `base` only in releases made with sop v0.0.8 and earlier (then named sopc).
      */
     kind: 'agent' | 'instruction' | 'sop' | 'config' | 'base';
     /**
@@ -2692,9 +2692,9 @@ export type ImportOut = {
     /**
      * Source
      *
-     * llm: sopops's model extracted it; agent: a coding agent pushed it; sopc: an existing sop project (the value keeps the name from before sop v0.1.0).
+     * llm: sopops's model extracted it; agent: a coding agent pushed it; sop: an existing sop project.
      */
-    source: 'llm' | 'agent' | 'sopc';
+    source: 'llm' | 'agent' | 'sop';
     /**
      * Status
      */
@@ -5693,6 +5693,24 @@ export type ProposedInstruction = {
 };
 
 /**
+ * ProposedOption
+ */
+export type ProposedOption = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Tool
+     */
+    tool?: string | null;
+    /**
+     * Required
+     */
+    required?: boolean;
+};
+
+/**
  * ProposedProcedure
  */
 export type ProposedProcedure = {
@@ -5780,6 +5798,10 @@ export type ProposedStep = {
      * Required
      */
     required?: boolean;
+    /**
+     * Or
+     */
+    or?: Array<ProposedOption>;
 };
 
 /**
@@ -14662,7 +14684,7 @@ export type GetPromptError = GetPromptErrors[keyof GetPromptErrors];
 
 export type GetPromptResponses = {
     /**
-     * The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers (also sent under their old names, X-Sopc-Release and X-Sopc-Hash).
+     * The agent's full instructions, with X-Sop-Release and X-Sop-Hash headers.
      */
     200: string;
 };
@@ -18375,7 +18397,7 @@ export type ImportSopProjectData = {
 
 export type ImportSopProjectErrors = {
     /**
-     * No files and no repository, or no sop.yaml (or sopc.yaml).
+     * No files and no repository, or no sop.yaml.
      */
     400: unknown;
     /**

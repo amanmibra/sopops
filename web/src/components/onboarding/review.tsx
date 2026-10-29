@@ -49,7 +49,7 @@ export function ImportView({ id }: { id: string }) {
     <Page wide>
       <PageTitle aside={<Tag tone={d.status === "failed" ? "removed" : d.status === "ready" ? "live" : undefined}>{STATUS[d.status]}</Tag>}>Import agents</PageTitle>
       <Sub>
-        {d.source === "sopc" ? <SopIntro imp={d} /> : d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
+        {d.source === "sop" ? <SopIntro imp={d} /> : d.source === "agent" ? "Claude Code or Codex extracts the instructions in your repo and sends them here." : "sopops is extracting the instructions with its model."}{" "}
         {d.agents.length ? `${plural(d.agents.length, "agent", "agents")}: ${d.agents.length > 8 ? `${d.agents.slice(0, 8).join(", ")} and ${d.agents.length - 8} more` : d.agents.join(", ")}.` : ""}
         {d.mode === "repo" && d.repo ? ` Repo mode: ${d.repo}${d.repo_branch ? ` on ${d.repo_branch}` : ""}.` : ""}
       </Sub>
@@ -78,7 +78,7 @@ export function ImportView({ id }: { id: string }) {
         </Panel>
       )}
       {d.status === "discarded" && <Banner>This import was discarded. Nothing changed.</Banner>}
-      {d.proposal && d.status === "ready" && (d.source === "sopc" ? <SopReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} place={place} onPlace={setPlace} />)}
+      {d.proposal && d.status === "ready" && (d.source === "sop" ? <SopReview imp={d} proposal={d.proposal} /> : <Review key={`${d.pushes}:${d.updated_at}`} imp={d} proposal={d.proposal} place={place} onPlace={setPlace} />)}
     </Page>
   );
 }

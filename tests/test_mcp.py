@@ -17,7 +17,7 @@ from test_onboarding import FIXTURES, sources
 from sopops_server.onboarding.pipeline import extract
 from sopops_server.onboarding.rules import RulesModels
 
-TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sop_project", "write_sopc_project",
+TOOLS = {"get_kickoff", "get_ab_test_guide", "get_extraction_guide", "list_platform_agents", "get_agent_prompt", "propose_extraction", "check_fidelity", "push_to_sopops", "report_progress", "report_pull_request", "open_pull_request", "write_sop_project",
          "list_sops", "get_sop", "get_sop_settings", "save_sop", "save_sop_settings", "delete_sop", "get_sop_history", "get_sop_version", "preview_agent"}
 
 

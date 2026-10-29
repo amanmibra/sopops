@@ -15,19 +15,17 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import Any, Callable, Iterable
+from typing import Any, Callable
 
 from .sop import Files, Invalid, Issue
 
-CONFIG = "sop.yaml"  # where a new project keeps its settings and groups
-LEGACY_CONFIG = "sopc.yaml"  # the name before sop v0.1.0; projects that have it keep it, and sop reads it
-CONFIGS = (CONFIG, LEGACY_CONFIG)  # in the order sop looks for them: sop.yaml wins when both are there
+CONFIG = "sop.yaml"  # the project's settings and groups; it also marks the folder's root
 PLATFORMS = ("livekit", "vapi", "elevenlabs", "retell")
 DEFAULT_HEADING = "## Procedures"
 FOLDERS = {"agent": "agents", "instruction": "instructions", "procedure": "procedures"}
 PLURALS = {"agent": "agents", "instruction": "instructions", "procedure": "procedures", "group": "groups"}
 BLOCK_KINDS = ("instruction", "procedure", "group")  # what an agent's `blocks` can list; one namespace
-LEGACY_FOLDERS = {"bases": "instruction"}  # sopc v0.0.8 and earlier
+LEGACY_FOLDERS = {"bases": "instruction"}  # sop v0.0.8 and earlier (then named sopc)
 
 ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
 VAR_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
@@ -39,26 +37,10 @@ Item = dict[str, Any]
 # --- files <-> items ------------------------------------------------------------------
 
 
-def config_path(paths: Iterable[str]) -> str | None:
-    """The project's config file among `paths` (sop.yaml, else sopc.yaml, as sop picks), or None without one."""
-    paths = set(paths)
-    return next((c for c in CONFIGS if c in paths), None)
-
-
-def with_config_at(files: Files, path: str) -> Files:
-    """`files` with their config file at `path`, so a project keeps the name it already has (sop.yaml or sopc.yaml)."""
-    current = config_path(files)
-    if current is None or current == path:
-        return files
-    out = {p: c for p, c in files.items() if p not in CONFIGS}
-    out[path] = files[current]
-    return out
-
-
 def item_of_path(path: str) -> tuple[str, str] | None:
     """(kind, id) for a source path, e.g. ('procedure', 'large-orders'); None for other files.
-    sop.yaml (or sopc.yaml) is ('settings', 'settings'), though it also holds the groups."""
-    if path in CONFIGS:
+    sop.yaml is ('settings', 'settings'), though it also holds the groups."""
+    if path == CONFIG:
         return ("settings", "settings")
     p = PurePosixPath(path)
     if len(p.parts) != 2:
@@ -74,7 +56,7 @@ def item_of_path(path: str) -> tuple[str, str] | None:
 def paths_of(kind: str, id: str) -> list[str]:
     """Every path an item can live at; the first is where a new one is written."""
     if kind in ("settings", "group"):
-        return list(CONFIGS)
+        return [CONFIG]
     if kind == "procedure":
         return [f"procedures/{id}.md", f"procedures/{id}.yaml"]
     return [f"{FOLDERS[kind]}/{id}.{'md' if kind == 'instruction' else 'yaml'}"]
@@ -92,9 +74,9 @@ def _step(raw: Any) -> dict:
     return {**_option(raw), "or": [_option(o) for o in options]}
 
 
-def from_export(exported: dict, config: str = CONFIG) -> dict:
+def from_export(exported: dict) -> dict:
     """`sop export` output as items: {settings, agents, instructions, procedures, groups}.
-    Agents, instructions and procedures are sorted by id; groups keep their order in the config file (`config`)."""
+    Agents, instructions and procedures are sorted by id; groups keep their order in sop.yaml."""
     cfg = exported["config"]
     return {
         "settings": {"variables": dict(cfg["variables"]), "procedures_heading": cfg["sops_heading"]},
@@ -127,7 +109,7 @@ def from_export(exported: dict, config: str = CONFIG) -> dict:
             }
             for s in exported["sops"]
         ],
-        "groups": [{"id": name, "blocks": list(blocks), "file": config} for name, blocks in cfg["groups"].items()],
+        "groups": [{"id": name, "blocks": list(blocks), "file": CONFIG} for name, blocks in cfg["groups"].items()],
     }
 
 
@@ -480,7 +462,7 @@ def write(kind: str, id: str, item: Item, current_path: str | None, export: Expo
             candidates.append((f"procedures/{id}.md", procedure_md, md_normalized(item)))
         candidates.append((f"procedures/{id}.yaml", procedure_yaml, item))
     elif kind == "config":
-        candidates = [(current_path or CONFIG, config_yaml, item)]
+        candidates = [(CONFIG, config_yaml, item)]
     else:
         writer = {"agent": agent_yaml, "instruction": instruction_md}[kind]
         candidates = [(current_path or paths_of(kind, id)[0], writer, item)]
@@ -522,7 +504,7 @@ _VIA = re.compile(r"in group `([^`]*)`")
 _STEP_REF = re.compile(r"^(procedureSteps|forbiddenActions|warningSigns)\[(\d+)\]")
 
 OLD_FORMAT_TEXT = (
-    "This folder is in the format of sopc v0.0.8 or earlier. Run `sop migrate --yes` on it "
+    "This folder is in the format of sop v0.0.8 or earlier (then named sopc). Run `sop migrate --yes` on it "
     "(or send it to POST /v1/migrate), then publish again."
 )
 REMOVED_FIELD_TEXT = (

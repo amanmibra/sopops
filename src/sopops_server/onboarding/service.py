@@ -8,7 +8,7 @@ Two ways in, one way out:
   and an onboarding token. The agent reports progress and pushes a proposal; each push replaces the last one. In repo
   mode the workspace's GitHub connection is checked first and its folder read: without a sop project sop can build,
   the agent also opens the onboarding pull request adding one, which sopops follows (`pulls`) and pulls when merged.
-- **sop project** (`source: sopc`, the value keeps its old name): a team that already keeps one (or exports one from wherever its prompts live)
+- **sop project** (`source: sop`): a team that already keeps one (or exports one from wherever its prompts live)
   uploads its files or reads them from the workspace's GitHub repository, optionally with each agent's original prompt.
   It's checked like any proposal; applying writes exactly its files. Its content isn't edited here: change the
   project and import it again.
@@ -193,7 +193,7 @@ class Onboarding:
         """An existing sop project as an import, ready to review: what it holds, sop's checks, and fidelity for each agent
         with an original prompt. `origin`: where the files came from (a repository and commit), for the log."""
         proposal = fidelity.check(project.proposal_of(files, self.store.sop, originals), self.store.sop)
-        rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="sopc", status="ready", repo=origin,
+        rec = ImportRecord(id=str(uuid.uuid4()), workspace=workspace_id(workspace), source="sop", status="ready", repo=origin,
                            agents=[a.id for a in proposal.agents], proposal=proposal.model_dump(mode="json"), created_at=_now(), updated_at=_now(),
                            created_by=author)
         with self._db() as db:
@@ -277,10 +277,9 @@ class Onboarding:
         if not files:
             raise ValueError("the proposal has nothing to write: " + "; ".join(i.message for i in issues)[:500])
         changes: dict[str, str | None] = dict(files)
-        if rec.repo_project == "invalid":  # replace the project sop couldn't build, keeping its config file's name
+        if rec.repo_project == "invalid":  # replace the project sop couldn't build
             existing, _ = github.read_head(self.store, rec.workspace)
-            files = forms.with_config_at(files, forms.config_path(existing) or forms.CONFIG)
-            changes = dict(files) | {p: None for p in existing if p not in files}
+            changes |= {p: None for p in existing if p not in files}
         agents = ", ".join(a.name or a.id for a in proposal.agents) or "none"
         body = "\n\n".join(x for x in (description, f"Agents: {agents}.", f"Fidelity: {', '.join(f'{f.agent} {round(f.score * 100)}%' for f in proposal.fidelity)}."
                                         if proposal.fidelity else None, "Opened by sopops. When it merges, sopops pulls the folder into drafts.") if x)
@@ -440,8 +439,7 @@ class Onboarding:
             items = self.store.items(workspace)
             replaced = [f"{k}:{i.id}" for k, xs in (("agent", proposal.agents), ("instruction", proposal.instructions), ("procedure", proposal.procedures))
                         for i in xs if forms.find(items, k, i.id)]
-            # A workspace that has a config file keeps its name (sop.yaml or sopc.yaml), whatever the project calls it.
-            changes = forms.with_config_at(dict(proposal.files), items["settings"]["file"]) if items["settings"]["version"] else dict(proposal.files)
+            changes = dict(proposal.files)
         else:
             changes, replaced = self.changes(workspace, proposal)
         written = self.store.edit(workspace, changes, author, note or "Imported with sopops onboarding")
@@ -484,8 +482,7 @@ class Onboarding:
         config["variables"] = {**config["variables"], **content.settings.variables}
         if not items["agents"] and not items["instructions"] and not items["procedures"]:
             config["procedures_heading"] = content.settings.procedures_heading or forms.DEFAULT_HEADING
-        path, text, _ = forms.write("config", "config", config, items["settings"]["file"], export)  # sopc.yaml stays sopc.yaml
-        changes[path] = text
+        changes[forms.CONFIG] = forms.write("config", "config", config, None, export)[1]
         return changes, replaced
 
     # --- internals ------------------------------------------------------------------------

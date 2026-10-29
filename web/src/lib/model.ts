@@ -77,7 +77,7 @@ export class Model {
   /** An item as plain lines, for history and change views. Never YAML: the fields, in words. */
   readable(kind: Kind, it: Record<string, unknown> | null | undefined): string[] {
     if (!it || it.deleted) return ["(deleted)"];
-    if (it.legacy) return ["(saved in the format of sopc v0.0.8 and earlier)", ...String(it.content ?? "").replace(/\n+$/, "").split("\n")];
+    if (it.legacy) return ["(saved in the format of sop v0.0.8 and earlier, then named sopc)", ...String(it.content ?? "").replace(/\n+$/, "").split("\n")];
     const list = (title: string, items: Step[], numbered = false) =>
       items.length ? [title, ...items.flatMap((s, i) => [`  ${numbered ? `${i + 1}.` : "-"} ${stepLine(s)}`, ...(s.or ?? []).map((o) => `     OR ${stepLine(o)}`)])] : [];
     const blocks = (ids: string[]) =>

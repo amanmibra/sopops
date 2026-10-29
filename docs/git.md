@@ -13,11 +13,11 @@ python3 -c 'import json,pathlib; r=pathlib.Path("sops"); print(json.dumps({"file
   | curl -fsS -X POST -H 'Content-Type: application/json' -d @- "$SOPOPS_URL/publish"
 ```
 
-`build/` is ignored. Folders in sopc v0.0.8 format or earlier, or that still set `locked` (v0.0.9), are refused with a message to run `sop migrate`. Workspaces stored that way show a Convert page.
+`build/` is ignored. Folders in the format of sop v0.0.8 or earlier (then named sopc), or that still set `locked` (v0.0.9), are refused with a message to run `sop migrate`. Workspaces stored that way show a Convert page.
 
 ## Connect a GitHub repository
 
-sopops syncs a workspace with a sop folder in your repo, both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`). The folder holds `sop.yaml`, or `sopc.yaml` if it was made before sop v0.1.0; sopops keeps whichever it has and never renames it.
+sopops syncs a workspace with a sop folder in your repo, both ways. Connect in Settings (gear icon) or with `POST /v1/workspaces/{ws}/repo`, giving the repository, branch (default `main`) and folder (default `sops`). The folder holds `sop.yaml`. A folder that still has `sopc.yaml` (its name in sop v0.0.8 and earlier, then named sopc) and no `sop.yaml` is read as if it were `sop.yaml`, and the next Send drafts to GitHub renames it in the sync pull request.
 
 ### With the GitHub App (preferred)
 

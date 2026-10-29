@@ -224,7 +224,7 @@ agent's prompt changes.
 
 Workspace-wide defaults.
 
-**File:** `sop.yaml`, which also marks the root of the sop folder. A folder made before sop v0.1.0 calls it `sopc.yaml`; sop and sopops read either (`sop.yaml` wins if both are there), and sopops keeps the name a workspace or repository already has.
+**File:** `sop.yaml`, which also marks the root of the sop folder.
 
 ```yaml
 version: 1

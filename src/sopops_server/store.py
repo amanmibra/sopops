@@ -38,7 +38,7 @@ from .usage import Usage
 from .verdicts import Verdicts
 
 # Which folder each lock.json block kind lives in.
-_KIND_DIRS = {"agent": "agents", "instruction": "instructions", "sop": "procedures", "base": "bases"}  # base: sopc v0.0.8
+_KIND_DIRS = {"agent": "agents", "instruction": "instructions", "sop": "procedures", "base": "bases"}  # base: sop v0.0.8 and earlier (then named sopc)
 
 
 class Store:
@@ -127,22 +127,20 @@ class Store:
 
     def _items(self, head: list[dict]) -> dict:
         files = {r["path"]: r["content"] for r in head}
-        config = forms.config_path(files)
-        if config:
+        if forms.CONFIG in files:
             try:
-                items = forms.from_export(self.sop.export(files), config)
+                items = forms.from_export(self.sop.export(files))
             except Invalid as e:
                 raise forms.located(e) from None
         else:  # a new workspace: sop.yaml is written with the first item
             items = {"settings": {"variables": {}, "procedures_heading": forms.DEFAULT_HEADING}, "agents": [], "instructions": [], "procedures": [], "groups": []}
-        config = config or forms.CONFIG
         rows = {r["path"]: r for r in head}
         for item in [items["settings"], *items["agents"], *items["instructions"], *items["procedures"], *items["groups"]]:
-            row = rows.get(item.get("file", config))
+            row = rows.get(item.get("file", forms.CONFIG))
             item["version"] = row["version"] if row else None
             item["updated_at"] = _utc(row["created_at"]) if row else None
             item["updated_by"] = row["author"] if row else None
-        items["settings"]["file"] = config
+        items["settings"]["file"] = forms.CONFIG
         uses = forms.used_by(items)
         for key in ("instructions", "procedures", "groups"):
             for item in items[key]:
@@ -181,7 +179,7 @@ class Store:
                 want = {**config, "variables": data["variables"], "procedures_heading": data["procedures_heading"]}
             else:
                 want = {**config, "groups": {**config["groups"], id: list(data["blocks"])}}
-            current_path = forms.config_path(paths)
+            current_path = forms.CONFIG if forms.CONFIG in paths else None
             path, text, saved = forms.write("config", "config", want, current_path, self.sop.export)
             if current_path and current is not None and forms.same("config", config, saved):
                 return current, []
@@ -194,7 +192,7 @@ class Store:
             changes = {path: text}
             if current_path and current_path != path:
                 changes[current_path] = None
-            if forms.config_path(paths) is None:
+            if forms.CONFIG not in paths:
                 changes[forms.CONFIG] = "version: 1\n"
         written = self._write(db, ws, changes, author, note, replace=False)
         return forms.find(self._items(self._head_rows(db, ws)), kind, id), written
@@ -298,7 +296,7 @@ class Store:
         except Invalid as e:
             return {**out, "issues": [i.to_dict() for i in forms.located(e).issues]}
         files[path] = text
-        if forms.config_path(files) is None:
+        if forms.CONFIG not in files:
             files[forms.CONFIG] = "version: 1\n"
         compiled = self.sop.compile(files)
         names = _block_names(items)
@@ -322,7 +320,7 @@ class Store:
 
     def _parse(self, kind: str, id: str, path: str, content: str) -> dict | None:
         """One item's fields from one file's content, read by sop on its own. A version that sets `locked`
-        (sopc v0.0.9) is read as `sop migrate` converts it. None if it's in the v0.0.8 format."""
+        (sop v0.0.9) is read as `sop migrate` converts it. None if it's in the v0.0.8 format."""
         if kind in ("settings", "group"):
             items = self._parse_config(content)
             return forms.find(items, kind, id) if items else None
@@ -463,9 +461,8 @@ class Store:
                 "version": f["version"] if f["version"] is not None else (prev or {}).get("version"),
                 "released_version": f["released_version"] if f["released_version"] is not None else (prev or {}).get("released_version"),
             }
-        # sop.yaml (or sopc.yaml) holds the settings and every group: one entry for each that changed.
-        config_path = forms.config_path(set(head_versions) | set(live_files))
-        config_file = next((f for f in files if f["path"] == config_path), None)
+        # sop.yaml holds the settings and every group: one entry for each that changed.
+        config_file = next((f for f in files if f["path"] == forms.CONFIG), None)
         if config_file:
             for kind, id in [("settings", "settings")] + [("group", g) for g in _ordered_union(before_items, after_items, "groups")]:
                 b = forms.find(before_items, kind, id) if before_items else None
@@ -721,15 +718,14 @@ class Store:
 
 
 def _components(blocks: list[dict], versions: dict[str, int]) -> list[dict]:
-    """Map lock.json blocks to the file versions they came from, plus sop.yaml or sopc.yaml (defaults, headings)."""
+    """Map lock.json blocks to the file versions they came from, plus sop.yaml (defaults, headings)."""
     out = []
     for block in blocks:
         folder = _KIND_DIRS[block["kind"]]
         path = next((p for p in versions if p.startswith(folder + "/") and p.count("/") == 1 and PurePosixPath(p).stem == block["id"]), None)
         out.append({"kind": block["kind"], "id": block["id"], "path": path, "version": versions.get(path)})
-    config = forms.config_path(versions)
-    if config:
-        out.append({"kind": "config", "id": "sop", "path": config, "version": versions[config]})
+    if forms.CONFIG in versions:
+        out.append({"kind": "config", "id": "sop", "path": forms.CONFIG, "version": versions[forms.CONFIG]})
     return out
 
 

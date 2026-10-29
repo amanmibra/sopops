@@ -85,11 +85,11 @@ Repo mode needs the workspace's GitHub repository: `400` without one, or when Gi
 
 ### sop project imports
 
-`POST /imports/sop` (formerly `/imports/sopc`, which still works) takes the project's files by path relative to the folder with `sop.yaml` (or `sopc.yaml`) (`build/` ignored), or `from_repo: true` to read the workspace's GitHub repository, and optionally each agent's original instructions.
+`POST /imports/sop` takes the project's files by path relative to the folder with `sop.yaml` (`build/` ignored), or `from_repo: true` to read the workspace's GitHub repository, and optionally each agent's original instructions.
 
-- The import has `source: sopc` (the name from before sop v0.1.0) and is ready at once: the proposal shows what the project holds and carries its `files`.
+- The import has `source: sop` and is ready at once: the proposal shows what the project holds and carries its `files`.
 - Fidelity is checked for every agent with an original, as for any proposal.
-- `400` without files or a `sop.yaml` (or `sopc.yaml`); `422` when sop can't read it.
+- `400` without files or a `sop.yaml`; `422` when sop can't read it.
 - Its content isn't edited here (`409`): change the project and import it again.
 
 ### What `GET /imports/{id}/review` has

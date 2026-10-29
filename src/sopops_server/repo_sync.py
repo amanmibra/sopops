@@ -18,6 +18,9 @@ one commit on the base branch's head, with one pull request from it (sending aga
 request shows the drafts as they are). It's followed like the other pull requests (`follow_pr`); when it merges, the
 drafts are synced from the base branch, with nothing to write.
 
+A folder that still has its config under the old name (`github.OLD_CONFIG`) is read with it as sop.yaml, so syncing
+writes nothing for it; sending compares the drafts with the folder as it is, so the sync pull request renames it.
+
 Each change goes to the workspace's live stream as an event with `topic: repo` (`synced`, `conflict`, `sync_error`,
 `sync_pr`, `pr_merged`, `resolved`, `broken`), so Settings and the import page update without polling.
 """
@@ -123,7 +126,7 @@ def sync(store: Store, workspace: str, sha: str | None = None, author: str | Non
                 log.warning("reading %s at the last synced %s failed: %s", ws, conn.pulled_sha[:7], e)
         elif conn.pulled_sha:
             base = theirs
-    if forms.config_path(theirs) is None:
+    if forms.CONFIG not in theirs:
         where = f"{conn.path}/" if conn.path else "the repository root"
         message = f"{where} on {conn.base_branch} has no {forms.CONFIG} at {sha[:7]}, so nothing was synced"
         if conn.pulled_sha is None:
@@ -228,7 +231,7 @@ def send(store: Store, workspace: str) -> dict:
     with github.client(store, conn) as gh:
         repo = github.repo_path(conn.owner, conn.repo)
         head = github.branch_head(gh, conn.owner, conn.repo, conn.base_branch)
-        files = github.read_folder(gh, conn, head, ours)
+        files = github.read_folder(gh, conn, head, ours, as_stored=True)  # an old sopc.yaml is renamed by the commit
         changes = {p: ours.get(p) for p in sorted(set(ours) | set(files)) if ours.get(p) != files.get(p)}
         if not changes:
             raise Conflict(f"nothing to send: the drafts match {conn.base_branch}")
@@ -252,7 +255,10 @@ def send(store: Store, workspace: str) -> dict:
 
 
 def _open_sync_pr(gh: github.Client, conn: RepoConnection, repo: str, changes: dict[str, str | None], files: dict[str, str]) -> str:
-    lines = [f"- `{(f"{conn.path}/{p}" if conn.path else p)}`: {'deleted' if c is None else 'edited' if p in files else 'added'}" for p, c in changes.items()]
+    renamed = changes.get(github.OLD_CONFIG, "") is None and forms.CONFIG in changes and forms.CONFIG not in files
+    lines = [f"- `{(f"{conn.path}/{p}" if conn.path else p)}`: {'deleted' if c is None else 'edited' if p in files else 'added'}"
+             + (f" (renamed from `{github.OLD_CONFIG}`, its name before sop v0.1.0)" if renamed and p == forms.CONFIG else "")
+             for p, c in changes.items()]
     body = ("The drafts in sopops that differ from this branch:\n\n" + "\n".join(lines) +
             "\n\nSending again from sopops updates this pull request. When it merges, sopops syncs its drafts from "
             f"`{conn.base_branch}`.")

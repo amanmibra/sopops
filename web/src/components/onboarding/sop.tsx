@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AgentFidelity, ImportOut, Proposal } from "@/client/types.gen";
 import { call, refresh, sdk } from "@/lib/api";
-import { CONFIG_FILES, plural } from "@/lib/kinds";
+import { CONFIG_FILE, plural } from "@/lib/kinds";
 import { pct } from "@/lib/onboarding";
 import { cn } from "@/lib/utils";
 import { settingsHref, useWs, wsHref } from "@/lib/workspace";
@@ -21,14 +21,13 @@ import { Textarea } from "../ui/textarea";
 
 const TEXT = /\.(ya?ml|md|markdown|txt|json)$/i;
 
-/** Whether the files have a config file: sop.yaml, or sopc.yaml from before sop v0.1.0. */
-const hasConfig = (files: Record<string, string>) => CONFIG_FILES.some((c) => c in files);
+const hasConfig = (files: Record<string, string>) => CONFIG_FILE in files;
 
-/** The picked files as a sop project: paths relative to the folder holding sop.yaml (or sopc.yaml), text files only, no build/. */
+/** The picked files as a sop project: paths relative to the folder holding sop.yaml, text files only, no build/. */
 export async function readProject(list: FileList | File[]): Promise<Record<string, string>> {
   const files = Array.from(list).map((f) => ({ f, path: (f.webkitRelativePath || f.name).replace(/\\/g, "/") }));
   const name = (p: string) => p.slice(p.lastIndexOf("/") + 1);
-  const config = files.map((x) => x.path).filter((p) => CONFIG_FILES.includes(name(p))).sort((a, b) => a.length - b.length)[0];
+  const config = files.map((x) => x.path).filter((p) => name(p) === CONFIG_FILE).sort((a, b) => a.length - b.length)[0];
   const root = config ? config.slice(0, -name(config).length) : "";
   const out: Record<string, string> = {};
   for (const { f, path } of files) {

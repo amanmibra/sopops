@@ -177,14 +177,14 @@ def test_any_block_can_be_left_out(seeded):
     assert seeded.put(f"{CFG}/procedures/reservations", json={**proc, "locked": True}).json()["changed"] == []
 
 
-def test_locked_from_sopc_v009_is_refused_then_converted(client, files):
+def test_locked_from_sop_v009_is_refused_then_converted(client, files):
     locked = {**files, "instructions/brand-voice.md": "---\nlocked: true\n---\n" + files["instructions/brand-voice.md"]}
     res = client.post(f"{WS}/publish", json={"files": locked})
     bad = issue(res)
     assert (bad["code"], bad["kind"], bad["id"]) == ("removed_field", "instruction", "brand-voice")
     assert "`locked`" in bad["text"] and "sop migrate" in bad["text"]
 
-    # A workspace stored with it (by a sopops that spoke sopc v0.0.9) converts like an old-format one.
+    # A workspace stored with it (by a sopops that spoke sop v0.0.9, then named sopc) converts like an old-format one.
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:
         for path, content in locked.items():
@@ -576,11 +576,11 @@ def test_settings_and_new_workspace(client):
     assert client.delete(f"{CFG}/agents/nobody").status_code == 404
 
 
-# --- the sopc v0.0.8 format -------------------------------------------------------------
+# --- the sop v0.0.8 format (then named sopc) ---------------------------------------------
 
 
 def store_old(client, release: bool = False) -> None:
-    """Head (and optionally release 1) in the old format, as a sopops that spoke sopc v0.0.8 saved it."""
+    """Head (and optionally release 1) in the old format, as a sopops that spoke sop v0.0.8 (then named sopc) saved it."""
     old = read_files(OLD)
     now = datetime.now(timezone.utc)
     with client.app.state.store.engine.begin() as conn:
@@ -615,16 +615,16 @@ def test_stored_old_workspace_is_converted_in_place(client):
     assert res.status_code == 422 and res.json()["issues"][0]["code"] == "old_format"
 
     plan = client.post(f"{WS}/migrate", json={}).json()
-    assert plan["needed"] and not plan["applied"] and plan["changed"] == [] and "sopc.yaml: removed sop_order" in plan["plan"]
+    assert plan["needed"] and not plan["applied"] and plan["changed"] == [] and "sop.yaml: removed sop_order" in plan["plan"]
     assert client.get(CFG).status_code == 422  # only the plan so far
 
-    res = client.post(f"{WS}/migrate", json={"apply": True, "author": "ana", "note": "sopc v0.0.9"})
+    res = client.post(f"{WS}/migrate", json={"apply": True, "author": "ana", "note": "sop v0.0.9"})
     assert res.status_code == 200 and res.json()["applied"]
     changed = {c["path"]: c["deleted"] for c in res.json()["changed"]}
     assert changed["bases/closing.md"] is True and changed["instructions/closing.md"] is False
     cfg = client.get(CFG).json()
     assert next(a for a in cfg["agents"] if a["id"] == "tonys-pizza")["blocks"][-1] == "closing"
-    assert "sopc.yaml" in changed and "sop.yaml" not in changed and cfg["settings"]["file"] == "sopc.yaml"  # the name it had
+    assert "sop.yaml" in changed and cfg["settings"]["file"] == "sop.yaml"
     assert client.post(f"{WS}/migrate", json={}).json()["needed"] is False
 
     # An agent's version from before reads as legacy content in its history.
