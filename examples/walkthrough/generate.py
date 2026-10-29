@@ -80,16 +80,18 @@ MODES: dict[str, dict[str, str]] = {
                   "description": "Under release 2's reworded rule: a delivery time given before the zone was checked."},
     "large_party": {"procedure": "reservations", "rule": "never_1", "verdict": "real",
                     "description": "The agent confirms a table for more than 8 guests itself instead of transferring."},
+    "wrong_option": {"procedure": "reservations", "rule": "option_2", "verdict": "real",
+                     "description": "The caller asks to cancel and the agent moves the booking instead (step 2's OR options: the wrong one)."},
 }
 
 RATES = {  # per call that the procedure applies to
     "backfill": {"safe_claim": 0.18, "free_kitchen": 0.10, "safe_disclaimer": 0.10, "no_lookup": 0.14, "emergency": 0.10, "no_transfer": 0.5,
-                 "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
+                 "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
     "new": {"safe_claim": 0.03, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.14, "emergency": 0.10, "no_transfer": 0.5,
-            "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
+            "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
     # followup.py, after release 3: the fixed mistakes stop; the large-party one (not fixed yet) carries on
     "followup": {"safe_claim": 0.0, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.0, "emergency": 0.10, "no_transfer": 0.0,
-                 "no_zone": 0.0, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6},
+                 "no_zone": 0.0, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
 }
 
 
@@ -246,6 +248,10 @@ def finish(c: Call, r: dict[str, Any], items: list[str], caller: str, delivery: 
 def reservation(c: Call, r: dict[str, Any], caller: str, rates: dict[str, float]) -> None:
     rng = c.rng
     c.procedures.append("reservations")
+    want = pick(rng, {"book": 0.6, "change": 0.2, "cancel": 0.2})  # step 2's OR options: one applies per call
+    if want != "book":
+        change_or_cancel(c, caller, want, rates)
+        return
     large = rng.random() < rates["large"]
     n = rng.choice([9, 10, 12, 14]) if large else rng.choice([2, 2, 3, 4, 4, 5, 6])
     day, at = rng.choice(DAYS), rng.choice(TIMES)
@@ -262,6 +268,30 @@ def reservation(c: Call, r: dict[str, Any], caller: str, rates: dict[str, float]
     c.say(f"Good news, we have a table for {n} on {day} at {at}. What name should I put it under?")
     c.hear(f"{caller}.")
     c.say(f"You're all set, {caller}: a table for {n}, {day} at {at}. See you then!")
+
+
+def change_or_cancel(c: Call, caller: str, want: str, rates: dict[str, float]) -> None:
+    rng = c.rng
+    n, day, at, later = rng.choice([2, 3, 4, 5, 6]), rng.choice(DAYS), rng.choice(TIMES[:3]), rng.choice(TIMES[3:])
+    booking = {"name": caller, "date": day}
+    if want == "change":
+        c.hear(rng.choice([f"Hi, I've got a table booked for {n} on {day} under {caller}. Could we move it to {later}?",
+                           f"Can I change my reservation? It's {caller}, {day} at {at}, and we'd like {later} instead."]))
+        c.say("Let me move that for you.")
+        c.tool("change_reservation", {**booking, "time": later}, {"status": "changed", "date": day, "time": later})
+        c.say(f"Done, {caller}: your table for {n} is now {day} at {later}.")
+        return
+    c.hear(rng.choice([f"Hi, I need to cancel my reservation for {day}. It's under {caller}.",
+                       f"I'd like to cancel our table on {day} at {at}, the name is {caller}."]))
+    if rng.random() < rates["wrong_option"]:
+        c.modes.append("wrong_option")
+        c.say("Let me take care of that.")
+        c.tool("change_reservation", {**booking, "date": "next " + day}, {"status": "changed", "date": "next " + day, "time": at})
+        c.say(f"I've moved your table to next {day} at {at} instead, {caller}.")
+        return
+    c.say("Let me cancel that for you.")
+    c.tool("cancel_reservation", booking, {"status": "cancelled"})
+    c.say(f"Your table for {day} is cancelled, {caller}. Hope to see you another time.")
 
 
 def jobs(seed: int, count: int, kind: str, anchor: date | None) -> list[dict[str, Any]]:

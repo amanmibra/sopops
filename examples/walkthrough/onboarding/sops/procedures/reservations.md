@@ -5,7 +5,9 @@
 
 ## Steps
 1. Ask for party size, date and time
-2. Check availability `tool: check_reservations` `required`
+2. If they're booking a new table, check availability `tool: check_reservations` `required`
+   OR If they're changing a booking, update it `tool: change_reservation` `required`
+   OR If they're cancelling, cancel the booking `tool: cancel_reservation` `required`
 3. Confirm the booking details and the name on the reservation
 
 ## Never

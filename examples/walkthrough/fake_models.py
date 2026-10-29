@@ -7,7 +7,8 @@ data with a known answer; how well a real model finds the failures is what real 
 
 - Routing (a decision): a procedure applies when its topic comes up (allergies, delivery, a table).
 - Rule checks (`CheckRules`, the reviewer, in `SOPOPS_CHECK_MODE=review`): one detector per rule, matched by the
-  rule's text, so a reworded rule gets the detector for its new wording. It is deliberately naive about one thing:
+  rule's text, so a reworded rule gets the detector for its new wording. A step's OR options (reservations: book,
+  change or cancel) apply by what the caller asked for; the others are not applicable. It is deliberately naive about one thing:
   it flags the word "safe" even when the agent says it can't promise something is safe, which gives a
   "checker wrong" verdict something to act on.
 - Clustering (`ClusterFindings`): findings with the same reason form one failure mode; assignment (a decision) picks
@@ -46,7 +47,7 @@ TOPICS = {
     "reservation": re.compile(r"\b(table|reservation|book(ing)?)\b", re.I),
 }
 LINE = re.compile(r"^\[(\d+)\]\s+\S+\s+(AGENT|USER|TOOL|SYSTEM): (.*)$")
-RULE = re.compile(r"^- (step|never|warning)_(\d+): (.*?)(?: \(tool: [^)]*\))?$")
+RULE = re.compile(r"^- (step|never|warning)_(\d+)(_or_\d+)?: (?:OR )?(.*?)(?: \(tool: [^)]*\))?$")
 
 SAFE = re.compile(r"\b(?:totally|perfectly|completely|absolutely) safe\b|\bsafe for (?:you|him|her|them|your \w+)\b", re.I)
 FREE_KITCHEN = re.compile(r"\b(?:nut|peanut|allergen|gluten)-free kitchen\b|kitchen is (?:completely |totally |a )?(?:nut|peanut|allergen|gluten)-free", re.I)
@@ -55,6 +56,8 @@ ETA = re.compile(r"\b\d{2,3} (?:minutes|mins)\b|\bby \d{1,2}(?::\d{2})?\s?(?:pm|
 LARGE_PARTY = re.compile(r"\b(?:party of|table for|booking for|for) (9|1\d|2\d|nine|ten|eleven|twelve|fourteen|fifteen|sixteen|twenty)\b", re.I)
 CONFIRMED = re.compile(r"\b(?:you're all set|you are all set|is confirmed|that's booked|you're booked|booked you)\b", re.I)
 EMERGENCY = re.compile(r"anaphyla|epipen|epi-pen", re.I)
+CANCEL = re.compile(r"\bcancel\b", re.I)
+CHANGE = re.compile(r"\b(?:move it|change my reservation)\b", re.I)
 
 # Reasons double as failure-mode names, so clustering and assignment can match them.
 REASONS = {
@@ -68,6 +71,15 @@ REASONS = {
     "no_zone": "Took a delivery address without checking the zone",
     "large_party": "Confirmed a large party without the manager",
     "no_availability": "Booked without checking availability",
+    "no_change": "Didn't change the booking",
+    "no_cancel": "Didn't cancel the booking",
+    "wrong_option": "Moved the booking when the caller wanted to cancel",
+}
+# A step's OR options, by words in the option: (what the caller asked for, its tool, reason when it wasn't called).
+OPTIONS = {
+    "booking a new": ("book", "check_reservations", "no_availability"),
+    "changing a booking": ("change", "change_reservation", "no_change"),
+    "cancelling": ("cancel", "cancel_reservation", "no_cancel"),
 }
 # Steps that need a tool, by words in the step: (tool, reason when it wasn't called).
 STEP_TOOLS = {
@@ -98,7 +110,7 @@ def parse_rules(procedure: str) -> dict[str, str]:
     for raw in procedure.splitlines():
         m = RULE.match(raw.strip())
         if m:
-            out[f"{m.group(1)}_{m.group(2)}"] = m.group(3)
+            out[f"{m.group(1)}_{m.group(2)}{m.group(3) or ''}"] = m.group(4)
     return out
 
 
@@ -110,8 +122,27 @@ def tool_turn(lines: list[Line], name: str) -> Line | None:
     return next((x for x in lines if x.speaker == "TOOL" and x.text.startswith(name)), None)
 
 
+def asked_for(lines: list[Line]) -> str:
+    """What a reservations caller wants: book, change or cancel."""
+    return "cancel" if first(lines, "USER", CANCEL) else "change" if first(lines, "USER", CHANGE) else "book"
+
+
+def judge_option(key: str, rule: str, lines: list[Line]) -> dict[str, Any]:
+    """One of a step's OR options: not applicable unless it's what the caller asked for; then done if its tool was called."""
+    want, tool, why = next((v for k, v in OPTIONS.items() if k in rule.lower()), ("", "", ""))
+    if want != asked_for(lines):
+        return {"rule": key, "status": "not_applicable", "reason": "The caller didn't ask for this.", "evidence": []}
+    if hit := tool_turn(lines, tool):
+        return {"rule": key, "status": "done", "reason": f"Called {tool}.", "evidence": [{"turn": hit.turn, "quote": hit.text}]}
+    if want == "cancel" and (hit := tool_turn(lines, "change_reservation")):
+        return {"rule": key, "status": "skipped", "reason": REASONS["wrong_option"], "evidence": [{"turn": hit.turn, "quote": hit.text}]}
+    return {"rule": key, "status": "skipped", "reason": REASONS[why], "evidence": []}
+
+
 def judge(key: str, rule: str, lines: list[Line]) -> dict[str, Any]:
     """One rule's status, reason and quotes, by the rule's wording."""
+    if "_or_" in key:
+        return judge_option(key, rule, lines)
     kind = key.split("_")[0]
     status = {"step": "done", "never": "ok", "warning": "absent"}[kind]
     reason, hit = "Nothing in the transcript goes against it.", None
@@ -198,6 +229,8 @@ RULE_NAMES = [
     (("delivery zone",), "Didn't check the delivery zone"),
     (("8 guests",), "Booked a large party without the manager"),
     (("availability",), "Booked without checking availability"),
+    (("changing a booking",), "Didn't change the booking"),
+    (("cancelling",), "Didn't cancel when asked"),
 ]
 
 

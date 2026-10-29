@@ -1,1 +1,0 @@
-{"status":200,"data":{"procedure_id":"reservations","rule_id":"4cae5bfbbc4a","lineage_id":"4cae5bfbbc4a","previous_rule_id":null,"how":null,"rules":[{"rule_id":"4cae5bfbbc4a","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"Check availability","from_release":1}]}}

@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"reservations","rule_id":"b3992bda5e3d","lineage_id":"b3992bda5e3d","previous_rule_id":null,"how":null,"rules":[{"rule_id":"b3992bda5e3d","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"If they're cancelling, cancel the booking","from_release":1}]}}

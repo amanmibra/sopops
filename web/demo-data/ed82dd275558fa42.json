@@ -1,1 +1,1 @@
-{"status":200,"data":{"required":false,"providers":[],"user":null,"org":null,"orgs":[],"first_account":false,"open_signup":false,"platforms":{"selected":null,"shown":["livekit","elevenlabs","vapi"]}}}
+{"status":200,"data":{"required":false,"providers":[],"user":null,"org":null,"orgs":[],"first_account":false,"open_signup":false,"demo_workspace":null,"platforms":{"selected":null,"shown":["livekit","elevenlabs","vapi"]}}}

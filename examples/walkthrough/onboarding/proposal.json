@@ -223,9 +223,21 @@
             "text": "Ask for party size, date and time"
           },
           {
-            "text": "Check availability",
+            "text": "If they're booking a new table, check availability",
             "tool": "check_reservations",
-            "required": true
+            "required": true,
+            "or": [
+              {
+                "text": "If they're changing a booking, update it",
+                "tool": "change_reservation",
+                "required": true
+              },
+              {
+                "text": "If they're cancelling, cancel the booking",
+                "tool": "cancel_reservation",
+                "required": true
+              }
+            ]
           },
           {
             "text": "Confirm the booking details and the name on the reservation"

@@ -39,8 +39,9 @@ def failing_by_rule(http: Any, sessions: list[dict[str, Any]]) -> dict[str, set[
     for s in sessions:
         detail = call(http, "GET", f"/v1/workspaces/{{ws}}/sessions/{s['id']}")
         for pc in detail.get("checks") or []:
+            with_options = {r["option_of"] for r in pc.get("rules") or [] if r.get("option_of")}  # their options carry the failure
             for r in pc.get("rules") or []:
-                if r["status"] in FAILING:
+                if r["status"] in FAILING and r["rule_id"] not in with_options:
                     out[f"{pc['procedure_id']}/{r['kind']}_{r['index']}"].add(s["external_id"])
     return out
 

@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"reservations","rule_id":"bc431a3ddc01","lineage_id":"bc431a3ddc01","previous_rule_id":null,"how":null,"rules":[{"rule_id":"bc431a3ddc01","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"If they're changing a booking, update it","from_release":1}]}}

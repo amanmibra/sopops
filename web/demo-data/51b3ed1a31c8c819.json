@@ -1,0 +1,1 @@
+{"status":200,"data":{"procedure_id":"reservations","rule_id":"e6bcda3cd5dc","lineage_id":"e6bcda3cd5dc","previous_rule_id":null,"how":null,"rules":[{"rule_id":"e6bcda3cd5dc","previous_rule_id":null,"how":null,"similarity":null,"release_id":null,"text":"If they're booking a new table, check availability","from_release":1}]}}

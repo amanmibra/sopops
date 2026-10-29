@@ -175,6 +175,7 @@ Writes `out/backfill.jsonl` (200 calls over the 14 days before today, on release
 | Delivery orders, step 2: `check_delivery_zone` | takes the address without checking | real |
 | Delivery orders, never 1: `Never tell the caller a delivery time` | gives the time from the zone check: worded too broadly, the team meant "before the zone check" | acceptable, with a suggested rewording |
 | Reservations, never 1: more than 8 guests needs the manager | confirms a large party itself | real |
+| Reservations, step 2: an OR step (book: `check_reservations`, OR change: `change_reservation`, OR cancel: `cancel_reservation`) | the caller asks to cancel and the agent moves the booking instead: the wrong option | real |
 
 About half the calls have nothing planted. The new calls have far fewer "safe" claims (the fix in step 6) and are checked against the reworded delivery rule, under which only a time given before the zone check counts.
 
@@ -188,7 +189,7 @@ Posts the 200 calls with the SDK (`SopOps.post_session`, 8 at a time), each conv
 
 - **Sessions** (`/w/walkthrough/sessions`): 200 calls, each with its transcript, tool calls and the result per procedure. Open one with a finding: the rule, its status and the quote that shows it highlighted in the transcript.
 - **Insights** (`/w/walkthrough/results`): sessions checked, followed end to end and needing attention; the procedure scoreboard (delivery orders looks worst, because of the broad rule); a procedure's rule ladder (`/w/walkthrough/results/procedures/allergen-check`).
-- **Patterns** (`/w/walkthrough/patterns?tab=all`): each rule with findings is a pattern, grouped by theme; a rule with 8 or more findings is split into named failure modes. Expected: allergen never 1 split into three (the two real claims and the disclaimer), the delivery-time rule with 61 findings, and the others as in the table. A pattern's page (`/w/walkthrough/patterns/<id>`) has its rule, examples and sessions.
+- **Patterns** (`/w/walkthrough/patterns?tab=all`): each rule with findings is a pattern, grouped by theme; a rule with 8 or more findings is split into named failure modes. Expected: allergen never 1 split into three (the two real claims and the disclaimer), the delivery-time rule with 53 findings, and the others as in the table. A pattern's page (`/w/walkthrough/patterns/<id>`) has its rule, examples and sessions.
 - **Report** (`/w/walkthrough/report`): the same, read like a hand-written call review.
 
 ### 6. Review: verdicts, suggestions, release 2
@@ -196,7 +197,7 @@ Posts the 200 calls with the SDK (`SopOps.post_session`, 8 at a time), each conv
 **QA → Patterns → Needs review** (`/w/walkthrough/patterns`) is the queue: each pattern with example calls and four verdicts (keys `1` to `4`, `j`/`k` to move). Give them, or run `just examples/walkthrough/review-verdicts`, which gives exactly these:
 
 - "Told the caller a dish is safe for their allergy": **Real mistake**, with a suggestion.
-- "Gave the caller a delivery time": **Acceptable**, with a suggestion. Its 61 findings are suppressed at once: they stop counting in Insights.
+- "Gave the caller a delivery time": **Acceptable**, with a suggestion. Its 53 findings are suppressed at once: they stop counting in Insights.
 - "Used the word safe while declining to promise it" (fake mode): **Checker is wrong**. Suppressed, and kept as negative calibration labels.
 - The other patterns: **Real mistake**, no suggestion asked for.
 
@@ -248,7 +249,7 @@ Expected in fake mode, all PASS: both pairs current before either is applied, `m
 just examples/walkthrough/followup
 ```
 
-Not part of `all`: in real mode it's 60 more calls to check. It publishes step 9's drafts as release 3 (the delivery-zone fix and the allergen-list one), then plays 60 calls through the LiveKit adapter in which those mistakes no longer happen. Ten clean sessions on a procedure after a fix's release make it fixed, so **Mistakes → Fixed** shows "Took a delivery address without checking the zone" fixed in release 3 with no findings in its 27 delivery calls, and Home's "What the fixes did" shows it going from 17% of calls to none. Then sopops writes a fix for the large-party reservations mistake, applied as a draft and left unpublished: the loop mid-turn, as a team would see it on an ordinary day.
+Not part of `all`: in real mode it's 60 more calls to check. It publishes step 9's drafts as release 3 (the delivery-zone fix and the allergen-list one), then plays 60 calls through the LiveKit adapter in which those mistakes no longer happen. Ten clean sessions on a procedure after a fix's release make it fixed, so **Mistakes → Fixed** shows "Took a delivery address without checking the zone" fixed in release 3 with no findings in its 27 delivery calls, and Home's "What the fixes did" shows it going from 4% of calls to none. Then sopops writes a fix for the large-party reservations mistake, applied as a draft and left unpublished: the loop mid-turn, as a team would see it on an ordinary day.
 
 ## Running it in CI
 
