@@ -215,6 +215,7 @@ def test_anyone_signed_in_can_read_the_demo_workspace_and_nobody_outside_its_org
     bob = TestClient(app)
     sign_in(bob, "github", "2", "bob@example.com")  # in no org at all
     assert bob.get("/v1/auth/session").json()["demo_workspace"] == "demo"
+    assert bob.get("/v1/auth/session").json()["user"]["created_at"]  # the app offers the tour in an account's first month
     assert bob.get(f"{WS}/files").status_code == 200
     assert bob.get(f"{WS}/draft").status_code == 200
     assert bob.post(f"{WS}/config/agents/nope/preview", json={}).status_code != 403  # a read, whatever it finds

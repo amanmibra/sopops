@@ -30,6 +30,7 @@ class UserOut(BaseModel):
     name: str
     avatar_url: str | None
     has_password: bool = Field(description="They can sign in with a password, so they can change it.")
+    created_at: datetime | None = Field(None, description="When the account was made. The app offers its guided tour in the first 30 days.")
 
 
 class OrgSummary(BaseModel):

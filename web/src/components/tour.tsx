@@ -170,15 +170,19 @@ function set(s: State) {
 
 export const startTour = (ws: string) => set({ ws, step: 0 });
 
-/** Where someone takes the tour: the recording's workspace in the demo build; signed in, the server's demo workspace
- *  (SOPOPS_DEMO_WORKSPACE), else the public demo (DEMO_URL) in a new tab with the tour running. Signed out, nowhere:
- *  the sign-in and sign-up pages say nothing of it. */
+/** Where someone takes the tour: the recording's workspace in the demo build; signed in, in the account's first
+ *  NEW_DAYS days, the server's demo workspace (SOPOPS_DEMO_WORKSPACE), else the public demo (DEMO_URL) in a new tab with
+ *  the tour running. Signed out, or later on, nowhere: the sign-in pages say nothing of it, and nor does the app once
+ *  someone knows their way around. */
 export type TourWay = { ws: string } | { href: string };
+
+const NEW_DAYS = 30;
+const isNew = (created: string | null | undefined) => !created || Date.now() - Date.parse(created) < NEW_DAYS * 86_400_000;
 
 export function useTourWay(): TourWay | null {
   const auth = useAuth().data;
   if (DEMO) return { ws: DEMO_WS };
-  if (!auth?.user) return null;
+  if (!auth?.user || !isNew(auth.user.created_at)) return null;
   if (auth.demo_workspace) return { ws: auth.demo_workspace };
   return DEMO_URL ? { href: `${DEMO_URL}?tour` } : null;
 }

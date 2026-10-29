@@ -10511,6 +10511,12 @@ export type UserOut = {
      * They can sign in with a password, so they can change it.
      */
     has_password: boolean;
+    /**
+     * Created At
+     *
+     * When the account was made. The app offers its guided tour in the first 30 days.
+     */
+    created_at: string | null;
 };
 
 /**

@@ -208,7 +208,7 @@ def router(accounts: Accounts) -> APIRouter:
                 for o in accounts.orgs(list(cur.memberships))]
         u = cur.user
         return {"required": True, "providers": found, "user": {"id": u.id, "email": u.email, "name": u.name, "avatar_url": u.avatar_url,
-                                                               "has_password": accounts.has_password(u.id)},
+                                                               "has_password": accounts.has_password(u.id), "created_at": u.created_at},
                 "org": next((o for o in orgs if o["id"] == cur.org_id), None), "orgs": orgs, **extra,
                 "platforms": accounts.platforms(cur.org_id) if cur.org_id else None}
 

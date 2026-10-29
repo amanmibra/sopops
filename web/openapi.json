@@ -32409,6 +32409,19 @@
             "type": "boolean",
             "title": "Has Password",
             "description": "They can sign in with a password, so they can change it."
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At",
+            "description": "When the account was made. The app offers its guided tour in the first 30 days."
           }
         },
         "type": "object",
@@ -32417,7 +32430,8 @@
           "email",
           "name",
           "avatar_url",
-          "has_password"
+          "has_password",
+          "created_at"
         ],
         "title": "UserOut"
       },
