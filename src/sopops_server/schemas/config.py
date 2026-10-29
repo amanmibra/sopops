@@ -173,6 +173,8 @@ class PreviewResponse(BaseModel):
     valid: bool
     issues: list[IssueOut]
     prompt: str | None = Field(description="The instructions the agent would get with these fields; null if they don't compile.")
+    template: str | None = Field(None, description="`prompt` before its placeholders were filled.")
+    variables: dict[str, str] = Field({}, description="The values set in sopops that filled `prompt`; a placeholder without one is filled at call start.")
     hash: str | None
     blocks: list[PreviewBlock] = Field(description="What the instructions are built from, in order, groups expanded.")
     release: int | None

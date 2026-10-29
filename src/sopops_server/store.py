@@ -278,7 +278,8 @@ class Store:
         with self._session() as db:
             head = self._head_rows(db, ws)
             current = self._current(db, ws)
-        out = {"valid": False, "issues": [], "prompt": None, "hash": None, "blocks": [], "released_prompt": None, "release": current["number"] if current else None}
+        out = {"valid": False, "issues": [], "prompt": None, "template": None, "variables": {}, "hash": None, "blocks": [], "released_prompt": None,
+               "release": current["number"] if current else None}
         if current and agent in current["build"]["agents"]:
             out["released_prompt"] = current["build"]["agents"][agent]["prompt"]
         items = self._items(head)
@@ -303,7 +304,7 @@ class Store:
         out["issues"] = [forms.locate(i, names).to_dict() for i in compiled.issues]
         built = compiled.agents.get(agent) if compiled.valid else None
         if built:
-            out.update(valid=True, prompt=built["prompt"], hash=built["hash"], blocks=[{"kind": b["kind"], "id": b["id"]} for b in built["blocks"]])
+            out.update(valid=True, prompt=built["prompt"], template=built["template"], variables=built["variables"], hash=built["hash"], blocks=[{"kind": b["kind"], "id": b["id"]} for b in built["blocks"]])
         return out
 
     def migrate(self, workspace: str, apply: bool = False, author=None, note=None) -> dict:

@@ -22768,6 +22768,27 @@
             "title": "Prompt",
             "description": "The instructions the agent would get with these fields; null if they don't compile."
           },
+          "template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Template",
+            "description": "`prompt` before its placeholders were filled."
+          },
+          "variables": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Variables",
+            "description": "The values set in sopops that filled `prompt`; a placeholder without one is filled at call start.",
+            "default": {}
+          },
           "hash": {
             "anyOf": [
               {
@@ -22816,6 +22837,8 @@
           "valid",
           "issues",
           "prompt",
+          "template",
+          "variables",
           "hash",
           "blocks",
           "release",

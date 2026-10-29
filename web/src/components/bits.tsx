@@ -52,10 +52,42 @@ export function Tag({ tone, big, children, className }: { tone?: string; big?: b
   );
 }
 
+/** `{{name}}`, as sop reads it; split() keeps the name at the odd indexes. */
+export const PLACEHOLDER = /\{\{\s*([A-Za-z_][\w.-]*)\s*\}\}/;
+
+/** A variable in text: the value set in sopops, or the `{{name}}` the call fills at start. */
+export function VarChip({ name, value }: { name: string; value?: string }) {
+  return value === undefined ? (
+    <span className="bg-warn-soft text-warn rounded-sm px-0.5" title={`{{${name}}}: no value in sopops, so the code that starts the call fills it`}>
+      {`{{${name}}}`}
+    </span>
+  ) : (
+    <span className="bg-brand-soft text-primary rounded-sm px-0.5" title={`{{${name}}}: set in sopops. A value passed at call start replaces it.`}>
+      {value}
+    </span>
+  );
+}
+
+/** Text with its variables marked: each `{{placeholder}}` as a chip with its value from `values`, or as itself when it has none. */
+export function VarText({ text, values }: { text: string; values: Record<string, string> }) {
+  const parts = text.split(new RegExp(PLACEHOLDER, "g"));
+  return <>{parts.map((part, i) => (i % 2 ? <VarChip key={i} name={part} value={values[part]} /> : part))}</>;
+}
+
+/** What the two kinds of variable chip mean. */
+export function VarLegend() {
+  return (
+    <span className="text-muted-foreground flex items-center gap-2 text-sm">
+      <span className="bg-brand-soft text-primary rounded-sm px-1">Set in sopops</span>
+      <span className="bg-warn-soft text-warn rounded-sm px-1">{"{{at call start}}"}</span>
+    </span>
+  );
+}
+
 /** Rule text, with each `{{placeholder}}` still in it (a rule shared by agents that each set their own value) as a chip. */
 export function RuleText({ text }: { text: string | null | undefined }) {
   if (!text) return null;
-  const parts = text.split(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/);
+  const parts = text.split(new RegExp(PLACEHOLDER, "g"));
   return (
     <>
       {parts.map((part, i) =>

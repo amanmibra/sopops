@@ -381,7 +381,12 @@ export function AgentVars({
                 onChange={(e) => update(rows.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))}
               />
               {r.fixed ? <span /> : <RemoveVar name={name} onClick={() => update(rows.filter((_, j) => j !== i))} />}
-              {(from || name) && <div className="text-muted-foreground col-start-2 col-end-[-1] text-sm">{from ? `Used by ${from.join(", ")}` : "No block uses it"}</div>}
+              {(from || name) && (
+                <div className="text-muted-foreground col-start-2 col-end-[-1] flex flex-wrap items-center gap-x-2 text-sm">
+                  {from && <VarSource set={r.v !== ""} fallback={name in defaults} />}
+                  {from ? `Used by ${from.join(", ")}` : "No block uses it"}
+                </div>
+              )}
               {dup && <div className="text-err col-span-full text-sm">This name is used twice; the last value wins.</div>}
             </div>
           );
@@ -394,6 +399,16 @@ export function AgentVars({
         }}
       />
     </div>
+  );
+}
+
+/** Where a variable's value comes from; a value passed at call start wins over either. */
+function VarSource({ set, fallback }: { set: boolean; fallback: boolean }) {
+  if (!set && !fallback) return <span className="bg-warn-soft text-warn rounded-sm px-1">At call start</span>;
+  return (
+    <span className="bg-brand-soft text-primary rounded-sm px-1" title="A value passed at call start replaces it">
+      {set ? "This agent" : "Default from Settings"}
+    </span>
   );
 }
 

@@ -5068,6 +5068,20 @@ export type PreviewResponse = {
      */
     prompt: string | null;
     /**
+     * Template
+     *
+     * `prompt` before its placeholders were filled.
+     */
+    template: string | null;
+    /**
+     * Variables
+     *
+     * The values set in sopops that filled `prompt`; a placeholder without one is filled at call start.
+     */
+    variables: {
+        [key: string]: string;
+    };
+    /**
      * Hash
      */
     hash: string | null;

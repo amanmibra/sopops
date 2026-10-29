@@ -28,7 +28,7 @@ jobs:
           until docker exec pg pg_isready -U postgres; do sleep 1; done
           sleep 3  # the image restarts once after its first start
       - name: Install sop
-        run: curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=v0.1.1 SOP_INSTALL_DIR=/usr/local/bin sudo -E sh
+        run: curl -fsSL https://raw.githubusercontent.com/sopops-dev/sop/main/install.sh | SOP_REF=v0.1.2 SOP_INSTALL_DIR=/usr/local/bin sudo -E sh
       - run: uv sync --all-extras --python 3.12
       # Spread across the runner's cores; each worker gets its own database (tests/conftest.py).
       - run: uv run pytest -q -n auto

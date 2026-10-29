@@ -10,7 +10,7 @@ import { type Step, cleanStep } from "@/lib/model";
 import { prefs } from "@/lib/prefs";
 import { takeRestore } from "@/lib/restore";
 import { useWs } from "@/lib/workspace";
-import { Banner, Counts, IssueList, Segmented, Tag } from "./bits";
+import { Banner, Counts, IssueList, PLACEHOLDER, Segmented, Tag, VarLegend, VarText } from "./bits";
 import { DiffView } from "./diff-view";
 import { ActionBar, AgentVars, type Dirty, Field, StepRows, VarRows, useDirty, useItemSave } from "./form";
 import { useGo } from "./href-link";
@@ -62,7 +62,7 @@ function NameField({ isNew, value, onChange, errors, help, placeholder }: { isNe
 // --- agents: the builder ---------------------------------------------------------
 
 type AgentModel = Pick<AgentConfig, "id" | "platform" | "platform_id" | "context" | "blocks" | "variables">;
-type Preview = PreviewResponse | { valid: false; issues: IssueOut[]; prompt?: null; released_prompt?: null; release?: null };
+type Preview = PreviewResponse | { valid: false; issues: IssueOut[]; prompt?: null; template?: null; variables?: undefined; released_prompt?: null; release?: null };
 
 export function AgentEditor({ id }: { id: string }) {
   const { cfg } = useWs();
@@ -161,9 +161,10 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
     return frame(
       <>
         <b className="mr-auto">Draft instructions</b>
+        {hasVars(r) && <VarLegend />}
         <span className="text-muted-foreground text-sm">{why}</span>
       </>,
-      <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>,
+      <PromptText r={r} />,
     );
   }
   // Until someone picks, show what changes when the draft differs from the live prompt.
@@ -173,6 +174,7 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
   return frame(
     <>
       <b className="mr-auto">Draft instructions</b>
+      {shown === "prompt" && r && hasVars(r) && <VarLegend />}
       {shown === "prompt" && c && (c.add || c.del) ? <Counts {...c} /> : null}
       <Segmented
         small
@@ -198,12 +200,23 @@ function PromptPreview({ preview: r, here }: { preview: Preview | null; here: { 
         </Banner>
       </div>
     ) : shown === "prompt" ? (
-      <pre className="prompt max-h-[calc(100vh-170px)]">{r.prompt}</pre>
+      <PromptText r={r} />
     ) : (
       <div className="px-4 py-3 [&_.dv]:max-h-[calc(100vh-220px)]">
         <DiffView before={r.released_prompt} after={r.prompt} empty="Same as the live instructions." />
       </div>
     ),
+  );
+}
+
+const hasVars = (r: Preview) => !!r.template && PLACEHOLDER.test(r.template);
+
+/** The draft prompt with its variables marked: values set in sopops, and placeholders filled at call start. */
+function PromptText({ r }: { r: Preview }) {
+  return (
+    <pre className="prompt max-h-[calc(100vh-170px)]">
+      {r.template ? <VarText text={r.template} values={r.variables ?? {}} /> : r.prompt}
+    </pre>
   );
 }
 
