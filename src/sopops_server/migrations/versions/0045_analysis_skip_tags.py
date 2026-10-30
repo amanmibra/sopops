@@ -1,5 +1,5 @@
-"""Sessions with chosen tags aren't checked (`workspaces.analysis_skip_tags`): a `legacy` agent's calls come in and show,
-but sopops doesn't flag them for rules from prompts they don't use yet.
+"""Sessions with chosen tags aren't checked (`workspaces.analysis_skip_tags`): their calls come in and show,
+and no model checks them.
 
 Revision ID: 0045
 Revises: 0044

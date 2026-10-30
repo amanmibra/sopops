@@ -63,7 +63,7 @@ export interface AttachOptions {
   test?: string | null;
   /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
   config?: AgentConfig;
-  /** Labels for this call (`["legacy"]`), added to the agent's tags in sopops. */
+  /** Labels for this call (`["pilot"]`), added to the agent's tags in sopops. */
   tags?: string[];
   /** Also send each turn and tool call while the call runs (see `recordSession`). Default false. */
   stream?: boolean;
@@ -86,7 +86,7 @@ export interface RecordSessionOptions {
   test?: string | null;
   /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
   config?: AgentConfig;
-  /** Labels for this call (`["legacy"]`), added to the agent's tags in sopops. */
+  /** Labels for this call (`["pilot"]`), added to the agent's tags in sopops. */
   tags?: string[];
 }
 

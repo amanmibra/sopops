@@ -73,7 +73,7 @@ export interface ElevenLabsSessionInput extends Omit<FetchOptions, "platform"> {
   /** Settings to report (`{ version: "v2" }`), sent as `sopops_<key>` dynamic variables. sopops reads the agent's
    *  LLM, voice and TTS model itself, with the API key in Settings. */
   config?: Record<string, string | number | boolean>;
-  /** Labels for this conversation (`["legacy"]`), sent as the dynamic variable `sopops_tags` and added to the agent's tags in sopops. */
+  /** Labels for this conversation (`["pilot"]`), sent as the dynamic variable `sopops_tags` and added to the agent's tags in sopops. */
   tags?: string[];
   /** Not yet used: reserved for runtime guidance in a later version. */
   onGuidance?: (guidance: Guidance) => void;

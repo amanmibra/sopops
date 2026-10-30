@@ -1,4 +1,4 @@
-"""Tags: labels on agents (`legacy`, `sopops`, `pilot`) that sessions copy when they come in, to filter by.
+"""Tags: labels on agents (`pilot`, `beta`, `team:support`) that sessions copy when they come in, to filter by.
 
 An agent's tags are set in sopops, not in its sop file, so changing them needs no release. A session keeps the tags
 it came in with (its agent's at that moment, plus any its sender passed in `tags` or `sopops_tags` metadata): changing
@@ -22,7 +22,7 @@ _TAG = re.compile(r"^[a-z0-9][a-z0-9_.:/-]{0,63}$")
 
 
 def normalize(tag: str) -> str:
-    """Lowercase, trimmed, spaces as dashes: `Legacy Prompt` is `legacy-prompt`."""
+    """Lowercase, trimmed, spaces as dashes: `Night Shift` is `night-shift`."""
     return re.sub(r"\s+", "-", tag.strip().lower())
 
 

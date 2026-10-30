@@ -9,8 +9,8 @@ Resuming queues `process_session` again for every session held while it was paus
 resume (`auth.access`).
 
 Skipping tags: a session with any of the workspace's `skip_tags` (its own tags, copied from its agent when it came in)
-stops before routing too, `excluded` with a reason that names the tag, so a `legacy` agent's calls aren't flagged for
-rules from prompts they don't use yet. Taking a tag off the list queues the sessions it had skipped.
+stops before routing too, `excluded` with a reason that names the tag: those calls come in and show, but no model checks
+them. Taking a tag off the list queues the sessions it had skipped.
 """
 
 from __future__ import annotations

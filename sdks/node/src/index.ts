@@ -116,7 +116,7 @@ export interface SessionIn {
   /** What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `version`, any other setting.
    * A value can be a whole JSON object, so a variant's entire config can go in as it is. */
   config?: AgentConfig;
-  /** Labels for this session (`["legacy"]`), added to the tags it copies from its agent in sopops. Filter sessions by
+  /** Labels for this session (`["pilot"]`), added to the tags it copies from its agent in sopops. Filter sessions by
    * them, or have sopops skip checking them (Settings → Checks). */
   tags?: string[];
 }

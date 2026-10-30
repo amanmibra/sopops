@@ -6653,7 +6653,7 @@
           "sessions"
         ],
         "summary": "Set Agent Tags",
-        "description": "Replace an agent's tags (e.g. `legacy` or `sopops`, for which prompts it runs in production). Takes effect\nat once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs.",
+        "description": "Replace an agent's tags (e.g. `pilot` or `team:support`). Takes effect\nat once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs.",
         "operationId": "set_agent_tags",
         "parameters": [
           {
@@ -11268,7 +11268,7 @@
           "ai"
         ],
         "summary": "Set Analysis",
-        "description": "Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing\nis reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked\n(`queued`). `skip_tags`: sessions with any of them come in but aren't checked (a `legacy` agent's calls, say);\ntaking a tag off queues the sessions it skipped. Either field left out is unchanged.",
+        "description": "Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing\nis reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked\n(`queued`). `skip_tags`: sessions with any of them come in but aren't checked;\ntaking a tag off queues the sessions it skipped. Either field left out is unchanged.",
         "operationId": "set_analysis",
         "parameters": [
           {

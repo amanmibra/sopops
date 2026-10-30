@@ -1311,7 +1311,7 @@ export const listAgentTags = <ThrowOnError extends boolean = false>(options: Opt
 /**
  * Set Agent Tags
  *
- * Replace an agent's tags (e.g. `legacy` or `sopops`, for which prompts it runs in production). Takes effect
+ * Replace an agent's tags (e.g. `pilot` or `team:support`). Takes effect
  * at once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs.
  */
 export const setAgentTags = <ThrowOnError extends boolean = false>(options: Options<SetAgentTagsData, ThrowOnError>): RequestResult<SetAgentTagsResponses, SetAgentTagsErrors, ThrowOnError> => (options.client ?? client).put<SetAgentTagsResponses, SetAgentTagsErrors, ThrowOnError>({
@@ -1906,7 +1906,7 @@ export const getAnalysis = <ThrowOnError extends boolean = false>(options: Optio
  *
  * Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing
  * is reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked
- * (`queued`). `skip_tags`: sessions with any of them come in but aren't checked (a `legacy` agent's calls, say);
+ * (`queued`). `skip_tags`: sessions with any of them come in but aren't checked;
  * taking a tag off queues the sessions it skipped. Either field left out is unchanged.
  */
 export const setAnalysis = <ThrowOnError extends boolean = false>(options: Options<SetAnalysisData, ThrowOnError>): RequestResult<SetAnalysisResponses, SetAnalysisErrors, ThrowOnError> => (options.client ?? client).put<SetAnalysisResponses, SetAnalysisErrors, ThrowOnError>({

@@ -6,7 +6,7 @@ from sqlmodel import Field, ForeignKeyConstraint, Index, SQLModel
 
 
 class AgentTag(SQLModel, table=True):
-    """A label on an agent (`legacy`, `sopops`, `pilot`): set in sopops, not in the agent's sop file, so changing one
+    """A label on an agent (`pilot`, `beta`, `team:support`): set in sopops, not in the agent's sop file, so changing one
     needs no release. A session copies its agent's tags when it comes in."""
 
     __tablename__ = "agent_tags"

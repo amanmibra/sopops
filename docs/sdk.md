@@ -266,7 +266,7 @@ const ins = await attach(ctx, session, { agent: "tonys-pizza", fallback: FALLBAC
 | `variables` | `variables` | Values for the placeholders only this call knows. |
 | `test` | `test` | Names the [A/B test](ab-tests.md) this call is part of. |
 | `config` | `config` | Settings to report beyond the models read off the session. Yours win. |
-| `tags` | `tags` | Labels for this call (`["legacy"]`), added to the agent's [tags](sessions-and-review.md#tags). Filter sessions by them, or skip checking them. |
+| `tags` | `tags` | Labels for this call (`["pilot"]`), added to the agent's [tags](sessions-and-review.md#tags). Filter sessions by them, or skip checking them. |
 | `stream` | `stream` | Also send each turn and tool call as the call runs, from the session's `conversation_item_added` and `function_tools_executed` events. Default false. |
 | `on_guidance` | `onGuidance` | Not yet used, reserved for a later version. |
 
@@ -306,7 +306,7 @@ const conversation = await Conversation.startSession({ ...s.sessionOptions });
 | `agent` | `agent` | Required. The ElevenLabs agent id. |
 | `stream` | `stream` | Send the conversation as it happens, and post the whole conversation when it ends. Needs `ingest`. Default false. |
 | `test`, `config` | `test`, `config` | Sent as the dynamic variables `sopops_test` and `sopops_<key>`. sopops reads the agent's LLM, voice and TTS model itself. |
-| `tags` | `tags` | Labels for this conversation (`["legacy"]`), sent as the dynamic variable `sopops_tags` and added to the agent's [tags](sessions-and-review.md#tags). |
+| `tags` | `tags` | Labels for this conversation (`["pilot"]`), sent as the dynamic variable `sopops_tags` and added to the agent's [tags](sessions-and-review.md#tags). |
 | `release`, `fallback`, `variables` | `release`, `fallback`, `variables` | As on `fetch_instructions`. |
 | `on_guidance` | `onGuidance` | Not yet used, reserved for a later version. |
 

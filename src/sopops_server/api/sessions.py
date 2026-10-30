@@ -193,7 +193,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
 
     @r.put("/v1/workspaces/{workspace}/agent-tags/{agent}", response_model=TagsOut, dependencies=OPEN, tags=["sessions"])
     def set_agent_tags(workspace: str, agent: str, req: TagsIn) -> dict:
-        """Replace an agent's tags (e.g. `legacy` or `sopops`, for which prompts it runs in production). Takes effect
+        """Replace an agent's tags (e.g. `pilot` or `team:support`). Takes effect
         at once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs."""
         return {"tags": store.sessions.set_agent_tags(workspace, agent, req.tags)}
 

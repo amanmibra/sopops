@@ -102,7 +102,7 @@ async def attach(
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
     `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
     (`{"version": "v2", "turn_detection": "eou"}`); they win over what's read. `tags`: labels for this call
-    (`["legacy"]`), added to the agent's tags in sopops; filter sessions by them, or skip checking them.
+    (`["pilot"]`), added to the agent's tags in sopops; filter sessions by them, or skip checking them.
     `variables`: values for `{{placeholders}}` only this call knows, like the time or the caller. They're filled
     here, in your process, so they never reach sopops. A placeholder you pass no value for is left as it is and
     listed in `ins.unfilled`, so you can log one that shouldn't be there.

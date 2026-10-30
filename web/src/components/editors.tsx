@@ -130,7 +130,7 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
             </Field>
           </div>
           {!isNew && (
-            <Field id="tags" name="Tags" help="Labels to filter sessions and results by, e.g. legacy or sopops for which prompts the agent runs in production. Saved right away, no release needed. Each session keeps the tags its agent had when it came in." errors={errors}>
+            <Field id="tags" name="Tags" help="Labels to filter sessions and results by, e.g. pilot or team:support. Saved right away, no release needed. Each session keeps the tags its agent had when it came in." errors={errors}>
               <AgentTags ws={ws} agent={id} />
             </Field>
           )}

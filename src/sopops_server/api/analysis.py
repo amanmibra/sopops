@@ -25,7 +25,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     def set_analysis(workspace: str, req: AnalysisIn, background: BackgroundTasks) -> dict:
         """Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing
         is reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked
-        (`queued`). `skip_tags`: sessions with any of them come in but aren't checked (a `legacy` agent's calls, say);
+        (`queued`). `skip_tags`: sessions with any of them come in but aren't checked;
         taking a tag off queues the sessions it skipped. Either field left out is unchanged."""
         ws = workspace_id(workspace)
         queued: list = []  # while paused, these are held like any other session, and resuming queues them again

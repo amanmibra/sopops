@@ -27,15 +27,15 @@ Live UI updates work from any process on Postgres, only from the sopops process 
 
 ### Tags
 
-Tag agents to tell groups of them apart in Sessions and Insights, for example `legacy` and `sopops` while agents move from their old prompts to sopops one at a time. Add tags on the agent's page. They're saved right away, with no release.
+Tag agents to tell groups of them apart in Sessions and Insights, for example `pilot` or `team:support`. Add tags on the agent's page. They're saved right away, with no release.
 
-- **A session keeps the tags it came in with.** It copies its agent's tags when it arrives, so retagging an agent from `legacy` to `sopops` leaves its earlier sessions tagged `legacy`.
+- **A session keeps the tags it came in with.** It copies its agent's tags when it arrives, so retagging an agent from `pilot` to `live` leaves its earlier sessions tagged `pilot`.
 - **The sender can add tags** with `tags` in the session body, or `sopops_tags` in its metadata (a list, or one comma-separated string).
 - **Edit a session's tags** on its page, or with `PUT /v1/workspaces/{ws}/sessions/{id}/tags`. An agent's tags are `PUT /v1/workspaces/{ws}/agent-tags/{agent}`.
 - **Filter** Sessions and Insights by tag, or pass `tag=` (repeat it for sessions with every one) to `/sessions`, `/insights/*` and `/patterns`.
-- **Skip checking a tag** in Settings → Checks → Skip calls by tag, or with `skip_tags` on `PUT /v1/workspaces/{ws}/analysis`. Sessions with any of those tags come in with their transcripts but aren't checked: they're excluded, with "Not checked: tagged legacy." as the reason. That way a `legacy` agent isn't flagged for rules from prompts it doesn't use yet. Taking a tag off the list checks the sessions it skipped. Only owners and admins can change the list.
+- **Skip checking a tag** in Settings → Checks → Skip calls by tag, or with `skip_tags` on `PUT /v1/workspaces/{ws}/analysis`. Sessions with any of those tags come in with their transcripts but aren't checked: they're excluded, with "Not checked: tagged pilot." as the reason, and no model runs on them. Taking a tag off the list checks the sessions it skipped. Only owners and admins can change the list.
 
-Tags are lowercase letters, digits and `- _ . : /`, up to 64 characters. `Legacy Prompt` is stored as `legacy-prompt`.
+Tags are lowercase letters, digits and `- _ . : /`, up to 64 characters. `Night Shift` is stored as `night-shift`.
 
 **Insights** compares sessions checked, followed and needing attention against the same length of time just before ([definitions](api/insights.md)). Every number links to its sessions.
 

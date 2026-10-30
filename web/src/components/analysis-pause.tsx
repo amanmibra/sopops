@@ -1,7 +1,7 @@
 // Settings → Checks: pause the workspace's analysis. Calls keep coming in and their transcripts show, but nothing is
 // routed, checked, clustered or suggested until it's resumed, which checks what came in meanwhile. Owners and admins
 // only: the panel isn't there for anyone else (the server refuses them too). Skipping tags works the same way for just
-// the calls with one of them, like a legacy agent's that don't follow its sop yet.
+// the calls with one of them.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -36,8 +36,8 @@ function SkipTags() {
   return (
     <Panel title="Skip calls by tag">
       <p className="text-muted-foreground mb-3 text-sm">
-        Calls with any of these tags come in and show in Sessions, but aren't checked, so a <code>legacy</code> agent isn't flagged for rules from a prompt
-        it doesn't use yet. Calls take their agent's tags when they come in. Taking a tag off checks the calls it skipped.
+        Calls with any of these tags come in and show in Sessions, but aren't checked, and no AI runs on them. Calls take their agent's tags when they come
+        in. Taking a tag off checks the calls it skipped.
       </p>
       {state.data && (
         <TagEditor

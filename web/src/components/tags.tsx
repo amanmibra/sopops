@@ -74,7 +74,7 @@ export function TagEditor({ tags, save, suggestions = [], label }: { tags: strin
           className="h-7 w-44"
           value={text}
           list={listId}
-          placeholder={tags.length ? "Add a tag" : "e.g. legacy or sopops"}
+          placeholder={tags.length ? "Add a tag" : "e.g. pilot"}
           aria-label={`Add a tag to ${label}`}
           disabled={busy}
           onChange={(e) => {

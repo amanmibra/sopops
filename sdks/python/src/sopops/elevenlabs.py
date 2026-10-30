@@ -58,7 +58,7 @@ async def elevenlabs_session(
     `agent`: the ElevenLabs agent identifier, such as its agent id. `release`, `fallback` and `variables`: as on
     `SopOps.fetch_instructions`. `test`: an A/B test this conversation is part of (sent as the dynamic variable
     `sopops_test`). `config`: settings to report (`{"version": "v2"}`), sent as `sopops_<key>` dynamic variables;
-    sopops reads the agent's LLM, voice and TTS model itself. `tags`: labels for this conversation (`["legacy"]`),
+    sopops reads the agent's LLM, voice and TTS model itself. `tags`: labels for this conversation (`["pilot"]`),
     sent as the dynamic variable `sopops_tags` and added to the agent's tags in sopops. `stream=True`: send the conversation to sopops as it
     happens, and in full at `end` (a token with the `ingest` scope is needed). `on_guidance`: not yet used: reserved
     for runtime guidance in a later version."""
