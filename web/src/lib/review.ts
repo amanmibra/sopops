@@ -1,21 +1,32 @@
 // Review: verdicts on patterns, overrides on single findings, labels on any rule (corrections and spot checks), and the
 // suggestions a verdict leads to.
 import { queryOptions } from "@tanstack/react-query";
-import type { AgentPromptChange, CalibrateIn, OverrideIn, ReviewExample, ReviewItem, RuleLabelIn, RuleResultOut, SuggestionSummary, VerdictIn } from "@/client/types.gen";
+import type { AgentPromptChange, CalibrateIn, OrderStep, OverrideIn, ReviewExample, ReviewItem, RuleLabelIn, RuleResultOut, SuggestionSummary, VerdictIn } from "@/client/types.gen";
 import { call, sdk } from "./api";
 import { apiUrl } from "./paths";
 
 export type Verdict = VerdictIn["verdict"];
 export const VERDICTS: Verdict[] = ["real", "acceptable", "sop_wrong", "checker_wrong"];
 
-export const VERDICT: Record<Verdict, { label: string; key: string; help: string; tone: string; suggests: boolean }> = {
-  real: { label: "Real mistake", key: "1", help: "The agent made a real mistake. Its fix is followed in Fixing, then Fixed.", tone: "bg-err-soft text-err", suggests: true },
-  acceptable: { label: "Acceptable", key: "2", help: "Fine in this situation. Closed and hidden from now on. Doesn't go to Fixing or Fixed, even if you edit the rule.", tone: "bg-brand-soft text-primary", suggests: true },
-  sop_wrong: { label: "SOP is wrong", key: "3", help: "The instruction is wrong or outdated. Its fix is followed in Fixing, then Fixed.", tone: "bg-warn-soft text-warn", suggests: true },
-  checker_wrong: { label: "Checker is wrong", key: "4", help: "sopops misjudged; the agent didn't make this mistake. Closed, hidden, and listed on Fine tune as training data for the checker. Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
+/** `keys`: the answers that give it, in the two questions the picker asks (`ASK`). `help`: what it means and what follows. */
+export const VERDICT: Record<Verdict, { label: string; keys: string; help: string; tone: string; suggests: boolean }> = {
+  real: { label: "Real mistake", keys: "1 1", help: "The step is right; the agent didn't follow it. sopops drafts a clearer, more specific step for you to review. Followed in Fixing, then Fixed.", tone: "bg-err-soft text-err", suggests: true },
+  acceptable: { label: "Acceptable", keys: "2", help: "Fine in this situation. sopops drafts an exception into the step for this situation; the pattern closes and its findings stop counting. Doesn't go to Fixing or Fixed.", tone: "bg-brand-soft text-primary", suggests: true },
+  sop_wrong: { label: "SOP is wrong", keys: "1 2", help: "The step itself is wrong or outdated. sopops drafts a new version of the step for you to review. Followed in Fixing, then Fixed.", tone: "bg-warn-soft text-warn", suggests: true },
+  checker_wrong: { label: "Checker is wrong", keys: "3", help: "sopops misjudged; the agent didn't do this. Nothing changes in the SOP. The pattern closes, its findings stop counting, and they're used to recalibrate the checker and as training data (on Fine tune). Doesn't go to Fixing or Fixed.", tone: "bg-muted text-muted-foreground", suggests: false },
 };
 
-export type { RuleCorrectionOut, RuleLabelOut, SpotCheckItem, SpotCheckResponse } from "@/client/types.gen";
+/** The verdict as two questions: is this a problem, then (after yes) is the SOP's rule right. An answer gives a verdict
+ * or leads to the second question. `word` names the rule's kind ("step", "rule", "warning sign"). */
+export type Answer = { key: string; label: string; verdict?: Verdict; next?: true };
+export const ASK = {
+  problem: { question: "Is this a problem?", answers: [{ key: "1", label: "Yes", next: true }, { key: "2", label: "No, it's fine here", verdict: "acceptable" }, { key: "3", label: "sopops got it wrong", verdict: "checker_wrong" }] as Answer[] },
+  rule: (word: string) => ({ question: `Is the SOP ${word} right?`, answers: [{ key: "1", label: "Yes, the agent should follow it", verdict: "real" }, { key: "2", label: `No, the ${word} is wrong`, verdict: "sop_wrong" }] as Answer[] }),
+};
+/** What a rule of this kind is called in the second question. */
+export const ruleWord = (kind: string | null | undefined) => (kind === "never" ? "rule" : kind === "warning" ? "warning sign" : "step");
+
+export type { OrderStep, RuleCorrectionOut, RuleLabelOut, SpotCheckItem, SpotCheckResponse } from "@/client/types.gen";
 export type { CalibrateOut, CalibratedProcedure, CalibratedRule, MergeConflict, OverrideOut as FindingOverride, SinceWritten, ReviewExample, ReviewItem, ReviewResponse, SuggestionDetail, SuggestionSummary, VerdictOut, VerdictSaved } from "@/client/types.gen";
 export type SuggestionStatus = SuggestionSummary["status"];
 export const SUGGESTION_STATUSES: SuggestionStatus[] = ["proposed", "pr_open", "merged", "applied", "dismissed", "failed"];
@@ -113,8 +124,12 @@ export const regressionHref = (ws: string, id: string) => apiUrl(`/v1/workspaces
 export const summaryOf = (s: SuggestionSummary) => s.rationale?.split(/(?<=[.!?])\s/)[0] ?? null;
 
 /** An example finding as the pages show it, from the review queue or a pattern's examples. */
-export type Ex = { key: string; session_id: string; started_at: string | null; turn: number | null; excerpt: string | null; reason?: string | null; suppressed?: boolean; finding_id?: string };
-export const exOf = (e: ReviewExample): Ex => ({ key: e.finding_id, finding_id: e.finding_id, session_id: e.session_id, started_at: e.started_at, turn: turnOf(e), excerpt: e.excerpt, reason: e.reason, suppressed: e.suppressed });
+/** `tools`: its evidence is in the tool calls. `order`: an out-of-order finding's steps in that session. */
+export type Ex = { key: string; session_id: string; started_at: string | null; turn: number | null; excerpt: string | null; reason?: string | null; suppressed?: boolean; finding_id?: string; tools?: boolean; order?: OrderStep[] | null };
+export const exOf = (e: ReviewExample): Ex => ({
+  key: e.finding_id, finding_id: e.finding_id, session_id: e.session_id, started_at: e.started_at, turn: turnOf(e), excerpt: e.excerpt, reason: e.reason, suppressed: e.suppressed,
+  tools: e.evidence.some((x) => x.source === "tool_calls"), order: e.order,
+});
 
 /** The turn a finding's quote is on. */
 export const turnOf = (e: Pick<ReviewExample, "evidence">): number | null => {

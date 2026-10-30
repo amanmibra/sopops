@@ -136,8 +136,8 @@ Findings are grouped so the same mistake shows up once, with its count, instead 
 | `kind` | What it holds |
 |---|---|
 | `rule` | Every finding on one rule, in every wording it has had ([Rule lineage](#rule-lineage)). Its `rule_id` is the lineage id, the id of the rule's first wording. |
-| `sub` | One named failure mode of that rule. |
-| `other` | Findings on a split rule that fit no failure mode. |
+| `sub` | One of the rule's named patterns. |
+| `other` | Findings on a split rule that fit none of its named patterns. |
 
 A finding's `pattern_id` is its most specific pattern.
 
@@ -145,8 +145,8 @@ A finding's `pattern_id` is its most specific pattern.
 |---|---|
 | Named | A rule pattern is made with the rule's first finding and named then, once, by the reasoning model (`NamePattern`): what the agent did wrong, in a few plain words ("Didn't read the order back"). Without a model it takes the rule's text, trimmed to a short phrase, and the next recluster (or `sopops patterns rename [--workspace WS] [--all]`) names it with the model. |
 | Shown | The UI puts "Step 3" or "Never rule 2" beside the name. Its `description`, and `rule.text`, are the rule as sessions ran it most recently. |
-| Split | At 8 findings the reasoning model splits them into at most 5 named failure modes, plus an `other` sub-pattern. |
-| Assigned | New findings on a split rule go to one of its failure modes, or to `other`, by a decision (Jev, or the fast model). |
+| Split | At 8 findings the reasoning model splits them into at most 5 named patterns, plus an `other` sub-pattern. |
+| Assigned | New findings on a split rule go to one of its patterns, or to `other`, by a decision (Jev, or the fast model). |
 | Reclustered | Split again when 25 findings arrived since the last clustering, or when `other` holds more than 25% of its findings with at least 5 new since, plus a daily cron. |
 | Themed | The reasoning model groups a procedure's rule patterns by the phase of the session where they happen (opening, taking the order, closing), in session order. Existing theme names and ids are kept whenever they still fit. |
 
@@ -155,7 +155,7 @@ Reclustering keeps ids stable:
 | | |
 |---|---|
 | Matched | Each new cluster is matched to the old one it shares the most findings with (Jaccard over finding ids, at least 0.3), and keeps its id, name and verdicts. |
-| Retired | A failure mode that matches nothing is `retired`, not deleted. Its verdict carries over to the cluster that took most of its findings (Jaccard at least 0.3), unless that one has its own. |
+| Retired | A sub-pattern that matches nothing is `retired`, not deleted. Its verdict carries over to the cluster that took most of its findings (Jaccard at least 0.3), unless that one has its own. |
 | `clustered_at` | The last recluster that changed a sub-pattern's members materially: it was made then, or matched below a Jaccard of 0.5. |
 
 | When it runs | |
@@ -167,7 +167,7 @@ Reclustering keeps ids stable:
 | Endpoint | What it does |
 |---|---|
 | `GET /v1/workspaces/{ws}/patterns` | `{items, clustered_at}`: rule patterns with their `sub_patterns`, counted in the window (default 365 days; same window filters as Insights). Each has its `verdict`, `review_state` and `review_note` ([Review](#review-and-suggestions)) and `clustered_at`. The top-level `clustered_at` is the workspace's last clustering. Filters: `procedure`, `rule`. |
-| `GET /v1/workspaces/{ws}/patterns/{id}` | One pattern: the rule it's about, its failure modes (for a rule pattern), example phrasings and its sessions in the window, plus `verdict_history`, `suppressed_count`, `suggestions`, `fix_release`, `fix_sessions` and `fix_sessions_needed`. |
+| `GET /v1/workspaces/{ws}/patterns/{id}` | One pattern: the rule it's about, the patterns it splits into (for a rule pattern), example phrasings and its sessions in the window, plus `verdict_history`, `suppressed_count`, `suggestions`, `fix_release`, `fix_sessions`, `fix_sessions_needed` and `review_examples` (its 5 newest findings as `GET /review` gives them, `order` included). |
 | `POST /v1/workspaces/{ws}/patterns/recluster` | `{procedure?, rule?, force?}`: assign unassigned findings, recluster what's due (every rule with 8 or more findings with `force`), and regroup themes. Calls the models, synchronously. Returns `{assigned, reclustered, themed}`. |
 
 `sopops recluster [--workspace WS] [--procedure P] [--rule R] [--force]` does the same from the command line.
@@ -212,7 +212,7 @@ curl -s -H "Authorization: Bearer $SOPOPS_TOKEN" \
 
 ## Review and suggestions
 
-A reviewer gives a pattern (a rule pattern or a failure mode) a **verdict**, with an optional note and a free-text `reviewer`.
+A reviewer gives a pattern (a rule pattern or one of its sub-patterns) a **verdict**, with an optional note and a free-text `reviewer`.
 
 | Verdict | Means | Its findings | Suggestion |
 |---|---|---|---|
@@ -223,7 +223,7 @@ A reviewer gives a pattern (a rule pattern or a failure mode) a **verdict**, wit
 
 | | |
 |---|---|
-| Verdicts are appended, never edited | The latest is the pattern's verdict; the rest are its `verdict_history`. A failure mode without one has its rule pattern's (`inherited: true`). |
+| Verdicts are appended, never edited | The latest is the pattern's verdict; the rest are its `verdict_history`. A sub-pattern without one has its rule pattern's (`inherited: true`). |
 | An override | Says whether the checker got one finding right (`correct`), and optionally what actually happened (`status`: a finding status when it's right, another one when it's wrong). A wrong one is suppressed and becomes a negative label. A right one overrides a `checker_wrong` pattern for that finding. `acceptable` suppresses either way. Overrides are kept by session, procedure and rule, so they outlive a re-check. |
 | A rule label | A correction or a spot-check answer on one rule ([below](#corrections-and-spot-checks)). On a finding it's a call like an override; the latest call on a rule wins. |
 | Suppressed findings | Kept, flagged (`suppressed` on a session's rule results) and left out of every Insights count and rate. |
@@ -391,12 +391,12 @@ A procedure with fewer than 5 labeled sessions, or no rule with 3 labeled failur
 | `POST /v1/workspaces/{ws}/suggestions/{id}/rewrite` | `{reviewer?, guidance?}`. A new suggestion against the procedure as it is now; without `guidance` it keeps the old one's. Returns it, `generating`. `409` unless it's proposed. |
 | `POST /v1/workspaces/{ws}/suggestions/{id}/dismiss` | `{note?, reviewer?}`. |
 
-**`GET /review`** returns `{items, total, counts, clustered_at}`: active leaf patterns (a rule pattern that isn't split, else its failure modes and `other`) in the review states asked for, most sessions first, with `counts` per state. Query: `state` (repeatable; default `needs_review` and `regressed`) and `limit` (default 50, at most 500).
+**`GET /review`** returns `{items, total, counts, clustered_at}`: active leaf patterns (a rule pattern that isn't split, else its sub-patterns and `other`) in the review states asked for, most sessions first, with `counts` per state. Query: `state` (repeatable; default `needs_review` and `regressed`) and `limit` (default 50, at most 500).
 
 | Item field | |
 |---|---|
 | `theme_name`, `procedure_name`, `rule_text` | Where the pattern sits. |
-| `examples` | Up to 5 findings, newest first (suppressed ones last): `finding_id`, `session_id`, `started_at`, `status`, `excerpt`, `reason`, `evidence`, `suppressed`. |
+| `examples` | Up to 5 findings, newest first (suppressed ones last): `finding_id`, `session_id`, `started_at`, `status`, `excerpt`, `reason`, `evidence`, `suppressed`, `order`. `order`, on an out-of-order finding: every step of the procedure in that session (`index`, `text`, `status`, `turn`: its first evidence turn), in the procedure's order; sorting the done ones by `turn` gives the agent's. Null otherwise. |
 | `verdict` | The current verdict, or null. |
 | `review_state`, `review_reason`, `review_note` | As above. |
 | `fix_release`, `fix_sessions`, `fix_sessions_needed` | The fix and its progress. |
@@ -504,7 +504,7 @@ sop derives a rule's id from its text, so a reworded rule (by hand, or by an app
 
 | What follows the chain | |
 |---|---|
-| Its rule pattern | Keyed by the lineage id (the first wording's id), and so its verdicts, review states and failure modes. |
+| Its rule pattern | Keyed by the lineage id (the first wording's id), and so its verdicts, review states and sub-patterns. |
 | Suggestions | Made for the rule as it reads at head. |
 | Insights | Rows, trends, the rule page and release compare. |
 | Sessions | The `rule` filter. |

@@ -21751,6 +21751,55 @@
         "type": "object",
         "title": "OpenPullRequestIn"
       },
+      "OrderStep": {
+        "properties": {
+          "index": {
+            "type": "integer",
+            "title": "Index",
+            "description": "1-based, the step's place in the procedure."
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "done",
+              "out_of_order",
+              "skipped",
+              "not_reached",
+              "not_applicable",
+              "violated",
+              "ok",
+              "present",
+              "unheeded",
+              "absent"
+            ],
+            "title": "Status"
+          },
+          "turn": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turn",
+            "description": "The first turn of its evidence: where the agent did it. Null when it wasn't done or the turn isn't known."
+          }
+        },
+        "type": "object",
+        "required": [
+          "index",
+          "text",
+          "status",
+          "turn"
+        ],
+        "title": "OrderStep"
+      },
       "OrgIn": {
         "properties": {
           "name": {
@@ -22577,6 +22626,14 @@
             ],
             "title": "Fix Sessions Needed",
             "description": "With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed."
+          },
+          "review_examples": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewExample"
+            },
+            "type": "array",
+            "title": "Review Examples",
+            "description": "Its most recent findings (suppressed ones last), as the review queue shows them."
           }
         },
         "type": "object",
@@ -22612,7 +22669,8 @@
           "suggestions",
           "fix_release",
           "fix_sessions",
-          "fix_sessions_needed"
+          "fix_sessions_needed",
+          "review_examples"
         ],
         "title": "PatternDetail"
       },
@@ -26608,6 +26666,21 @@
           "suppressed": {
             "type": "boolean",
             "title": "Suppressed"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/OrderStep"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order",
+            "description": "An out-of-order finding: every step of the procedure in that session, in the procedure's order. Sorting the done ones by `turn` gives the agent's order."
           }
         },
         "type": "object",
@@ -26619,7 +26692,8 @@
           "excerpt",
           "reason",
           "evidence",
-          "suppressed"
+          "suppressed",
+          "order"
         ],
         "title": "ReviewExample"
       },

@@ -71,7 +71,7 @@ from .orm import (
     Verdict,
     Workspace,
 )
-from .pipeline.rollup import FINDING_STATUSES, Judged, combine_options, rollup, worst
+from .pipeline.rollup import FINDING_STATUSES, Judged, combine_options, first_turn, rollup, worst
 
 if TYPE_CHECKING:
     from .store import Store
@@ -372,7 +372,8 @@ class Verdicts:
             sugg = list(db.exec(select(Suggestion).where(Suggestion.workspace_id == ws, Suggestion.pattern_id == p.id).order_by(Suggestion.created_at.desc())))
             suggs = summaries(db, ws, sugg, p.name)
             state = self.state(db, ws, p, v)
-        return {"verdict": verdict_out(*v) if v else None, "verdict_history": [verdict_out(x) for x in history],
+            examples = _with_order(db, self._rows(db, p, EXAMPLES))
+        return {"verdict": verdict_out(*v) if v else None, "verdict_history": [verdict_out(x) for x in history], "review_examples": examples,
                 "suppressed_count": self.suppressed_count(ws, p), "suggestions": self.store.suggestions.annotate(ws, suggs), **state}
 
     def annotate(self, ws: str, items: list[dict[str, Any]]) -> None:
@@ -466,11 +467,8 @@ class Verdicts:
         return {"items": out, "total": len(items), "counts": counts, "clustered_at": self.clustered_at(ws)}
 
     def _item(self, db: Session, ws: str, p: Pattern, v: tuple[Verdict, bool] | None, state: dict[str, Any]) -> dict[str, Any]:
-        S, R, F = SessionRecord, RuleResult, Finding
-        rows = db.exec(
-            select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
-            .where(self._members(p)).order_by(F.suppressed, S.started_at.desc()).limit(EXAMPLES)
-        ).all()
+        F = Finding
+        rows = self._rows(db, p, EXAMPLES)
         text = lineage.latest(db, ws, p.procedure_id, p.rule_id)  # the wording its rule has now
         theme = db.get(Theme, p.theme_id) if p.theme_id else None
         name = db.exec(select(ProcedureCheck.procedure_name).where(ProcedureCheck.workspace_id == ws, ProcedureCheck.procedure_id == p.procedure_id).limit(1)).first()
@@ -483,7 +481,7 @@ class Verdicts:
             "theme_id": p.theme_id, "theme_name": theme.name if theme else None, "status": p.status,
             "findings": p.finding_count, "sessions": p.session_count, "first_seen": _utc(p.first_seen), "last_seen": _utc(p.last_seen),
             "clustered_at": _utc(p.clustered_at), "procedure_name": name or p.procedure_id, "rule": {"kind": text[0], "index": text[1], "text": text[2]} if text else {"kind": None, "index": None, "text": None},
-            "rule_text": text[2] if text else None, "examples": [_example(f, r, at) for f, r, at in rows], "verdict": verdict_out(*v) if v else None,
+            "rule_text": text[2] if text else None, "examples": _with_order(db, rows), "verdict": verdict_out(*v) if v else None,
             "new_findings": new, "suppressed_count": suppressed, "suggestion": suggestion_summary(sugg, p.name, release_with(db, ws, sugg)) if sugg else None, **state,
         }
 
@@ -491,10 +489,14 @@ class Verdicts:
         """A pattern's most recent findings (suppressed ones last), for a suggestion's prompt."""
         with self._db() as db:
             p = self._pattern(db, ws, pattern_id)
-            S, R, F = SessionRecord, RuleResult, Finding
-            rows = db.exec(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
-                           .where(self._members(p)).order_by(F.suppressed, S.started_at.desc()).limit(k)).all()
+            rows = self._rows(db, p, k)
         return p, [_example(f, r, at) for f, r, at in rows]
+
+    def _rows(self, db: Session, p: Pattern, k: int) -> list[tuple[Finding, RuleResult, datetime]]:
+        """A pattern's k most recent findings, suppressed ones last, with their rule results and session starts."""
+        S, R, F = SessionRecord, RuleResult, Finding
+        return list(db.exec(select(F, R, S.started_at).join(R, R.id == F.rule_result_id).join(S, S.id == F.session_id)
+                            .where(self._members(p)).order_by(F.suppressed, S.started_at.desc()).limit(k)).all())
 
     def effective_verdict(self, ws: str, pattern_id: str) -> tuple[Pattern, Verdict | None]:
         with self._db() as db:
@@ -573,6 +575,20 @@ class Verdicts:
             wrong_rules = {f.rule_id for f in by_session[sid] if f.rule_result_id in wrong}
             out.append(dspy.Example(turns=sessions[sid].turns, deviated=result == "deviated", failing=failing, wrong=wrong_rules, session_id=sid).with_inputs("turns"))
         return out
+
+
+def _with_order(db: Session, rows: list[tuple[Finding, RuleResult, datetime]]) -> list[dict[str, Any]]:
+    """The examples, each out-of-order one with every step of its session's procedure (`order`), so a page can show
+    the agent's order against the procedure's."""
+    keys = {(f.session_id, r.procedure_id) for f, r, _ in rows if r.status == "out_of_order"}
+    steps: dict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
+    if keys:
+        R = RuleResult
+        for x in db.exec(select(R).where(R.session_id.in_({sid for sid, _ in keys}), R.kind == "step")):
+            if (x.session_id, x.procedure_id) in keys:
+                steps[(x.session_id, x.procedure_id)].append({"index": x.index, "text": x.rule_text, "status": x.status, "turn": first_turn(x.evidence or [])})
+    return [{**_example(f, r, at), "order": sorted(steps[(f.session_id, r.procedure_id)], key=lambda x: x["index"]) if r.status == "out_of_order" else None}
+            for f, r, at in rows]
 
 
 def _example(f: Finding, r: RuleResult, at: datetime) -> dict[str, Any]:

@@ -173,6 +173,7 @@ Writes `out/backfill.jsonl` (200 calls over the 14 days before today, on release
 | Allergen check, step 3: check each item with `lookup_allergens` | answers from memory or points to the website | real |
 | Allergen check, warning sign 1: anaphylaxis or an EpiPen, transfer | keeps going instead of transferring | real |
 | Delivery orders, step 2: `check_delivery_zone` | takes the address without checking | real |
+| Delivery orders, step 3: read back the order and the total | reads it back before checking the zone (step 3 before step 2): out of order, so its card shows the order strip | none: left in Needs review |
 | Delivery orders, never 1: `Never tell the caller a delivery time` | gives the time from the zone check: worded too broadly, the team meant "before the zone check" | acceptable, with a suggested rewording |
 | Reservations, never 1: more than 8 guests needs the manager | confirms a large party itself | real |
 | Reservations, step 2: an OR step (book: `check_reservations`, OR change: `change_reservation`, OR cancel: `cancel_reservation`) | the caller asks to cancel and the agent moves the booking instead: the wrong option | real |

@@ -83,7 +83,7 @@ function StateCard({ item }: { item: ReviewItem }) {
           {item.kind !== "rule" && (
             <>
               <span aria-hidden>·</span>
-              <span>{item.kind === "other" ? "unnamed findings" : "failure mode"}</span>
+              <span>{item.kind === "other" ? "unnamed findings" : "pattern"}</span>
             </>
           )}
           <span className="ml-auto flex items-center gap-2">

@@ -18,7 +18,7 @@ from typing import Any
 
 from common import WS, all_sessions, call, client, load, match_modes, wait_until_up
 
-FAILING = {"skipped", "violated", "unheeded"}
+FAILING = {"skipped", "violated", "unheeded", "out_of_order"}
 SPLIT_AT = 8  # sopops_server.patterns.SPLIT_AT
 
 results: list[tuple[bool, str]] = []

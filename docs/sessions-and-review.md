@@ -46,16 +46,20 @@ Tags are lowercase letters, digits and `- _ . : /`, up to 64 characters. `Night 
 
 ## Patterns, review and suggestions
 
-**Patterns.** Each rule with findings is a pattern, named by the reviewer model ("Didn't read the order back") or by the rule's words without one. At 8 findings it splits into named failure modes ("Told the caller a dish is safe") that new findings join. Themes group them by call phase. Names and ids stay stable across reclusters ([how](api/checks-and-review.md#patterns-and-themes)).
+**Patterns.** Each rule with findings is a pattern, named by the reviewer model ("Didn't read the order back") or by the rule's words without one. At 8 findings it splits into named patterns ("Told the caller a dish is safe") that new findings join. Themes group them by call phase. Names and ids stay stable across reclusters ([how](api/checks-and-review.md#patterns-and-themes)).
 
-**Review.** Review → Mistakes → Needs review queues patterns for a verdict (keys `1` to `4`):
+**Review.** Review → Patterns → Needs review shows one pattern at a time as a card; the others are one line each (`j` and `k` move). The card labels what it's about: the **procedure**, what the **SOP says**, the **order** of the steps for an out-of-order pattern (at most three, the full order on the pattern's page), and one **example** linked to its session, with the rest folded under it. The model's summary is on the pattern's page ("Read more").
 
-| Verdict | Means | Then |
+The verdict is two questions, answered by keys:
+
+| Answer | Verdict | Then |
 |---|---|---|
-| Real mistake | Agent was wrong | Findings count. Suggests an instructions edit. |
-| Acceptable | Fine here | Findings suppressed: kept, but out of every Insights number. Suggests a rule exception. |
-| SOP is wrong | Instruction outdated | Suggests a rule rewrite. |
-| Checker is wrong | sopops misjudged; the agent didn't make this mistake | Findings suppressed, kept as calibration labels, and listed on Fine tune. |
+| Is this a problem? `1` Yes, then is the SOP step right? `1` Yes, the agent should follow it | Real mistake | Findings count. sopops drafts a clearer, more specific step. |
+| … `1` Yes, then `2` No, the step is wrong | SOP is wrong | sopops drafts a new version of the step. |
+| `2` No, it's fine here | Acceptable | Findings suppressed: kept, but out of every Insights number. sopops drafts an exception into the step. |
+| `3` sopops got it wrong | Checker is wrong | Nothing changes in the SOP. Findings suppressed, kept as calibration labels and training data, and listed on Fine tune. |
+
+Every fix is an edit to the SOP, drafted for you to review: nothing changes the agent directly. `n` adds a note to any answer: it's kept with the verdict, given to the model that drafts the edit, and exported with the training data. A verdict waits 6 seconds before it's saved, so `u` can undo it.
 
 You can mark one finding wrong. A judged pattern exports its sessions as regression cases (JSON Lines).
 
@@ -69,7 +73,7 @@ You can mark one finding wrong. A judged pattern exports its sessions as regress
 
 A corrected rule shows the status, who gave it and when. A missed mistake doesn't add a finding: the session's result, its patterns and Insights keep what the checker found, so a correction never changes a number without showing it. Every correction is a calibration label. The latest call on a rule wins, and it outlives a re-check.
 
-**Fine tune.** Review → Fine tune collects data for tuning sopops to your calls; its first collection point is **Checker spot checks**, one table with the patterns marked Checker is wrong on Mistakes and spot checks. Spot checks ask about rules the checker passed, one batch at a time (25 by default, `PUT /v1/workspaces/{ws}/spot-checks/settings`), so the work doesn't grow with call volume. A batch is spread across procedures and agents, and takes close calls and decisions the reviewer model changed first. Items are grouped by call, so one transcript answers all its rules, with filters for agent, procedure, rule, dates and why it was picked. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. A finished batch offers "Give me N more"; nothing is drawn twice, and an item left unanswered for 7 days expires quietly. Answers are labels, like corrections.
+**Fine tune.** Review → Fine tune collects data for tuning sopops to your calls; its first collection point is **Checker spot checks**, one table with the patterns marked Checker is wrong on Patterns and spot checks. Spot checks ask about rules the checker passed, one batch at a time (25 by default, `PUT /v1/workspaces/{ws}/spot-checks/settings`), so the work doesn't grow with call volume. A batch is spread across procedures and agents, and takes close calls and decisions the reviewer model changed first. Items are grouped by call, so one transcript answers all its rules, with filters for agent, procedure, rule, dates and why it was picked. Keys: `1` says the checker was right, `2` onward pick the right status, `j` and `k` move. A finished batch offers "Give me N more"; nothing is drawn twice, and an item left unanswered for 7 days expires quietly. Answers are labels, like corrections.
 
 | State | When |
 |---|---|

@@ -61,6 +61,8 @@ class Model:
                 status, ev = "violated", [{"turn": 2, "quote": "totally safe"}]
             if key == "step_2" and "ALSO" in inputs["transcript"]:
                 status = "skipped"
+            if mode == "ORDER" and key in ("step_1", "step_2"):  # step 2 said before step 1: out of order
+                ev = [{"turn": 2, "quote": "totally safe"}] if key == "step_1" else [{"turn": 0, "quote": "Hi"}]
             rules.append({"rule": key, "reason": f"fake mode {mode}", "status": status, "evidence": ev})
         return {"rules": rules, "goal_reason": "g", "goal_reached": "yes"}
 
@@ -231,6 +233,22 @@ def test_review_queue_and_states(env):
     # acceptable and checker_wrong: closed
     verdict(env, step["pattern_id"], "acceptable")
     assert queue(env)["items"] == [] and [i["review_state"] for i in queue(env, "closed")["items"]] == ["closed"]
+
+
+def test_out_of_order_examples_carry_the_sessions_steps(env):
+    env.send("ORDER")
+    item = next(i for i in queue(env)["items"] if i["examples"][0]["status"] == "out_of_order")
+    order = item["examples"][0]["order"]
+    assert [s["index"] for s in order] == sorted(s["index"] for s in order) and len(order) >= 2  # the procedure's order
+    first, second = order[0], order[1]
+    assert (first["status"], first["turn"]) == ("done", 2) and (second["status"], second["turn"]) == ("out_of_order", 0) and second["text"]
+    # the pattern page has the same examples
+    page = env.client.get(f"{WS}/patterns/{item['pattern_id']}").json()
+    assert page["review_examples"][0]["order"] == order
+    # other findings have none
+    env.send("A")
+    never = next(i for i in queue(env)["items"] if i["examples"][0]["status"] == "violated")
+    assert never["examples"][0]["order"] is None
 
 
 def test_a_fix_goes_from_fixing_to_fixed_or_regressed(env):

@@ -286,7 +286,7 @@ On each call, every rule of every procedure that applied gets a status:
 | Warning sign | `absent`, `present` (handled), `unheeded` (it came up and the agent didn't do what it says) |
 
 `skipped`, `violated`, `out_of_order` and `unheeded` are **findings**, the
-agent mistakes that show up on Mistakes. [Checks and review](api/checks-and-review.md)
+agent mistakes that show up on Patterns. [Checks and review](api/checks-and-review.md)
 has the full result format.
 
 ## Releases

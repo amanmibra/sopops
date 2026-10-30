@@ -23,7 +23,7 @@ const PURPOSE: Record<PurposeSpend["purpose"], { label: string; help: string }> 
   route: { label: "Routing", help: "Which procedures applied to each session." },
   check: { label: "Checks", help: "Each rule's decisions, and finding the quotes that show them." },
   review: { label: "Reviewer", help: "The reviewer model on the rules the decisions flagged or weren't sure about." },
-  cluster: { label: "Patterns", help: "Sorting findings into patterns, splitting rules into failure modes and naming them." },
+  cluster: { label: "Patterns", help: "Sorting findings into patterns, splitting a rule's findings into patterns and naming them." },
   theme: { label: "Themes", help: "Grouping a procedure's patterns by the phase of the call." },
   suggestion: { label: "Suggestions", help: "Writing suggested edits from verdicts." },
   calibrate: { label: "Calibration", help: "Fitting the check thresholds to your labels." },

@@ -35,7 +35,7 @@ const STEPS: Step[] = [
           This demo is a made-up restaurant group, Harbor Lane: four restaurants whose phones are answered by voice agents on LiveKit. Their 300 calls are made up too, but sopops worked
           through them the way it would for real.
         </p>
-        <p>Home is where the team starts: mistakes to look at, fixes to decide on, and edits that aren't live yet.</p>
+        <p>Home is where the team starts: patterns to look at, fixes to decide on, and edits that aren't live yet.</p>
       </>
     ),
   },
@@ -90,11 +90,11 @@ const STEPS: Step[] = [
     page: "patterns",
     target: "[data-card]",
     one: true,
-    title: "Misses become mistakes to review",
+    title: "Misses become patterns to review",
     body: (
       <p>
-        Findings from many calls are grouped by rule and by how they went wrong. The team gives each one a verdict: a real mistake, acceptable here, the procedure is wrong, or sopops got it
-        wrong. A real mistake gets a fix.
+        Findings from many calls are grouped into patterns, by rule and by how they went wrong. For each one the team answers two questions: is this a problem, and is the SOP right?
+        Every answer but "sopops got it wrong" has sopops draft an edit to the SOP.
       </p>
     ),
   },

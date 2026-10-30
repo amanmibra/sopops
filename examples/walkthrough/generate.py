@@ -78,6 +78,8 @@ MODES: dict[str, dict[str, str]] = {
             "description": "The agent tells the caller when the delivery will arrive, from the zone check. Fine: the rule is worded too broadly (release 1's \"Never tell the caller a delivery time\")."},
     "eta_early": {"procedure": "delivery-orders", "rule": "never_1", "verdict": "real", "releases": "2",
                   "description": "Under release 2's reworded rule: a delivery time given before the zone was checked."},
+    "late_zone": {"procedure": "delivery-orders", "rule": "step_3", "verdict": "real", "review": "left",
+                  "description": "The agent reads back the order and the total before checking the zone: step 3 before step 2, out of order. Left without a verdict, for the queue."},
     "large_party": {"procedure": "reservations", "rule": "never_1", "verdict": "real",
                     "description": "The agent confirms a table for more than 8 guests itself instead of transferring."},
     "wrong_option": {"procedure": "reservations", "rule": "option_2", "verdict": "real",
@@ -86,12 +88,12 @@ MODES: dict[str, dict[str, str]] = {
 
 RATES = {  # per call that the procedure applies to
     "backfill": {"safe_claim": 0.18, "free_kitchen": 0.10, "safe_disclaimer": 0.10, "no_lookup": 0.14, "emergency": 0.10, "no_transfer": 0.5,
-                 "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
+                 "no_zone": 0.15, "late_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
     "new": {"safe_claim": 0.03, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.14, "emergency": 0.10, "no_transfer": 0.5,
-            "no_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
+            "no_zone": 0.15, "late_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
     # followup.py, after release 3: the fixed mistakes stop; the large-party one (not fixed yet) carries on
     "followup": {"safe_claim": 0.0, "free_kitchen": 0.02, "safe_disclaimer": 0.10, "no_lookup": 0.0, "emergency": 0.10, "no_transfer": 0.0,
-                 "no_zone": 0.0, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
+                 "no_zone": 0.0, "late_zone": 0.15, "eta_clean": 0.7, "eta_no_zone": 0.6, "large": 0.3, "large_party": 0.6, "wrong_option": 0.4},
 }
 
 
@@ -227,6 +229,12 @@ def deliver(c: Call, r: dict[str, Any], items: list[str], rates: dict[str, float
             c.say(f"Got it, {address}. {readback} It'll be there in about {eta} minutes.")
         else:
             c.say(f"Got it, {address}. {readback}")
+        return
+    if rng.random() < rates["late_zone"]:  # the read-back before the zone check: step 3 before step 2
+        c.modes.append("late_zone")
+        c.say(f"Got it, {address}. {readback} Let me check that address.")
+        c.tool("check_delivery_zone", {"address": address}, {"in_zone": True, "estimated_minutes": eta})
+        c.say("You're inside our delivery zone. We'll text you when the driver leaves.")
         return
     c.tool("check_delivery_zone", {"address": address}, {"in_zone": True, "estimated_minutes": eta})
     if rng.random() < rates["eta_clean"]:

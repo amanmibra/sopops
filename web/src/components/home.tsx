@@ -1,4 +1,4 @@
-// Home: what needs you (mistakes to review, fixes waiting, unpublished changes) beside what the published fixes did,
+// Home: what needs you (patterns to review, fixes waiting, unpublished changes) beside what the published fixes did,
 // then this week's miss rate against the week before, and the latest sessions. Every figure comes from the API; the
 // only arithmetic is a before/after difference and the sessions it adds up to.
 import { useInfiniteQuery, useQueries, useQuery } from "@tanstack/react-query";
@@ -135,7 +135,7 @@ function Fixed() {
       <dl className="grid grid-cols-3 border-b">
         {(
           [
-            ["Mistakes closed", patterns ? verdicts.size : null],
+            ["Patterns closed", patterns ? verdicts.size : null],
             ["Fixes approved", all ? approved : null],
             ["Fixes published", all ? published : null],
           ] as const
@@ -164,7 +164,7 @@ function Fixed() {
           {rows.length > SHOWN_FIXES && (
             <p className="border-t px-4 py-2">
               <HrefLink href={wsHref(ws, "patterns") + "?tab=fixing"} className="text-muted-foreground">
-                {rows.length - SHOWN_FIXES} more in Mistakes
+                {rows.length - SHOWN_FIXES} more in Patterns
               </HrefLink>
             </p>
           )}
@@ -378,11 +378,11 @@ export function HomeView() {
       <Sub>What needs you in {ws}, and how the last 7 days went.</Sub>
       <Block title="What needs you" tour="needs-you" className="mb-6 grid md:grid-cols-3 md:[&>header]:col-span-3">
         <Queue
-          label="Mistakes to review"
+          label="Patterns to review"
           n={needsReview}
           items={(mistakes.data?.items ?? []).map((p) => ({ key: p.pattern_id, href: wsHref(ws, "patterns", p.pattern_id), text: p.name ?? "Unnamed mistake" }))}
           href={wsHref(ws, "patterns")}
-          action="Review mistakes"
+          action="Review patterns"
           empty="Nothing waiting for a verdict."
         />
         <Queue

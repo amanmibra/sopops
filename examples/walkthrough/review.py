@@ -56,6 +56,9 @@ def verdicts(http: Any, dry_run: bool) -> None:
         m = matched.get(mode)
         if spec.get("releases") == "2":
             continue  # only exists after release 2
+        if spec.get("review") == "left":
+            print(f"  {mode}: left without a verdict, for the Needs review queue")
+            continue
         if m is None:
             print(f"  {mode}: no pattern matches it{' (expected: real reviewers judge it fine)' if spec.get('checker') else ''}")
             continue

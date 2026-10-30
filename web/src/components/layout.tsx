@@ -1,5 +1,5 @@
 // The frame: the top bar (team, author or user menu, unpublished changes, settings, theme) and the workspace's side
-// rail, one list in the order of the loop: Home, then Review (mistakes, fixes, sessions), Results, Instructions, Publish.
+// rail, one list in the order of the loop: Home, then Review (patterns, fixes, sessions), Results, Instructions, Publish.
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "@tanstack/react-router";
 import {
@@ -335,8 +335,8 @@ export function RailFrame({ label, collapsed, children }: { label: string; colla
 
 const KIND_ICON: Record<ListKind, LucideIcon> = { agent: Bot, instruction: ScrollText, procedure: ListOrdered, group: Boxes };
 
-/** Keys for the loop's main pages: g h Home, g m Mistakes, g f Fixes, g s Sessions. */
-const JUMPS: Record<string, string> = { h: "", m: "patterns", f: "suggestions", s: "sessions" };
+/** Keys for the loop's main pages: g h Home, g p Patterns (g m too, its old name), g f Fixes, g s Sessions. */
+const JUMPS: Record<string, string> = { h: "", p: "patterns", m: "patterns", f: "suggestions", s: "sessions" };
 function useJumpKeys(ws: string) {
   const go = useGo();
   const armed = useRef(0);
@@ -486,7 +486,7 @@ export function Rail() {
           <RailItem collapsed={c} href={wsHref(ws)} icon={House} label="Home" active={home} />
         </RailGroup>
         <RailGroup label="Review" collapsed={c}>
-          <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={CircleAlert} label="Mistakes" count={needsReview} countTitle="Mistakes to review: no verdict yet, or back after a fix" />
+          <RailItem collapsed={c} href={wsHref(ws, "patterns")} icon={CircleAlert} label="Patterns" count={needsReview} countTitle="Patterns to review: no verdict yet, or back after a fix" />
           <RailItem collapsed={c} href={wsHref(ws, "suggestions")} icon={Wrench} label="Fixes" count={proposed} countTitle="Fixes waiting for a decision" />
           <RailItem collapsed={c} href={wsHref(ws, "sessions")} icon={MessagesSquare} label="Sessions" />
           <RailItem collapsed={c} href={wsHref(ws, "fine-tune")} icon={SlidersHorizontal} label="Fine tune" extra={fineTune ? undefined : <Tag>Hosted</Tag>} />

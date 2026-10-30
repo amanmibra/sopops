@@ -4319,6 +4319,32 @@ export type OpenPullRequestIn = {
 };
 
 /**
+ * OrderStep
+ */
+export type OrderStep = {
+    /**
+     * Index
+     *
+     * 1-based, the step's place in the procedure.
+     */
+    index: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Status
+     */
+    status: 'done' | 'out_of_order' | 'skipped' | 'not_reached' | 'not_applicable' | 'violated' | 'ok' | 'present' | 'unheeded' | 'absent';
+    /**
+     * Turn
+     *
+     * The first turn of its evidence: where the agent did it. Null when it wasn't done or the turn isn't known.
+     */
+    turn: number | null;
+};
+
+/**
  * OrgIn
  */
 export type OrgIn = {
@@ -4801,6 +4827,12 @@ export type PatternDetail = {
      * With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.
      */
     fix_sessions_needed: number | null;
+    /**
+     * Review Examples
+     *
+     * Its most recent findings (suppressed ones last), as the review queue shows them.
+     */
+    review_examples: Array<ReviewExample>;
 };
 
 /**
@@ -7180,6 +7212,12 @@ export type ReviewExample = {
      * Suppressed
      */
     suppressed: boolean;
+    /**
+     * Order
+     *
+     * An out-of-order finding: every step of the procedure in that session, in the procedure's order. Sorting the done ones by `turn` gives the agent's order.
+     */
+    order: Array<OrderStep> | null;
 };
 
 /**

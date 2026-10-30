@@ -407,7 +407,7 @@ export function SpotChecks() {
   );
 }
 
-/** Patterns marked "Checker is wrong" on Mistakes: already answered, listed here with the spot checks as the checker's training data. */
+/** Patterns marked "Checker is wrong" on Patterns: already answered, listed here with the spot checks as the checker's training data. */
 function MarkedRows({ items, loading, error, onRetry, alone }: { items: ReviewItem[]; loading: boolean; error: unknown; onRetry: () => void; alone: boolean }) {
   const { ws } = useWs();
   if (loading) return null;
@@ -420,7 +420,7 @@ function MarkedRows({ items, loading, error, onRetry, alone }: { items: ReviewIt
         </Button>
       </Banner>
     );
-  if (!items.length) return alone ? <p className="text-muted-foreground text-sm">Nothing marked Checker is wrong on Mistakes yet.</p> : null;
+  if (!items.length) return alone ? <p className="text-muted-foreground text-sm">Nothing marked Checker is wrong on Patterns yet.</p> : null;
   return (
     <>
       {items.map((p) => (
@@ -434,7 +434,7 @@ function MarkedRows({ items, loading, error, onRetry, alone }: { items: ReviewIt
             </span>
             <span aria-hidden>·</span>
             <span className="text-k-procedure">{p.procedure_name}</span>
-            <HrefLink className="ml-auto" href={wsHref(ws, "patterns", p.pattern_id)} title="Open the pattern on Mistakes">
+            <HrefLink className="ml-auto" href={wsHref(ws, "patterns", p.pattern_id)} title="Open the pattern on Patterns">
               {plural(p.findings, "finding", "findings")} in {plural(p.sessions, "call", "calls")}
             </HrefLink>
           </header>

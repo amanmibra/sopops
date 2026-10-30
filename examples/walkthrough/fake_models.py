@@ -57,6 +57,8 @@ LARGE_PARTY = re.compile(r"\b(?:party of|table for|booking for|for) (9|1\d|2\d|n
 CONFIRMED = re.compile(r"\b(?:you're all set|you are all set|is confirmed|that's booked|you're booked|booked you)\b", re.I)
 EMERGENCY = re.compile(r"anaphyla|epipen|epi-pen", re.I)
 CANCEL = re.compile(r"\bcancel\b", re.I)
+ASK_ADDRESS = re.compile(r"\baddress\b.*\?", re.I)
+READBACK = re.compile(r"\bThat's .+, \$[\d.]+ with the delivery fee\b")
 CHANGE = re.compile(r"\b(?:move it|change my reservation)\b", re.I)
 
 # Reasons double as failure-mode names, so clustering and assignment can match them.
@@ -69,6 +71,7 @@ REASONS = {
     "eta": "Gave the caller a delivery time",
     "eta_early": "Gave a delivery time before checking the zone",
     "no_zone": "Took a delivery address without checking the zone",
+    "late_zone": "Read back the order before checking the zone",
     "large_party": "Confirmed a large party without the manager",
     "no_availability": "Booked without checking availability",
     "no_change": "Didn't change the booking",
@@ -165,6 +168,13 @@ def judge(key: str, rule: str, lines: list[Line]) -> dict[str, Any]:
                 status, reason = "not_reached", "The call was transferred before this step."
             else:
                 bad("skipped", REASONS[tool[1]], None)
+    elif kind == "step" and "delivery address" in text:
+        if line := first(lines, "AGENT", ASK_ADDRESS):
+            reason, hit = "Asked for the delivery address.", line
+    elif kind == "step" and "read back the order" in text:
+        if line := first(lines, "AGENT", READBACK):  # its turn is what puts it in or out of order (the rollup's)
+            zone = tool_turn(lines, "check_delivery_zone")
+            reason, hit = (REASONS["late_zone"] if zone and line.turn < zone.turn else "Read back the order and the total."), line
     elif kind == "warning" and "anaphylaxis" in text:
         if user := first(lines, "USER", EMERGENCY):
             if tool_turn(lines, "transfer_to_staff"):
@@ -195,7 +205,7 @@ def check_rules(inputs: dict[str, Any]) -> dict[str, Any]:
 
 def headline(reason: str) -> str:
     """A finding's reason up to its first sentence end or the note in parentheses sopops adds (a required tool step's)."""
-    return reason.split(".")[0].split(" (")[0].strip()
+    return reason.removeprefix("Done out of order (after a later step). ").split(".")[0].split(" (")[0].strip()
 
 
 def cluster(inputs: dict[str, Any]) -> dict[str, Any]:
@@ -227,6 +237,7 @@ RULE_NAMES = [
     (("anaphylaxis",), "Didn't transfer an allergy emergency"),
     (("delivery time",), "Gave a delivery time"),
     (("delivery zone",), "Didn't check the delivery zone"),
+    (("read back the order",), "Read back the order out of turn"),
     (("8 guests",), "Booked a large party without the manager"),
     (("availability",), "Booked without checking availability"),
     (("changing a booking",), "Didn't change the booking"),

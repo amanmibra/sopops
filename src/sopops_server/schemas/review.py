@@ -9,20 +9,9 @@ from pydantic import Field
 
 from .base import BaseModel
 from .checks import RuleStatus
-from .patterns import PatternKind, RuleRef
+from .patterns import PatternKind, ReviewExample, RuleRef
 from .suggestions import SuggestionSummary
 from .verdicts import REVIEW_REASON_HELP, REVIEW_STATE_HELP, ReviewReason, ReviewState, VerdictOut
-
-
-class ReviewExample(BaseModel):
-    finding_id: str
-    session_id: str
-    started_at: datetime
-    status: RuleStatus
-    excerpt: str | None = Field(description="The first quote from the transcript.")
-    reason: str | None = Field(description="The checker's reason.")
-    evidence: list[dict[str, Any]]
-    suppressed: bool
 
 
 class ReviewItem(BaseModel):

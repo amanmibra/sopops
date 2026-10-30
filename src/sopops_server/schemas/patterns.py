@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
 from .base import BaseModel
-from .checks import RuleKind
+from .checks import RuleKind, RuleStatus
 from .suggestions import SuggestionSummary
 from .verdicts import REVIEW_REASON_HELP, REVIEW_STATE_HELP, ReviewReason, ReviewState, VerdictOut
 
@@ -34,6 +34,25 @@ class ExampleOut(BaseModel):
     turn: int | None
     quote: str
     status: str
+
+
+class OrderStep(BaseModel):
+    index: int = Field(description="1-based, the step's place in the procedure.")
+    text: str
+    status: RuleStatus
+    turn: int | None = Field(description="The first turn of its evidence: where the agent did it. Null when it wasn't done or the turn isn't known.")
+
+
+class ReviewExample(BaseModel):
+    finding_id: str
+    session_id: str
+    started_at: datetime
+    status: RuleStatus
+    excerpt: str | None = Field(description="The first quote from the transcript.")
+    reason: str | None = Field(description="The checker's reason.")
+    evidence: list[dict[str, Any]]
+    suppressed: bool
+    order: list[OrderStep] | None = Field(None, description="An out-of-order finding: every step of the procedure in that session, in the procedure's order. Sorting the done ones by `turn` gives the agent's order.")
 
 
 class PatternOut(BaseModel):
@@ -88,6 +107,7 @@ class PatternDetail(PatternOut):
     fix_release: int | None = Field(None, description="The release with the applied edit, once there is one.")
     fix_sessions: int | None = Field(None, description="Fixing (release live) and fixed: sessions checked on the procedure on the fix's release or later.")
     fix_sessions_needed: int | None = Field(None, description="With fix_sessions: how many it takes, with no finding in the pattern, to count as fixed.")
+    review_examples: list[ReviewExample] = Field(default_factory=list, description="Its most recent findings (suppressed ones last), as the review queue shows them.")
 
 
 class ReclusterRequest(BaseModel):

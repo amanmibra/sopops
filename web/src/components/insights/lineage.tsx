@@ -142,7 +142,7 @@ export function LineageCard({ procedureId, ruleId, kind, filters }: { procedureI
                     This rule replaced “{previous?.text ?? "the rule you picked"}”{previous ? ` (${ruleName(previous.kind, previous.index)})` : ""}.
                   </p>
                   <p>
-                    Their findings join one pattern. If both have patterns, they merge: failure modes, verdicts (the latest counts) and suggestions move over. Insights counts them as one rule. You can unlink them
+                    Their findings join one pattern. If both have patterns, they merge: patterns, verdicts (the latest counts) and suggestions move over. Insights counts them as one rule. You can unlink them
                     later.
                   </p>
                 </div>

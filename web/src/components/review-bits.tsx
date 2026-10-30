@@ -64,7 +64,7 @@ export function VerdictChip({ v, className }: { v: VerdictOut | null | undefined
       tip={
         <TipBody head={m.label}>
           {m.help}
-          {v.inherited ? " Given on the rule pattern; this failure mode has none of its own." : ""}
+          {v.inherited ? " Given on the rule pattern; this pattern has none of its own." : ""}
           {v.carried_from ? " Carried over from a pattern a recluster retired." : ""}
           {v.note && <span className="mt-1 block break-words whitespace-pre-line">“{v.note}”</span>}
           <span className="mt-1 block">
@@ -241,7 +241,7 @@ export function SuggestionState({ patternId, initial }: { patternId: string; ini
   );
 }
 
-/** Every pattern (rule patterns and failure modes) by id, with its verdict and review state, from one GET …/patterns. */
+/** Every pattern (rule patterns and the patterns they split into) by id, with its verdict and review state, from one GET …/patterns. */
 export function usePatternIndex(ws: string) {
   const res = useQuery({ ...q.patterns(ws), retry: false, staleTime: 30_000 });
   const index = useMemo(() => {

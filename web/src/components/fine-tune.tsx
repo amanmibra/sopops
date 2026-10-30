@@ -1,5 +1,5 @@
 // Fine tune: the data people give sopops to tune its models to this workspace's calls. Its first collection point is
-// the checker's spot checks: batches of rules the checker passed, and the patterns marked "Checker is wrong" on Mistakes.
+// the checker's spot checks: batches of rules the checker passed, and the patterns marked "Checker is wrong" on Patterns.
 // A hosted feature: open-source sopops shows what it is and where to get it (an extension turns on `fine_tune`).
 import { useQuery } from "@tanstack/react-query";
 import { ExternalLink, Keyboard } from "lucide-react";
@@ -26,7 +26,7 @@ export function FineTuneView() {
     <Page wide>
       <PageTitle>Fine tune</PageTitle>
       <Sub>
-        Answers you give here train sopops on your calls. Everything on this page is about the checker's calls, not the agent's mistakes: those are on Mistakes.
+        Answers you give here train sopops on your calls. Everything on this page is about the checker's calls, not the agent's: those are on Patterns.
       </Sub>
       {loading ? <Skel className="mt-6 h-40" /> : on ? <CheckerSpotChecks /> : <HostedOnly />}
     </Page>
@@ -45,7 +45,7 @@ function CheckerSpotChecks() {
         </Hint>
       </h2>
       <p className="text-muted-foreground mt-1 mb-3 text-sm">
-        Was the checker right? Batches of rules it passed, spread across procedures and agents, close calls and decisions the reviewer model changed first. Patterns you marked Checker is wrong on Mistakes are listed here too.
+        Was the checker right? Batches of rules it passed, spread across procedures and agents, close calls and decisions the reviewer model changed first. Patterns you marked Checker is wrong on Patterns are listed here too.
       </p>
       <SpotChecks />
     </>
@@ -66,13 +66,13 @@ function HostedOnly() {
         <dt className="font-medium">Checker spot checks</dt>
         <dd className="text-muted-foreground">Batches of rules the checker passed, close calls first, to say whether it was right.</dd>
         <dt className="font-medium">Checker is wrong, in one place</dt>
-        <dd className="text-muted-foreground">Every pattern your team marked Checker is wrong on Mistakes, next to the spot checks.</dd>
+        <dd className="text-muted-foreground">Every pattern your team marked Checker is wrong on Patterns, next to the spot checks.</dd>
         <dt className="font-medium">A checker tuned to you</dt>
         <dd className="text-muted-foreground">Models trained on your answers, and more ways to collect them as they ship.</dd>
       </dl>
       <p className="text-muted-foreground mt-4 text-sm">
         Here, your verdicts and corrections still recalibrate the checker's thresholds. You can still mark a pattern Checker is wrong on{" "}
-        <HrefLink href={wsHref(ws, "patterns")}>Mistakes</HrefLink>.
+        <HrefLink href={wsHref(ws, "patterns")}>Patterns</HrefLink>.
       </p>
       <Button asChild className="mt-5">
         <a href={HOSTED_URL} target="_blank" rel="noreferrer">
