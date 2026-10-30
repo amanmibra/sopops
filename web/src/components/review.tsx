@@ -258,7 +258,7 @@ function swapOf(order: OrderStep[] | null | undefined, index: number | null | un
 /** A step as one line: its number and text, cut to fit, with the whole text on hover. */
 function StepPill({ s, hit, className }: { s: OrderStep; hit?: boolean; className?: string }) {
   return (
-    <span title={`Step ${s.index}: ${s.text}`} className={cn("min-w-0 truncate rounded border px-2 text-sm", hit ? "border-err bg-err-soft text-err" : "border-input", className)}>
+    <span title={`Step ${s.index}: ${s.text}`} className={cn("min-w-0 truncate border px-2 text-sm", hit ? "border-err bg-err-soft text-err" : "border-input", className)}>
       <b className="font-semibold">{s.index}</b> {s.text}
     </span>
   );
@@ -303,7 +303,7 @@ function FullOrder({ order, index }: { order: OrderStep[]; index: number | null 
   const steps = [...order].sort((a, b) => a.index - b.index);
   const missing = steps.filter((s) => s.turn == null || !(s.status === "done" || s.status === "out_of_order"));
   const li = (s: OrderStep, hit: boolean) => (
-    <li key={s.index} className={cn("grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 rounded px-2 py-1 text-sm", hit ? "bg-err-soft text-err" : s.index === index && "bg-muted")}>
+    <li key={s.index} className={cn("grid grid-cols-[1.5rem_minmax(0,1fr)] gap-2 px-2 py-1 text-sm", hit ? "bg-err-soft text-err" : s.index === index && "bg-muted")}>
       <span className={hit ? "" : "text-muted-foreground"}>{s.index}</span>
       <span>{s.text}</span>
     </li>
