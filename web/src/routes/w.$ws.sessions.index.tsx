@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SessionsView } from "@/components/sessions";
 import type { SessionFilters } from "@/lib/api";
+import { tagList } from "@/lib/insights";
 
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const oneOf = <T extends string>(v: unknown, options: readonly T[]) => (options.includes(v as T) ? (v as T) : undefined);
@@ -30,6 +31,7 @@ export const Route = createFileRoute("/w/$ws/sessions/")({
       finding: typeof s.finding === "boolean" ? s.finding : undefined,
       eligible: typeof s.eligible === "boolean" ? s.eligible : undefined,
       suppressed: typeof s.suppressed === "boolean" ? s.suppressed : undefined,
+      tag: tagList(s.tag),
     };
   },
   component: Sessions,

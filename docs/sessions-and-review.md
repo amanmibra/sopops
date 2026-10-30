@@ -25,6 +25,17 @@ This runs inside sopops by default. With `HATCHET_CLIENT_TOKEN` it runs on [Hatc
 
 Live UI updates work from any process on Postgres, only from the sopops process on SQLite.
 
+### Tags
+
+Tag agents to tell groups of them apart in Sessions and Insights, for example `legacy` and `sopops` while agents move from their old prompts to sopops one at a time. Add tags on the agent's page. They're saved right away, with no release.
+
+- **A session keeps the tags it came in with.** It copies its agent's tags when it arrives, so retagging an agent from `legacy` to `sopops` leaves its earlier sessions tagged `legacy`.
+- **The sender can add tags** with `tags` in the session body, or `sopops_tags` in its metadata (a list, or one comma-separated string).
+- **Edit a session's tags** on its page, or with `PUT /v1/workspaces/{ws}/sessions/{id}/tags`. An agent's tags are `PUT /v1/workspaces/{ws}/agent-tags/{agent}`.
+- **Filter** Sessions and Insights by tag, or pass `tag=` (repeat it for sessions with every one) to `/sessions`, `/insights/*` and `/patterns`.
+
+Tags are lowercase letters, digits and `- _ . : /`, up to 64 characters. `Legacy Prompt` is stored as `legacy-prompt`.
+
 **Insights** compares sessions checked, followed and needing attention against the same length of time just before ([definitions](api/insights.md)). Every number links to its sessions.
 
 - A trend with release markers.

@@ -16,12 +16,13 @@ import { SpendCard } from "./spend";
 import { DeltaMark, HeaderHint, Hint, Kpi, KpiGrid, OutcomeBar, OutcomeLegend, RateN, Spark, TipBody, WidgetCard } from "./kit";
 import { AsOf, InsightsShell, Pick } from "./scope";
 
-export const scopeOf = (f: { start: string; end: string; agent?: string | null; releases?: number[]; channel?: string | null }): Scope => ({
+export const scopeOf = (f: { start: string; end: string; agent?: string | null; releases?: number[]; channel?: string | null; tags?: string[] }): Scope => ({
   start: f.start,
   end: f.end,
   agent: f.agent,
   releases: f.releases,
   channel: f.channel,
+  tags: f.tags,
 });
 
 /** Insights queries refetch every minute, so a preset window keeps ending at "now" in a tab left open. */

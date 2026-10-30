@@ -26,6 +26,9 @@ from ..schemas import (
     SessionOpen,
     SessionPage,
     SessionStatus,
+    AgentTagsOut,
+    TagsIn,
+    TagsOut,
 )
 from ..store import Store
 from ..tokens import INGEST
@@ -100,7 +103,7 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         """Close an open session with what streamed in, and check it. A session that isn't open is left as is."""
         ingest_token(workspace, credentials)
         req = req or SessionClose()
-        done = store.sessions.close(workspace, platform, external_id, req.ended_at, req.partial, test=req.test, config=req.config)
+        done = store.sessions.close(workspace, platform, external_id, req.ended_at, req.partial, test=req.test, config=req.config, tags=req.tags)
         if done.changed:
             jobs.process_session(done.ref, background)
         return {"id": done.id, "created": done.created, "updated": done.updated, "status": done.status, "warnings": done.warnings}
@@ -128,11 +131,12 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
         eligible: bool | None = Query(None, description="Only sessions Insights rates (checked or incomplete, with a result); false: the others."),
         suppressed: bool | None = Query(None, description="How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them "
                                         "out (what Insights counts), true matches only them; unset, both."),
+        tag: list[str] | None = Query(None, description="With this tag (as the session came in, or as edited since). Repeat for sessions with every one."),
     ) -> dict:
         """Sessions, newest first by start time. The drill-down filters are what Insights links to."""
         return store.sessions.list(
             workspace, agent=agent, channel=channel, status=status, result=result, platform=platform, since=since, until=until, cursor=cursor, limit=limit,
-            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding, eligible=eligible, suppressed=suppressed,
+            release=release, procedure=procedure, procedure_result=procedure_result, rule=rule, rule_status=rule_status, pattern=pattern, theme=theme, finding=finding, eligible=eligible, suppressed=suppressed, tag=tag,
         )
 
     @r.get(
@@ -176,5 +180,21 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     def get_session(workspace: str, id: str) -> dict:
         """One session with its transcript, tool calls and metadata."""
         return store.sessions.get(workspace, id)
+
+    @r.put("/v1/workspaces/{workspace}/sessions/{id}/tags", response_model=TagsOut, dependencies=OPEN, tags=["sessions"])
+    def set_session_tags(workspace: str, id: str, req: TagsIn) -> dict:
+        """Replace a session's tags. Its agent's tags aren't touched."""
+        return {"tags": store.sessions.set_tags(workspace, id, req.tags)}
+
+    @r.get("/v1/workspaces/{workspace}/agent-tags", response_model=AgentTagsOut, dependencies=OPEN, tags=["sessions"])
+    def list_agent_tags(workspace: str) -> dict:
+        """Each agent's tags, and every tag in use (on agents or sessions), for filters."""
+        return store.sessions.agent_tags(workspace)
+
+    @r.put("/v1/workspaces/{workspace}/agent-tags/{agent}", response_model=TagsOut, dependencies=OPEN, tags=["sessions"])
+    def set_agent_tags(workspace: str, agent: str, req: TagsIn) -> dict:
+        """Replace an agent's tags (e.g. `legacy` or `sopops`, for which prompts it runs in production). Takes effect
+        at once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs."""
+        return {"tags": store.sessions.set_agent_tags(workspace, agent, req.tags)}
 
     return r

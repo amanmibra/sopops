@@ -123,7 +123,7 @@ ROUTES: dict[str, str] = {
         "draft", "validate", "lint", "list_delivery", "set_platform_delivery", "list_platforms", "set_platform_secret", "delete_platform_secret", "test_platform_key", "list_pushes",
         "retry_pushes", "render", "migrate_files", "list_workspaces", "list_files", "edit_files", "replace_files", "get_file",
         "file_history",                                         "migrate",         "create_release", "list_releases", "get_release", "activate", "publish", "list_agents",
-        "list_fetches", "list_sessions", "stream_sessions", "get_session", "get_capture", "set_livekit", "delete_livekit", "test_livekit",
+        "list_fetches", "list_sessions", "stream_sessions", "get_session", "set_session_tags", "list_agent_tags", "set_agent_tags", "get_capture", "set_livekit", "delete_livekit", "test_livekit",
         "set_post_call_secret", "delete_post_call_secret", "set_elevenlabs_live", "list_tokens", "create_token", "revoke_token", "list_patterns",
         "get_pattern", "recluster_patterns", "review_queue", "set_verdict", "override_finding", "label_rule", "spot_checks", "draw_spot_checks",
         "get_spot_check_settings", "set_spot_check_settings", "export_regression", "calibrate",

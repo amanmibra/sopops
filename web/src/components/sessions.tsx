@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "./ui/sheet";
 import { Hint } from "./insights/kit";
 import { SessionCost } from "./insights/spend";
+import { SessionTags, TagChips, useTags } from "./tags";
 
 type Status = SessionSummary["status"];
 
@@ -158,6 +159,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
   const set = (patch: Partial<SessionFilters>) => onFilters({ ...filters, ...patch });
   const filtered = Object.values(filters).some((v) => v != null && v !== "" && !(Array.isArray(v) && !v.length));
   const agents = [...new Set([...cfg.agents.map((a) => a.id), ...(filters.agent ? [filters.agent] : [])])];
+  const tagOptions = [...new Set([...useTags(ws).used, ...(filters.tag ?? [])])];
   const [openId, setOpenId] = useState<string | null>(null);
   const focus = !!filters.procedure;
   const outcomeKey = focus ? "procedure_result" : "result";
@@ -190,6 +192,9 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
 
       <div className="mb-4 flex flex-wrap items-center gap-2" role="group" aria-label="Filters">
         <FilterSelect label="Agent" value={filters.agent} options={agents.map((a) => [a, a])} onChange={(agent) => set({ agent })} />
+        {tagOptions.length > 0 && (
+          <FilterSelect label="Tag" value={filters.tag?.[0]} options={tagOptions.map((t) => [t, `#${t}`])} onChange={(t) => set({ tag: t ? [t] : undefined })} />
+        )}
         <FilterSelect label="Channel" value={filters.channel} options={[["voice", "Voice"], ["text", "Text"]]} onChange={(channel) => set({ channel })} />
         <FilterSelect label="Status" value={filters.status} options={(Object.keys(STATUS) as Status[]).map((s) => [s, s])} onChange={(status) => set({ status })} />
         <FilterSelect label="Result" value={filters.result} options={(Object.keys(RESULT) as Result[]).map((r) => [r, RESULT[r].label])} onChange={(result) => set({ result })} />
@@ -256,6 +261,7 @@ export function SessionsView({ filters, onFilters }: { filters: SessionFilters; 
                       {agentName(s)}
                     </span>
                     <div className="text-muted-foreground text-xs"><PlatformLabel platform={s.platform} size={12} /></div>
+                    <TagChips tags={s.tags} className="mt-1" />
                   </td>
                   <td className="border-b px-2 py-2 capitalize">{s.channel}</td>
                   <td className="border-b px-2 py-2 text-right tabular-nums">{clock(s.duration_s) || <span className="text-muted-foreground">—</span>}</td>
@@ -485,6 +491,7 @@ export function SessionView({ id, at }: { id: string; at?: SessionAt }) {
           <HrefLink href={wsHref(ws, "releases", s.release_id)}>#{s.release_id}</HrefLink>
           {release?.note && <span className="text-muted-foreground block text-sm break-words">{release.note}</span>}
         </> : "—"],
+    ["Tags", <SessionTags ws={ws} id={s.id} tags={s.tags ?? []} />],
     ["Platform version", s.version_ref ?? "—"],
     ["Platform", `${s.platform} (${s.channel})`],
     ["Platform id", <code className="text-sm break-all">{s.external_id}</code>],

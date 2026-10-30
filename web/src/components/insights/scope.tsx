@@ -10,6 +10,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { useTags } from "../tags";
 
 const ANY = "any";
 
@@ -88,11 +89,12 @@ function WindowPicker({ filters, onChange }: { filters: InsightFilters; onChange
   );
 }
 
-/** Window, procedure, agent, release and channel: the scope of every number on the page. */
+/** Window, procedure, agent, release, channel and tag: the scope of every number on the page. */
 export function ScopeBar({ filters, onChange, procedure = true, release = true }: { filters: InsightFilters; onChange: (f: InsightFilters) => void; procedure?: boolean; release?: boolean }) {
-  const { cfg, releases } = useWs();
+  const { ws, cfg, releases } = useWs();
   const set = (patch: Partial<InsightFilters>) => onChange({ ...filters, ...patch });
   const agents = [...new Set([...cfg.agents.map((a) => a.id), ...(filters.agent ? [filters.agent] : [])])];
+  const tags = [...new Set([...useTags(ws).used, ...(filters.tag ?? [])])];
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Scope">
       <WindowPicker filters={filters} onChange={set} />
@@ -108,6 +110,7 @@ export function ScopeBar({ filters, onChange, procedure = true, release = true }
         />
       )}
       <Pick label="Channel" value={filters.channel} options={[["voice", "Voice"], ["text", "Text"]]} onChange={(channel) => set({ channel: channel as InsightFilters["channel"] })} />
+      {tags.length > 0 && <Pick label="Tag" value={filters.tag?.[0]} options={tags.map((t) => [t, `#${t}`])} onChange={(t) => set({ tag: t ? [t] : undefined })} />}
     </div>
   );
 }

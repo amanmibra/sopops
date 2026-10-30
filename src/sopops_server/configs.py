@@ -25,7 +25,7 @@ from typing import Any, Mapping
 
 PREFIX = "sopops_"
 TEST_KEY = "sopops_test"
-NOT_CONFIG = {"sopops_release", "sopops_agent", "sopops_prompt_id", TEST_KEY}  # pins and names, not settings
+NOT_CONFIG = {"sopops_release", "sopops_agent", "sopops_prompt_id", TEST_KEY, "sopops_tags"}  # pins, names and tags, not settings
 MAX_KEYS = 32
 MAX_VALUE = 1024  # characters, a string setting
 MAX_PROMPT = 65536  # characters, the prompt
@@ -49,7 +49,7 @@ def from_metadata(meta: Mapping[str, Any] | None) -> tuple[str | None, dict[str,
     if isinstance(nested, Mapping):
         flat.update({PREFIX + k: v for k, v in nested.items() if isinstance(k, str) and PREFIX + k not in flat})
     test = flat.get(TEST_KEY)
-    config = {k[len(PREFIX):]: v for k, v in flat.items() if k not in NOT_CONFIG and k[len(PREFIX):] not in ("agent", "release", "test")}
+    config = {k[len(PREFIX):]: v for k, v in flat.items() if k not in NOT_CONFIG and k[len(PREFIX):] not in ("agent", "release", "test", "tags")}
     return (str(test).strip() or None) if isinstance(test, (str, int)) and not isinstance(test, bool) else None, clean(config)
 
 

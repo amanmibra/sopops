@@ -34,8 +34,9 @@ def router(store: Store) -> APIRouter:
         release: list[int] | None = Query(None, description="Only sessions that ran these releases."),
         channel: Channel | None = None,
         test: str | None = Query(None, description="Only sessions that reported this A/B test."),
+        tag: list[str] | None = Query(None, description="Only sessions with this tag (as they came in). Repeat for sessions with every one."),
     ) -> Filters:
-        return Filters.make(workspace_id(workspace), window, start, end, agent, procedure, release, channel, test=test)
+        return Filters.make(workspace_id(workspace), window, start, end, agent, procedure, release, channel, test=test, tags=tag)
 
     @r.get("/v1/workspaces/{workspace}/insights/overview", response_model=OverviewResponse, dependencies=OPEN, tags=["insights"])
     def insights_overview(f: Filters = Depends(insight_filters)) -> dict:

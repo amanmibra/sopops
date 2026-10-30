@@ -20,7 +20,7 @@ from sqlalchemy.dialects import postgresql, sqlite
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, and_, or_, select, text
 
-from . import configs, lineage
+from . import configs, lineage, tags
 from .auth import actor
 from .events import CHANNEL, Broker
 from .orm import (
@@ -145,6 +145,7 @@ class Sessions:
                     setattr(row, k, v)
             db.add(row)
             db.flush()
+            warnings += self._tag(db, ws, row, created, p.tags, p.metadata)
             self._emit(db, {"type": "created" if created else "updated", "workspace": ws, "id": row.id, "status": row.status})
             return Ingested(row.id, created, not created, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=digest))
 
@@ -176,6 +177,7 @@ class Sessions:
             )
             db.add(row)
             db.flush()
+            warnings += self._tag(db, ws, row, True, p.tags, p.metadata)
             self._emit(db, {"type": "created", "workspace": ws, "id": row.id, "status": row.status})
             return Ingested(row.id, True, False, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
 
@@ -228,9 +230,9 @@ class Sessions:
             return ref, True
 
     def close(self, workspace: str, platform: str, external_id: str, ended_at: datetime | None = None, partial: bool = False,
-              reason: str | None = None, test: str | None = None, config: dict[str, Any] | None = None) -> Ingested:
+              reason: str | None = None, test: str | None = None, config: dict[str, Any] | None = None, tags: list[str] | None = None) -> Ingested:
         """Close an open session so it's checked, with what streamed in. A session that isn't open is left as is.
-        `test` and `config` (settings learned during the call) are merged over what was sent at open."""
+        `test` and `config` (settings learned during the call) are merged over what was sent at open; `tags` are added."""
         ws = workspace_id(workspace)
         with self._db() as db, db.begin():
             row = self._row(db, ws, platform, external_id)
@@ -246,6 +248,7 @@ class Sessions:
                 if kept and "prompt" not in merged:
                     merged["prompt"] = kept
                 row.config, row.config_hash = merged or None, configs.config_hash(merged)
+            warnings = self._tag(db, ws, row, False, tags or [], None)
             row.status = "incomplete" if partial else "received"
             row.status_reason = (reason or SENDER_INCOMPLETE) if partial else None
             row.ended_at = to_utc(ended_at) or row.ended_at or _now()
@@ -254,7 +257,7 @@ class Sessions:
             db.add(row)
             db.flush()
             self._emit(db, {"type": "updated", "workspace": ws, "id": row.id, "status": row.status})
-            return Ingested(row.id, False, True, row.status, [], SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
+            return Ingested(row.id, False, True, row.status, warnings, SessionRef(workspace_id=ws, session_id=row.id, revision=row.payload_hash))
 
     def close_idle(self, workspace: str | None = None, idle: timedelta = IDLE) -> list[SessionRef]:
         """Close open sessions with no events for `idle` as incomplete (the sender never posted or closed them)."""
@@ -299,7 +302,9 @@ class Sessions:
         # as normalizing stores them: a session is stored as sent and normalized a moment later (by a run that a re-send
         # can overtake), and normalizing what's already normalized changes nothing
         turns, calls = normalize_turns(row.turns, row.started_at), normalize_tool_calls(row.tool_calls, row.started_at)
-        return {**_summary(row), "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row),
+        with self._db() as db:
+            tagged = tags.for_sessions(db, [row.id])[row.id]
+        return {**_summary(row), "tags": tagged, "turns": turns, "tool_calls": calls, "metadata": row.meta, "checks": self.store.checks.for_session(row),
                 **self.store.usage.session(row.workspace_id, row.id)}
 
     def list(
@@ -325,6 +330,7 @@ class Sessions:
         finding: bool | None = None,
         eligible: bool | None = None,
         suppressed: bool | None = None,
+        tag: list[str] | None = None,
     ) -> dict:
         """Newest first (by start time). `agent` matches the sop agent or the agent as sent. The drill-down filters
         (procedure, its result, rule and status, pattern, theme, any finding) each narrow to sessions with such a
@@ -369,6 +375,8 @@ class Sessions:
             q = q.where(has if finding else ~has)
         if agent:
             q = q.where(or_(S.agent_id == agent, S.agent_ref == agent))
+        if tag:
+            q = q.where(*tags.has_all(workspace_id(workspace), tags.clean(tag, strict=False), S))
         if channel:
             q = q.where(S.channel == channel)
         if status:
@@ -389,7 +397,8 @@ class Sessions:
             rows = list(db.exec(q))
             more = len(rows) > limit
             rows = rows[:limit]
-            items = [_summary(r) for r in rows]
+            tagged = tags.for_sessions(db, [r.id for r in rows])
+            items = [{**_summary(r), "tags": tagged[r.id]} for r in rows]
             if procedure and items:  # that procedure's check on each session, one dot per rule
                 ids = [r.id for r in rows]
                 checks = {pc.session_id: pc for pc in db.exec(select(ProcedureCheck).where(ProcedureCheck.session_id.in_(ids), ProcedureCheck.procedure_id == procedure))}
@@ -421,6 +430,39 @@ class Sessions:
             db.execute(dialect.insert(PromptText.__table__).values(workspace_id=ws, hash=stored["prompt"], text=prompt, created_at=now).on_conflict_do_nothing())
         test = (meta_test or test or "").strip()[: configs.MAX_TEST] or None
         return test, stored or None, chash, warnings
+
+    def _tag(self, db: Session, ws: str, row: SessionRecord, created: bool, sent: list[str], metadata: dict[str, Any] | None) -> list[str]:
+        """Give the session the tags its sender passed and, when it's new, its agent's tags as they are now: a copy, so
+        changing the agent's tags later leaves the session as it was. Returns warnings for tags it couldn't use."""
+        kept = tags.clean(sent, strict=False)
+        warnings = [f"Tag '{t}' isn't valid (letters, digits and - _ . : /, up to 64 characters); it was left out."
+                    for t in sent if tags.normalize(t) not in kept]
+        add = [*(tags.for_agent(db, ws, row.agent_id) if created else []), *kept, *tags.from_metadata(metadata)]
+        if add:
+            tags.add_to_session(db, ws, row.id, add)
+        return warnings
+
+    def agent_tags(self, workspace: str) -> dict:
+        ws = workspace_id(workspace)
+        with self._db() as db:
+            return {"agents": tags.by_agent(db, ws), "used": tags.used(db, ws)}
+
+    def set_agent_tags(self, workspace: str, agent: str, new: list[str]) -> list[str]:
+        """Replace an agent's tags. Sessions already in keep the tags they came in with."""
+        ws = workspace_id(workspace)
+        cleaned = tags.clean(new)
+        with self._db() as db, db.begin():
+            self._ensure_workspace(db, ws)
+            tags.set_agent(db, ws, agent[:256], cleaned)
+        return cleaned
+
+    def set_tags(self, workspace: str, id: str, new: list[str]) -> list[str]:
+        """Replace a session's tags."""
+        row = self.load(workspace, id)
+        cleaned = tags.clean(new)
+        with self._db() as db, db.begin():
+            tags.set_session(db, row.workspace_id, row.id, cleaned)
+        return cleaned
 
     def _ensure_workspace(self, db: Session, ws: str) -> None:
         dialect = postgresql if self.postgres else sqlite

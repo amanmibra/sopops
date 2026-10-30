@@ -117,6 +117,7 @@ export const q = {
       initialPageParam: null as string | null,
       getNextPageParam: (last) => last.next_cursor,
     }),
+  agentTags: (ws: string) => queryOptions({ queryKey: ["ws", ws, "agent-tags"], queryFn: () => call(sdk.listAgentTags(path(ws))) }),
   session: (ws: string, id: string) => queryOptions({ queryKey: ["ws", ws, "session", id], queryFn: () => call(sdk.getSession({ path: { workspace: ws, id } })) }),
   tokens: (ws: string) => queryOptions({ queryKey: ["ws", ws, "tokens"], queryFn: () => call(sdk.listTokens(path(ws))) }),
   release: (ws: string, number: number) =>
@@ -174,6 +175,8 @@ export type InsightFilters = {
   procedure?: string;
   release?: number[];
   channel?: "voice" | "text";
+  /** Sessions with every one of these tags (as they came in). */
+  tag?: string[];
 };
 
 /** Local midnight of a YYYY-MM-DD day, plus `days`, as an ISO instant. */
@@ -184,7 +187,7 @@ const dayIso = (day: string, days = 0) => {
 
 function insightQuery(f: InsightFilters) {
   const custom = f.start ? { start: dayIso(f.start), end: f.end ? new Date(Math.min(Date.parse(dayIso(f.end, 1)) - 1, Date.now())).toISOString() : undefined } : null;
-  return { window: custom ? undefined : (f.window ?? "7d"), ...custom, agent: f.agent, procedure: f.procedure, release: f.release?.length ? f.release : undefined, channel: f.channel };
+  return { window: custom ? undefined : (f.window ?? "7d"), ...custom, agent: f.agent, procedure: f.procedure, release: f.release?.length ? f.release : undefined, channel: f.channel, tag: f.tag?.length ? f.tag : undefined };
 }
 
 /** After a write: refetch everything about the workspace (and the workspace list, which a first write adds to). */
@@ -212,6 +215,8 @@ export type SessionFilters = {
   eligible?: boolean;
   /** How the drill-down filters treat suppressed findings: false leaves them out (as Insights' numbers do). */
   suppressed?: boolean;
+  /** Sessions with every one of these tags (as they came in). */
+  tag?: string[];
 };
 
 function sessionQuery(f: SessionFilters) {
@@ -233,6 +238,7 @@ function sessionQuery(f: SessionFilters) {
     finding: f.finding,
     eligible: f.eligible,
     suppressed: f.suppressed,
+    tag: f.tag?.length ? f.tag : undefined,
   };
 }
 

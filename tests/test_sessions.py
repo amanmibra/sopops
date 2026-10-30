@@ -259,6 +259,40 @@ def test_list_filters_and_cursor(client, token):
     assert client.get(f"{WS}/sessions/nope").status_code == 404
 
 
+def test_tags_are_copied_from_the_agent_and_kept(client, token, files):
+    client.put(f"{WS}/files", json={"files": files})
+    client.post(f"{WS}/releases", json={})
+    assert client.put(f"{WS}/agent-tags/tonys-pizza", json={"tags": ["Legacy", "pilot"]}).json() == {"tags": ["legacy", "pilot"]}
+    assert client.put(f"{WS}/agent-tags/tonys-pizza", json={"tags": ["no spaces!"]}).status_code == 422
+
+    old = ingest(client, token, session("old")).json()
+    # the agent moves to sopops' prompts: sessions from now on say so, and the earlier one keeps "legacy"
+    client.put(f"{WS}/agent-tags/tonys-pizza", json={"tags": ["sopops", "pilot"]})
+    new = ingest(client, token, session("new", tags=["Store 12", "bad tag!"], metadata={"sopops_tags": "night-shift"})).json()
+    assert new["warnings"] == ["Tag 'bad tag!' isn't valid (letters, digits and - _ . : /, up to 64 characters); it was left out."]
+    assert client.get(f"{WS}/sessions/{old['id']}").json()["tags"] == ["legacy", "pilot"]
+    got = client.get(f"{WS}/sessions/{new['id']}").json()
+    assert got["tags"] == ["night-shift", "pilot", "sopops", "store-12"]
+    assert "tags" not in (got["config"] or {})  # sopops_tags is a tag, not a setting
+
+    # a re-send adds what it passes; the copy taken when the session came in stays
+    client.put(f"{WS}/agent-tags/tonys-pizza", json={"tags": []})
+    ingest(client, token, session("old", tags=["reviewed"], ended_at=(T0 + timedelta(seconds=99)).isoformat()))
+    assert client.get(f"{WS}/sessions/{old['id']}").json()["tags"] == ["legacy", "pilot", "reviewed"]
+
+    def ids(*tag):
+        return [x["external_id"] for x in client.get(f"{WS}/sessions", params={"tag": list(tag)}).json()["items"]]
+
+    assert ids("legacy") == ["old"] and ids("sopops") == ["new"] and sorted(ids("pilot")) == ["new", "old"]
+    assert ids("pilot", "sopops") == ["new"] and ids("nothing") == []
+    listed = client.get(f"{WS}/agent-tags").json()
+    assert listed == {"agents": {}, "used": ["legacy", "night-shift", "pilot", "reviewed", "sopops", "store-12"]}
+
+    assert client.put(f"{WS}/sessions/{old['id']}/tags", json={"tags": ["sopops"]}).json() == {"tags": ["sopops"]}
+    assert ids("legacy") == []
+    assert client.get(f"{WS}/insights/overview", params={"tag": "sopops", "start": (T0 - timedelta(days=1)).isoformat()}).json()["filters"]["tags"] == ["sopops"]
+
+
 def test_import_cli(client, tmp_path, capsys):
     store = client.app.state.store
     url = store.engine.url.render_as_string(hide_password=False)

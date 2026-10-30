@@ -47,6 +47,7 @@ from typing import TYPE_CHECKING, Any, Iterable
 from sqlmodel import Session, and_, case, func, or_, select
 
 from . import lineage
+from . import tags as tag_lib
 from .orm import Finding, Pattern, ProcedureCheck, PromptText, RuleResult, SessionRecord, Theme, Workspace
 from .pipeline.procedures import agent_variables, fill
 from .pipeline.rollup import SEVERITY
@@ -168,12 +169,13 @@ class Filters:
     releases: tuple[int, ...] = ()
     channel: str | None = None
     test: str | None = None
-    version: tuple[str | None, int | None, str | None] | None = None  # (agent, release, config hash): one version, exactly
+    version: tuple[str | None, int | None, str | None] | None = None
+    tags: tuple[str, ...] = ()  # sessions with every one  # (agent, release, config hash): one version, exactly
 
     @classmethod
     def make(cls, workspace: str, window: str | None = None, start: datetime | None = None, end: datetime | None = None, agent: str | None = None,
              procedure: str | None = None, release: Iterable[int] | None = None, channel: str | None = None, now: datetime | None = None,
-             test: str | None = None) -> Filters:
+             test: str | None = None, tags: Iterable[str] | None = None) -> Filters:
         """`window` (24h, 7d, 30d, 90d, 365d; default 7d) ending now, or `start` (and optionally `end`)."""
         now = _utc(now) or datetime.now(timezone.utc)
         if start is not None:
@@ -188,7 +190,8 @@ class Filters:
             raise BadFilter("end is before start")
         if e - s > MAX_WINDOW:
             raise BadFilter("the window can be at most 366 days")
-        return cls(workspace, s, e, agent or None, procedure or None, tuple(sorted(set(release or ()))), channel or None, test or None)
+        return cls(workspace, s, e, agent or None, procedure or None, tuple(sorted(set(release or ()))), channel or None, test or None,
+                   tags=tuple(sorted(tag_lib.clean(tags or (), strict=False))))
 
     def prior(self) -> Filters:
         span = self.end - self.start
@@ -210,6 +213,8 @@ class Filters:
             q = q.where(S.channel == self.channel)
         if self.test:
             q = q.where(S.test == self.test)
+        if self.tags:
+            q = q.where(*tag_lib.has_all(self.workspace, self.tags, S))
         if self.version is not None:
             agent, release, chash = self.version
             q = q.where(func.coalesce(S.agent_id, S.agent_ref) == agent if agent is not None else and_(S.agent_id.is_(None), S.agent_ref.is_(None)))
@@ -218,7 +223,7 @@ class Filters:
         return q
 
     def as_dict(self) -> dict[str, Any]:
-        return {"start": self.start, "end": self.end, "agent": self.agent, "procedure": self.procedure, "releases": list(self.releases), "channel": self.channel, "test": self.test}
+        return {"start": self.start, "end": self.end, "agent": self.agent, "procedure": self.procedure, "releases": list(self.releases), "channel": self.channel, "test": self.test, "tags": list(self.tags)}
 
 
 ELIGIBLE = and_(SessionRecord.status.in_(ELIGIBLE_STATUSES), SessionRecord.result.is_not(None))

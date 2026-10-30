@@ -669,6 +669,26 @@ export type AgentSummary = {
 };
 
 /**
+ * AgentTagsOut
+ */
+export type AgentTagsOut = {
+    /**
+     * Agents
+     *
+     * Each tagged agent's tags, by sop agent id.
+     */
+    agents: {
+        [key: string]: Array<string>;
+    };
+    /**
+     * Used
+     *
+     * Every tag an agent or a session in the workspace has.
+     */
+    used: Array<string>;
+};
+
+/**
  * AgentsResponse
  */
 export type AgentsResponse = {
@@ -2467,6 +2487,10 @@ export type FiltersOut = {
      * Test
      */
     test: string | null;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
 };
 
 /**
@@ -8169,6 +8193,12 @@ export type SessionClose = {
             [key: string]: unknown;
         } | null;
     } | null;
+    /**
+     * Tags
+     *
+     * Tags to add to the session.
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -8221,6 +8251,12 @@ export type SessionDetail = {
      * The A/B test the session reported.
      */
     test: string | null;
+    /**
+     * Tags
+     *
+     * Its agent's tags when it came in, and any its sender passed. Changing the agent's tags later doesn't change these.
+     */
+    tags: Array<string>;
     /**
      * Config
      *
@@ -8454,6 +8490,12 @@ export type SessionIn = {
             [key: string]: unknown;
         } | null;
     };
+    /**
+     * Tags
+     *
+     * Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning.
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -8599,6 +8641,12 @@ export type SessionOpen = {
             [key: string]: unknown;
         } | null;
     };
+    /**
+     * Tags
+     *
+     * Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning.
+     */
+    tags?: Array<string>;
 };
 
 /**
@@ -8691,6 +8739,12 @@ export type SessionSummary = {
      * The A/B test the session reported.
      */
     test: string | null;
+    /**
+     * Tags
+     *
+     * Its agent's tags when it came in, and any its sender passed. Changing the agent's tags later doesn't change these.
+     */
+    tags: Array<string>;
     /**
      * Config
      *
@@ -10032,6 +10086,28 @@ export type SyncPrOut = {
      * State
      */
     state: 'open' | 'merged' | 'closed' | null;
+};
+
+/**
+ * TagsIn
+ */
+export type TagsIn = {
+    /**
+     * Tags
+     *
+     * Lowercase letters, digits and - _ . : /, up to 64 characters each. Replaces the current tags.
+     */
+    tags: Array<string>;
+};
+
+/**
+ * TagsOut
+ */
+export type TagsOut = {
+    /**
+     * Tags
+     */
+    tags: Array<string>;
 };
 
 /**
@@ -14940,6 +15016,12 @@ export type ListSessionsData = {
          * How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them out (what Insights counts), true matches only them; unset, both.
          */
         suppressed?: boolean | null;
+        /**
+         * Tag
+         *
+         * With this tag (as the session came in, or as edited since). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/sessions';
 };
@@ -15210,6 +15292,104 @@ export type GetSessionResponses = {
 };
 
 export type GetSessionResponse = GetSessionResponses[keyof GetSessionResponses];
+
+export type SetSessionTagsData = {
+    body: TagsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Id
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/sessions/{id}/tags';
+};
+
+export type SetSessionTagsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetSessionTagsError = SetSessionTagsErrors[keyof SetSessionTagsErrors];
+
+export type SetSessionTagsResponses = {
+    /**
+     * Successful Response
+     */
+    200: TagsOut;
+};
+
+export type SetSessionTagsResponse = SetSessionTagsResponses[keyof SetSessionTagsResponses];
+
+export type ListAgentTagsData = {
+    body?: never;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/agent-tags';
+};
+
+export type ListAgentTagsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListAgentTagsError = ListAgentTagsErrors[keyof ListAgentTagsErrors];
+
+export type ListAgentTagsResponses = {
+    /**
+     * Successful Response
+     */
+    200: AgentTagsOut;
+};
+
+export type ListAgentTagsResponse = ListAgentTagsResponses[keyof ListAgentTagsResponses];
+
+export type SetAgentTagsData = {
+    body: TagsIn;
+    path: {
+        /**
+         * Workspace
+         */
+        workspace: string;
+        /**
+         * Agent
+         */
+        agent: string;
+    };
+    query?: never;
+    url: '/v1/workspaces/{workspace}/agent-tags/{agent}';
+};
+
+export type SetAgentTagsErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SetAgentTagsError = SetAgentTagsErrors[keyof SetAgentTagsErrors];
+
+export type SetAgentTagsResponses = {
+    /**
+     * Successful Response
+     */
+    200: TagsOut;
+};
+
+export type SetAgentTagsResponse = SetAgentTagsResponses[keyof SetAgentTagsResponses];
 
 export type GetCaptureData = {
     body?: never;
@@ -15752,6 +15932,12 @@ export type ListPatternsData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag. Repeat for every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/patterns';
 };
@@ -15813,6 +15999,12 @@ export type GetPatternData = {
          * Channel
          */
         channel?: 'voice' | 'text' | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag. Repeat for every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/patterns/{pattern_id}';
 };
@@ -16508,6 +16700,12 @@ export type InsightsOverviewData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/overview';
 };
@@ -16585,6 +16783,12 @@ export type InsightsProcedureData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}';
 };
@@ -16666,6 +16870,12 @@ export type InsightsRuleData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/procedures/{procedure_id}/rules/{rule_id}';
 };
@@ -16751,6 +16961,12 @@ export type InsightsCompareData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/releases/compare';
 };
@@ -16830,6 +17046,12 @@ export type InsightsVersionsData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/versions';
 };
@@ -16903,6 +17125,12 @@ export type InsightsReportData = {
          * Only sessions that reported this A/B test.
          */
         test?: string | null;
+        /**
+         * Tag
+         *
+         * Only sessions with this tag (as they came in). Repeat for sessions with every one.
+         */
+        tag?: Array<string> | null;
     };
     url: '/v1/workspaces/{workspace}/insights/report';
 };

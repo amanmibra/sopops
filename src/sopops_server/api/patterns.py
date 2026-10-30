@@ -24,8 +24,9 @@ def router(store: Store, jobs: Jobs) -> APIRouter:
     r = APIRouter()
 
     def pattern_filters(workspace: str, window: str | None = Query(None, description="Default 365d."), start: datetime | None = None, end: datetime | None = None,
-                        agent: str | None = None, release: list[int] | None = Query(None), channel: Channel | None = None) -> Filters:
-        return Filters.make(workspace_id(workspace), window or "365d", start, end, agent, None, release, channel)
+                        agent: str | None = None, release: list[int] | None = Query(None), channel: Channel | None = None,
+                        tag: list[str] | None = Query(None, description="Only sessions with this tag. Repeat for every one.")) -> Filters:
+        return Filters.make(workspace_id(workspace), window or "365d", start, end, agent, None, release, channel, tags=tag)
 
     @r.get("/v1/workspaces/{workspace}/patterns", response_model=PatternsResponse, dependencies=OPEN, tags=["patterns"])
     def list_patterns(workspace: str, procedure: str | None = None, rule: str | None = None, f: Filters = Depends(pattern_filters)) -> dict:

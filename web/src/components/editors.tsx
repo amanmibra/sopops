@@ -13,6 +13,7 @@ import { useWs } from "@/lib/workspace";
 import { Banner, Counts, IssueList, PLACEHOLDER, Segmented, Tag, VarLegend, VarText } from "./bits";
 import { DiffView } from "./diff-view";
 import { ActionBar, AgentVars, type Dirty, Field, StepRows, VarRows, useDirty, useItemSave } from "./form";
+import { AgentTags } from "./tags";
 import { useGo } from "./href-link";
 import { ItemHeader, Missing, NewHeader, Page, UsedBy } from "./item-shell";
 import { BlockStack } from "./block-stack";
@@ -128,6 +129,11 @@ function AgentForm({ id, item }: { id: string; item?: AgentConfig }) {
               <Input id="f-platform_id" value={m.platform_id} placeholder={plat.idLabel} onChange={(e) => set({ platform_id: e.target.value })} />
             </Field>
           </div>
+          {!isNew && (
+            <Field id="tags" name="Tags" help="Labels to filter sessions and results by, e.g. legacy or sopops for which prompts the agent runs in production. Saved right away, no release needed. Each session keeps the tags its agent had when it came in." errors={errors}>
+              <AgentTags ws={ws} agent={id} />
+            </Field>
+          )}
           <Field id="context" name="About this agent" help="Goes first in the agent's instructions. Facts only this agent needs: the location, hours, what it doesn't offer." errors={errors}>
             <Textarea id="f-context" className="min-h-28" value={m.context} onChange={(e) => set({ context: e.target.value })} />
           </Field>

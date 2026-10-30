@@ -74,6 +74,8 @@ class SessionIn(_BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
     config: dict[str, ConfigValue] = Field(default_factory=dict, description=CONFIG_HELP)
+    tags: list[str] = Field(default_factory=list, max_length=20, description="Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). "
+                           "Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning.")
 
 
 class SessionOpen(_BaseModel):
@@ -90,6 +92,8 @@ class SessionOpen(_BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     test: str | None = Field(None, max_length=128, description="An A/B test this session is part of (optional). Without one, Insights still compares an agent's versions by their config.")
     config: dict[str, ConfigValue] = Field(default_factory=dict, description=CONFIG_HELP)
+    tags: list[str] = Field(default_factory=list, max_length=20, description="Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). "
+                           "Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning.")
 
 
 class SessionEventIn(_BaseModel):
@@ -116,6 +120,20 @@ class SessionClose(_BaseModel):
     partial: bool = Field(False, description="The sender knows the transcript is incomplete: the session's status is then `incomplete`.")
     test: str | None = Field(None, max_length=128, description="Set or replace the session's A/B test.")
     config: dict[str, ConfigValue] | None = Field(None, description="Settings learned during the call, merged over the ones sent at open; a nested setting is replaced whole.")
+    tags: list[str] = Field(default_factory=list, max_length=20, description="Tags to add to the session.")
+
+
+class TagsIn(_BaseModel):
+    tags: list[str] = Field(max_length=20, description="Lowercase letters, digits and - _ . : /, up to 64 characters each. Replaces the current tags.")
+
+
+class TagsOut(BaseModel):
+    tags: list[str]
+
+
+class AgentTagsOut(BaseModel):
+    agents: dict[str, list[str]] = Field(description="Each tagged agent's tags, by sop agent id.")
+    used: list[str] = Field(description="Every tag an agent or a session in the workspace has.")
 
 
 class SessionIngested(BaseModel):
@@ -153,6 +171,7 @@ class SessionSummary(BaseModel):
     release_id: int | None
     version_ref: str | None
     test: str | None = Field(None, description="The A/B test the session reported.")
+    tags: list[str] = Field(default_factory=list, description="Its agent's tags when it came in, and any its sender passed. Changing the agent's tags later doesn't change these.")
     config: dict[str, Any] | None = Field(None, description="What the agent ran with, as stored: scalars, and objects or arrays kept whole; `prompt` is the prompt's hash.")
     config_hash: str | None = Field(None, description="Identifies the config: sessions with the same agent, release and hash are one version.")
     started_at: datetime

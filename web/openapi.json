@@ -6153,6 +6153,27 @@
               "title": "Suppressed"
             },
             "description": "How `rule`/`rule_status`, `pattern`, `theme` and `finding` treat suppressed findings: false leaves them out (what Insights counts), true matches only them; unset, both."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "With this tag (as the session came in, or as edited since). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "With this tag (as the session came in, or as edited since). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -6504,6 +6525,173 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SessionDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/sessions/{id}/tags": {
+      "put": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Set Session Tags",
+        "description": "Replace a session's tags. Its agent's tags aren't touched.",
+        "operationId": "set_session_tags",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agent-tags": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "List Agent Tags",
+        "description": "Each agent's tags, and every tag in use (on agents or sessions), for filters.",
+        "operationId": "list_agent_tags",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentTagsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{workspace}/agent-tags/{agent}": {
+      "put": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "Set Agent Tags",
+        "description": "Replace an agent's tags (e.g. `legacy` or `sopops`, for which prompts it runs in production). Takes effect\nat once, with no release: sessions that come in from now on copy them, and earlier sessions keep theirs.",
+        "operationId": "set_agent_tags",
+        "parameters": [
+          {
+            "name": "workspace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Workspace"
+            }
+          },
+          {
+            "name": "agent",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Agent"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagsOut"
                 }
               }
             }
@@ -7454,6 +7642,27 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag. Repeat for every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag. Repeat for every one."
           }
         ],
         "responses": {
@@ -7613,6 +7822,27 @@
               ],
               "title": "Channel"
             }
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag. Repeat for every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag. Repeat for every one."
           }
         ],
         "responses": {
@@ -8971,6 +9201,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -9170,6 +9421,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -9378,6 +9650,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -9604,6 +9897,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -9815,6 +10129,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -10005,6 +10340,27 @@
               "title": "Test"
             },
             "description": "Only sessions that reported this A/B test."
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one.",
+              "title": "Tag"
+            },
+            "description": "Only sessions with this tag (as they came in). Repeat for sessions with every one."
           }
         ],
         "responses": {
@@ -15259,6 +15615,35 @@
         ],
         "title": "AgentSummary"
       },
+      "AgentTagsOut": {
+        "properties": {
+          "agents": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Agents",
+            "description": "Each tagged agent's tags, by sop agent id."
+          },
+          "used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Used",
+            "description": "Every tag an agent or a session in the workspace has."
+          }
+        },
+        "type": "object",
+        "required": [
+          "agents",
+          "used"
+        ],
+        "title": "AgentTagsOut"
+      },
       "AgentsResponse": {
         "properties": {
           "workspace": {
@@ -18341,6 +18726,14 @@
               }
             ],
             "title": "Test"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
           }
         },
         "type": "object",
@@ -18351,7 +18744,8 @@
           "procedure",
           "releases",
           "channel",
-          "test"
+          "test",
+          "tags"
         ],
         "title": "FiltersOut"
       },
@@ -28214,6 +28608,15 @@
             ],
             "title": "Config",
             "description": "Settings learned during the call, merged over the ones sent at open; a nested setting is replaced whole."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Tags to add to the session."
           }
         },
         "type": "object",
@@ -28310,6 +28713,14 @@
             ],
             "title": "Test",
             "description": "The A/B test the session reported."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Its agent's tags when it came in, and any its sender passed. Changing the agent's tags later doesn't change these."
           },
           "config": {
             "anyOf": [
@@ -28507,6 +28918,7 @@
           "release_id",
           "version_ref",
           "test",
+          "tags",
           "config",
           "config_hash",
           "started_at",
@@ -28773,6 +29185,15 @@
             "type": "object",
             "title": "Config",
             "description": "What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. A setting is a string, number or boolean, or a whole object or array (a voice pipeline's settings, feature flags, a nested section), kept as sent. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; a string up to 1,024 characters (a prompt up to 65,536); an object or array up to 8,192 characters of JSON and 8 levels deep. A setting over a limit is left out with a warning."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning."
           }
         },
         "type": "object",
@@ -29082,6 +29503,15 @@
             "type": "object",
             "title": "Config",
             "description": "What the agent ran with: `llm`, `stt`, `tts` (each `<provider>/<model>`), `voice`, `prompt` (a template built outside sopops; sopops releases are already known), `version` (your own label), and any other setting. A setting is a string, number or boolean, or a whole object or array (a voice pipeline's settings, feature flags, a nested section), kept as sent. `sopops_*` keys in `metadata` (`sopops_llm`, `sopops_test`, ...) count too and win. At most 32 settings; a string up to 1,024 characters (a prompt up to 65,536); an object or array up to 8,192 characters of JSON and 8 levels deep. A setting over a limit is left out with a warning."
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Labels for this session, added to its agent's tags (`sopops_tags` in `metadata` counts too). Lowercase letters, digits and - _ . : /; a bad one is dropped with a warning."
           }
         },
         "type": "object",
@@ -29265,6 +29695,14 @@
             "title": "Test",
             "description": "The A/B test the session reported."
           },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "Its agent's tags when it came in, and any its sender passed. Changing the agent's tags later doesn't change these."
+          },
           "config": {
             "anyOf": [
               {
@@ -29415,6 +29853,7 @@
           "release_id",
           "version_ref",
           "test",
+          "tags",
           "config",
           "config_hash",
           "started_at",
@@ -31666,6 +32105,40 @@
           "state"
         ],
         "title": "SyncPrOut"
+      },
+      "TagsIn": {
+        "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Tags",
+            "description": "Lowercase letters, digits and - _ . : /, up to 64 characters each. Replaces the current tags."
+          }
+        },
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "title": "TagsIn"
+      },
+      "TagsOut": {
+        "properties": {
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tags"
+        ],
+        "title": "TagsOut"
       },
       "TeamIn": {
         "properties": {

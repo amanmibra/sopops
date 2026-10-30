@@ -6,6 +6,11 @@ import { wsHref } from "./workspace";
 const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
 const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : undefined);
 const oneOf = <T extends string>(v: unknown, options: readonly T[]) => (options.includes(v as T) ? (v as T) : undefined);
+/** One or more tags from the URL (`?tag=a&tag=b`). */
+export const tagList = (v: unknown): string[] | undefined => {
+  const list = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).filter((t): t is string => typeof t === "string" && !!t);
+  return list.length ? list : undefined;
+};
 const nums = (v: unknown): number[] | undefined => {
   const list = (Array.isArray(v) ? v : v == null || v === "" ? [] : [v]).map(Number).filter((n) => Number.isInteger(n));
   return list.length ? list : undefined;
@@ -21,6 +26,7 @@ export function validateInsightSearch(s: Record<string, unknown>): InsightFilter
     procedure: str(s.procedure),
     release: nums(s.release),
     channel: oneOf(s.channel, ["voice", "text"] as const),
+    tag: tagList(s.tag),
   };
 }
 
@@ -69,7 +75,7 @@ function local(iso: string, addMinutes = 0): string {
 }
 
 /** The window and filters an Insights response was computed for, as sessions-list filters. */
-export type Scope = { start: string; end: string; agent?: string | null; releases?: number[]; channel?: string | null };
+export type Scope = { start: string; end: string; agent?: string | null; releases?: number[]; channel?: string | null; tags?: string[] };
 
 export function scopeFilters(scope: Scope | undefined): SessionFilters {
   if (!scope) return {};
@@ -79,6 +85,7 @@ export function scopeFilters(scope: Scope | undefined): SessionFilters {
     agent: scope.agent ?? undefined,
     channel: (scope.channel as SessionFilters["channel"]) ?? undefined,
     release: scope.releases?.length === 1 ? scope.releases[0] : undefined,
+    tag: scope.tags?.length ? scope.tags : undefined,
   };
 }
 

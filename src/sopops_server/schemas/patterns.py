@@ -26,6 +26,7 @@ class FiltersOut(BaseModel):
     releases: list[int]
     channel: str | None
     test: str | None = None
+    tags: list[str] = []
 
 
 class ExampleOut(BaseModel):
