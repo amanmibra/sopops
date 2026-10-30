@@ -323,7 +323,7 @@ class SopOps:
 
     async def post_session(self, session: Mapping[str, Any], *, retries: int = 2, timeout: float = 5.0) -> dict[str, Any]:
         """Send one finished session in sopops's canonical format (`platform`, `external_id`, `turns`, ...).
-        Safe to repeat: sopops upserts on (platform, external_id). Retries connection errors, 429 and 5xx."""
+        `tags` (`["legacy"]`) are added to the agent's tags the session copies. Safe to repeat: sopops upserts on (platform, external_id). Retries connection errors, 429 and 5xx."""
         last: Exception | None = None
         async with self._client(timeout) as http:
             for attempt in range(retries + 1):
@@ -349,7 +349,7 @@ class SopOps:
     async def open_session(self, session: Mapping[str, Any], *, timeout: float = 3.0) -> dict[str, Any]:
         """Open a session while the call runs, so its events can be sent as they happen: `platform`,
         `external_id` and optionally `channel`, `agent`, `release`, `version_ref`, `started_at`, `metadata`, `test`,
-        `config`.
+        `config`, `tags`.
         Returns `{id, created}`. Safe to repeat: keyed by (platform, external_id), like `post_session`."""
         return await self._post("/sessions/open", dict(session), timeout)
 

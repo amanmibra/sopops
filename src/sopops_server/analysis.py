@@ -7,6 +7,10 @@ skips the workspace, and reclustering, suggestions and calibration on request an
 
 Resuming queues `process_session` again for every session held while it was paused. Owners and admins pause and
 resume (`auth.access`).
+
+Skipping tags: a session with any of the workspace's `skip_tags` (its own tags, copied from its agent when it came in)
+stops before routing too, `excluded` with a reason that names the tag, so a `legacy` agent's calls aren't flagged for
+rules from prompts they don't use yet. Taking a tag off the list queues the sessions it had skipped.
 """
 
 from __future__ import annotations
@@ -16,9 +20,10 @@ from typing import TYPE_CHECKING, Any
 
 from sqlmodel import Session, select
 
+from . import tags as tag_store
 from .auth import actor
 from .errors import Conflict, NotFound
-from .orm import ProcedureCheck, SessionRecord, Workspace
+from .orm import ProcedureCheck, SessionRecord, SessionTag, Workspace
 from .pipeline.types import SessionRef
 
 if TYPE_CHECKING:
@@ -26,6 +31,11 @@ if TYPE_CHECKING:
 
 PAUSED = "Analysis is paused."
 HELD = ("received", "incomplete")  # where a paused session stops
+SKIPPED = "Not checked: tagged "  # + the tag; the reason a skipped session is excluded
+
+
+def skipped(tag: str) -> str:
+    return f"{SKIPPED}{tag}."
 
 
 def _now() -> datetime:
@@ -47,7 +57,39 @@ class Analysis:
         with self._db() as db:
             w = db.get(Workspace, ws)
         at = _utc(w.analysis_paused_at) if w else None
-        return {"paused": at is not None, "paused_at": at, "paused_by": w.analysis_paused_by if w and at else None}
+        return {"paused": at is not None, "paused_at": at, "paused_by": w.analysis_paused_by if w and at else None, "skip_tags": list(w.analysis_skip_tags or []) if w else []}
+
+    def skip_tags(self, ws: str) -> list[str]:
+        return self.state(ws)["skip_tags"]
+
+    def skip_for(self, ws: str, session_id: str) -> str | None:
+        """The first of the workspace's skip tags the session has, or None when it's checked."""
+        skip = self.skip_tags(ws)
+        if not skip:
+            return None
+        with self._db() as db:
+            have = set(tag_store.for_sessions(db, [session_id])[session_id])
+        return next((t for t in skip if t in have), None)
+
+    def set_skip_tags(self, ws: str, tags: list[str]) -> tuple[dict[str, Any], list[SessionRef]]:
+        """Set the tags whose sessions aren't checked, and return the sessions skipped for a tag no longer listed, for
+        the caller to queue. Sessions that come in with a newly listed tag are skipped; ones already checked keep their
+        results."""
+        tags = tag_store.clean(tags)
+        with self._db() as db, db.begin():
+            w = db.get(Workspace, ws)
+            if w is None:
+                raise NotFound(f"no workspace '{ws}'")
+            w.analysis_skip_tags = tags
+            db.add(w)
+            rows = db.exec(
+                select(SessionRecord.id, SessionRecord.payload_hash).where(
+                    SessionRecord.workspace_id == ws, SessionRecord.status == "excluded", SessionRecord.status_reason.startswith(SKIPPED),
+                ).order_by(SessionRecord.started_at)
+            ).all()
+            still = set(db.exec(select(SessionTag.session_id).where(SessionTag.workspace_id == ws, SessionTag.tag.in_(tags)))) if tags else set()
+            freed = [SessionRef(workspace_id=ws, session_id=sid, revision=rev) for sid, rev in rows if sid not in still]
+        return self.state(ws), freed
 
     def paused(self, ws: str) -> bool:
         return self.state(ws)["paused"]

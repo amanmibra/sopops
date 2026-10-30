@@ -26,10 +26,11 @@ def test_builds_the_overrides_and_links_the_release():
     served = respx.post(f"{URL}/runtime/served").mock(return_value=httpx.Response(200, json={}))
 
     async def call():
-        s = await elevenlabs_session(client(), "agent_123", test="haiku-vs-gpt", config={"version": "v2"})
+        s = await elevenlabs_session(client(), "agent_123", test="haiku-vs-gpt", config={"version": "v2"}, tags=["legacy", "pilot"])
         assert s.agent_id == "agent_123" and s.instructions.text == "You are Sakura's host."
         assert s.overrides == {"agent": {"prompt": {"prompt": "You are Sakura's host."}}}
-        assert s.dynamic_variables == {"sopops_agent": "sakura-sushi", "sopops_release": 3, "sopops_test": "haiku-vs-gpt", "sopops_version": "v2"}
+        assert s.dynamic_variables == {"sopops_agent": "sakura-sushi", "sopops_release": 3, "sopops_test": "haiku-vs-gpt", "sopops_version": "v2",
+                                       "sopops_tags": "legacy,pilot"}
         assert s.initiation_data == {"type": "conversation_initiation_client_data", "conversation_config_override": s.overrides,
                                      "dynamic_variables": s.dynamic_variables}
         assert s.callbacks == {}  # no stream: nothing to keep

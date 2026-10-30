@@ -116,6 +116,9 @@ export interface SessionIn {
   /** What the agent ran with: `llm`, `stt`, `tts` (`<provider>/<model>`), `voice`, `version`, any other setting.
    * A value can be a whole JSON object, so a variant's entire config can go in as it is. */
   config?: AgentConfig;
+  /** Labels for this session (`["legacy"]`), added to the tags it copies from its agent in sopops. Filter sessions by
+   * them, or have sopops skip checking them (Settings → Checks). */
+  tags?: string[];
 }
 
 /** A setting's value: a scalar, or a whole JSON object or array (up to 8,192 characters of JSON, 8 levels deep). */
@@ -128,7 +131,7 @@ type Turn = NonNullable<SessionIn["turns"]>[number];
 type ToolCall = NonNullable<SessionIn["tool_calls"]>[number];
 
 /** What `openSession` takes: a session's identity and context, before its turns exist. */
-export type SessionOpen = Pick<SessionIn, "platform" | "external_id" | "channel" | "agent" | "release" | "version_ref" | "started_at" | "metadata" | "test" | "config">;
+export type SessionOpen = Pick<SessionIn, "platform" | "external_id" | "channel" | "agent" | "release" | "version_ref" | "started_at" | "metadata" | "test" | "config" | "tags">;
 
 /** One streamed event. `seq` counts from 0 per session; order doesn't matter and a resent `seq` is ignored. */
 export type SessionEvent = { seq: number; type: "turn"; turn: Turn } | { seq: number; type: "tool_call"; tool_call: ToolCall };

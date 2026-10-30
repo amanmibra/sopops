@@ -24,7 +24,7 @@ from .client import SopOps
 log = logging.getLogger("sopops.stream")
 
 EventType = Literal["turn", "tool_call"]
-OPEN_FIELDS = ("platform", "external_id", "channel", "agent", "release", "version_ref", "started_at", "metadata", "test", "config")
+OPEN_FIELDS = ("platform", "external_id", "channel", "agent", "release", "version_ref", "started_at", "metadata", "test", "config", "tags")
 
 
 class SessionStream:

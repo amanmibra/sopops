@@ -73,6 +73,8 @@ export interface ElevenLabsSessionInput extends Omit<FetchOptions, "platform"> {
   /** Settings to report (`{ version: "v2" }`), sent as `sopops_<key>` dynamic variables. sopops reads the agent's
    *  LLM, voice and TTS model itself, with the API key in Settings. */
   config?: Record<string, string | number | boolean>;
+  /** Labels for this conversation (`["legacy"]`), sent as the dynamic variable `sopops_tags` and added to the agent's tags in sopops. */
+  tags?: string[];
   /** Not yet used: reserved for runtime guidance in a later version. */
   onGuidance?: (guidance: Guidance) => void;
 }
@@ -87,6 +89,7 @@ export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSession
   if (instructions.release != null) dynamicVariables.sopops_release = instructions.release;
   if (input.test) dynamicVariables.sopops_test = input.test;
   for (const [k, v] of Object.entries(input.config ?? {})) dynamicVariables[`sopops_${k}`] = v;
+  if (input.tags?.length) dynamicVariables.sopops_tags = input.tags.join(",");
 
   const link = async (conversationId: string) => {
     if (instructions.release == null || !conversationId) return;
@@ -110,7 +113,7 @@ export async function elevenLabsSession(sopops: SopOps, input: ElevenLabsSession
   };
   if (!input.stream) return { instructions, initiationData, link, sessionOptions, end: async () => {} };
 
-  const recorder = new Recorder(sopops, instructions, input.onGuidance, { test: input.test ?? null, config: input.config ?? {} });
+  const recorder = new Recorder(sopops, instructions, input.onGuidance, { test: input.test ?? null, config: input.config ?? {}, tags: input.tags ?? [] });
   return {
     instructions,
     initiationData,
@@ -142,7 +145,7 @@ class Recorder {
     private readonly sopops: SopOps,
     private readonly instructions: Instructions,
     private readonly onGuidance: ((guidance: Guidance) => void) | undefined,
-    private readonly tags: { test: string | null; config: AgentConfig },
+    private readonly tags: { test: string | null; config: AgentConfig; tags: string[] },
   ) {}
 
   connect(conversationId: string): void {

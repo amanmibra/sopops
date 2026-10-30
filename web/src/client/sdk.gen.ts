@@ -1897,7 +1897,7 @@ export const resetAiSetting = <ThrowOnError extends boolean = false>(options: Op
 /**
  * Get Analysis
  *
- * Whether the workspace's analysis is paused, since when and by whom.
+ * Whether the workspace's analysis is paused, since when and by whom, and the tags whose sessions it skips.
  */
 export const getAnalysis = <ThrowOnError extends boolean = false>(options: Options<GetAnalysisData, ThrowOnError>): RequestResult<GetAnalysisResponses, GetAnalysisErrors, ThrowOnError> => (options.client ?? client).get<GetAnalysisResponses, GetAnalysisErrors, ThrowOnError>({ url: '/v1/workspaces/{workspace}/analysis', ...options });
 
@@ -1906,7 +1906,8 @@ export const getAnalysis = <ThrowOnError extends boolean = false>(options: Optio
  *
  * Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing
  * is reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked
- * (`queued`).
+ * (`queued`). `skip_tags`: sessions with any of them come in but aren't checked (a `legacy` agent's calls, say);
+ * taking a tag off queues the sessions it skipped. Either field left out is unchanged.
  */
 export const setAnalysis = <ThrowOnError extends boolean = false>(options: Options<SetAnalysisData, ThrowOnError>): RequestResult<SetAnalysisResponses, SetAnalysisErrors, ThrowOnError> => (options.client ?? client).put<SetAnalysisResponses, SetAnalysisErrors, ThrowOnError>({
     url: '/v1/workspaces/{workspace}/analysis',

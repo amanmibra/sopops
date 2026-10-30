@@ -30,7 +30,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Mapping
+from typing import Any, Callable, Mapping, Sequence
 
 from .client import Instructions, SopOps
 from .stream import SessionStream
@@ -50,6 +50,7 @@ async def elevenlabs_session(
     stream: bool = False,
     test: str | None = None,
     config: Mapping[str, Scalar] | None = None,
+    tags: Sequence[str] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> ElevenLabsSession:
     """Fetch the agent's instructions and build the overrides that carry them.
@@ -57,7 +58,8 @@ async def elevenlabs_session(
     `agent`: the ElevenLabs agent identifier, such as its agent id. `release`, `fallback` and `variables`: as on
     `SopOps.fetch_instructions`. `test`: an A/B test this conversation is part of (sent as the dynamic variable
     `sopops_test`). `config`: settings to report (`{"version": "v2"}`), sent as `sopops_<key>` dynamic variables;
-    sopops reads the agent's LLM, voice and TTS model itself. `stream=True`: send the conversation to sopops as it
+    sopops reads the agent's LLM, voice and TTS model itself. `tags`: labels for this conversation (`["legacy"]`),
+    sent as the dynamic variable `sopops_tags` and added to the agent's tags in sopops. `stream=True`: send the conversation to sopops as it
     happens, and in full at `end` (a token with the `ingest` scope is needed). `on_guidance`: not yet used: reserved
     for runtime guidance in a later version."""
     ins = await client.fetch_platform_instructions("elevenlabs", agent, release, fallback=fallback, variables=variables)
@@ -71,9 +73,11 @@ async def elevenlabs_session(
         dynamic["sopops_test"] = test
     for k, v in (config or {}).items():
         dynamic[f"sopops_{k}"] = v
+    if tags:
+        dynamic["sopops_tags"] = ",".join(tags)
     return ElevenLabsSession(
         instructions=ins, agent_id=agent_id, overrides={"agent": {"prompt": {"prompt": ins.text}}}, dynamic_variables=dynamic,
-        _client=client, _stream=stream, _tags={"test": test, "config": dict(config or {})}, _on_guidance=on_guidance,
+        _client=client, _stream=stream, _tags={"test": test, "config": dict(config or {}), "tags": list(tags or [])}, _on_guidance=on_guidance,
         _loop=asyncio.get_running_loop(),
     )
 
@@ -88,7 +92,7 @@ class ElevenLabsSession:
     overrides: dict[str, Any]
     """`conversation_config_override`: the compiled prompt as `{"agent": {"prompt": {"prompt": ...}}}`."""
     dynamic_variables: dict[str, Scalar]
-    """`sopops_agent`, `sopops_release`, and `sopops_test` / `sopops_<key>` when given."""
+    """`sopops_agent`, `sopops_release`, and `sopops_test` / `sopops_tags` / `sopops_<key>` when given."""
     _client: SopOps = field(repr=False)
     _stream: bool = field(repr=False)
     _tags: dict[str, Any] = field(repr=False)

@@ -6,7 +6,7 @@ from conftest import WS
 from test_checks import session
 
 from sopops_server.ai.signatures import CheckRules
-from sopops_server.analysis import PAUSED
+from sopops_server.analysis import PAUSED, skipped
 from sopops_server.auth.access import ADMIN, SESSION, kind_of
 
 env = test_checks.env  # the checks' workspace, with fake models
@@ -17,7 +17,7 @@ def model_calls(env):
 
 
 def test_paused_sessions_come_in_unchecked_and_resume_checks_them(env):
-    assert env.client.get(f"{WS}/analysis").json() == {"paused": False, "paused_at": None, "paused_by": None, "queued": 0}
+    assert env.client.get(f"{WS}/analysis").json() == {"paused": False, "paused_at": None, "paused_by": None, "skip_tags": [], "queued": 0}
     paused = env.client.put(f"{WS}/analysis", json={"paused": True}).json()
     assert paused["paused"] is True and paused["paused_at"]
 
@@ -53,3 +53,28 @@ def test_a_session_checked_before_the_pause_isnt_queued_again(env):
 
 def test_owners_and_admins_pause_and_anyone_sees_it():
     assert kind_of("set_analysis") == ADMIN and kind_of("get_analysis") == SESSION
+
+
+def test_sessions_with_a_skipped_tag_come_in_unchecked_and_unskipping_checks_them(env):
+    env.client.put(f"{WS}/agent-tags/tonys-pizza", json={"tags": ["legacy"]})
+    state = env.client.put(f"{WS}/analysis", json={"skip_tags": ["Legacy"]}).json()
+    assert state["skip_tags"] == ["legacy"] and state["paused"] is False and state["queued"] == 0
+
+    s = env.send(session("legacy-call"))
+    assert s["status"] == "excluded" and s["status_reason"] == skipped("legacy") and s["checks"] == []
+    assert s["tags"] == ["legacy"] and len(s["turns"]) == 8
+    assert model_calls(env) == []
+
+    other = env.send(session("tagged-by-sender", metadata={"sopops_tags": "pilot"}))  # still has the agent's legacy tag
+    assert other["status"] == "excluded"
+
+    assert env.client.put(f"{WS}/analysis", json={"skip_tags": []}).json()["queued"] == 2
+    s = env.client.get(f"{WS}/sessions/{s['id']}").json()
+    assert s["status"] == "checked" and model_calls(env)
+    assert env.client.get(f"{WS}/analysis").json()["skip_tags"] == []
+
+
+def test_a_session_without_the_tag_is_checked(env):
+    env.client.put(f"{WS}/analysis", json={"skip_tags": ["legacy"]})
+    assert env.send(session("new-prompt"))["status"] == "checked"
+    assert env.client.put(f"{WS}/analysis", json={"skip_tags": ["no spaces!"]}).status_code == 422

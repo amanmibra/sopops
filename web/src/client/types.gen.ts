@@ -712,8 +712,16 @@ export type AgentsResponse = {
 export type AnalysisIn = {
     /**
      * Paused
+     *
+     * Pause or resume; left out, unchanged.
      */
-    paused: boolean;
+    paused?: boolean | null;
+    /**
+     * Skip Tags
+     *
+     * The tags whose sessions aren't checked (the whole list); left out, unchanged.
+     */
+    skip_tags?: Array<string> | null;
 };
 
 /**
@@ -735,9 +743,15 @@ export type AnalysisState = {
      */
     paused_by: string | null;
     /**
+     * Skip Tags
+     *
+     * Sessions with any of these tags come in but aren't checked (excluded, with the tag as the reason).
+     */
+    skip_tags: Array<string>;
+    /**
      * Queued
      *
-     * Sessions held while paused, queued to be checked by this resume.
+     * Sessions queued to be checked by this change: held while paused, or skipped for a tag no longer listed.
      */
     queued: number;
 };

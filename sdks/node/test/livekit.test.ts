@@ -177,7 +177,7 @@ describe("attach with stream", () => {
     const ctx = jobContext();
     const s = new StreamingSession();
     const guidance = vi.fn();
-    await attach(ctx, s, { sopops: client, stream: true, test: "t1", onGuidance: guidance });
+    await attach(ctx, s, { sopops: client, stream: true, test: "t1", tags: ["legacy"], onGuidance: guidance });
     s.emit("conversation_item_added", said("assistant", "Luigi's, how can I help?", 100_000));
     s.emit("conversation_item_added", said("user", "A table for six.", 104_000));
     s.emit("conversation_item_added", said("user", "A table for six.", 104_100)); // a repeat: dropped
@@ -191,13 +191,13 @@ describe("attach with stream", () => {
 
     const open = calls.filter((c) => c.url === `${URL}/sessions/open`);
     expect(open).toHaveLength(1);
-    expect(open[0]!.body).toMatchObject({ platform: "livekit", external_id: "AJ_1", channel: "voice", agent: "tonys-pizza", release: 3, test: "t1", metadata: { room: "room-1" } });
+    expect(open[0]!.body).toMatchObject({ platform: "livekit", external_id: "AJ_1", channel: "voice", agent: "tonys-pizza", release: 3, test: "t1", tags: ["legacy"], metadata: { room: "room-1" } });
     const sent = calls.filter((c) => c.url === `${URL}/sessions/livekit/AJ_1/events`).flatMap((c) => c.body.events);
     expect(sent.map((e: any) => [e.seq, e.type])).toEqual([[0, "turn"], [1, "turn"], [2, "turn"], [3, "tool_call"]]);
     expect(sent[3].tool_call).toEqual({ name: "check_reservations", arguments: '{"party_size": 6}', call_id: "c1", at: 106_000, result: '{"available": true}', is_error: false });
     const full = calls.filter((c) => c.url === `${URL}/sessions`);
     expect(full).toHaveLength(1);
-    expect(full[0]!.body).toMatchObject({ external_id: "AJ_1", release: 3, test: "t1", metadata: { shutdown_reason: "done" } });
+    expect(full[0]!.body).toMatchObject({ external_id: "AJ_1", release: 3, test: "t1", tags: ["legacy"], metadata: { shutdown_reason: "done" } });
     expect(guidance).not.toHaveBeenCalled(); // reserved
   });
 });

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Callable, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
 
 from .client import Instructions, SopOps, release_pin
 from .stream import SessionStream
@@ -89,6 +89,7 @@ async def attach(
     test: str | None = None,
     config: Mapping[str, Any] | None = None,
     variables: Mapping[str, Any] | None = None,
+    tags: Sequence[str] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> Instructions:
     """Fetch the agent's instructions, note the release in `session.userdata`, and post the session at shutdown.
@@ -100,7 +101,8 @@ async def attach(
 
     `stream=True` also sends each turn and tool call while the call runs (see `record_session`).
     `test`: an A/B test this call is part of. `config`: settings to report beyond the models `agent_config` reads
-    (`{"version": "v2", "turn_detection": "eou"}`); they win over what's read.
+    (`{"version": "v2", "turn_detection": "eou"}`); they win over what's read. `tags`: labels for this call
+    (`["legacy"]`), added to the agent's tags in sopops; filter sessions by them, or skip checking them.
     `variables`: values for `{{placeholders}}` only this call knows, like the time or the caller. They're filled
     here, in your process, so they never reach sopops. A placeholder you pass no value for is left as it is and
     listed in `ins.unfilled`, so you can log one that shouldn't be there.
@@ -112,7 +114,7 @@ async def attach(
     pin = release if release is not None else pinned_release(ctx)
     ins = await client.fetch_platform_instructions("livekit", agent, pin, fallback=fallback, variables=variables)
     _remember(session, ins)
-    record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, on_guidance=on_guidance)
+    record_session(ctx, session, client=client, agent=ins.agent, stream=stream, test=test, config=config, tags=tags, on_guidance=on_guidance)
     return ins
 
 
@@ -126,6 +128,7 @@ def record_session(
     stream: bool = False,
     test: str | None = None,
     config: Mapping[str, Any] | None = None,
+    tags: Sequence[str] | None = None,
     on_guidance: Callable[[Mapping[str, Any]], Any] | None = None,
 ) -> None:
     """Post `session.history` to sopops when the job shuts down, keyed by the job id (rooms get reused), with
@@ -133,11 +136,11 @@ def record_session(
 
     `stream=True` also opens the session now and sends each turn and tool call as it happens, in batches from a
     background task (see `SessionStream`); it never blocks or raises into the agent. The full post at shutdown
-    still happens and replaces what was streamed. `test` and `config`: see `attach`. `on_guidance`: not yet used: reserved for runtime guidance in
+    still happens and replaces what was streamed. `test`, `config` and `tags`: see `attach`. `on_guidance`: not yet used: reserved for runtime guidance in
     a later version."""
     client = client or SopOps()
     started = datetime.now(timezone.utc)
-    live = _stream(ctx, session, client, agent, release, started, on_guidance, test, config) if stream else None
+    live = _stream(ctx, session, client, agent, release, started, on_guidance, test, config, tags) if stream else None
 
     async def send(reason: str = "") -> None:
         if live is not None:
@@ -157,6 +160,7 @@ def record_session(
                 "metadata": {"room": ctx.room.name, "shutdown_reason": reason},
                 "test": test,
                 "config": {**agent_config(session), **dict(config or {})},
+                "tags": list(tags or []),
             }
             # stay inside the job's shutdown budget (LiveKit's graceful shutdown is 10s by default)
             await client.post_session(body, retries=1, timeout=3.0)
@@ -168,7 +172,7 @@ def record_session(
 
 def _stream(
     ctx: JobContext, session: AgentSession[Any], client: SopOps, agent: str | None, release: int | None, started: datetime, on_guidance: Callable[[Mapping[str, Any]], Any] | None,
-    test: str | None = None, config: Mapping[str, Any] | None = None,
+    test: str | None = None, config: Mapping[str, Any] | None = None, tags: Sequence[str] | None = None,
 ) -> SessionStream:
     """Open a SessionStream for the job and feed it from the session's `conversation_item_added` and
     `function_tools_executed` events."""
@@ -185,6 +189,7 @@ def _stream(
             "metadata": {"room": ctx.room.name},
             "test": test,
             "config": {**agent_config(session), **dict(config or {})},
+            "tags": list(tags or []),
         },
         on_guidance=on_guidance,
     )

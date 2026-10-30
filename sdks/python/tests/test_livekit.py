@@ -115,12 +115,13 @@ def test_attach_reports_the_models_test_and_config(tmp_path):
     c, session = ctx(), ModelSession(llm=Model("anthropic", "claude-haiku-4-5"), tts=Model("cartesia", "sonic-2"))
 
     async def call():
-        await attach(c, session, client=SopOps(URL, "tok", cache_dir=tmp_path), test="haiku-vs-gpt", config={"version": "v2", "tts": "cartesia/sonic-3"})
+        await attach(c, session, client=SopOps(URL, "tok", cache_dir=tmp_path), test="haiku-vs-gpt", config={"version": "v2", "tts": "cartesia/sonic-3"}, tags=["legacy"])
         await c.callbacks[0]("user_left")
 
     asyncio.run(call())
     body = json.loads(post.calls.last.request.content)
     assert body["test"] == "haiku-vs-gpt" and body["config"] == {"llm": "anthropic/claude-haiku-4-5", "tts": "cartesia/sonic-3", "version": "v2"}
+    assert body["tags"] == ["legacy"]
 
 
 @respx.mock

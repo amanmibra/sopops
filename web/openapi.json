@@ -11227,7 +11227,7 @@
           "ai"
         ],
         "summary": "Get Analysis",
-        "description": "Whether the workspace's analysis is paused, since when and by whom.",
+        "description": "Whether the workspace's analysis is paused, since when and by whom, and the tags whose sessions it skips.",
         "operationId": "get_analysis",
         "parameters": [
           {
@@ -11268,7 +11268,7 @@
           "ai"
         ],
         "summary": "Set Analysis",
-        "description": "Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing\nis reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked\n(`queued`).",
+        "description": "Pause analysis: sessions still come in and show their transcripts, but aren't routed or checked, and nothing\nis reclustered, suggested or calibrated. Resume it: the sessions held meanwhile are queued to be checked\n(`queued`). `skip_tags`: sessions with any of them come in but aren't checked (a `legacy` agent's calls, say);\ntaking a tag off queues the sessions it skipped. Either field left out is unchanged.",
         "operationId": "set_analysis",
         "parameters": [
           {
@@ -15673,14 +15673,34 @@
       "AnalysisIn": {
         "properties": {
           "paused": {
-            "type": "boolean",
-            "title": "Paused"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Paused",
+            "description": "Pause or resume; left out, unchanged."
+          },
+          "skip_tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Skip Tags",
+            "description": "The tags whose sessions aren't checked (the whole list); left out, unchanged."
           }
         },
         "type": "object",
-        "required": [
-          "paused"
-        ],
         "title": "AnalysisIn"
       },
       "AnalysisState": {
@@ -15713,10 +15733,18 @@
             ],
             "title": "Paused By"
           },
+          "skip_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Skip Tags",
+            "description": "Sessions with any of these tags come in but aren't checked (excluded, with the tag as the reason)."
+          },
           "queued": {
             "type": "integer",
             "title": "Queued",
-            "description": "Sessions held while paused, queued to be checked by this resume.",
+            "description": "Sessions queued to be checked by this change: held while paused, or skipped for a tag no longer listed.",
             "default": 0
           }
         },
@@ -15725,6 +15753,7 @@
           "paused",
           "paused_at",
           "paused_by",
+          "skip_tags",
           "queued"
         ],
         "title": "AnalysisState"

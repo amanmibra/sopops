@@ -63,6 +63,8 @@ export interface AttachOptions {
   test?: string | null;
   /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
   config?: AgentConfig;
+  /** Labels for this call (`["legacy"]`), added to the agent's tags in sopops. */
+  tags?: string[];
   /** Also send each turn and tool call while the call runs (see `recordSession`). Default false. */
   stream?: boolean;
   /** Not yet used: reserved for runtime guidance in a later version. */
@@ -84,6 +86,8 @@ export interface RecordSessionOptions {
   test?: string | null;
   /** Settings to report beyond the models read from the session (`agentConfig`); these win. */
   config?: AgentConfig;
+  /** Labels for this call (`["legacy"]`), added to the agent's tags in sopops. */
+  tags?: string[];
 }
 
 /**
@@ -200,7 +204,7 @@ export function recordSession(ctx: LiveKitJobContext, session: LiveKitSession, o
   const startedAt = new Date().toISOString();
   const agent = () => options.agent ?? ((noted(session, AGENT_KEY) as string | undefined) || ctx.job.agentName || null);
   const release = () => options.release ?? ((noted(session, RELEASE_KEY) as number | null | undefined) ?? null);
-  const tags = () => ({ test: options.test ?? null, config: { ...agentConfig(session), ...(options.config ?? {}) } });
+  const tags = () => ({ test: options.test ?? null, config: { ...agentConfig(session), ...(options.config ?? {}) }, tags: options.tags ?? [] });
   const live = options.stream ? liveStream(ctx, session, sopops, { platform: "livekit", external_id: ctx.job.id, channel: "voice", agent: agent(), release: release(), started_at: startedAt, metadata: { room: ctx.room.name }, ...tags() }, options.onGuidance) : undefined;
   ctx.addShutdownCallback(async (reason?: string) => {
     if (live) await live.close();
@@ -293,6 +297,6 @@ export async function attach(ctx: LiveKitJobContext, session: LiveKitSession, op
   const release = options.release ?? pinnedRelease(ctx);
   const ins = await sopops.fetchPlatformInstructions("livekit", agent, { release, fallback: options.fallback, variables: options.variables });
   remember(session, ins);
-  recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release, test: options.test, config: options.config, stream: options.stream, onGuidance: options.onGuidance });
+  recordSession(ctx, session, { sopops, agent: ins.agent, release: ins.release, test: options.test, config: options.config, tags: options.tags, stream: options.stream, onGuidance: options.onGuidance });
   return ins;
 }

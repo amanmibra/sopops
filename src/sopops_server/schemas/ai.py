@@ -103,8 +103,10 @@ class AnalysisState(BaseModel):
     paused: bool = Field(description="Sessions still come in; nothing is checked, clustered or suggested.")
     paused_at: datetime | None = None
     paused_by: str | None = None
-    queued: int = Field(0, description="Sessions held while paused, queued to be checked by this resume.")
+    skip_tags: list[str] = Field(default_factory=list, description="Sessions with any of these tags come in but aren't checked (excluded, with the tag as the reason).")
+    queued: int = Field(0, description="Sessions queued to be checked by this change: held while paused, or skipped for a tag no longer listed.")
 
 
 class AnalysisIn(BaseModel):
-    paused: bool
+    paused: bool | None = Field(None, description="Pause or resume; left out, unchanged.")
+    skip_tags: list[str] | None = Field(None, description="The tags whose sessions aren't checked (the whole list); left out, unchanged.")
