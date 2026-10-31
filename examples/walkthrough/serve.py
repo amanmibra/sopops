@@ -31,6 +31,7 @@ from fake_models import WalkthroughModels
 from sopops_server import Sop, Store, create_app
 from sopops_server.ai.lm import configured, set_ai
 from sopops_server.auth.service import Accounts
+from sopops_server.extensions import add_feature
 from sopops_server.jobs import Jobs
 
 
@@ -97,6 +98,7 @@ def main() -> None:
         if not configured():
             sys.exit("real mode needs SOPOPS_MODEL_FAST and SOPOPS_MODEL_REASONING (and the provider's key); see WALKTHROUGH.md")
         app = create_app(store)
+    add_feature(app, "fine_tune")  # hosted sopops's Fine tune page, on so the walkthrough can show it (spot_checks.py)
     if args.sign_in:
         sign_in_on(store)
     print(f"sopops ({args.models} models) on http://127.0.0.1:{args.port}, database {args.database_url}", flush=True)

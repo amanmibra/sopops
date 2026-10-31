@@ -14,7 +14,8 @@ from test_review import ALLERGEN, WINDOW, env, rule_pattern, session, tiles, ver
 from sopops_server.ai import tracing
 from datetime import datetime, timedelta, timezone
 
-from sopops_server.labels import CLOSE_BAND, weight
+from sopops_server.errors import InvalidValue
+from sopops_server.labels import CLOSE_BAND, check_status, weight
 from sopops_server.orm import Finding, FindingOverride, Pattern, ProcedureCheck, RuleLabel, RuleResult, SessionRecord, SpotCheck
 from sopops_server.pipeline.rollup import Judged, rollup
 from sopops_server.verdicts import LENIENT_MARK, PASS_STATUS, SUPPRESSING, Verdicts, _published, _utc, effective
@@ -141,6 +142,12 @@ def test_spot_checks_come_in_batches(env):
     assert not {(x["session_id"], x["rule_id"]) for x in nxt["items"]} & {(x["session_id"], x["rule_id"]) for x in q["items"]}
     assert env.client.post(f"{WS}/spot-checks/batches", json={"size": 500}).status_code == 422
     assert ids
+
+
+def test_an_option_of_a_step_takes_a_steps_statuses_but_order():
+    check_status("option", "not_applicable")  # a spot check on one alternative of an "or" step can be answered
+    with pytest.raises(InvalidValue):
+        check_status("option", "out_of_order")
 
 
 def test_spot_check_filters_sort_and_expiry(env):

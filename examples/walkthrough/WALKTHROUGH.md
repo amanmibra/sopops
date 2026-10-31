@@ -18,6 +18,7 @@ walkthrough/
   replay.py              step 7: new calls through the LiveKit adapter, as if live
   verify.py              step 8: the pass/fail checklist
   conflicts.py           step 9: two suggestions on one procedure, one merging and one in conflict
+  spot_checks.py         step 11: a spot-check batch on Fine tune, partly answered
   run_all.py, justfile   every step, or one at a time
 ```
 
@@ -29,7 +30,7 @@ From the repo root, with [just](https://github.com/casey/just) (`brew install ju
 just examples/walkthrough/all          # fake mode: no keys, no cost, about a minute
 ```
 
-It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 9, prints the checklists, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
+It starts a fresh sopops on http://127.0.0.1:8585, runs steps 2 to 9 and 11, prints the checklists, and leaves sopops running so you can look around (Ctrl-C stops it). Everything it writes is in `examples/walkthrough/out/` (`just examples/walkthrough/clean` removes it). Another port: `WALKTHROUGH_PORT=8686`.
 
 That sopops has no sign-in, so whoever opens it is in. For the same demo behind a login:
 
@@ -251,6 +252,14 @@ just examples/walkthrough/followup
 ```
 
 Not part of `all`: in real mode it's 60 more calls to check. It publishes step 9's drafts as release 3 (the delivery-zone fix and the allergen-list one), then plays 60 calls through the LiveKit adapter in which those mistakes no longer happen. Ten clean sessions on a procedure after a fix's release make it fixed, so **Mistakes → Fixed** shows "Took a delivery address without checking the zone" fixed in release 3 with no findings in its 27 delivery calls, and Home's "What the fixes did" shows it going from 4% of calls to none. Then sopops writes a fix for the large-party reservations mistake, applied as a draft and left unpublished: the loop mid-turn, as a team would see it on an ordinary day.
+
+### 11. Spot checks on Fine tune
+
+```sh
+just examples/walkthrough/spot-checks
+```
+
+Fine tune is a hosted sopops page; `serve.py` turns it on so the walkthrough can show it. This step draws a batch of 25 spot checks (rules the checker passed) and answers six the way a reviewer would: five "the checker was right", and one saying a step the checker called done didn't apply to the call, with a note. The other 19 wait on **Review → Fine tune**, one card at a time. The correction's status isn't a finding, so it changes nothing step 8 checks. In fake mode every rule is judged by the scripted reviewer, so each spot check reads "Picked at random"; close calls need real models.
 
 ## Running it in CI
 

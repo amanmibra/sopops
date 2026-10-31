@@ -40,7 +40,8 @@ from .pipeline.rollup import FINDING_STATUSES, NEVER_STATUSES, WARNING_STATUSES
 if TYPE_CHECKING:
     from .store import Store
 
-STATUSES = {"step": ("done", "out_of_order", "skipped", "not_reached", "not_applicable"), "never": NEVER_STATUSES, "warning": WARNING_STATUSES}
+STATUSES = {"step": ("done", "out_of_order", "skipped", "not_reached", "not_applicable"), "option": ("done", "skipped", "not_reached", "not_applicable"),  # order is judged on the step
+            "never": NEVER_STATUSES, "warning": WARNING_STATUSES}
 SOURCES = ("correction", "spot_check")
 SPOT_CHECK_BATCH = 25
 MAX_BATCH = 200

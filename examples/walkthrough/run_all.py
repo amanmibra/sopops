@@ -7,7 +7,7 @@
     WALKTHROUGH_ONBOARD=sop python examples/walkthrough/run_all.py   # onboard from the existing sop project instead
 
 Starts `serve.py --fresh` on WALKTHROUGH_PORT (default 8585), then runs onboard.py, generate.py, backfill.py,
-review.py, replay.py, verify.py and conflicts.py. Exits with the checks' status (verify.py's and conflicts.py's).
+review.py, replay.py, verify.py, conflicts.py and spot_checks.py. Exits with the checks' status (verify.py's and conflicts.py's).
 
 The steps run with sign-in off, because publishing a release asks for a person and they have only a token. With
 `--sign-in` the same database is served again at the end with sign-in on and an account to open it with, so the
@@ -37,6 +37,7 @@ STEPS = [
     ("7. Replay new calls through the SDK", ["replay.py"]),
     ("8. Verify", ["verify.py"]),
     ("9. Two suggestions on one procedure: one merges, one conflicts and is rewritten", ["conflicts.py"]),
+    ("11. A spot-check batch on Fine tune, partly answered", ["spot_checks.py"]),
 ]
 
 

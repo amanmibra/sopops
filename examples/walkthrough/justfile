@@ -80,6 +80,10 @@ verify:
 conflicts:
     {{py}} conflicts.py --models {{models}}
 
+# 11. a spot-check batch on Fine tune, partly answered
+spot-checks:
+    {{py}} spot_checks.py
+
 # 10. publish release 3 and play 60 calls in which its fixes held; a large-party fix left as a draft
 followup:
     {{py}} followup.py
