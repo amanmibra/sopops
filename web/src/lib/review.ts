@@ -71,6 +71,19 @@ export const isFinding = (s: RuleStatus) => FINDING_STATUSES.includes(s);
 /** What "Checker missed this" offers on a passed rule. */
 export const MISSED_STATUSES: Record<RuleKind, RuleStatus[]> = { step: ["skipped", "out_of_order"], option: ["skipped"], never: ["violated"], warning: ["unheeded"] };
 /** A status mid-sentence ("corrected to not reached"). */
+/** What each status means, for the spot-check answers' hover hint. */
+export const STATUS_HELP: Record<RuleStatus, string> = {
+  done: "The agent did the step.",
+  out_of_order: "The agent did the step, but at the wrong point in the call.",
+  skipped: "The step applied and the agent didn't do it.",
+  not_reached: "The call ended before the step came up.",
+  not_applicable: "The step didn't apply to this call.",
+  ok: "The agent didn't break the rule.",
+  violated: "The agent broke the rule.",
+  absent: "The warning sign didn't come up.",
+  present: "The warning sign came up and the agent handled it.",
+  unheeded: "The warning sign came up and the agent didn't do what it says.",
+};
 export const statusPhrase = (s: RuleStatus) => (s === "not_applicable" ? "not applicable" : RULE_STATUS[s].label);
 
 /** The Patterns page's tabs, and the review states each lists. */

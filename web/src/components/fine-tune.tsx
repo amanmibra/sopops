@@ -26,7 +26,7 @@ export function FineTuneView() {
     <Page wide>
       <PageTitle>Fine tune</PageTitle>
       <Sub>
-        Answers you give here train sopops on your calls. Everything on this page is about the checker's calls, not the agent's: those are on Patterns.
+        Was the checker right? Your answers train sopops on your calls. The agent's own mistakes are on Patterns.
       </Sub>
       {loading ? <Skel className="mt-6 h-40" /> : on ? <CheckerSpotChecks /> : <HostedOnly />}
     </Page>
@@ -38,15 +38,13 @@ function CheckerSpotChecks() {
     <>
       <h2 className="mt-6 flex items-center gap-2 text-base font-semibold">
         Checker spot checks
-        <Hint tip={<TipBody head="Keyboard">j / k move between rules · 1 says the checker was right · 2 and up pick what actually happened</TipBody>}>
+        <Hint tip={<TipBody head="Keyboard">j / k move between rules · 1 the checker was right · 2 it was wrong, then pick what actually happened · n add a note</TipBody>}>
           <span className="text-muted-foreground ml-auto hidden items-center gap-1 text-xs font-normal sm:inline-flex">
-            <Keyboard className="size-3.5" /> j k · 1–5
+            <Keyboard className="size-3.5" /> j k · 1 2 · n
           </span>
         </Hint>
       </h2>
-      <p className="text-muted-foreground mt-1 mb-3 text-sm">
-        Was the checker right? Batches of rules it passed, spread across procedures and agents, close calls and decisions the reviewer model changed first. Patterns you marked Checker is wrong on Patterns are listed here too.
-      </p>
+      <p className="text-muted-foreground mt-1 mb-3 text-sm">Rules the checker passed, close calls first. One call's transcript answers all its rules.</p>
       <SpotChecks />
     </>
   );
